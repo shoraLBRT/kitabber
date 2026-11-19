@@ -70,7 +70,7 @@ if (-not $Smoke) {
             if ($m.Groups[2].Success) { $stages += $m.Groups[2].Value }
         }
         foreach ($image in $images.Keys) {
-            $f, $target = $images[$image]
+            $f, $target, $null = $images[$image]
             if ($f -eq $file -and $target) { Assert ($stages -contains $target) "${file}: no build target '$target' for image $image" }
         }
         $context = Join-Path $root ($images.Values | Where-Object { $_[0] -eq $file } | Select-Object -First 1)[2]
@@ -80,7 +80,7 @@ if (-not $Smoke) {
     # 2. The stage compose file runs exactly the published images, and its env template covers it.
     $text = Read-Text 'deploy/compose.stage.yaml'
     $own = @()
-    foreach ($m in [regex]::Matches($text, '(?m)^\s+image: (\S+)\s*$')) {
+    foreach ($m in [regex]::Matches($text, '(?m)^\s+image: (.+?)\s*$')) {
         $image = $m.Groups[1].Value
         if ($image -match '^\$\{IMAGE_REGISTRY:\?[^}]+\}/([a-z-]+):\$\{IMAGE_TAG:\?[^}]+\}$') { $own += $Matches[1] }
         else { Assert ($image -match '@sha256:[0-9a-f]{64}$') "deploy/compose.stage.yaml: image $image is not pinned by digest" }
