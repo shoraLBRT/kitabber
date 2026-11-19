@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import UiAvatar from '../../components/ui/UiAvatar.vue'
 
 describe('UiAvatar', () => {
@@ -27,6 +28,16 @@ describe('UiAvatar', () => {
     expect(wrapper.text()).toBe('АК')
     await wrapper.setProps({ src: '/other.png' })
     expect(wrapper.find('img').exists()).toBe(true)
+  })
+
+  it('falls back to the initials when the picture failed before the page was hydrated', () => {
+    const proto = HTMLImageElement.prototype
+    const complete = vi.spyOn(proto, 'complete', 'get').mockReturnValue(true)
+    const width = vi.spyOn(proto, 'naturalWidth', 'get').mockReturnValue(0)
+    const wrapper = mount(UiAvatar, { props: { name: 'Анна Котова', src: '/missing.png' } })
+    complete.mockRestore()
+    width.mockRestore()
+    return nextTick().then(() => expect(wrapper.text()).toBe('АК'))
   })
 
   it('hides a decorative avatar from screen readers', () => {

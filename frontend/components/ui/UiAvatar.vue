@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Avatar (E02-04, ADR-0013): the picture, or the initials when there is none or it fails to load. Its accessible
 // name is the person's name; next to a visible name pass decorative to hide it from screen readers.
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -14,6 +14,11 @@ const props = withDefaults(
 )
 
 const failed = ref(false)
+const img = ref<HTMLImageElement>()
+// A picture rendered on the server may fail before hydration, when @error is not listened to yet.
+onMounted(() => {
+  if (img.value?.complete && img.value.naturalWidth === 0) failed.value = true
+})
 watch(
   () => props.src,
   () => {
@@ -35,6 +40,7 @@ const initials = computed(() => {
 <template>
   <img
     v-if="src && !failed"
+    ref="img"
     class="ui-avatar"
     :class="`ui-avatar--${size}`"
     :src="src"
