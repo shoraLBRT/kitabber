@@ -29,8 +29,13 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      // iPhone 13 is 390×844 with touch; rendered by Chromium (the only browser installed).
-      use: { ...devices['iPhone 13'], browserName: 'chromium', defaultBrowserType: 'chromium' },
+      // A 390×844 phone with touch (iPhone 13 user agent and pixel ratio), rendered by Chromium, the only browser installed.
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 390, height: 844 },
+        browserName: 'chromium',
+        defaultBrowserType: 'chromium',
+      },
     },
   ],
   webServer: {

@@ -11,7 +11,8 @@ export const test = base.extend<{ page: Page; missingResources: string[] }>({
     page.on('console', (message) => {
       const url = message.location().url
       if (missingResources.some((path) => url.endsWith(path))) return
-      if (message.type() === 'error' || /hydration/i.test(message.text())) errors.push(`console: ${message.text()}`)
+      if (message.type() === 'error' || /hydration/i.test(message.text()))
+        errors.push(`console: ${message.text()}`)
     })
     await use(page)
     expect(errors, 'the page must not log errors').toEqual([])

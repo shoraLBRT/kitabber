@@ -138,7 +138,9 @@ test.describe('каркас сайта', () => {
 
     // Chromium emulates the insets of a notched screen through the DevTools protocol.
     const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, bottom: 34, left: 0, right: 0 } })
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: { top: 47, bottom: 34, left: 0, right: 0 },
+    })
     await expect.poll(async () => (await box(header)).height).toBe(plain.header + 47)
     await expect.poll(async () => (await box(tabBar)).height).toBe(plain.bar + 34)
     const bar = await box(tabBar)
