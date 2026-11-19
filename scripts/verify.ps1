@@ -33,6 +33,8 @@ Step 'markdown links' {
     if ($broken) { throw "broken links:`n$($broken -join "`n")" }
 }
 
+Step 'ui specs' { & (Join-Path $PSScriptRoot 'ui-specs-test.ps1') }
+
 Step 'json files' {
     $files = Get-ChildItem -File -Filter *.json -Force
     $files += Get-ChildItem -File -Filter .*.json -Force
