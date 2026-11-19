@@ -51,7 +51,10 @@ Chainguard из исходников; решение владельца, PR #278
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и
 их адреса — один список `frontend/utils/navigation.ts`, общий для десктопа и телефона; выбор темы —
-`frontend/composables/useTheme.ts`. Каркас телефона (#16) встаёт в слот `mobile` у `ShellLayout`.
+`frontend/composables/useTheme.ts`. Каркас телефона (E02-06) стоит в слоте `mobile` у `ShellLayout`: нижняя панель
+`ShellTabBar` (ниже 925 px) и плавающая «Написать» `ShellWriteButton` (ниже 640 px); экран «Меню» `ShellMenuScreen` —
+страница `frontend/pages/menu.vue`. Высота панели — `--size-tab-bar` с отступами и рамкой; одно и то же выражение
+используют отступ под содержимым, кнопка и тосты.
 
 ## База данных
 
