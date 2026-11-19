@@ -28,7 +28,11 @@
     <Project Path="src/Seeding/Platform.Seeding.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ArchitectureFixtures/Platform.Modules.FixtureFeed/Platform.Modules.FixtureFeed.csproj" />
+    <Project Path="tests/ArchitectureFixtures/Platform.Modules.FixtureNotes.Contracts/Platform.Modules.FixtureNotes.Contracts.csproj" />
+    <Project Path="tests/ArchitectureFixtures/Platform.Modules.FixtureNotes/Platform.Modules.FixtureNotes.csproj" />
     <Project Path="tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Architecture.Tests/Platform.Architecture.Tests.csproj" />
     <Project Path="tests/Platform.Api.Tests/Platform.Api.Tests.csproj" />
     <Project Path="tests/Platform.Configuration.Tests/Platform.Configuration.Tests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
