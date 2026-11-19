@@ -57,6 +57,24 @@ Step 'repository layout' {
     if ($undocumented) { throw "docs/ARCHITECTURE.md does not describe: $($undocumented -join ', ')" }
 }
 
+Step 'dev environment config' { & (Join-Path $PSScriptRoot 'dev-env-test.ps1') }
+
+Step 'dev environment smoke' {
+    # Starts compose.yaml for real. Locally it is skipped when Docker is not running (or VERIFY_SKIP_DOCKER=1);
+    # CI must always run it.
+    $why = $null
+    if ($env:VERIFY_SKIP_DOCKER -eq '1') { $why = 'VERIFY_SKIP_DOCKER=1' }
+    elseif (-not (Get-Command docker -ErrorAction SilentlyContinue)) { $why = 'docker is not installed' }
+    else {
+        & { $ErrorActionPreference = 'Continue'; docker info 2>&1 | Out-Null }
+        if ($LASTEXITCODE) { $why = 'the Docker daemon is not running' }
+        $global:LASTEXITCODE = 0
+    }
+    if ($why -and $env:CI) { throw "CI must run the dev environment smoke test: $why" }
+    if ($why) { Skip-Step $why }
+    & (Join-Path $PSScriptRoot 'dev-env-test.ps1') -Smoke
+}
+
 $solution = Get-ChildItem -Path backend -Filter *.sln* -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($solution) {
     Step 'backend build' { dotnet build $solution.FullName --nologo -v q -warnaserror }

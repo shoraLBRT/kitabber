@@ -9,8 +9,35 @@
 
 ## Состояние
 
-Код ещё не начат: в репозитории лежат требования, решения и порядок работ. Текущее состояние —
-[docs/PROJECT_STATE.md](docs/PROJECT_STATE.md).
+Есть каркас: решение .NET, веб-клиент, админка и окружение для локальной разработки; функций продукта пока
+нет. Текущее состояние — [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md).
+
+## Локальное окружение
+
+Нужен Docker с Compose v2. Три команды поднимают всю инфраструктуру:
+
+```sh
+git clone https://github.com/shoraLBRT/kitabber.git && cd kitabber
+cp .env.example .env
+docker compose up -d --wait
+```
+
+`--wait` возвращает управление, когда у всех сервисов прошёл healthcheck. Порты и пароли — в `.env` (шаблон —
+[.env.example](.env.example)); сервисы слушают только `127.0.0.1`. Адреса при значениях из шаблона:
+
+| Сервис | Адрес |
+| --- | --- |
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+| RabbitMQ | AMQP `localhost:5672`, панель http://localhost:15672 |
+| OpenSearch | http://localhost:9200 (локально без TLS и пароля) |
+| MinIO | S3 API http://localhost:9000, консоль http://localhost:9001 |
+| imgproxy | http://localhost:8081 (берёт исходники из MinIO) |
+| Mailpit | SMTP `localhost:1025`, письма — http://localhost:8025 |
+| ClickHouse | HTTP http://localhost:8123, native `localhost:19000` |
+
+Если порт занят, поменяйте его в `.env`. Остановить — `docker compose down`, стереть данные —
+`docker compose down -v`. Все внешние сервисы локально — фейки: почта уходит в Mailpit, файлы — в MinIO.
 
 ## Документы
 

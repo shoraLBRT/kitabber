@@ -10,12 +10,22 @@ function Step($name, [scriptblock]$body) {
         & $body
         if ($LASTEXITCODE) { throw "exit code $LASTEXITCODE" }
     }
+    catch [System.OperationCanceledException] {
+        Write-Host "SKIPPED: $name - $($_.Exception.Message)"
+        $status = 'skipped'
+    }
     catch {
         Write-Host "FAILED: $name - $_"
         $status = 'failed'
     }
     $global:LASTEXITCODE = 0
     $script:VerifyResults.Add([pscustomobject]@{ Name = $name; Status = $status; Seconds = [math]::Round($watch.Elapsed.TotalSeconds, 1) })
+}
+
+# Ends the current step as skipped: shown in the summary, does not fail verify. Only for a check that cannot run
+# on this machine; a check that CI must run refuses to skip there itself.
+function Skip-Step([string]$Reason) {
+    throw [System.OperationCanceledException]::new($Reason)
 }
 
 # Test reports: TRX (dotnet test --logger trx) and JUnit XML (Vitest, Playwright) under $Directory.
@@ -39,9 +49,9 @@ function Get-TestReports([string]$Directory) {
 }
 
 function Format-VerifySummary([string]$ReportsDirectory) {
-    $failed = @($script:VerifyResults | Where-Object Status -ne 'ok')
+    $failed = @($script:VerifyResults | Where-Object Status -eq 'failed')
     $lines = @("## verify: $(if ($failed) { 'FAILED' } else { 'OK' })", '', '| Step | Result | Seconds |', '| --- | --- | --- |')
-    $lines += $script:VerifyResults | ForEach-Object { "| $($_.Name) | $(if ($_.Status -eq 'ok') { 'ok' } else { '**failed**' }) | $($_.Seconds) |" }
+    $lines += $script:VerifyResults | ForEach-Object { "| $($_.Name) | $(if ($_.Status -eq 'failed') { '**failed**' } else { $_.Status }) | $($_.Seconds) |" }
     $lines += '', '### Tests', ''
     $reports = @(Get-TestReports $ReportsDirectory)
     if ($reports) {
@@ -57,7 +67,9 @@ function Complete-Verify([string]$ReportsDirectory) {
     if ($env:GITHUB_STEP_SUMMARY) {
         Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value (Format-VerifySummary $ReportsDirectory)
     }
-    $failed = @($script:VerifyResults | Where-Object Status -ne 'ok' | ForEach-Object Name)
+    $skipped = @($script:VerifyResults | Where-Object Status -eq 'skipped' | ForEach-Object Name)
+    if ($skipped) { Write-Host "`nverify: skipped ($($skipped -join '; '))" }
+    $failed = @($script:VerifyResults | Where-Object Status -eq 'failed' | ForEach-Object Name)
     if ($failed) {
         Write-Host "`nverify: FAILED ($($failed -join '; '))"
         return 1
