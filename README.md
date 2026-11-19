@@ -39,6 +39,9 @@ docker compose up -d --wait
 Если порт занят, поменяйте его в `.env`. Остановить — `docker compose down`, стереть данные —
 `docker compose down -v`. Все внешние сервисы локально — фейки: почта уходит в Mailpit, файлы — в MinIO.
 
+Схемы базы создаёт мигратор: `dotnet run --project backend/src/Migrator` (подробнее — в
+[ARCHITECTURE.md](docs/ARCHITECTURE.md#база-данных)).
+
 ## Документы
 
 | Документ | О чём |
