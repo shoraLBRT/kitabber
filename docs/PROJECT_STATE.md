@@ -94,8 +94,8 @@
 
 | Набор | Число тестов |
 | --- | --- |
-| Сервер, модульные | 11 (`Platform.Api.Tests`: курсорная пагинация) |
-| Сервер, интеграционные | 48 (`Platform.Api.Tests`: 20 в процессе, без Docker; `Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
+| Сервер, модульные | 23 (`Platform.Api.Tests`: 11, курсорная пагинация; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов) |
+| Сервер, интеграционные | 55 (`Platform.Api.Tests`: 20 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 
