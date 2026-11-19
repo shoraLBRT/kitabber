@@ -16,6 +16,9 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'ru' },
       title: brand.name,
+      // viewport-fit=cover lets the phone shell lay out under the notch and keep clear of it through the safe-area
+      // insets (E02-06).
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
       meta: [{ name: 'description', content: brand.tagline }],
       link: [{ rel: 'icon', type: 'image/svg+xml', href: faviconHref() }],
     },

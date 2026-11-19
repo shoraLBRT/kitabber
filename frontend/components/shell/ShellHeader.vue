@@ -2,9 +2,10 @@
 // Header of the desktop shell (E02-05, docs/spec.md section 5, docs/ui/README.md): logo, search, "Написать",
 // the bell and the avatar menu, or "Войти" for a guest. Search (FR-SEARCH, #85) and the bell's drop-down panel
 // (docs/ui/notifications.md) come later: for now search only emits an event and the bell leads to the full page.
-import { Bell, FileText, Bookmark, LogOut, PenLine, Search, Settings, User } from 'lucide-vue-next'
+import { Bell, LogOut, PenLine, Search } from 'lucide-vue-next'
 import { computed } from 'vue'
 import type { MenuItem } from '../../types/ui'
+import { accountNav, loginPath, notificationsPath, writePath } from '../../utils/navigation'
 import BrandLogo from '../BrandLogo.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiMenu from '../ui/UiMenu.vue'
@@ -20,10 +21,7 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
 // "Коллекция" has no FR yet and donations never appear (docs/ui/README.md); the theme switch lives in the left
 // menu, so this menu does not repeat it.
 const accountItems: MenuItem[] = [
-  { id: 'profile', label: 'Профиль', icon: User },
-  { id: 'drafts', label: 'Черновики', icon: FileText },
-  { id: 'bookmarks', label: 'Закладки', icon: Bookmark },
-  { id: 'settings', label: 'Настройки', icon: Settings },
+  ...accountNav.map(({ id, label, icon }) => ({ id, label, icon })),
   { id: 'logout', label: 'Выйти', icon: LogOut, danger: true },
 ]
 const accountLabel = computed(() => (props.user ? `Меню профиля: ${props.user.name}` : ''))
@@ -42,12 +40,12 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
         <Search class="shell-header__icon" aria-hidden="true" />
       </button>
       <div class="shell-header__actions">
-        <NuxtLink to="/write" class="shell-header__write" data-nav="write">
+        <NuxtLink :to="writePath" class="shell-header__write" data-nav="write">
           <PenLine class="shell-header__icon" aria-hidden="true" />
           Написать
         </NuxtLink>
         <template v-if="user">
-          <NuxtLink to="/notifications" class="shell-header__icon-button" aria-label="Уведомления">
+          <NuxtLink :to="notificationsPath" class="shell-header__icon-button" aria-label="Уведомления">
             <Bell class="shell-header__icon" aria-hidden="true" />
           </NuxtLink>
           <UiMenu :items="accountItems" :label="accountLabel" align="end" @select="emit('account', $event)">
@@ -56,7 +54,7 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
             </template>
           </UiMenu>
         </template>
-        <NuxtLink v-else to="/login" class="shell-header__login" data-nav="login">Войти</NuxtLink>
+        <NuxtLink v-else :to="loginPath" class="shell-header__login" data-nav="login">Войти</NuxtLink>
       </div>
     </div>
   </header>
@@ -67,7 +65,10 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
   position: sticky;
   top: 0;
   z-index: 10;
-  height: var(--space-16);
+  /* The notch: with viewport-fit=cover the header grows by the top safe area (E02-06). */
+  height: calc(var(--space-16) + env(safe-area-inset-top));
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
   border-bottom: var(--size-border) solid var(--color-border);
   background: var(--color-surface);
 }
@@ -157,7 +158,7 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
    move to the floating button, the bottom bar and the "Меню" screen of the phone shell (#16). */
 @media (max-width: 639px) {
   .shell-header__inner {
-    padding: 0 var(--space-4);
+    padding: 0 calc(var(--space-4) + env(safe-area-inset-right)) 0 calc(var(--space-4) + env(safe-area-inset-left));
   }
 
   .shell-header__search {

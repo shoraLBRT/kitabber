@@ -50,17 +50,17 @@ describe('ShellLayout', () => {
     expect(document.getElementById('content')).toBe(w.get('main').element)
   })
 
-  it('keeps the keyboard order of the visual order: header, menu, content, right column', () => {
+  it('keeps the keyboard order of the visual order: header, menu, content, floating button, bottom bar', () => {
     const w = mountShell({}, { default: '<button>В ленте</button>' })
     const order = [...w.element.querySelectorAll('a, button, input')].map((el) =>
       el.closest('header') ? 'header' : el.closest('nav') ? 'nav' : el.closest('main') ? 'main' : 'other',
     )
     const collapsed = order.filter((v, i) => v !== order[i - 1])
-    expect(collapsed).toEqual(['other', 'header', 'nav', 'main'])
+    expect(collapsed).toEqual(['other', 'header', 'nav', 'main', 'other', 'nav'])
   })
 
   it('shows the menu items of the spec, without collections or monetization', () => {
-    const nav = mountShell().get('nav')
+    const nav = mountShell().get('[data-testid="shell-nav"]')
     const text = nav.text()
     for (const label of ['Популярное', 'Свежее', 'Моя лента', 'Сообщения', 'Рейтинг', 'Темы', 'Показать все'])
       expect(text).toContain(label)
@@ -79,7 +79,7 @@ describe('ShellLayout', () => {
     ['/rules', 'rules'],
   ])('marks the current screen at %s', (path, id) => {
     const w = mountShell({ currentPath: path })
-    const current = w.findAll('nav [aria-current="page"]')
+    const current = w.findAll('[data-testid="shell-nav"] [aria-current="page"]')
     expect(current).toHaveLength(1)
     expect(current[0]!.attributes('data-nav')).toBe(id)
   })
@@ -90,13 +90,13 @@ describe('ShellLayout', () => {
 
   it('lists the reader topics when there are any', () => {
     const w = mountShell({ topics: [{ id: 'books', label: 'Книги', to: '/books' }], currentPath: '/books' })
-    const current = w.get('nav [aria-current="page"]')
+    const current = w.get('[data-testid="shell-nav"] [aria-current="page"]')
     expect(current.text()).toBe('Книги')
   })
 
   it('links every main menu item to its own address', () => {
     const hrefs = mountShell()
-      .findAll('nav [data-nav]')
+      .findAll('[data-testid="shell-nav"] [data-nav]')
       .map((a) => a.attributes('href'))
     for (const item of mainNav) expect(hrefs).toContain(item.to)
     expect(new Set(hrefs).size).toBe(hrefs.length)
@@ -111,9 +111,10 @@ describe('ShellLayout', () => {
     expect(custom.get('[data-column="aside"]').text()).toBe('Свой виджет')
   })
 
-  it('leaves a slot for the phone shell (#16)', () => {
-    const w = mountShell({}, { mobile: '<nav aria-label="Нижняя панель">…</nav>' })
-    expect(w.find('nav[aria-label="Нижняя панель"]').exists()).toBe(true)
+  it('lets a page replace the phone shell in the mobile slot', () => {
+    const w = mountShell({}, { mobile: '<p data-testid="own-bar">Своя панель</p>' })
+    expect(w.find('[data-testid="own-bar"]').exists()).toBe(true)
+    expect(w.find('[data-testid="tab-bar"]').exists()).toBe(false)
   })
 
   it('passes header events up', async () => {
