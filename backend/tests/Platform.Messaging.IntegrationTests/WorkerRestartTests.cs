@@ -1,7 +1,7 @@
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Platform.Messaging.IntegrationTests.Containers;
+using Platform.Testing.Containers;
 using Platform.Messaging.IntegrationTests.SampleModule;
 using static Platform.Messaging.IntegrationTests.TestHosts;
 

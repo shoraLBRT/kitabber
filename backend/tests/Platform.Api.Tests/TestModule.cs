@@ -1,16 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Platform.Http;
 using Platform.Http.Pagination;
 using Platform.Http.Problems;
+using Platform.Testing.Api;
 
 namespace Platform.Api.Tests;
 
@@ -29,8 +25,7 @@ internal sealed class TestModule : IApiEndpoints
         // Each module calls AddValidation itself: the source generator registers the validators of its own assembly.
         services.AddValidation();
         services.AddApiEndpoints<TestModule>();
-        services.AddAuthentication(TestAuthHandler.SchemeName)
-            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null);
+        services.AddTestAuthentication();
         services.AddAuthorizationBuilder().AddPolicy(AdminPolicy, policy => policy.RequireRole("admin"));
     }
 
@@ -66,22 +61,3 @@ internal sealed record TestItemCursor(DateTimeOffset CreatedAt, int Id);
 
 public sealed record CreateItem([Required, StringLength(10)] string Name);
 
-/// <summary>Authenticates a request that carries <c>X-Test-Role</c>, with that role.</summary>
-internal sealed class TestAuthHandler(
-    IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
-    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    public const string SchemeName = "Test";
-    public const string RoleHeader = "X-Test-Role";
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        if (!Request.Headers.TryGetValue(RoleHeader, out var role))
-        {
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
-
-        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, "tester"), new Claim(ClaimTypes.Role, role.ToString())], SchemeName);
-        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
-    }
-}

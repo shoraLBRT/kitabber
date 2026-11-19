@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Platform.Testing.Api;
 
 namespace Platform.Api.Tests;
 
@@ -90,7 +91,7 @@ public sealed class ProblemDetailsTests : IClassFixture<ProblemDetailsTests.Host
     public async Task RequestWithTheRightRoleSucceeds()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/test/admin");
-        request.Headers.Add(TestAuthHandler.RoleHeader, "admin");
+        request.As("tester", "admin");
         using var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -108,7 +109,7 @@ public sealed class ProblemDetailsTests : IClassFixture<ProblemDetailsTests.Host
 
         if (role is not null)
         {
-            request.Headers.Add(TestAuthHandler.RoleHeader, role);
+            request.As("tester", role);
         }
 
         using var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -126,7 +127,7 @@ public sealed class ProblemDetailsTests : IClassFixture<ProblemDetailsTests.Host
 
     public sealed class Host : IDisposable
     {
-        private readonly ApiTestFactory _factory = new(TestModule.Register);
+        private readonly PlatformApiFactory _factory = new PlatformApiFactory().WithModule(TestModule.Register);
 
         public HttpClient CreateClient() => _factory.CreateClient();
 

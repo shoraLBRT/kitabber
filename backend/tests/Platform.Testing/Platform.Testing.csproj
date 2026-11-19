@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The shared backend test framework (ADR-0008): containers from compose.yaml images, the API in process,
+         database reset with Respawn, a fake clock and test authentication. A library, not a test project. -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Testing</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>false</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+        <PackageReference Include="Respawn" />
+        <PackageReference Include="Testcontainers.PostgreSql" />
+        <PackageReference Include="Testcontainers.RabbitMq" />
+        <PackageReference Include="Testcontainers.Redis" />
+        <PackageReference Include="xunit.v3.assert" />
+        <PackageReference Include="xunit.v3.extensibility.core" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
+        <ProjectReference Include="../../src/Caching/Platform.Caching.csproj" />
+        <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
+    </ItemGroup>
+
+</Project>

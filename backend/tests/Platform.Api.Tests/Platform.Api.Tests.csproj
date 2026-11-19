@@ -5,7 +5,7 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <RootNamespace>Platform.Api.Tests</RootNamespace>
-        <!-- Run through VSTest, like the other test projects: verify.ps1 uses the TRX logger. -->
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
         <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
     </PropertyGroup>
 
@@ -14,7 +14,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
         <PackageReference Include="xunit.v3" />
@@ -27,6 +26,7 @@
     <ItemGroup>
         <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
         <ProjectReference Include="../../src/Http/Platform.Http.csproj" />
+        <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 
 </Project>

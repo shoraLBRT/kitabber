@@ -5,15 +5,12 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <RootNamespace>Platform.Messaging.IntegrationTests</RootNamespace>
-        <!-- Run through VSTest, like Platform.Persistence.IntegrationTests: verify.ps1 uses the TRX logger. -->
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
         <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
-        <PackageReference Include="Testcontainers.RabbitMq" />
-        <PackageReference Include="Testcontainers.Redis" />
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
         <PackageReference Include="xunit.v3" />
     </ItemGroup>
@@ -27,6 +24,7 @@
         <ProjectReference Include="../../src/Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
         <ProjectReference Include="../../src/Workers/Platform.Workers.csproj" />
+        <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 
 </Project>

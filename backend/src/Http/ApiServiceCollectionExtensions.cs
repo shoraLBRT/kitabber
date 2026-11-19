@@ -12,11 +12,13 @@ public static class ApiServiceCollectionExtensions
     public const string DocumentTitle = "Platform API";
 
     /// <summary>
-    /// Problem details with a code for every error, request validation from data annotations, and one OpenAPI
-    /// document per version.
+    /// Problem details with a code for every error, request validation from data annotations, one OpenAPI
+    /// document per version, and the system <see cref="TimeProvider"/>.
     /// </summary>
     public static IServiceCollection AddPlatformApi(this IServiceCollection services)
     {
+        // Code takes the time from TimeProvider only, so tests can replace the clock (ADR-0008).
+        services.TryAddSingleton(TimeProvider.System);
         services.AddProblemDetails(options => options.CustomizeProblemDetails = ProblemDetailsConventions.Apply);
         services.AddExceptionHandler<ApiExceptionHandler>();
         services.AddValidation();
