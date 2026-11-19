@@ -4,6 +4,7 @@
       <NuxtLink to="/" class="app-header__home"><BrandLogo /></NuxtLink>
     </header>
     <NuxtPage />
+    <UiToaster />
   </div>
 </template>
 

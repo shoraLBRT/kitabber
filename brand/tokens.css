@@ -62,6 +62,8 @@
   --color-danger: #B42318;
   --color-success: #1F7A3D;
   --color-warning: #8A5300;
+  --color-overlay: #1C1E2199;
+  --color-shadow: #1C1E2129;
 }
 
 [data-theme='dark'] {
@@ -80,6 +82,8 @@
   --color-danger: #FF8A80;
   --color-success: #6FD08C;
   --color-warning: #E8B44C;
+  --color-overlay: #000000B3;
+  --color-shadow: #00000080;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -99,5 +103,7 @@
     --color-danger: #FF8A80;
     --color-success: #6FD08C;
     --color-warning: #E8B44C;
+    --color-overlay: #000000B3;
+    --color-shadow: #00000080;
   }
 }
