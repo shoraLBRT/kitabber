@@ -24,6 +24,7 @@ backend/                   решение .NET (Platform.slnx)
   tools/Seed/              Platform.Seed — команда демо-данных: dotnet run --project backend/tools/Seed (ADR-0009)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
+brand/                     временный бренд: название, знак, палитра, набор иконок — brand.json (ADR-0011)
 tools/                     инструменты не на .NET: генерация клиента API, фейковые сервисы (появится в своих задачах)
 deploy/                    compose-файл стенда stage и шаблон его значений; выкладка — docs/DEPLOY.md
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
@@ -118,7 +119,9 @@ builder.ConfigurePlatform(Settings);   // нет настройки → InvalidC
 ## Имена в коде
 
 Название продукта временное и задаётся в одном месте, поэтому в именах сборок, пространств имён и пакетов его
-нет: сборки называются `Platform.*`, пакеты — `platform-frontend` и `platform-admin`. Модули получат имена
+нет: сборки называются `Platform.*`, пакеты — `platform-frontend` и `platform-admin`. В интерфейсе название,
+знак и палитру берут из `brand/brand.json` (ADR-0011); тест `frontend/tests/brand.spec.ts` запрещает писать
+название где-либо ещё в `frontend/` и `admin/`. Модули получат имена
 вида `Platform.Modules.<Модуль>` и `Platform.Modules.<Модуль>.Contracts`.
 
 ## Инструменты

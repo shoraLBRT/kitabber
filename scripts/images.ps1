@@ -36,6 +36,8 @@ foreach ($name in $images.Keys) {
     Write-Host "== image $name ($($refs -join ', '))"
     $buildArgs = @('build', '--quiet', '-f', (Join-Path $root $file)) + $labels
     if ($target) { $buildArgs += '--target', $target }
+    # The web apps read brand/ (ADR-0011), which lies outside their context.
+    $buildArgs += '--build-context', "brand=$(Join-Path $root 'brand')"
     foreach ($ref in $refs) { $buildArgs += '-t', $ref }
     $buildArgs += (Join-Path $root $context)
     docker @buildArgs | Out-Null
