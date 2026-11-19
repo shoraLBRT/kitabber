@@ -72,6 +72,12 @@ describe('brand', () => {
     expect(offenders).toEqual([])
   })
 
+  it('keeps the two BrandLogo copies identical apart from the path to brand.json', () => {
+    const read = (path: string) =>
+      readFileSync(join(root, path), 'utf8').replace(/(\.\.\/)+brand\/brand\.json/, 'brand.json')
+    expect(read('admin/src/components/BrandLogo.vue')).toBe(read('frontend/components/BrandLogo.vue'))
+  })
+
   it('keeps every graphic in brand.json or the icon set: the apps hold no image files', () => {
     const images = files.filter((f) =>
       ['.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico'].includes(extname(f)),

@@ -142,7 +142,7 @@
 | --- | --- |
 | Сервер, модульные | 30 (`Platform.Api.Tests`: 13 — курсорная пагинация и часы; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов; `Platform.Seeding.Tests`: 5, зерно, идентификаторы и фабрики) |
 | Сервер, интеграционные | 80 (`Platform.Api.Tests`: 22 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 7 на PostgreSQL (миграции, сброс Respawn), 7 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker; `Platform.Seeding.Tests`: 5, команда сидера без базы (окружения, настройки); `Platform.Api.IntegrationTests`: 15, API на PostgreSQL и Redis и сидер на PostgreSQL) |
-| Клиент, компонентные | 14 (`frontend`: 11 — бренд в одном месте, нет картинок, иконки и лицензия, контраст WCAG AA, отличие от цветов DTF, `BrandLogo`; `admin`: 3 — `BrandLogo`, лицензия иконок) |
+| Клиент, компонентные | 15 (`frontend`: 12 — бренд в одном месте, копии `BrandLogo` совпадают, нет картинок, иконки и лицензия, контраст WCAG AA, отличие от цветов DTF, `BrandLogo`; `admin`: 3 — `BrandLogo`, лицензия иконок) |
 | Сквозные (в каждом из двух профилей) | 0 |
 
 Число не должно уменьшаться; уменьшение объясняется в PR.
