@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import brand from '../../brand/brand.json'
 import { faviconHref } from '../../brand/favicon'
+import '../../brand/tokens.css'
 import App from './App.vue'
 
 // The product name and the favicon come from brand/ (ADR-0011), not from index.html.

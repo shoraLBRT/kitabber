@@ -18,13 +18,7 @@ useHead({ title: `Бренд — ${brand.name}` })
 
 <template>
   <main class="showcase">
-    <section
-      v-for="theme in themes"
-      :key="theme"
-      class="showcase__theme"
-      :data-theme="theme"
-      :style="{ background: brand.palette[theme].background, color: brand.palette[theme].text }"
-    >
+    <section v-for="theme in themes" :key="theme" class="showcase__theme" :data-theme="theme">
       <h2>{{ theme === 'light' ? 'Светлая тема' : 'Тёмная тема' }}</h2>
       <BrandLogo :theme="theme" />
       <ul class="showcase__swatches">
@@ -33,7 +27,7 @@ useHead({ title: `Бренд — ${brand.name}` })
           <code>{{ role }} {{ hex }}</code>
         </li>
       </ul>
-      <ul class="showcase__icons" :style="{ color: brand.palette[theme].accent }">
+      <ul class="showcase__icons">
         <li v-for="(icon, label) in icons" :key="label" :title="label">
           <component :is="icon" :aria-label="label" />
         </li>
@@ -46,30 +40,36 @@ useHead({ title: `Бренд — ${brand.name}` })
 <style scoped>
 .showcase {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: var(--space-4);
+  padding: var(--space-4);
 }
 
 .showcase__theme {
-  padding: 1rem;
-  border-radius: 0.75rem;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.showcase__icons {
+  color: var(--color-accent);
 }
 
 .showcase__swatches,
 .showcase__icons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: 0;
   list-style: none;
 }
 
 .showcase__swatch {
   display: inline-block;
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0.25rem;
-  border: 1px solid currentColor;
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  margin-right: var(--space-1);
+  border: var(--size-border) solid currentColor;
   vertical-align: middle;
 }
 </style>
