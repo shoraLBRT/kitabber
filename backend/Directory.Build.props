@@ -10,5 +10,8 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <AnalysisLevel>latest-recommended</AnalysisLevel>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <!-- Request validation of minimal API endpoints is generated per assembly; the generator intercepts
+             each AddValidation call (ADR-0006). -->
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.Extensions.Validation.Generated</InterceptorsNamespaces>
     </PropertyGroup>
 </Project>
