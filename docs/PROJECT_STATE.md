@@ -1,6 +1,6 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-06).
+Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-07).
 
 ## Текущая веха
 
@@ -8,7 +8,7 @@
 
 ## Следующая задача
 
-\#6 «E01-07 Каркас API: версии, формат ошибок, курсорная пагинация, OpenAPI». Дальше — по [ROADMAP.md](ROADMAP.md).
+\#7 «E01-13 Конфигурация окружений и секреты». Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -20,6 +20,8 @@
   задаче E01-05).
   [ADR-0005](adr/0005-messaging-and-cache.md) (MassTransit 8 на RabbitMQ, outbox в схеме модуля, Redis, принято в
   задаче E01-06).
+  [ADR-0006](adr/0006-rest-api-conventions.md) (REST: `/api/v1`, ProblemDetails с кодом, курсорная пагинация, снимок
+  OpenAPI, принято в задаче E01-07).
 - Бэклог в GitHub Issues: 255 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
@@ -61,14 +63,25 @@
   транспорт и кэш в памяти работают без Docker. Правила — [ADR-0005](adr/0005-messaging-and-cache.md). Ограничение:
   bus outbox — один на хост; несколько публикующих модулей в одном хосте — задача #281.
 
+- Каркас API (E01-07): `Platform.Http` — версия в пути `/api/v1` (модуль реализует `IApiEndpoints` и
+  регистрируется `AddApiEndpoints<T>()`), все ошибки — RFC 9457 problem details с полями `code` и `traceId`
+  (`ApiProblems`, `ApiProblemException`, коды `ApiErrorCodes`; 401/403/404/405, ошибки валидации и чтения тела,
+  непредвиденные исключения без их текста), валидация DataAnnotations встроенным генератором .NET 10 (каждый модуль
+  вызывает `AddValidation()`, типы запроса публичные), курсорная пагинация `PageQuery` → `PageRequest<TCursor>` →
+  `CursorPage<T>` (`limit` 1–100, по умолчанию 20; курсор — base64url JSON ключа сортировки). OpenAPI `v1`
+  отдаётся по `/openapi/v1.json`, пишется при сборке и сравнивается со снимком `backend/src/Api/openapi/v1.json`
+  (обновление — `UPDATE_OPENAPI_SNAPSHOT=1`). Тесты `backend/tests/Platform.Api.Tests` (хост в процессе, без
+  Docker): формат ошибок, права доступа на тестовой схеме аутентификации, обход курсоров, снимок. Правила —
+  [ADR-0006](adr/0006-rest-api-conventions.md). Эндпоинтов продукта пока нет, поэтому снимок пуст (`paths: {}`).
+
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
 ## Базовая линия тестов
 
 | Набор | Число тестов |
 | --- | --- |
-| Сервер, модульные | 0 |
-| Сервер, интеграционные | 28 (`Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
+| Сервер, модульные | 11 (`Platform.Api.Tests`: курсорная пагинация) |
+| Сервер, интеграционные | 48 (`Platform.Api.Tests`: 20 в процессе, без Docker; `Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 

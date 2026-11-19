@@ -2,6 +2,20 @@
 
     <PropertyGroup>
         <RootNamespace>Platform.Api</RootNamespace>
+        <!-- The OpenAPI document is written on every build into obj/openapi; the test
+             Platform.Api.Tests compares it with the committed snapshot openapi/v1.json (ADR-0006). -->
+        <OpenApiDocumentsDirectory>$(BaseIntermediateOutputPath)openapi</OpenApiDocumentsDirectory>
     </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Http/Platform.Http.csproj" />
+    </ItemGroup>
 
 </Project>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>Platform.Api.Tests</RootNamespace>
+        <!-- Run through VSTest, like the other test projects: verify.ps1 uses the TRX logger. -->
+        <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+        <PackageReference Include="xunit.v3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
+        <ProjectReference Include="../../src/Http/Platform.Http.csproj" />
+    </ItemGroup>
+
+</Project>

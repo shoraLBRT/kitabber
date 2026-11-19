@@ -19,7 +19,7 @@ Step 'markdown links' {
     $files = Get-ChildItem -Recurse -File -Filter *.md |
         Where-Object { $_.FullName -notmatch '[\\/](node_modules|bin|obj|\.git|\.nuxt|\.output)[\\/]' -and $_.Name -ne 'CHANGELOG.md' }
     foreach ($file in $files) {
-        $text = Get-Content -Raw -Encoding utf8 $file.FullName
+        $text = Get-Content -Raw -Encoding utf8 -LiteralPath $file.FullName
         foreach ($m in [regex]::Matches($text, '\]\(([^)\s]+)\)')) {
             $target = $m.Groups[1].Value
             if ($target -match '^(https?:|mailto:|#)') { continue }
@@ -37,7 +37,7 @@ Step 'json files' {
     $files = Get-ChildItem -File -Filter *.json -Force
     $files += Get-ChildItem -File -Filter .*.json -Force
     foreach ($file in ($files | Sort-Object FullName -Unique)) {
-        try { Get-Content -Raw $file.FullName | ConvertFrom-Json | Out-Null }
+        try { Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json | Out-Null }
         catch { throw "$($file.Name): $_" }
     }
 }

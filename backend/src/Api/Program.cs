@@ -1,7 +1,15 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
+using Platform.Http;
 
-// Placeholder endpoint for the empty skeleton; the API framework arrives with E01-07.
-app.MapGet("/health", () => Results.Ok());
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddPlatformApi();
+
+var app = builder.Build();
+app.UsePlatformApi();
+
+// Liveness probe for compose and orchestration; outside the versioned API.
+app.MapGet("/health", () => Results.Ok()).ExcludeFromApi();
 
 app.Run();
+
+/// <summary>The entry point, visible to the in-process API tests (WebApplicationFactory).</summary>
+public partial class Program;

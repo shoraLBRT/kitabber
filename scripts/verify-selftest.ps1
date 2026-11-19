@@ -25,6 +25,8 @@ try {
   <ResultSummary outcome="Failed"><Counters total="3" executed="3" passed="2" failed="1" error="0" notExecuted="0" /></ResultSummary>
 </TestRun>
 '@
+    # dotnet test names a colliding report run[1].trx: the brackets must not be read as a wildcard.
+    Copy-Item -LiteralPath (Join-Path $reports 'backend/sample.trx') -Destination (Join-Path $reports 'backend/sample[1].trx')
     Set-Content -Encoding utf8 (Join-Path $reports 'frontend/junit.xml') @'
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites><testsuite name="a" tests="4" failures="0" errors="0" skipped="1" /></testsuites>
@@ -62,6 +64,7 @@ exit (Complete-Verify '$reports')
             Assert ($text.Contains('| skipped step | skipped |')) 'harness: a skipped step must show as skipped and not fail the run'
         }
         Assert ($text.Contains('| backend/sample.trx | 3 | 2 | 1 | 0 |')) 'harness: TRX report must reach the summary'
+        Assert ($text.Contains('| backend/sample[1].trx | 3 | 2 | 1 | 0 |')) 'harness: a report named with brackets must reach the summary'
         Assert ($text.Contains('| frontend/junit.xml | 4 | 3 | 0 | 1 |')) 'harness: JUnit report must reach the summary'
     }
     $global:LASTEXITCODE = 0

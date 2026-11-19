@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- REST conventions shared by the Api host and the modules: versions, problem details,
+         cursor pagination, OpenAPI (ADR-0006). -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Http</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    </ItemGroup>
+
+</Project>
