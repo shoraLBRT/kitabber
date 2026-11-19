@@ -33,7 +33,7 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
   <header class="shell-header" data-testid="shell-header">
     <div class="shell-header__inner">
       <NuxtLink to="/" class="shell-header__home" aria-label="На главную"><BrandLogo /></NuxtLink>
-      <button type="button" class="shell-header__icon-button" aria-label="Поиск" @click="emit('search')">
+      <button type="button" class="shell-header__icon-button shell-header__search" aria-label="Поиск" @click="emit('search')">
         <Search class="shell-header__icon" aria-hidden="true" />
       </button>
       <div class="shell-header__actions">
@@ -146,5 +146,21 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
 .shell-header__login:hover {
   background: var(--color-surface-subtle);
   color: var(--color-text);
+}
+
+/* Phone header (docs/ui/README.md, 390 px): logo and search only; "Написать", the bell, the avatar and "Войти"
+   move to the floating button, the bottom bar and the "Меню" screen of the phone shell (#16). */
+@media (max-width: 639px) {
+  .shell-header__inner {
+    padding: 0 var(--space-4);
+  }
+
+  .shell-header__search {
+    margin-left: auto;
+  }
+
+  .shell-header__actions {
+    display: none;
+  }
 }
 </style>

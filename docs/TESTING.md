@@ -93,7 +93,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 | Интеграционные | xUnit, `WebApplicationFactory`, Testcontainers | API модуля на настоящих PostgreSQL, Redis, RabbitMQ | `backend/tests/*.IntegrationTests` |
 | Архитектурные | NetArchTest | Границы модулей, запреты из ADR | `backend/tests/Architecture.Tests` |
 | Контракт API | Снимок OpenAPI (ADR-0006) | Любое изменение API видно в диффе снимка `backend/src/Api/openapi/v1.json` | `backend/tests/Platform.Api.Tests` (`OpenApiSnapshotTests`) |
-| Компонентные | Vitest, Vue Test Utils | Компоненты и блоки редактора: поведение, клавиатура, ARIA, фокус; у каждого компонента `components/ui/` свой тест и раздел витрины `/ui` (проверяет `tests/ui/showcase.spec.ts`, ADR-0013) | `frontend/tests/**/*.spec.ts`, `admin/tests/**/*.spec.ts` (`pnpm test`) |
+| Компонентные | Vitest, Vue Test Utils | Компоненты и блоки редактора: поведение, клавиатура, ARIA, фокус; у каждого компонента `components/ui/` свой тест и раздел витрины `/ui` (проверяет `tests/ui/showcase.spec.ts`, ADR-0013); каркас сайта — `tests/shell/`: ширины и скрытие колонок проверяются по контракту стилей (happy-dom не раскладывает страницу), настоящую раскладку на 1440 px и 925–1239 px проверит Playwright (#17) | `frontend/tests/**/*.spec.ts`, `admin/tests/**/*.spec.ts` (`pnpm test`) |
 | Стили | stylelint (ADR-0012) | Цвета и размеры в компонентах только из дизайн-токенов | `stylelint.config.mjs` клиентов, правила `brand/stylelint-rules.mjs` (`pnpm run lint`) |
 | Сквозные | Playwright | Сценарии пользователя в браузере | `frontend/e2e` |
 
