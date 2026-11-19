@@ -8,8 +8,7 @@
 
 ## Следующая задача
 
-\#1 «E01-01 Монорепозиторий: структура проектов, линтеры, форматирование». Дальше — по
-[ROADMAP.md](ROADMAP.md).
+\#2 «E01-02 CI: сборка, тесты и линтеры на каждый PR». Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -21,7 +20,13 @@
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
 
-Кода продукта пока нет: каталоги `backend/`, `frontend/`, `admin/` создаёт задача E01-01.
+- Каркас монорепозитория (E01-01): решение .NET `backend/Platform.slnx` (хосты `Api` и `Workers`, net10.0),
+  веб-клиент на Nuxt 3 в `frontend/`, админка на Vue 3 + Vite в `admin/`; общие `.editorconfig`,
+  `.prettierrc.json`, `global.json`. Структура и линтеры описаны в [ARCHITECTURE.md](ARCHITECTURE.md).
+- `scripts/verify.ps1` проверяет структуру репозитория, сборку и `dotnet format` бэкенда, ESLint, Prettier,
+  проверку типов и `pnpm build` обоих клиентов. CI ставит .NET по `global.json`, pnpm и Node 22.
+
+Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
 ## Базовая линия тестов
 
