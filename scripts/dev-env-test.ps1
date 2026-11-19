@@ -122,7 +122,13 @@ function Test-Tcp([int]$Port) {
 }
 
 try {
-    $out = docker @dc up -d --wait --wait-timeout 420 --quiet-pull 2>&1 | Out-String
+    # Pulling is retried: a dropped download is the network, not the environment under test.
+    foreach ($attempt in 1..3) {
+        $out = docker @dc pull --quiet 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) { break }
+        Write-Host "docker compose pull failed (attempt $attempt): $(($out -split "`n" | Select-Object -Last 3) -join ' ')"
+    }
+    $out = docker @dc up -d --wait --wait-timeout 300 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         $problems.Add("docker compose up -d --wait failed:`n$(($out -split "`n" | Select-Object -Last 30) -join "`n")")
         $problems.Add((docker @dc ps -a --format '{{.Service}}: {{.Status}}' 2>&1 | Out-String))
