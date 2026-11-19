@@ -19,7 +19,7 @@ public sealed class RabbitMqFixture : ContainerFixture<RabbitMqContainer>
 public sealed class RedisFixture : ContainerFixture<RedisContainer>
 {
     /// <summary>Redis has 16 numbered databases by default; database 0 stays for <see cref="ConnectionString"/>.</summary>
-    private const int DatabaseCount = 16;
+    private const int _databaseCount = 16;
 
     private int _lastDatabase;
 
@@ -36,10 +36,10 @@ public sealed class RedisFixture : ContainerFixture<RedisContainer>
     {
         var server = ConnectionString;
         var number = Interlocked.Increment(ref _lastDatabase);
-        if (number >= DatabaseCount)
+        if (number >= _databaseCount)
         {
             throw new InvalidOperationException(
-                $"All {DatabaseCount - 1} Redis test databases are taken: share one per test class, not per test.");
+                $"All {_databaseCount - 1} Redis test databases are taken: share one per test class, not per test.");
         }
 
         return $"{server},defaultDatabase={number},allowAdmin=true";

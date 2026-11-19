@@ -27,7 +27,7 @@ public sealed class NotesApi : IntegrationApiFactory
 /// </summary>
 public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyncLifetime
 {
-    private const string Path = "/api/v1/sample/notes";
+    private const string _path = "/api/v1/sample/notes";
     private HttpClient _client = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -55,7 +55,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
         Assert.Equal(api.Time.GetUtcNow() - TimeSpan.FromMinutes(5), first.CreatedAt);
         Assert.Equal(TimeSpan.FromMinutes(5), second.CreatedAt - first.CreatedAt);
         Assert.Equal("account-1", first.AuthorId);
-        var list = await _client.GetFromJsonAsync<NoteView[]>(Path, Ct);
+        var list = await _client.GetFromJsonAsync<NoteView[]>(_path, Ct);
         Assert.Equal(["Вторая", "Первая"], list!.Select(n => n.Title));
     }
 
@@ -70,7 +70,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
     [Fact]
     public async Task AnonymousCannotCreate()
     {
-        using var response = await _client.PostAsJsonAsync(Path, new { title = "без входа" }, Ct);
+        using var response = await _client.PostAsJsonAsync(_path, new { title = "без входа" }, Ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal(0, await CountNotesAsync());
@@ -81,8 +81,8 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
     {
         var note = await CreateAsync("account-1", "Удалить");
 
-        using var asAuthor = await SendAsync(HttpMethod.Delete, $"{Path}/{note.Id}", "account-1");
-        using var asModerator = await SendAsync(HttpMethod.Delete, $"{Path}/{note.Id}", "account-2", "moderator");
+        using var asAuthor = await SendAsync(HttpMethod.Delete, $"{_path}/{note.Id}", "account-1");
+        using var asModerator = await SendAsync(HttpMethod.Delete, $"{_path}/{note.Id}", "account-2", "moderator");
 
         Assert.Equal(HttpStatusCode.Forbidden, asAuthor.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, asModerator.StatusCode);
@@ -92,7 +92,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
     [Fact]
     public async Task TooLongTitleIsAValidationProblem()
     {
-        using var response = await SendAsync(HttpMethod.Post, Path, "account-1", body: new { title = new string('x', 101) });
+        using var response = await SendAsync(HttpMethod.Post, _path, "account-1", body: new { title = new string('x', 101) });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
@@ -106,7 +106,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
     {
         await CreateAsync("account-1", "В кэше");
 
-        await _client.GetFromJsonAsync<NoteView[]>(Path, Ct);
+        await _client.GetFromJsonAsync<NoteView[]>(_path, Ct);
 
         var cache = api.Services.GetRequiredService<IDistributedCache>();
         var cached = await cache.GetStringAsync(NotesModule.ListCacheKey, Ct);
@@ -124,7 +124,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
         Assert.Null(await cache.GetStringAsync(NotesModule.ListCacheKey, Ct));
 
         await CreateAsync("account-1", $"Прогон {run}");
-        await _client.GetFromJsonAsync<NoteView[]>(Path, Ct);
+        await _client.GetFromJsonAsync<NoteView[]>(_path, Ct);
 
         Assert.Equal(1, await CountNotesAsync());
         Assert.NotNull(await cache.GetStringAsync(NotesModule.ListCacheKey, Ct));
@@ -132,7 +132,7 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
 
     private async Task<NoteView> CreateAsync(string account, string title)
     {
-        using var response = await SendAsync(HttpMethod.Post, Path, account, body: new { title });
+        using var response = await SendAsync(HttpMethod.Post, _path, account, body: new { title });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<NoteView>(Ct))!;
     }
