@@ -54,15 +54,15 @@
 
 Включено (19 ноября 2026):
 
-- репозиторий приватный, основная ветка `main`;
+- репозиторий публичный, основная ветка `main`;
 - слияние только сквошем, заголовок сквош-коммита — заголовок PR, ветка удаляется после слияния;
-- workflow `ci`, `PR title` и `Release` работают.
+- workflow `ci`, `PR title` и `Release` работают;
+- GitHub Actions разрешено создавать pull request (нужно release-please);
+- правило `main`: только через PR, только сквош, обязательные проверки `pr-title / check` и `verify`, запрет удаления и принудительной записи;
+- автослияние (auto-merge) разрешено.
 
 Не включено — нужно действие владельца:
 
 | Что | Зачем | Где |
 | --- | --- | --- |
-| Разрешить GitHub Actions создавать pull request | Иначе release-please не откроет Release PR после первого `feat` или `fix` | Settings → Actions → General → Workflow permissions |
-| Обязательные проверки `pr-title / check` и `verify` на `main`, запрет прямых коммитов | Чтобы в `main` попадало только проверенное | Settings → Rules → Rulesets. Для приватного репозитория может требоваться платный тариф GitHub |
-| Автослияние (auto-merge) | Нужно циклам `session-reserve` и `session-full`; GitHub отклонил включение для этого репозитория | Settings → General → Pull Requests (зависит от тарифа) |
 | Приложение Renovate | Обновление зависимостей; конфигурация уже в `renovate.json` | github.com/apps/renovate |
