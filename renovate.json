@@ -1,4 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>shoraLBRT/habze//renovate/default#v1"]
+  "extends": ["github>shoraLBRT/habze//renovate/default#v1"],
+  "packageRules": [
+    {
+      "description": "MassTransit 9+ has a commercial licence; stay on Apache-2.0 8.x (ADR-0005).",
+      "matchPackageNames": ["/^MassTransit/"],
+      "allowedVersions": "<9"
+    }
+  ]
 }
