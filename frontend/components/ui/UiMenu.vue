@@ -24,8 +24,7 @@ const open = ref(false)
 const active = ref(-1)
 const root = ref<HTMLElement>()
 const trigger = ref<HTMLButtonElement>()
-const itemAt = (index: number) =>
-  root.value?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[index]
+const itemAt = (index: number) => root.value?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[index]
 const menuId = useId()
 
 const isDisabled = (index: number) => Boolean(props.items[index]?.disabled)

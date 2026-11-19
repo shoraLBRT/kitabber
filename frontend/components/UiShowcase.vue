@@ -1,0 +1,199 @@
+<script setup lang="ts">
+// Showcase of the base UI components (E02-04, ADR-0013): every component of components/ui/ with its states, in
+// the theme picked at the top (it sets data-theme on <html>, so dialogs and toasts follow it too).
+// tests/ui/showcase.spec.ts fails when a component of components/ui/ has no section here.
+import { Bookmark, FileText, LogOut, Pencil, Settings, Trash2, User } from 'lucide-vue-next'
+import { onBeforeUnmount, ref, watch } from 'vue'
+import { faviconHref } from '../../brand/favicon'
+import { useToast } from '../composables/useToast'
+import type { MenuItem, TabItem } from '../types/ui'
+import UiAvatar from './ui/UiAvatar.vue'
+import UiButton from './ui/UiButton.vue'
+import UiField from './ui/UiField.vue'
+import UiMenu from './ui/UiMenu.vue'
+import UiModal from './ui/UiModal.vue'
+import UiSheet from './ui/UiSheet.vue'
+import UiTabs from './ui/UiTabs.vue'
+
+const themeTabs: TabItem[] = [
+  { id: 'system', label: 'Системная' },
+  { id: 'light', label: 'Светлая' },
+  { id: 'dark', label: 'Тёмная' },
+]
+const theme = ref('system')
+watch(theme, (value) => {
+  if (value === 'system') delete document.documentElement.dataset.theme
+  else document.documentElement.dataset.theme = value
+})
+onBeforeUnmount(() => delete document.documentElement.dataset.theme)
+
+const feedTabs: TabItem[] = [
+  { id: 'popular', label: 'Популярное' },
+  { id: 'fresh', label: 'Свежее' },
+  { id: 'mine', label: 'Моя лента' },
+  { id: 'archive', label: 'Архив', disabled: true },
+]
+const feed = ref('popular')
+
+const menuItems: MenuItem[] = [
+  { id: 'profile', label: 'Профиль', icon: User },
+  { id: 'drafts', label: 'Черновики', icon: FileText },
+  { id: 'bookmarks', label: 'Закладки', icon: Bookmark },
+  { id: 'settings', label: 'Настройки', icon: Settings, disabled: true },
+  { id: 'logout', label: 'Выйти', icon: LogOut, danger: true },
+]
+const chosen = ref('')
+
+const name = ref('')
+const about = ref('')
+const loading = ref(false)
+const modalOpen = ref(false)
+const sheetOpen = ref(false)
+const { show: showToast } = useToast()
+
+function save() {
+  loading.value = true
+  setTimeout(() => {
+    loading.value = false
+    showToast('Изменения сохранены', { tone: 'success' })
+  }, 1500)
+}
+</script>
+
+<template>
+  <div class="showcase">
+    <UiTabs v-model="theme" :tabs="themeTabs" label="Тема оформления витрины" />
+
+    <section class="showcase__section" data-testid="showcase-UiButton">
+      <h2>Кнопка — UiButton</h2>
+      <div class="showcase__row">
+        <UiButton>Опубликовать</UiButton>
+        <UiButton variant="secondary">Отмена</UiButton>
+        <UiButton variant="ghost">Подробнее</UiButton>
+        <UiButton variant="danger"
+          ><template #icon><Trash2 aria-hidden="true" /></template>Удалить</UiButton
+        >
+      </div>
+      <div class="showcase__row">
+        <UiButton size="sm">Маленькая</UiButton>
+        <UiButton disabled>Недоступна</UiButton>
+        <UiButton :loading="loading" @click="save">{{ loading ? 'Сохраняем…' : 'Сохранить' }}</UiButton>
+        <UiButton variant="ghost" aria-label="Написать"
+          ><template #icon><Pencil aria-hidden="true" /></template
+        ></UiButton>
+      </div>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiField">
+      <h2>Поле — UiField</h2>
+      <div class="showcase__grid">
+        <UiField v-model="name" label="Имя" hint="Его увидят читатели" required autocomplete="nickname" />
+        <UiField
+          model-value="не почта"
+          label="Почта"
+          type="email"
+          error="Введите адрес вида name@example.ru"
+        />
+        <UiField model-value="Только чтение" label="Недоступное поле" disabled />
+        <UiField v-model="about" label="О себе" multiline :rows="3" placeholder="Пара слов о себе" />
+      </div>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiMenu">
+      <h2>Меню — UiMenu</h2>
+      <div class="showcase__row">
+        <UiMenu :items="menuItems" label="Меню профиля" @select="chosen = $event">
+          <template #trigger><UiAvatar name="Анна Котова" size="sm" decorative /></template>
+        </UiMenu>
+        <UiMenu :items="menuItems" label="Действия" />
+        <span class="showcase__note" aria-live="polite">{{ chosen ? `Выбрано: ${chosen}` : '' }}</span>
+      </div>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiTabs">
+      <h2>Вкладки — UiTabs</h2>
+      <UiTabs v-model="feed" :tabs="feedTabs" label="Лента">
+        <template #popular><p>Самое обсуждаемое за сутки.</p></template>
+        <template #fresh><p>Новые публикации по порядку.</p></template>
+        <template #mine><p>Подписки и темы.</p></template>
+        <template #archive><p>Архив.</p></template>
+      </UiTabs>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiModal">
+      <h2>Модальное окно — UiModal</h2>
+      <p class="showcase__note">На телефоне (уже 640 px) окно открывается шторкой.</p>
+      <UiButton variant="secondary" @click="modalOpen = true">Открыть окно</UiButton>
+      <UiModal v-model:open="modalOpen" title="Удалить черновик?">
+        <p>Черновик удалится без возможности восстановления.</p>
+        <template #footer>
+          <UiButton variant="secondary" @click="modalOpen = false">Отмена</UiButton>
+          <UiButton variant="danger" @click="modalOpen = false">Удалить</UiButton>
+        </template>
+      </UiModal>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiSheet">
+      <h2>Шторка — UiSheet</h2>
+      <UiButton variant="secondary" @click="sheetOpen = true">Открыть шторку</UiButton>
+      <UiSheet v-model:open="sheetOpen" title="Поделиться">
+        <UiField label="Ссылка" model-value="https://example.ru/p/1" readonly data-autofocus />
+      </UiSheet>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiToast">
+      <h2>Тосты — UiToast и UiToaster</h2>
+      <div class="showcase__row" data-testid="showcase-UiToaster">
+        <UiButton variant="secondary" @click="showToast('Ссылка скопирована')">Сведения</UiButton>
+        <UiButton variant="secondary" @click="showToast('Пост опубликован', { tone: 'success' })"
+          >Успех</UiButton
+        >
+        <UiButton variant="secondary" @click="showToast('Не удалось сохранить: нет сети', { tone: 'error' })">
+          Ошибка
+        </UiButton>
+      </div>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiAvatar">
+      <h2>Аватар — UiAvatar</h2>
+      <div class="showcase__row">
+        <UiAvatar name="Анна Котова" :src="faviconHref()" size="lg" />
+        <UiAvatar name="Анна Котова" size="lg" />
+        <UiAvatar name="Борис" />
+        <UiAvatar name="Вера Лис" src="/missing-avatar.png" size="sm" />
+      </div>
+    </section>
+  </div>
+</template>
+
+<style scoped>
+.showcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.showcase__section h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+}
+
+.showcase__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.showcase__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--size-aside)), 1fr));
+  gap: var(--space-4);
+}
+
+.showcase__note {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+</style>

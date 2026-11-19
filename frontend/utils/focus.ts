@@ -39,7 +39,12 @@ export function trapTab(event: KeyboardEvent, container: HTMLElement): void {
 }
 
 /** Index of the next enabled item in a roving list, wrapping around; -1 when every item is disabled. */
-export function nextIndex(from: number, step: 1 | -1, count: number, disabled: (index: number) => boolean): number {
+export function nextIndex(
+  from: number,
+  step: 1 | -1,
+  count: number,
+  disabled: (index: number) => boolean,
+): number {
   for (let i = 1; i <= count; i++) {
     const index = (((from + step * i) % count) + count) % count
     if (!disabled(index)) return index

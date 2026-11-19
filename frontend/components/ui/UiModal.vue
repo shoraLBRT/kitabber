@@ -21,7 +21,9 @@ const props = withDefaults(
 const open = defineModel<boolean>('open', { default: false })
 
 const isPhone = useMediaQuery(phoneQuery)
-const mode = computed(() => (props.presentation === 'auto' ? (isPhone.value ? 'sheet' : 'modal') : props.presentation))
+const mode = computed(() =>
+  props.presentation === 'auto' ? (isPhone.value ? 'sheet' : 'modal') : props.presentation,
+)
 
 const panel = ref<HTMLElement>()
 const content = ref<HTMLElement>()

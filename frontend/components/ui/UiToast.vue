@@ -13,7 +13,8 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 function start() {
   stop()
-  if (props.toast.duration > 0) timer = setTimeout(() => emit('dismiss', props.toast.id), props.toast.duration)
+  if (props.toast.duration > 0)
+    timer = setTimeout(() => emit('dismiss', props.toast.id), props.toast.duration)
 }
 
 function stop() {
