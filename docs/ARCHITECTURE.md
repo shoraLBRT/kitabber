@@ -9,7 +9,8 @@
 backend/                   решение .NET (Platform.slnx)
   Directory.Build.props    общие настройки проектов: net10.0, nullable, анализаторы, предупреждения = ошибки
   Directory.Packages.props версии NuGet-пакетов (центральное управление пакетами)
-  src/Api/                 Platform.Api — веб-хост API (ASP.NET Core)
+  src/Api/                 Platform.Api — веб-хост API (ASP.NET Core); снимок OpenAPI — openapi/v1.json
+  src/Http/                Platform.Http — соглашения REST: /api/v1, ProblemDetails, курсорная пагинация (ADR-0006)
   src/Workers/             Platform.Workers — хост фоновых воркеров: шина, потребители и outbox модулей (ADR-0005)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
   src/Caching/             Platform.Caching — кэш IDistributedCache на Redis (ADR-0005)
@@ -68,6 +69,21 @@ bus.AddModuleOutbox<SomeDbContext>();             // outbox в схеме мод
 (`amqp://user:password@host:port/`), `Cache:Provider` (`Redis` | `InMemory`), `ConnectionStrings:Redis`;
 для локального окружения они заданы в `backend/src/Workers/appsettings.Development.json`. Запуск:
 `dotnet run --project backend/src/Workers`. Правила — [ADR-0005](adr/0005-messaging-and-cache.md).
+
+## REST API
+
+Соглашения — [ADR-0006](adr/0006-rest-api-conventions.md), код — `Platform.Http`. Хост подключает их двумя вызовами
+(`AddPlatformApi()`, `UsePlatformApi()`), модуль — так:
+
+```csharp
+services.AddValidation();                    // валидаторы публичных типов запроса этой сборки
+services.AddApiEndpoints<PostsEndpoints>();  // PostsEndpoints : IApiEndpoints, MapV1(v1) без префикса /api/v1
+```
+
+Ошибки — problem details с полем `code` (`ApiProblems.*` или `ApiProblemException`), списки — `PageQuery` →
+`ToRequest<TCursor>()` → `ToPage(...)`. Документ OpenAPI: `/openapi/v1.json` у работающего хоста и
+`backend/src/Api/obj/openapi/Platform.Api.json` после сборки; снимок `backend/src/Api/openapi/v1.json` обновляется
+запуском тестов с `UPDATE_OPENAPI_SNAPSHOT=1` и коммитится вместе с изменением API.
 
 ## Имена в коде
 
