@@ -26,6 +26,11 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 `VERIFY_SKIP_DOCKER=1`. В CI (`CI` задана) пропуск запрещён: без Docker шаг падает. Пропущенный шаг виден в
 таблице шагов; выдавать его за пройденный нельзя.
 
+То же правило у серверных тестов на Testcontainers (сейчас — `backend/tests/Platform.Persistence.IntegrationTests`:
+миграции на чистую базу и откат последней миграции): без Docker или с `VERIFY_SKIP_DOCKER=1` они локально
+помечаются пропущенными (`Skipped` в отчёте), в CI падают. Каждый тест получает свою пустую базу в общем
+контейнере PostgreSQL того же образа, что в `compose.yaml`. Общий каркас (фабрика приложения, Respawn) — E01-15.
+
 ## Отчёты о тестах
 
 Тестовые прогоны пишут отчёты в `artifacts/test-results/<часть>/`: `dotnet test` — TRX (это уже настроено в

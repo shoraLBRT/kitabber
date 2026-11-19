@@ -13,7 +13,7 @@ public static class MigratorApp
 {
     public const string ConnectionStringName = "Platform";
 
-    private const string Usage = "usage: migrate | status | rollback <schema>";
+    public const string Usage = "usage: migrate | status | rollback <schema>";
 
     /// <param name="addModules">The module databases to migrate; <see cref="ModuleCatalog"/> when omitted.</param>
     public static async Task<int> RunAsync(

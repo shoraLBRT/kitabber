@@ -8,7 +8,8 @@
 
 ## Следующая задача
 
-\#4 «E01-05 PostgreSQL: миграции, схемы по модулям, начальные данные». Дальше — по [ROADMAP.md](ROADMAP.md).
+\#5 «E01-06 Redis, брокер очередей и каркас фоновых воркеров». Дальше — по [ROADMAP.md](ROADMAP.md); #8 (E01-15)
+теперь не ждёт #4.
 
 ## Что уже есть
 
@@ -16,6 +17,8 @@
   [unified-accounts.md](unified-accounts.md), [content-policy.md](content-policy.md).
 - Решения: [ADR-0001](adr/0001-stack.md) (стек, принято), [ADR-0002](adr/0002-identity.md) (аккаунты,
   предложено), [ADR-0003](adr/0003-telegram-bridge.md) (Telegram, предложено).
+  [ADR-0004](adr/0004-database-migrations.md) (миграции EF Core, схема и история миграций на модуль, принято в
+  задаче E01-05).
 - Бэклог в GitHub Issues: 255 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
@@ -36,6 +39,16 @@
   Без запущенного Docker смоук локально помечается `skipped`, в CI обязателен. MinIO — образ Chainguard
   `cgr.dev/chainguard/minio`, закреплённый по digest: официальные образы MinIO больше не публикуются.
 
+- База данных (E01-05): EF Core на PostgreSQL. `Platform.Persistence` даёт `ModuleDbContext<T>`: у модуля своя
+  схема (имя модуля в snake_case), свой `DbContext` и своя история миграций `<схема>.__ef_migrations_history`;
+  имена в базе — snake_case. Команда `dotnet run --project backend/src/Migrator` (`migrate`, `status`,
+  `rollback <схема>`) накатывает миграции всех модулей из `ModuleCatalog`; API их не накатывает. Справочные данные —
+  в миграциях (`HasData`), демо-данные — сидер E01-17. Правила — [ADR-0004](adr/0004-database-migrations.md).
+  Модулей пока нет, поэтому `ModuleCatalog` пуст; накат на чистую базу, независимость схем и откат последней
+  миграции проверяются на двух образцовых модулях в `backend/tests/Platform.Persistence.IntegrationTests`
+  (PostgreSQL в Testcontainers; без Docker локально тесты пропускаются, в CI падают). Тесты пока запускаются через
+  VSTest (`IsTestingPlatformApplication=false`): переход на Microsoft.Testing.Platform и общий каркас — E01-15.
+
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
 ## Базовая линия тестов
@@ -43,7 +56,7 @@
 | Набор | Число тестов |
 | --- | --- |
 | Сервер, модульные | 0 |
-| Сервер, интеграционные | 0 |
+| Сервер, интеграционные | 11 (`Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 

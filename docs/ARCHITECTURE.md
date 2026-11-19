@@ -11,8 +11,10 @@ backend/                   решение .NET (Platform.slnx)
   Directory.Packages.props версии NuGet-пакетов (центральное управление пакетами)
   src/Api/                 Platform.Api — веб-хост API (ASP.NET Core)
   src/Workers/             Platform.Workers — хост фоновых воркеров
+  src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
+  src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
-  tests/                   тестовые проекты (каркас — задача E01-15)
+  tests/                   тестовые проекты (общий каркас — задача E01-15)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
 tools/                     сидер, генерация клиента API, фейковые сервисы (появится в своих задачах)
@@ -20,6 +22,7 @@ deploy/                    compose-файлы и инструкции выкла
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
 .env.example               порты и пароли локального окружения; копия .env в git не попадает
 docs/                      ТЗ, ADR, состояние проекта
+dotnet-tools.json          локальные инструменты .NET (dotnet-ef); ставятся командой dotnet tool restore
 scripts/verify.ps1         единственная команда проверки
 ```
 
@@ -30,6 +33,21 @@ Chainguard из исходников; решение владельца, PR #278
 
 `frontend/` и `admin/` — независимые пакеты pnpm, у каждого свой `pnpm-lock.yaml` и свой
 `pnpm-workspace.yaml` (там же список пакетов, которым разрешены скрипты установки, `allowBuilds`).
+
+## База данных
+
+Одна база PostgreSQL, у каждого модуля своя схема, свой `DbContext` и своя таблица истории миграций
+`<схема>.__ef_migrations_history`. Имена в базе — snake_case. Миграции накатывает отдельная команда, а не старт
+API:
+
+```sh
+dotnet run --project backend/src/Migrator             # migrate: все ожидающие миграции всех модулей
+dotnet run --project backend/src/Migrator -- status   # применено и ожидает по модулям
+dotnet run --project backend/src/Migrator -- rollback <схема>  # откатить последнюю миграцию модуля
+```
+
+Список модулей мигратора — `backend/src/Migrator/ModuleCatalog.cs`. Правила (справочные данные в миграциях,
+обратимость, как добавить модуль) — в [ADR-0004](adr/0004-database-migrations.md).
 
 ## Имена в коде
 
@@ -67,7 +85,7 @@ Prettier отвечает за форматирование, ESLint — за о�
 - локальное окружение (`scripts/dev-env-test.ps1`): в `compose.yaml` есть все сервисы с healthcheck, порты и
   пароли берутся только из `.env.example`, README даёт три команды запуска; смоук-тест поднимает окружение на
   свободных портах, ждёт healthcheck, достаёт каждый сервис с хоста, проверяет пароли и всё удаляет;
-- backend: сборку без предупреждений, форматирование, тесты;
+- backend: сборку без предупреждений, форматирование, тесты (в том числе миграции на PostgreSQL в Testcontainers);
 - frontend и admin: установку по lock-файлу, линтеры, проверку типов, сборку (`pnpm build`), тесты, если
   они есть;
 - саму себя (`scripts/verify-selftest.ps1`): упавший шаг роняет проверку, линтеры отвергают плохой код, workflow
