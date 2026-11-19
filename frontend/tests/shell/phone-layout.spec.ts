@@ -44,12 +44,14 @@ function rule(style: string, selector: string, media?: string): string {
   return match![3]!.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')')
 }
 
-/** Height of the bottom bar: a 44 px tab, its padding and the top border. Everything clearing the bar uses it. */
-const barHeight = 'var(--size-touch) + 2 * var(--space-1) + var(--size-border)'
+/** Height of the bottom bar: a --size-tab-bar tab, its padding and the top border. Everything clearing the bar uses it. */
+const barHeight = 'var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border)'
 
 describe('Phone shell layout', () => {
-  it('has a 44 px touch target token (docs/spec.md section 5)', () => {
-    expect(read('..', 'brand', 'tokens.css')).toContain('--size-touch: 44px;')
+  it('has a 44 px touch target token (docs/spec.md section 5) and a taller fixed tab height', () => {
+    const tokens = read('..', 'brand', 'tokens.css')
+    expect(tokens).toContain('--size-touch: 44px;')
+    expect(tokens).toContain('--size-tab-bar: 56px;')
   })
 
   it(`shows the bottom bar below ${breakpoints.md} px only, fixed to the bottom edge`, () => {
@@ -89,6 +91,7 @@ describe('Phone shell layout', () => {
 
   it('makes every tab and every "Меню" row at least 44 px tall', () => {
     expect(rule(tabBar, '.tab-bar__link')).toContain('min-height: var(--size-touch)')
+    expect(rule(tabBar, '.tab-bar__link')).toContain('height: var(--size-tab-bar)')
     expect(rule(menuScreen, '.menu-screen__row')).toContain('min-height: var(--size-touch)')
     expect(rule(writeButton, '.write-button')).toContain('width: var(--space-12)')
   })

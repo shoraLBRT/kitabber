@@ -17,7 +17,8 @@ import { writePath } from '../../utils/navigation'
   position: fixed;
   right: calc(var(--space-4) + env(safe-area-inset-right));
   bottom: calc(
-    var(--size-touch) + 2 * var(--space-1) + var(--size-border) + var(--space-4) + env(safe-area-inset-bottom)
+    var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border) + var(--space-4) +
+      env(safe-area-inset-bottom)
   );
   z-index: 11;
   display: none;

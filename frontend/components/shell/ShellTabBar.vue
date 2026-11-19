@@ -82,9 +82,10 @@ function onClick(item: NavItem, event: MouseEvent) {
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
+  height: var(--size-tab-bar);
   min-height: var(--size-touch);
   box-sizing: border-box;
-  padding: var(--space-1) 0;
+  padding: 0;
   border-radius: var(--radius-md);
   color: var(--color-muted);
   font-size: var(--font-size-xs);

@@ -111,7 +111,7 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
     /* Room for the fixed bottom bar: its height, the floating button and the safe area. */
     padding: var(--space-4) var(--space-4)
       calc(
-        var(--size-touch) + 2 * var(--space-1) + var(--size-border) + var(--space-16) +
+        var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border) + var(--space-16) +
           env(safe-area-inset-bottom)
       );
   }
@@ -126,7 +126,7 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
     grid-template-columns: minmax(0, 1fr);
     padding: var(--space-4) 0
       calc(
-        var(--size-touch) + 2 * var(--space-1) + var(--size-border) + var(--space-16) +
+        var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border) + var(--space-16) +
           env(safe-area-inset-bottom)
       );
   }
