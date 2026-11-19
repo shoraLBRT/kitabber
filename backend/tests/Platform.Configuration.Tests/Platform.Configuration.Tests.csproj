@@ -27,6 +27,7 @@
         <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
         <ProjectReference Include="../../src/Configuration/Platform.Configuration.csproj" />
         <ProjectReference Include="../../src/Migrator/Platform.Migrator.csproj" />
+        <ProjectReference Include="../../src/Seeding/Platform.Seeding.csproj" />
         <ProjectReference Include="../../src/Workers/Platform.Workers.csproj" />
     </ItemGroup>
 

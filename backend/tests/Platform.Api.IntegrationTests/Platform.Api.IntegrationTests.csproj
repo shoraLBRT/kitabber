@@ -28,7 +28,9 @@
         <ProjectReference Include="../../src/Caching/Platform.Caching.csproj" />
         <ProjectReference Include="../../src/Http/Platform.Http.csproj" />
         <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../src/Seeding/Platform.Seeding.csproj" />
         <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
+        <ProjectReference Include="../../tools/Seed/Platform.Seed.csproj" />
     </ItemGroup>
 
 </Project>

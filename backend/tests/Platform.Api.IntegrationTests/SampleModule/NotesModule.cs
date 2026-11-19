@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Platform.Caching;
 using Platform.Http;
 using Platform.Persistence;
+using Platform.Seeding;
 using Platform.Testing.Api;
 
 namespace Platform.Api.IntegrationTests.SampleModule;
@@ -32,6 +33,7 @@ public sealed class NotesModule : IApiEndpoints
         services.AddModuleDbContext<NotesDbContext>(
             configuration.GetConnectionString(IntegrationApiFactory.DatabaseConnectionName)!);
         services.AddPlatformCache(configuration);
+        services.AddDemoSeeder<NotesDemoSeeder>();
         services.AddValidation();
         services.AddApiEndpoints<NotesModule>();
         services.AddTestAuthentication();

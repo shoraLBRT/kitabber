@@ -31,6 +31,7 @@
         <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
         <ProjectReference Include="../../src/Caching/Platform.Caching.csproj" />
         <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../src/Seeding/Platform.Seeding.csproj" />
     </ItemGroup>
 
 </Project>

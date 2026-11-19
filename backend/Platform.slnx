@@ -24,12 +24,20 @@
   <Folder Name="/src/Workers/">
     <Project Path="src/Workers/Platform.Workers.csproj" />
   </Folder>
+  <Folder Name="/src/Seeding/">
+    <Project Path="src/Seeding/Platform.Seeding.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Api.Tests/Platform.Api.Tests.csproj" />
     <Project Path="tests/Platform.Configuration.Tests/Platform.Configuration.Tests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Seeding.Tests/Platform.Seeding.Tests.csproj" />
     <Project Path="tests/Platform.Testing/Platform.Testing.csproj" />
+  </Folder>
+  <Folder Name="/tools/" />
+  <Folder Name="/tools/Seed/">
+    <Project Path="tools/Seed/Platform.Seed.csproj" />
   </Folder>
 </Solution>
