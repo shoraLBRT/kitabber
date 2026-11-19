@@ -8,4 +8,9 @@
         <PackageReference Include="Microsoft.Extensions.Hosting" />
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="../Caching/Platform.Caching.csproj" />
+        <ProjectReference Include="../Messaging/Platform.Messaging.csproj" />
+    </ItemGroup>
+
 </Project>

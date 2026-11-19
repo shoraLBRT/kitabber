@@ -10,7 +10,9 @@ backend/                   решение .NET (Platform.slnx)
   Directory.Build.props    общие настройки проектов: net10.0, nullable, анализаторы, предупреждения = ошибки
   Directory.Packages.props версии NuGet-пакетов (центральное управление пакетами)
   src/Api/                 Platform.Api — веб-хост API (ASP.NET Core)
-  src/Workers/             Platform.Workers — хост фоновых воркеров
+  src/Workers/             Platform.Workers — хост фоновых воркеров: шина, потребители и outbox модулей (ADR-0005)
+  src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
+  src/Caching/             Platform.Caching — кэш IDistributedCache на Redis (ADR-0005)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
@@ -48,6 +50,24 @@ dotnet run --project backend/src/Migrator -- rollback <схема>  # откат
 
 Список модулей мигратора — `backend/src/Migrator/ModuleCatalog.cs`. Правила (справочные данные в миграциях,
 обратимость, как добавить модуль) — в [ADR-0004](adr/0004-database-migrations.md).
+
+## Очереди, фоновые воркеры и кэш
+
+События между модулями идут через RabbitMQ (MassTransit 8, Apache-2.0; 9+ — коммерческая лицензия). Хост
+`Platform.Workers` (`backend/src/Workers/WorkerHost.cs`) подключает шину и кэш; задача модуля добавляет в
+`WorkerHost.AddModules` свои потребители и outbox:
+
+```csharp
+bus.AddConsumers(typeof(SomeModule).Assembly);   // потребители модуля
+bus.AddModuleOutbox<SomeDbContext>();             // outbox в схеме модуля
+```
+
+Контекст модуля, который публикует события, вызывает `modelBuilder.AddOutboxTables()`; его потребители
+объявляются через `ModuleConsumerDefinition<TConsumer, TContext>` (повторная доставка отбрасывается inbox).
+Настройки: `Messaging:Transport` (`RabbitMq` | `InMemory`), `ConnectionStrings:RabbitMq`
+(`amqp://user:password@host:port/`), `Cache:Provider` (`Redis` | `InMemory`), `ConnectionStrings:Redis`;
+для локального окружения они заданы в `backend/src/Workers/appsettings.Development.json`. Запуск:
+`dotnet run --project backend/src/Workers`. Правила — [ADR-0005](adr/0005-messaging-and-cache.md).
 
 ## Имена в коде
 
