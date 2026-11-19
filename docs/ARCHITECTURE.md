@@ -25,7 +25,7 @@ backend/                   решение .NET (Platform.slnx)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
 tools/                     инструменты не на .NET: генерация клиента API, фейковые сервисы (появится в своих задачах)
-deploy/                    compose-файлы и инструкции выкладки на стенды (появится в E01-03)
+deploy/                    compose-файл стенда stage и шаблон его значений; выкладка — docs/DEPLOY.md
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
 .env.example               порты и пароли локального окружения; копия .env в git не попадает
 docs/                      ТЗ, ADR, состояние проекта
