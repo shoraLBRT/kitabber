@@ -1,0 +1,8 @@
+# Context of backend/Dockerfile (the repository root): only the backend sources and the root build files.
+*
+!global.json
+!Directory.Build.props
+!backend/
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
