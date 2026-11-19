@@ -1,5 +1,6 @@
 using MassTransit;
 using Platform.Caching;
+using Platform.Configuration;
 using Platform.Messaging;
 
 namespace Platform.Workers;
@@ -10,9 +11,13 @@ namespace Platform.Workers;
 /// </summary>
 public static class WorkerHost
 {
+    /// <summary>The settings the host checks at start (ADR-0007); each one is described in docs/CONFIG.md.</summary>
+    public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All];
+
     public static HostApplicationBuilder CreateBuilder(string[] args, Action<IBusRegistrationConfigurator>? configureBus = null)
     {
         var builder = Host.CreateApplicationBuilder(args);
+        builder.ConfigurePlatform(Settings);
         Configure(builder.Services, builder.Configuration, configureBus);
         return builder;
     }

@@ -10,6 +10,7 @@ backend/                   решение .NET (Platform.slnx)
   Directory.Build.props    общие настройки проектов: net10.0, nullable, анализаторы, предупреждения = ошибки
   Directory.Packages.props версии NuGet-пакетов (центральное управление пакетами)
   src/Api/                 Platform.Api — веб-хост API (ASP.NET Core); снимок OpenAPI — openapi/v1.json
+  src/Configuration/       Platform.Configuration — окружения, проверка настроек на старте, файлы секретов (ADR-0007)
   src/Http/                Platform.Http — соглашения REST: /api/v1, ProblemDetails, курсорная пагинация (ADR-0006)
   src/Workers/             Platform.Workers — хост фоновых воркеров: шина, потребители и outbox модулей (ADR-0005)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
@@ -85,6 +86,20 @@ services.AddApiEndpoints<PostsEndpoints>();  // PostsEndpoints : IApiEndpoints, 
 `backend/src/Api/obj/openapi/Platform.Api.json` после сборки; снимок `backend/src/Api/openapi/v1.json` обновляется
 запуском тестов с `UPDATE_OPENAPI_SNAPSHOT=1` и коммитится вместе с изменением API.
 
+## Настройки и секреты
+
+Правила — [ADR-0007](adr/0007-configuration-and-secrets.md), перечень настроек — [CONFIG.md](CONFIG.md), код —
+`Platform.Configuration`. Библиотека объявляет то, что читает (`MessagingSettings.All`, `CacheSettings.All`), хост
+собирает объявления своих библиотек и вызывает `builder.ConfigurePlatform(settings)` до `Build()`:
+
+```csharp
+public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All];
+builder.ConfigurePlatform(Settings);   // нет настройки → InvalidConfigurationException с ключом и переменной
+```
+
+Секреты стендов приходят переменными окружения или файлами из `Secrets:Directory`; в git их нет (gitleaks в
+`scripts/verify.ps1`, `.gitleaks.toml`).
+
 ## Имена в коде
 
 Название продукта временное и задаётся в одном месте, поэтому в именах сборок, пространств имён и пакетов его
@@ -121,6 +136,8 @@ Prettier отвечает за форматирование, ESLint — за о�
 - локальное окружение (`scripts/dev-env-test.ps1`): в `compose.yaml` есть все сервисы с healthcheck, порты и
   пароли берутся только из `.env.example`, README даёт три команды запуска; смоук-тест поднимает окружение на
   свободных портах, ждёт healthcheck, достаёт каждый сервис с хоста, проверяет пароли и всё удаляет;
+- секреты (`scripts/secret-scan.ps1`): gitleaks по всем файлам, которые git закоммитил бы; сначала он должен
+  найти подложенный токен; локально без gitleaks шаг пропускается, в CI обязателен;
 - backend: сборку без предупреждений, форматирование, тесты (в том числе миграции на PostgreSQL в Testcontainers);
 - frontend и admin: установку по lock-файлу, линтеры, проверку типов, сборку (`pnpm build`), тесты, если
   они есть;
@@ -128,6 +145,6 @@ Prettier отвечает за форматирование, ESLint — за о�
   `ci` вызывает этот скрипт и укладывается в 10 минут.
 
 Обвязка шагов (таблица результатов, отчёты о тестах, код выхода) — в `scripts/verify-lib.ps1`. Workflow
-`.github/workflows/ci.yml` только готовит машину (.NET по `global.json`, pnpm, Node 22, кэши NuGet и pnpm),
+`.github/workflows/ci.yml` только готовит машину (.NET по `global.json`, pnpm, Node 22, gitleaks с проверкой контрольной суммы, кэши NuGet и pnpm),
 запускает `scripts/verify.ps1` и выкладывает `artifacts/test-results` артефактом `test-results`; своих проверок
 в нём нет.

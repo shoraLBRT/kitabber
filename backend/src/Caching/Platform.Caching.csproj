@@ -10,4 +10,8 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+    </ItemGroup>
+
 </Project>

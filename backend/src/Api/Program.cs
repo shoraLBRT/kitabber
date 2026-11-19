@@ -1,6 +1,9 @@
+using Platform.Api;
+using Platform.Configuration;
 using Platform.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.ConfigurePlatform(ApiSettings.All);
 builder.Services.AddPlatformApi();
 
 var app = builder.Build();

@@ -104,6 +104,7 @@ exit (Complete-Verify '$reports')
     Assert ($ci -match 'cache:\s*pnpm') 'ci.yml: pnpm store must be cached'
     Assert ($ci -match '\.nuget/packages') 'ci.yml: NuGet packages must be cached'
     Assert ($ci -match 'artifacts/test-results') 'ci.yml: test reports must be uploaded'
+    Assert ($ci -match 'gitleaks_\$\{GITLEAKS_VERSION\}_checksums\.txt') 'ci.yml: gitleaks must be installed and its checksum checked for the secret scan'
 }
 finally {
     Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
