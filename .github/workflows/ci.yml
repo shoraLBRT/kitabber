@@ -45,6 +45,13 @@ jobs:
           cache-dependency-path: |
             frontend/pnpm-lock.yaml
             admin/pnpm-lock.yaml
+      # Playwright's Chromium for the e2e steps of verify.ps1 (E01-16); the script installs it and its system libraries.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml', 'admin/pnpm-lock.yaml') }}
+          restore-keys: playwright-${{ runner.os }}-
       # The secret scan of verify.ps1 needs gitleaks (E01-13); the archive is checked against the release checksums.
       - name: Install gitleaks
         env:

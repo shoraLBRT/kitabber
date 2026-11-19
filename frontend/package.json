@@ -14,7 +14,8 @@
     "lint": "eslint . && stylelint --allow-empty-input \"**/*.{css,vue}\" && prettier --check .",
     "format": "eslint . --fix && prettier --write .",
     "typecheck": "nuxt typecheck",
-    "test": "vitest run --reporter=dot"
+    "test": "vitest run --reporter=dot --reporter=junit --outputFile.junit=../artifacts/test-results/frontend/junit.xml",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "lucide-vue-next": "1.0.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "1.17.0",
+    "@playwright/test": "1.65.0",
     "@vitejs/plugin-vue": "6.0.11",
     "@vue/test-utils": "2.6.0",
     "eslint": "9.39.5",

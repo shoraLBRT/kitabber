@@ -105,6 +105,20 @@ exit (Complete-Verify '$reports')
     Assert ($ci -match 'cache:\s*pnpm') 'ci.yml: pnpm store must be cached'
     Assert ($ci -match '\.nuget/packages') 'ci.yml: NuGet packages must be cached'
     Assert ($ci -match 'artifacts/test-results') 'ci.yml: test reports must be uploaded'
+    Assert ($ci -match 'path: ~/\.cache/ms-playwright') 'ci.yml: Playwright browsers must be cached'
+
+    # 3a. verify.ps1 runs the client tests (E01-16): unit tests, then Playwright in both profiles after the build.
+    $verify = Get-Content -Raw -Encoding utf8 (Join-Path $PSScriptRoot 'verify.ps1')
+    foreach ($expected in 'pnpm run --if-present test', 'pnpm run e2e', "'playwright', 'install', 'chromium'") {
+        Assert $verify.Contains($expected) "verify.ps1: must run '$expected'"
+    }
+    Assert ($verify.IndexOf('"$app build"') -lt $verify.IndexOf('e2e (desktop + mobile)')) 'verify.ps1: e2e must run after the build'
+    foreach ($app in 'frontend', 'admin') {
+        $scripts = (Get-Content -Raw -Encoding utf8 (Join-Path $root "$app/package.json") | ConvertFrom-Json).scripts
+        Assert ($scripts.e2e -eq 'playwright test') "$app/package.json: script e2e must run Playwright"
+        Assert ($scripts.test -match "junit=\.\./artifacts/test-results/$app/") "$app/package.json: Vitest must write JUnit to artifacts/test-results/$app"
+        Assert (Test-Path (Join-Path $root "$app/playwright.config.ts")) "$app/playwright.config.ts is missing"
+    }
     Assert ($ci -match 'gitleaks_\$\{GITLEAKS_VERSION\}_checksums\.txt') 'ci.yml: gitleaks must be installed and its checksum checked for the secret scan'
 
     # 4. The screen-spec check (E02-03) rejects a broken tree: missing screen, sections, FR, tokens, anchors, links.

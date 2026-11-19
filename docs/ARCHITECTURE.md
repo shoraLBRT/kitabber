@@ -42,6 +42,9 @@ Chainguard из исходников; решение владельца, PR #278
 
 `frontend/` и `admin/` — независимые пакеты pnpm, у каждого свой `pnpm-lock.yaml` и свой
 `pnpm-workspace.yaml` (там же список пакетов, которым разрешены скрипты установки, `allowBuilds`).
+Тесты клиента: компонентные (Vitest) — в `tests/`, сквозные (Playwright, проекты `desktop` и `mobile`, только
+Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; сквозные идут против продакшен-сборки (подробно —
+[TESTING.md](TESTING.md#сквозные-тесты-playwright)).
 
 Базовые компоненты интерфейса сайта (ADR-0013) лежат в `frontend/components/ui/Ui*.vue`: кнопка, поле, меню,
 вкладки, модальное окно (на телефоне — шторка), шторка, тосты (`useToast()` и `UiToaster` в `app.vue`) и аватар;
@@ -186,6 +189,6 @@ Prettier отвечает за форматирование, ESLint — за о�
   `ci` вызывает этот скрипт и укладывается в 10 минут.
 
 Обвязка шагов (таблица результатов, отчёты о тестах, код выхода) — в `scripts/verify-lib.ps1`. Workflow
-`.github/workflows/ci.yml` только готовит машину (.NET по `global.json`, pnpm, Node 22, gitleaks с проверкой контрольной суммы, кэши NuGet и pnpm),
+`.github/workflows/ci.yml` только готовит машину (.NET по `global.json`, pnpm, Node 22, gitleaks с проверкой контрольной суммы, кэши NuGet, pnpm и браузеров Playwright),
 запускает `scripts/verify.ps1` и выкладывает `artifacts/test-results` артефактом `test-results`; своих проверок
 в нём нет.

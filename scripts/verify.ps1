@@ -115,7 +115,15 @@ foreach ($app in 'frontend', 'admin') {
             Step "$app typecheck" { pnpm run --if-present typecheck }
             Step "$app build" { pnpm run --silent build }
             Step "$app unit tests" { pnpm run --if-present test }
-            Step "$app e2e (desktop + mobile)" { pnpm run --if-present e2e }
+            Step "$app e2e (desktop + mobile)" {
+                # Playwright against the build above in the profiles desktop and mobile (E01-16, docs/TESTING.md). Only
+                # Chromium is installed (headless shell, reused when present); on the Linux CI runner with its libraries.
+                $install = 'exec', 'playwright', 'install', 'chromium', '--only-shell'
+                if ($env:CI -and $IsLinux) { $install += '--with-deps' }
+                pnpm @install
+                if ($LASTEXITCODE) { throw "playwright install: exit code $LASTEXITCODE" }
+                pnpm run e2e
+            }
         }
         finally { Pop-Location }
     }

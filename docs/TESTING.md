@@ -81,7 +81,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ## Отчёты о тестах
 
 Тестовые прогоны пишут отчёты в `artifacts/test-results/<часть>/`: `dotnet test` — TRX (это уже настроено в
-`scripts/verify.ps1`), Vitest и Playwright — JUnit XML (подключает E01-16). В конце проверка печатает
+`scripts/verify.ps1`), Vitest — JUnit XML в `<клиент>/`, Playwright — JUnit XML в `<клиент>-e2e/` (E01-16). В конце проверка печатает
 таблицу шагов и сводку по отчётам; в CI та же таблица попадает в сводку запуска (`GITHUB_STEP_SUMMARY`), а
 сами отчёты — в артефакт `test-results`. Каталог `artifacts/` в git не попадает.
 
@@ -93,9 +93,9 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 | Интеграционные | xUnit, `WebApplicationFactory`, Testcontainers | API модуля на настоящих PostgreSQL, Redis, RabbitMQ | `backend/tests/*.IntegrationTests` |
 | Архитектурные | NetArchTest | Границы модулей, запреты из ADR | `backend/tests/Architecture.Tests` |
 | Контракт API | Снимок OpenAPI (ADR-0006) | Любое изменение API видно в диффе снимка `backend/src/Api/openapi/v1.json` | `backend/tests/Platform.Api.Tests` (`OpenApiSnapshotTests`) |
-| Компонентные | Vitest, Vue Test Utils | Компоненты и блоки редактора: поведение, клавиатура, ARIA, фокус; у каждого компонента `components/ui/` свой тест и раздел витрины `/ui` (проверяет `tests/ui/showcase.spec.ts`, ADR-0013); каркас сайта — `tests/shell/`: ширины и скрытие колонок проверяются по контракту стилей (happy-dom не раскладывает страницу), настоящую раскладку на 1440 px и 925–1239 px проверит Playwright (#17) | `frontend/tests/**/*.spec.ts`, `admin/tests/**/*.spec.ts` (`pnpm test`) |
+| Компонентные | Vitest, Vue Test Utils | Компоненты и блоки редактора: поведение, клавиатура, ARIA, фокус; у каждого компонента `components/ui/` свой тест и раздел витрины `/ui` (проверяет `tests/ui/showcase.spec.ts`, ADR-0013); каркас сайта — `tests/shell/`: ширины и скрытие колонок проверяются по контракту стилей (happy-dom не раскладывает страницу), настоящую раскладку проверяют сквозные тесты `frontend/e2e/shell.spec.ts` | `frontend/tests/**/*.spec.ts`, `admin/tests/**/*.spec.ts` (`pnpm test`) |
 | Стили | stylelint (ADR-0012) | Цвета и размеры в компонентах только из дизайн-токенов | `stylelint.config.mjs` клиентов, правила `brand/stylelint-rules.mjs` (`pnpm run lint`) |
-| Сквозные | Playwright | Сценарии пользователя в браузере | `frontend/e2e` |
+| Сквозные | Playwright | Сценарии пользователя в браузере в профилях `desktop` и `mobile`; раскладка каркаса на 1440, 1100, 800 и 390 px, витрины в обеих темах | `frontend/e2e`, `admin/e2e` (`pnpm e2e`) |
 
 ## Десктоп и телефон
 
@@ -106,6 +106,27 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 Тест, который проходит только в одном профиле, считается упавшим. Отличия раскладки проверяются явно
 (например, «на mobile видна нижняя панель»).
+
+## Сквозные тесты (Playwright)
+
+- **Где.** `frontend/e2e/*.spec.ts` и `admin/e2e/*.spec.ts`, настройка — `playwright.config.ts` пакета; проекты
+  `desktop` и `mobile` описаны выше, браузер — только Chromium (headless shell). Настройку проверяет компонентный
+  тест `tests/e2e-config.spec.ts` каждого пакета: оба профиля, ни один проект не сужает набор тестов, трасса и
+  снимок при падении, пути отчётов.
+- **Против чего.** Продакшен-сборка, которую verify собирает шагом «build»: сайт — `node .output/server/index.mjs`
+  на порту 3100, админка — `vite preview` на 4174; сервер поднимает `webServer` Playwright. Локально:
+  `pnpm build`, затем `pnpm e2e` (один раз — `pnpm exec playwright install chromium --only-shell`; verify ставит
+  браузер сам, в CI — вместе с системными библиотеками, а сам браузер берёт из кэша).
+- **Фикстуры.** `frontend/e2e/fixtures.ts`: тест падает на ошибке скрипта или консоли (в том числе на ошибке
+  гидратации); ожидаемо отсутствующие файлы перечисляются опцией `missingResources`. Там же помощники:
+  `press` (касание в mobile, щелчок в desktop), `expectNoHorizontalScroll`, `makeScrollable`.
+- **Ширины между профилями** (например, 1100 и 800 px) тест задаёт сам через `page.setViewportSize` и выполняется
+  в обоих профилях. Безопасные зоны «чёлки» эмулируются через DevTools-протокол Chromium
+  (`Emulation.setSafeAreaInsetsOverride`).
+- **Отчёты.** JUnit — `artifacts/test-results/<пакет>-e2e/junit.xml`; при падении трасса (`trace.zip`, открывается
+  `pnpm exec playwright show-trace`) и снимок экрана — в `artifacts/test-results/<пакет>-e2e/failures/`, в CI это
+  артефакт `test-results`.
+- **Снимков для сравнения нет.** Если они появятся, эталоны снимаются на раннере CI (ubuntu), а не на Windows.
 
 ## Внешние сервисы: только фейки
 
