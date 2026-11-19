@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 | Сервис | Локально и в тестах |
 | --- | --- |
 | Почта | Mailpit: тест читает письмо через его API |
-| Хранилище | MinIO |
+| Хранилище | MinIO (образ `cgr.dev/chainguard/minio`, см. [ARCHITECTURE.md](ARCHITECTURE.md)) |
 | Telegram | Фейковый `ITelegramGateway`, проигрывает записанные сценарии из `tools/fakes/telegram` |
 | Внешние провайдеры входа | Фейковый провайдер OIDC |
 | Капча, проверка изображений, ИИ, озвучка | Фейковые реализации интерфейсов с управляемым ответом |

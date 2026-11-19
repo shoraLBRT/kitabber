@@ -23,6 +23,11 @@ docs/                      ТЗ, ADR, состояние проекта
 scripts/verify.ps1         единственная команда проверки
 ```
 
+Образы в `compose.yaml` закреплены по версии. Исключение — MinIO: официальные образы `minio/minio` и
+`quay.io/minio/minio` больше не публикуются, поэтому берётся `cgr.dev/chainguard/minio` (MinIO, собранный
+Chainguard из исходников; решение владельца, PR #278). Бесплатно доступен только тег `latest`, поэтому образ
+закреплён по digest, а digest обновляет Renovate.
+
 `frontend/` и `admin/` — независимые пакеты pnpm, у каждого свой `pnpm-lock.yaml` и свой
 `pnpm-workspace.yaml` (там же список пакетов, которым разрешены скрипты установки, `allowBuilds`).
 

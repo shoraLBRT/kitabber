@@ -165,8 +165,8 @@ try {
     $click = "${base}:$($ports.CLICKHOUSE_HTTP_PORT)/?query=SELECT%201"
     Assert ((Get-Status $click @{ 'X-ClickHouse-User' = $vars.CLICKHOUSE_USER; 'X-ClickHouse-Key' = $vars.CLICKHOUSE_PASSWORD }) -eq 200) 'clickhouse: the password from the env file is refused'
     Assert ((Get-Status $click @{ 'X-ClickHouse-User' = $vars.CLICKHOUSE_USER; 'X-ClickHouse-Key' = 'wrong' }) -ne 200) 'clickhouse: a wrong password is accepted'
-    $minio = docker @dc exec -T minio sh -c "mc alias set probe http://localhost:9000 '$($vars.MINIO_ROOT_USER)' '$($vars.MINIO_ROOT_PASSWORD)' >/dev/null && mc admin info probe >/dev/null && echo ok" 2>&1 | Out-String
-    Assert ($minio.Trim() -eq 'ok') "minio: the password from the env file is refused: $minio"
+    $minio = docker @dc exec -T minio sh -c "mc alias set probe http://localhost:9000 '$($vars.MINIO_ROOT_USER)' '$($vars.MINIO_ROOT_PASSWORD)' >/dev/null && mc admin info probe >/dev/null && mc mb -q probe/smoke >/dev/null && echo ok" 2>&1 | Out-String
+    Assert ($minio.Trim() -eq 'ok') "minio: the password from the env file is refused or the data volume is not writable: $minio"
     $pgQuery = 'psql -h "$(hostname -i)" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1"'
     $pg = docker @dc exec -T -e "PGPASSWORD=$($vars.POSTGRES_PASSWORD)" postgres sh -c $pgQuery 2>&1 | Out-String
     Assert ($pg.Trim() -eq '1') "postgres: the password from the env file is refused: $pg"
