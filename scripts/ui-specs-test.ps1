@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 # Checks the screen specifications (E02-03, docs/ui/README.md), run as the verify step "ui specs":
 # - relative Markdown links in docs/ lead to existing headings (anchors); files are checked by "markdown links";
-# - every key screen has a file with sections for 1440 and 390 px and the states Пусто, Загрузка, Ошибка;
+# - every key screen has a file with sections for 1440 and 390 px and the states Empty, Loading, Error
+#   (in Russian; the script stays ASCII so Windows PowerShell 5.1 reads it without a BOM);
 # - every FR-... a spec names is a section of docs/spec.md, and every file names at least one;
 # - every token a spec names (--color-*, --size-*, ..., breakpoint.*) exists in brand/tokens.json or brand/brand.json;
 # - the specs are linked from docs/ARCHITECTURE.md.
@@ -76,7 +77,7 @@ foreach ($screen in $screens) {
     if (-not (Test-Path -LiteralPath $path)) { $problems.Add("$name is missing"); continue }
     $text = Read-Text $path
     $headings = [regex]::Matches($text, '(?m)^#{2,4}\s+(.+)$') | ForEach-Object { $_.Groups[1].Value }
-    foreach ($required in '1440 px', '390 px', 'Пусто', 'Загрузка', 'Ошибка') {
+    foreach ($required in '1440 px', '390 px', ([regex]::Unescape('\u041f\u0443\u0441\u0442\u043e')), ([regex]::Unescape('\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430')), ([regex]::Unescape('\u041e\u0448\u0438\u0431\u043a\u0430'))) {
         if (-not ($headings | Where-Object { $_.Contains($required) })) { $problems.Add("${name}: no section for $required") }
     }
     $fr = @([regex]::Matches($text, '\bFR-[A-Z]+\b') | ForEach-Object Value | Sort-Object -Unique)

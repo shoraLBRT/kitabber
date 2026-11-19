@@ -3,7 +3,8 @@
 # - a failing step (a failed test or linter) makes verify exit non-zero and shows up in the run summary;
 # - test reports (TRX, JUnit) reach the run summary;
 # - the linters really reject bad code;
-# - the CI workflow runs verify.ps1 within 10 minutes, with caches and test reports.
+# - the CI workflow runs verify.ps1 within 10 minutes, with caches and test reports;
+# - the screen-spec check (scripts/ui-specs-test.ps1) rejects broken specs.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $shell = (Get-Process -Id $PID).Path
@@ -106,7 +107,31 @@ exit (Complete-Verify '$reports')
     Assert ($ci -match 'artifacts/test-results') 'ci.yml: test reports must be uploaded'
     Assert ($ci -match 'gitleaks_\$\{GITLEAKS_VERSION\}_checksums\.txt') 'ci.yml: gitleaks must be installed and its checksum checked for the secret scan'
 
-    # 4. The images are built and the deploy is smoke-tested on every PR in their own job (E01-03), outside verify.
+    # 4. The screen-spec check (E02-03) rejects a broken tree: missing screen, sections, FR, tokens, anchors, links.
+    # The state headings are Russian; the script stays ASCII so Windows PowerShell 5.1 reads it without a BOM.
+    $empty, $loading, $failure = '\u041f\u0443\u0441\u0442\u043e', '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430', '\u041e\u0448\u0438\u0431\u043a\u0430' | ForEach-Object { [regex]::Unescape($_) }
+    $tree = Join-Path $temp 'ui-tree'
+    New-Item -ItemType Directory -Force (Join-Path $tree 'docs/ui'), (Join-Path $tree 'brand') | Out-Null
+    Copy-Item -LiteralPath (Join-Path $root 'docs/spec.md') -Destination (Join-Path $tree 'docs')
+    Copy-Item -LiteralPath (Join-Path $root 'brand/tokens.json'), (Join-Path $root 'brand/brand.json') -Destination (Join-Path $tree 'brand')
+    Get-ChildItem -LiteralPath (Join-Path $root 'docs/ui') -Filter *.md | Where-Object Name -ne 'settings.md' |
+        Copy-Item -Destination (Join-Path $tree 'docs/ui')
+    Set-Content -Encoding utf8 -LiteralPath (Join-Path $tree 'docs/ARCHITECTURE.md') '# Architecture'
+    $feed = Join-Path $tree 'docs/ui/feed.md'
+    $text = (Get-Content -Raw -Encoding utf8 -LiteralPath $feed) -replace '390 px', '390' -replace "### $loading", '### x'
+    $text += "`nFR-NOPE, ``--color-nope``, breakpoint.xl, [anchor](../spec.md#no-such-section)`n"
+    Set-Content -Encoding utf8 -LiteralPath $feed $text
+    Set-Content -Encoding utf8 -LiteralPath (Join-Path $tree 'docs/ui/post.md') "# Post`n`n## 1440 px`n## 390 px`n### $empty`n### $loading`n### $failure`n"
+    $out = & $shell -NoProfile -File (Join-Path $PSScriptRoot 'ui-specs-test.ps1') -Root $tree 2>&1 | Out-String
+    Assert ($LASTEXITCODE -ne 0) 'ui specs: a broken tree must fail'
+    foreach ($expected in 'docs/ui/settings.md is missing', 'docs/ui/feed.md: no section for 390 px', "docs/ui/feed.md: no section for $loading",
+        'docs/ui/feed.md: FR-NOPE is not a section', 'docs/ui/feed.md: unknown token --color-nope', 'unknown token breakpoint.xl',
+        'no heading for ../spec.md#no-such-section', 'docs/ui/post.md: no FR requirement referenced', 'docs/ARCHITECTURE.md does not link ui/README.md') {
+        Assert $out.Contains($expected) "ui specs: must report '$expected'"
+    }
+    $global:LASTEXITCODE = 0
+
+    # 5. The images are built and the deploy is smoke-tested on every PR in their own job (E01-03), outside verify.
     $images = Get-Content -Raw -Encoding utf8 (Join-Path $root '.github/workflows/images.yml')
     Assert ($images -match '(?m)^  pull_request:') 'images.yml: must run on every pull request'
     Assert ($images -match '(?m)^  build:\s*$' -and $images -match '(?m)run: \./scripts/deploy-test\.ps1 -Smoke ') 'images.yml: job build must run scripts/deploy-test.ps1 -Smoke'
