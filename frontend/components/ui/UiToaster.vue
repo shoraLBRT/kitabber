@@ -44,10 +44,19 @@ const others = computed(() => toasts.filter((toast) => toast.tone !== 'error'))
   list-style: none;
 }
 
+/* Below breakpoint.md toasts sit above the bottom bar of the phone shell (docs/ui/README.md, E02-06). */
+@media (max-width: 924px) {
+  .ui-toaster {
+    bottom: calc(
+      var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border) + var(--space-2) +
+        env(safe-area-inset-bottom)
+    );
+  }
+}
+
 @media (max-width: 639px) {
   .ui-toaster {
     right: var(--space-2);
-    bottom: var(--space-2);
     left: var(--space-2);
     width: auto;
   }

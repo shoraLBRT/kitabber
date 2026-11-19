@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Default layout: the desktop shell (E02-05). The phone shell (#16) adds its bottom bar to the "mobile" slot.
+// Default layout: the shell (E02-05 desktop, E02-06 phone: bottom bar and floating "Написать" below 925 px).
 const route = useRoute()
 </script>
 
