@@ -4,7 +4,7 @@
 [PROJECT_STATE.md](PROJECT_STATE.md)): всё ниже работает без сервера, а подключение стенда — это значения в
 настройках GitHub, перечисленные в разделе «Что нужно от владельца». Настройки приложений —
 [CONFIG.md](CONFIG.md), правила секретов — [ADR-0007](adr/0007-configuration-and-secrets.md), миграции —
-[ADR-0004](adr/0004-database-migrations.md).
+[ADR-0004](adr/0004-database-migrations.md), решение о выкладке — [ADR-0010](adr/0010-images-and-deployment.md).
 
 ## Образы
 

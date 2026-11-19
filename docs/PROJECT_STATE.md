@@ -28,6 +28,8 @@
   часы, остаёмся на VSTest; принято в задаче E01-15).
   [ADR-0009](adr/0009-demo-data-and-factories.md) (демо-данные и фабрики: одно зерно, фабрики в коде модуля,
   сидер-команда `backend/tools/Seed`; принято в задаче E01-17).
+  [ADR-0010](adr/0010-images-and-deployment.md) (образы в GHCR, стенд на Docker Compose, выкладка тегом по SSH, откат
+  прежним тегом; предложено в задаче E01-03).
 - Бэклог в GitHub Issues: 256 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
