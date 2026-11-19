@@ -14,6 +14,7 @@ const icons = {
 }
 
 useHead({ title: `Бренд — ${brand.name}` })
+definePageMeta({ layout: 'bare' })
 </script>
 
 <template>

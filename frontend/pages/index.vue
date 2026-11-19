@@ -1,3 +1,36 @@
+<script setup lang="ts">
+// Main feed (default "Популярное", docs/ui/feed.md). The feed itself comes with FR-FEED; until then the central
+// column shows the empty state of the shared FR-UI states.
+</script>
+
 <template>
-  <main />
+  <section class="feed-placeholder" aria-labelledby="feed-title">
+    <h1 id="feed-title" class="feed-placeholder__title">Популярное</h1>
+    <p class="feed-placeholder__text">Здесь появятся посты. Лента ещё не подключена.</p>
+  </section>
 </template>
+
+<style scoped>
+.feed-placeholder {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.feed-placeholder__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.feed-placeholder__text {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+@media (max-width: 639px) {
+  .feed-placeholder {
+    border-radius: 0;
+  }
+}
+</style>
