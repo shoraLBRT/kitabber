@@ -3,6 +3,7 @@
 import brand from '../../brand/brand.json'
 
 useHead({ title: `Компоненты — ${brand.name}` })
+definePageMeta({ layout: 'bare' })
 </script>
 
 <template>

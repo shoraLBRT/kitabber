@@ -1,11 +1,8 @@
 <template>
-  <div>
-    <header class="app-header">
-      <NuxtLink to="/" class="app-header__home"><BrandLogo /></NuxtLink>
-    </header>
+  <NuxtLayout>
     <NuxtPage />
-    <UiToaster />
-  </div>
+  </NuxtLayout>
+  <UiToaster />
 </template>
 
 <style>
@@ -31,14 +28,17 @@ a:hover {
   outline: var(--size-focus-ring) solid var(--color-focus);
   outline-offset: var(--size-focus-ring);
 }
-</style>
 
-<style scoped>
-.app-header {
-  padding: var(--space-3) var(--space-4);
-}
-
-.app-header__home {
-  text-decoration: none;
+/* Text for screen readers only. */
+.visually-hidden {
+  position: absolute;
+  width: var(--size-border);
+  height: var(--size-border);
+  margin: calc(-1 * var(--size-border));
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
