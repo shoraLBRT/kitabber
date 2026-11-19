@@ -64,8 +64,11 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - **Время** — `TestClock`: фабрика подменяет `TimeProvider` на `FakeTimeProvider` (`api.Time`), он стоит на
   `TestClock.Start` и движется только по `Advance`/`SetUtcNow`. Часы общие на класс и назад не идут: сравнивайте
   с `api.Time.GetUtcNow()`, а не с константой.
-- **Тестовые данные** — фабрики и сидер появятся в E01-17 (#9) в той же библиотеке; до них данные создаются через
-  API или контекст модуля.
+- **Тестовые данные** — фабрики модуля (`ObjectFactory<T>` из `Platform.Seeding`, лежат в коде модуля рядом с
+  сущностью; ими же пишет демо-данные сидер). В API-тесте: `new NoteFactory(api.Data).Build(n => n.Title = "…")`
+  и `api.SaveAsync<NotesDbContext>(…)`; `api.Data` — фиксированное зерно на часах фабрики, поэтому идентификаторы,
+  тексты и время одинаковы на каждом прогоне. Руками задаётся только то, что тест проверяет. Без хоста —
+  `TestData.Create()`. Демо-данные модулей целиком — `api.SeedDemoAsync()`. Правила — ADR-0009.
 - **Раннер** — xUnit v3 через VSTest (`IsTestingPlatformApplication=false`): так `dotnet test --logger trx` в
   `scripts/verify.ps1` пишет TRX для сводки CI. Почему не Microsoft.Testing.Platform — в ADR-0008.
 
@@ -118,7 +121,8 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ## Детерминизм
 
 - Время — только через `TimeProvider`; в тестах часы управляемые (`TestClock`, `FakeTimeProvider`).
-- Данные — фабрики тестовых объектов и сидер с фиксированным зерном (E01-17).
+- Данные — фабрики объектов и сидер с фиксированным зерном (`SeedData`, ADR-0009); `Guid.NewGuid()` и
+  `Random.Shared` в тестовых данных не используются.
 - База сбрасывается между интеграционными тестами (`IntegrationApiFactory.ResetAsync`, Respawn).
 - Тест, который падает случайно, чинится или удаляется в том же PR; «перезапустить и забыть» нельзя.
 

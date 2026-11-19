@@ -1,6 +1,6 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-15).
+Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-17).
 
 ## Текущая веха
 
@@ -8,7 +8,7 @@
 
 ## Следующая задача
 
-\#9 «E01-17 Сидер демо-данных и фабрики тестовых объектов» (после слияния PR задачи #8). Дальше — по [ROADMAP.md](ROADMAP.md).
+\#10 «E01-03 CD: автовыкладка на stage, ручная на prod, откат» (после слияния PR задачи #9). Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -26,7 +26,9 @@
   gitleaks; хранилище секретов стендов выбирается в E01-03, принято в задаче E01-13).
   [ADR-0008](adr/0008-backend-test-framework.md) (общий каркас тестов, контейнер на сборку, Respawn, управляемые
   часы, остаёмся на VSTest; принято в задаче E01-15).
-- Бэклог в GitHub Issues: 255 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
+  [ADR-0009](adr/0009-demo-data-and-factories.md) (демо-данные и фабрики: одно зерно, фабрики в коде модуля,
+  сидер-команда `backend/tools/Seed`; принято в задаче E01-17).
+- Бэклог в GitHub Issues: 256 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
 
@@ -99,8 +101,16 @@
   прежних тестовых проекта переведены на каркас; образец — `backend/tests/Platform.Api.IntegrationTests`
   (образцовый модуль заметок: успешный путь, 401/403, ошибка валидации, кэш в Redis, часы, сброс). Раннер —
   по-прежнему VSTest: переход на Microsoft.Testing.Platform отклонён (TRX и сводка CI), причины — в
-  [ADR-0008](adr/0008-backend-test-framework.md). Фабрики тестовых объектов и сидер — E01-17 (#9), место для них —
-  `Platform.Testing` и `WithModule`. Правила — [TESTING.md](TESTING.md).
+  [ADR-0008](adr/0008-backend-test-framework.md). Правила — [TESTING.md](TESTING.md).
+- Демо-данные и фабрики объектов (E01-17): библиотека `backend/src/Seeding` (`Platform.Seeding`) — `SeedData`
+  (зерно и `TimeProvider`; идентификаторы `Id(kind, n)` и случайные последовательности выводятся из зерна),
+  `ObjectFactory<T>`, `IDemoSeeder`, `AddMissingAsync` (идемпотентная запись по идентификаторам); команда
+  `dotnet run --project backend/tools/Seed` — миграции, затем демо-сидеры модулей из `SeedCatalog`; в `Staging` и
+  `Production` отказывается без `Seed:AllowProtectedEnvironment=true`. Тестам — `TestData.Create()`,
+  `IntegrationApiFactory.Data`, `SaveAsync<TContext>`, `SeedDemoAsync()`. Фабрики живут в коде модуля (не в
+  `Platform.Testing`), так их использует и сидер. Образец — `NoteFactory` и `NotesDemoSeeder` модуля заметок.
+  Каталог сидера пока пуст: модулей продукта нет; пользователи, блоги, темы, посты и комментарии появятся в
+  E01-19 (#287) по мере модулей. Правила — [ADR-0009](adr/0009-demo-data-and-factories.md).
 
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
@@ -108,8 +118,8 @@
 
 | Набор | Число тестов |
 | --- | --- |
-| Сервер, модульные | 25 (`Platform.Api.Tests`: 13 — курсорная пагинация и часы; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов) |
-| Сервер, интеграционные | 68 (`Platform.Api.Tests`: 22 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 7 на PostgreSQL (миграции, сброс Respawn), 7 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker; `Platform.Api.IntegrationTests`: 8, API на PostgreSQL и Redis) |
+| Сервер, модульные | 30 (`Platform.Api.Tests`: 13 — курсорная пагинация и часы; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов; `Platform.Seeding.Tests`: 5, зерно, идентификаторы и фабрики) |
+| Сервер, интеграционные | 80 (`Platform.Api.Tests`: 22 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 7 на PostgreSQL (миграции, сброс Respawn), 7 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker; `Platform.Seeding.Tests`: 5, команда сидера без базы (окружения, настройки); `Platform.Api.IntegrationTests`: 15, API на PostgreSQL и Redis и сидер на PostgreSQL) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 

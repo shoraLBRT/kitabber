@@ -17,12 +17,14 @@ backend/                   решение .NET (Platform.slnx)
   src/Caching/             Platform.Caching — кэш IDistributedCache на Redis (ADR-0005)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
+  src/Seeding/             Platform.Seeding — демо-данные: зерно, фабрики объектов, демо-сидеры модулей (ADR-0009)
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
   tests/Platform.Testing/  общий каркас тестов: контейнеры, фабрики API, Respawn, часы (ADR-0008)
   tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
+  tools/Seed/              Platform.Seed — команда демо-данных: dotnet run --project backend/tools/Seed (ADR-0009)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
-tools/                     сидер, генерация клиента API, фейковые сервисы (появится в своих задачах)
+tools/                     инструменты не на .NET: генерация клиента API, фейковые сервисы (появится в своих задачах)
 deploy/                    compose-файлы и инструкции выкладки на стенды (появится в E01-03)
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
 .env.example               порты и пароли локального окружения; копия .env в git не попадает
@@ -53,6 +55,18 @@ dotnet run --project backend/src/Migrator -- rollback <схема>  # откат
 
 Список модулей мигратора — `backend/src/Migrator/ModuleCatalog.cs`. Правила (справочные данные в миграциях,
 обратимость, как добавить модуль) — в [ADR-0004](adr/0004-database-migrations.md).
+
+## Демо-данные
+
+```sh
+dotnet run --project backend/tools/Seed                              # миграции, затем демо-данные всех модулей
+dotnet run --project backend/tools/Seed -- --Seed:RandomSeed=42      # другое зерно — другие данные
+```
+
+Данные выводятся из одного зерна и часов (`SeedData`), повторный запуск ничего не добавляет. Модуль кладёт рядом с
+сущностью фабрику (`ObjectFactory<T>`) и демо-сидер (`IDemoSeeder`) и добавляет строку в
+`backend/tools/Seed/SeedCatalog.cs`; те же фабрики строят объекты в тестах. В `Staging` и `Production` сидер
+отказывается без `Seed:AllowProtectedEnvironment=true`. Правила — [ADR-0009](adr/0009-demo-data-and-factories.md).
 
 ## Очереди, фоновые воркеры и кэш
 
