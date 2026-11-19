@@ -20,3 +20,5 @@ test-results/
 .DS_Store
 Thumbs.db
 .idea/
+# Verify output (test reports)
+artifacts/

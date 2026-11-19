@@ -8,7 +8,7 @@
 
 ## Следующая задача
 
-\#2 «E01-02 CI: сборка, тесты и линтеры на каждый PR». Дальше — по [ROADMAP.md](ROADMAP.md).
+\#3 «E01-04 Docker-окружение для локальной разработки». Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -25,6 +25,10 @@
   `.prettierrc.json`, `global.json`. Структура и линтеры описаны в [ARCHITECTURE.md](ARCHITECTURE.md).
 - `scripts/verify.ps1` проверяет структуру репозитория, сборку и `dotnet format` бэкенда, ESLint, Prettier,
   проверку типов и `pnpm build` обоих клиентов. CI ставит .NET по `global.json`, pnpm и Node 22.
+- CI (E01-02): `ci / verify` запускает `scripts/verify.ps1` с кэшами NuGet и pnpm и тайм-аутом 10 минут;
+  таблица шагов и сводка отчётов о тестах (`artifacts/test-results`, TRX и JUnit) видны в сводке запуска, отчёты
+  выкладываются артефактом. Самопроверка `scripts/verify-selftest.ps1` (шаг verify) доказывает, что упавший шаг
+  роняет проверку, линтеры отвергают плохой код и workflow соблюдает эти ограничения.
 
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
