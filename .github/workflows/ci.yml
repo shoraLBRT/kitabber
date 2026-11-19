@@ -1,4 +1,5 @@
 # The same single command developers and sessions run locally: pwsh scripts/verify.ps1
+# This file only prepares the machine (tools, caches) and publishes the results; the checks live in the script.
 name: ci
 
 on:
@@ -13,21 +14,44 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # E01-02: a run of the skeleton must stay under 10 minutes.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'backend/**/*.csproj', 'backend/Directory.*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            frontend/pnpm-lock.yaml
+            admin/pnpm-lock.yaml
       - name: Verify
         shell: pwsh
         run: ./scripts/verify.ps1
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results
+          if-no-files-found: ignore

@@ -4,20 +4,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
-$failed = @()
-
-function Step($name, [scriptblock]$body) {
-    Write-Host "== $name"
-    try {
-        & $body
-        if ($LASTEXITCODE) { throw "exit code $LASTEXITCODE" }
-    }
-    catch {
-        Write-Host "FAILED: $name - $_"
-        $script:failed += $name
-    }
-    $global:LASTEXITCODE = 0
-}
+$reports = Join-Path $root 'artifacts/test-results'
+. (Join-Path $PSScriptRoot 'verify-lib.ps1')
 
 Step 'required docs' {
     $required = 'CLAUDE.md', 'README.md', 'docs/spec.md', 'docs/ROADMAP.md', 'docs/PROJECT_STATE.md',
@@ -73,7 +61,9 @@ $solution = Get-ChildItem -Path backend -Filter *.sln* -ErrorAction SilentlyCont
 if ($solution) {
     Step 'backend build' { dotnet build $solution.FullName --nologo -v q -warnaserror }
     Step 'backend format' { dotnet format $solution.FullName --verify-no-changes -v q }
-    Step 'backend tests' { dotnet test $solution.FullName --nologo --no-build -v q }
+    Step 'backend tests' {
+        dotnet test $solution.FullName --nologo --no-build -v q --logger trx --results-directory (Join-Path $reports 'backend')
+    }
 }
 
 foreach ($app in 'frontend', 'admin') {
@@ -91,8 +81,6 @@ foreach ($app in 'frontend', 'admin') {
     }
 }
 
-if ($failed) {
-    Write-Host "`nverify: FAILED ($($failed -join '; '))"
-    exit 1
-}
-Write-Host "`nverify: OK"
+Step 'verify self-test' { & (Join-Path $PSScriptRoot 'verify-selftest.ps1') }
+
+exit (Complete-Verify $reports)
