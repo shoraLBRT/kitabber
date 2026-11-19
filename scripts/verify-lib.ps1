@@ -32,7 +32,7 @@ function Skip-Step([string]$Reason) {
 function Get-TestReports([string]$Directory) {
     if (-not (Test-Path $Directory)) { return @() }
     Get-ChildItem -Path $Directory -Recurse -File -Include *.trx, *.xml | Sort-Object FullName | ForEach-Object {
-        [xml]$xml = Get-Content -Raw -Encoding utf8 $_.FullName
+        [xml]$xml = Get-Content -Raw -Encoding utf8 -LiteralPath $_.FullName
         $relative = $_.FullName.Substring((Resolve-Path $Directory).Path.TrimEnd('\', '/').Length + 1) -replace '\\', '/'
         if ($xml.TestRun) {
             $c = $xml.TestRun.ResultSummary.Counters
