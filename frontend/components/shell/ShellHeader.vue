@@ -33,7 +33,12 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
   <header class="shell-header" data-testid="shell-header">
     <div class="shell-header__inner">
       <NuxtLink to="/" class="shell-header__home" aria-label="На главную"><BrandLogo /></NuxtLink>
-      <button type="button" class="shell-header__icon-button shell-header__search" aria-label="Поиск" @click="emit('search')">
+      <button
+        type="button"
+        class="shell-header__icon-button shell-header__search"
+        aria-label="Поиск"
+        @click="emit('search')"
+      >
         <Search class="shell-header__icon" aria-hidden="true" />
       </button>
       <div class="shell-header__actions">
