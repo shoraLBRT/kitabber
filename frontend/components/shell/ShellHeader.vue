@@ -158,7 +158,8 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
    move to the floating button, the bottom bar and the "Меню" screen of the phone shell (#16). */
 @media (max-width: 639px) {
   .shell-header__inner {
-    padding: 0 calc(var(--space-4) + env(safe-area-inset-right)) 0 calc(var(--space-4) + env(safe-area-inset-left));
+    padding: 0 calc(var(--space-4) + env(safe-area-inset-right)) 0
+      calc(var(--space-4) + env(safe-area-inset-left));
   }
 
   .shell-header__search {

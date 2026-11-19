@@ -4,14 +4,7 @@
 // colour theme switch and the service links. "Коллекция", "подписка" and donations are not shown.
 import { ChevronRight, LogIn, LogOut } from 'lucide-vue-next'
 import { computed } from 'vue'
-import {
-  accountNav,
-  isActive,
-  loginPath,
-  serviceNav,
-  topicsPath,
-  type NavItem,
-} from '../../utils/navigation'
+import { accountNav, isActive, loginPath, serviceNav, topicsPath, type NavItem } from '../../utils/navigation'
 import UiAvatar from '../ui/UiAvatar.vue'
 import type { ShellUser } from './ShellHeader.vue'
 import ShellThemeSwitch from './ShellThemeSwitch.vue'
