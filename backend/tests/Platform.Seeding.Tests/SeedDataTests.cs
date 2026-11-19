@@ -78,7 +78,7 @@ public sealed class SeedDataTests
     [InlineData("Production")]
     public async Task SeedCommandRefusesProtectedEnvironments(string environment)
     {
-        var (exit, error) = await RunSeed("--environment", environment, Connection);
+        var (exit, error) = await RunSeed("--environment", environment, _connection);
 
         Assert.Equal(SeedApp.RefusedExitCode, exit);
         Assert.Contains($"--{SeedApp.AllowProtectedEnvironmentKey}=true", error, StringComparison.Ordinal);
@@ -89,7 +89,7 @@ public sealed class SeedDataTests
     [InlineData("--Seed:AllowProtectedEnvironment=maybe")]
     public async Task SeedCommandRejectsWrongSettings(string setting)
     {
-        var (exit, _) = await RunSeed("--environment", PlatformEnvironments.Test, Connection, setting);
+        var (exit, _) = await RunSeed("--environment", PlatformEnvironments.Test, _connection, setting);
 
         Assert.Equal(2, exit);
     }
@@ -97,13 +97,13 @@ public sealed class SeedDataTests
     [Fact]
     public async Task SeedCommandRejectsUnknownCommand()
     {
-        var (exit, error) = await RunSeed("drop", "--environment", PlatformEnvironments.Test, Connection);
+        var (exit, error) = await RunSeed("drop", "--environment", PlatformEnvironments.Test, _connection);
 
         Assert.Equal(2, exit);
         Assert.Contains(SeedApp.Usage, error, StringComparison.Ordinal);
     }
 
-    private const string Connection = "--ConnectionStrings:Platform=Host=localhost;Database=never_contacted";
+    private const string _connection = "--ConnectionStrings:Platform=Host=localhost;Database=never_contacted";
 
     private static async Task<(int Exit, string Error)> RunSeed(params string[] args)
     {
