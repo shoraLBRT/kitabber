@@ -1,6 +1,6 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 19 ноября 2026.
+Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-06).
 
 ## Текущая веха
 
@@ -8,8 +8,7 @@
 
 ## Следующая задача
 
-\#5 «E01-06 Redis, брокер очередей и каркас фоновых воркеров». Дальше — по [ROADMAP.md](ROADMAP.md); #8 (E01-15)
-теперь не ждёт #4.
+\#6 «E01-07 Каркас API: версии, формат ошибок, курсорная пагинация, OpenAPI». Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -19,6 +18,8 @@
   предложено), [ADR-0003](adr/0003-telegram-bridge.md) (Telegram, предложено).
   [ADR-0004](adr/0004-database-migrations.md) (миграции EF Core, схема и история миграций на модуль, принято в
   задаче E01-05).
+  [ADR-0005](adr/0005-messaging-and-cache.md) (MassTransit 8 на RabbitMQ, outbox в схеме модуля, Redis, принято в
+  задаче E01-06).
 - Бэклог в GitHub Issues: 255 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
@@ -49,6 +50,17 @@
   (PostgreSQL в Testcontainers; без Docker локально тесты пропускаются, в CI падают). Тесты пока запускаются через
   VSTest (`IsTestingPlatformApplication=false`): переход на Microsoft.Testing.Platform и общий каркас — E01-15.
 
+- Очереди, воркеры и кэш (E01-06): `Platform.Messaging` — шина MassTransit 8.5 (Apache-2.0; 9+ платная, Renovate
+  её не предлагает) на RabbitMQ или тестовом транспорте `InMemory` (`Messaging:Transport`); outbox и inbox модуля
+  лежат в его схеме (`AddOutboxTables`, `AddModuleOutbox<T>`, `ModuleConsumerDefinition<,>`). `Platform.Caching` —
+  `IDistributedCache` на Redis или в памяти (`Cache:Provider`). Хост `Platform.Workers` (`WorkerHost`) собирает шину,
+  потребители модулей и кэш; модулей пока нет, `WorkerHost.AddModules` пуст, API шину ещё не подключает.
+  `backend/tests/Platform.Messaging.IntegrationTests` (PostgreSQL, RabbitMQ, Redis в Testcontainers) проверяют:
+  событие из транзакции доставляется ровно один раз и не уходит без коммита, повторная доставка отбрасывается
+  inbox, сообщения, опубликованные при остановленном воркере, обрабатываются после перезапуска; тестовый
+  транспорт и кэш в памяти работают без Docker. Правила — [ADR-0005](adr/0005-messaging-and-cache.md). Ограничение:
+  bus outbox — один на хост; несколько публикующих модулей в одном хосте — задача #281.
+
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
 ## Базовая линия тестов
@@ -56,7 +68,7 @@
 | Набор | Число тестов |
 | --- | --- |
 | Сервер, модульные | 0 |
-| Сервер, интеграционные | 11 (`Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы) |
+| Сервер, интеграционные | 28 (`Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 
@@ -77,6 +89,7 @@
 | Бот Telegram, служебный аккаунт и `api_id`, сервер вне России, тестовый канал | До M6 | E19-01 |
 | Переносить ли мост с Telegram раньше (до открытой беты) | До конца M3 | эпик E19 |
 | Юридические документы | До M7 | E17-08 |
+| MassTransit 8 (Apache-2.0) пока поддерживается авторами ограниченно; при прекращении поддержки — лицензия 9, Wolverine или свой outbox (ADR-0005) | Когда ветка 8 перестанет получать исправления | E01-06 |
 
 ## Настройки репозитория
 

@@ -27,9 +27,11 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 таблице шагов; выдавать его за пройденный нельзя.
 
 То же правило у серверных тестов на Testcontainers (сейчас — `backend/tests/Platform.Persistence.IntegrationTests`:
-миграции на чистую базу и откат последней миграции): без Docker или с `VERIFY_SKIP_DOCKER=1` они локально
+миграции на чистую базу и откат последней миграции; `backend/tests/Platform.Messaging.IntegrationTests`: outbox,
+перезапуск воркера, Redis): без Docker или с `VERIFY_SKIP_DOCKER=1` они локально
 помечаются пропущенными (`Skipped` в отчёте), в CI падают. Каждый тест получает свою пустую базу в общем
-контейнере PostgreSQL того же образа, что в `compose.yaml`. Общий каркас (фабрика приложения, Respawn) — E01-15.
+контейнере PostgreSQL того же образа, что в `compose.yaml`; RabbitMQ и Redis — тоже по одному контейнеру на запуск
+из образов `compose.yaml`. Общий каркас (фабрика приложения, Respawn) — E01-15.
 
 ## Отчёты о тестах
 
@@ -71,6 +73,8 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 | Внешние провайдеры входа | Фейковый провайдер OIDC |
 | Капча, проверка изображений, ИИ, озвучка | Фейковые реализации интерфейсов с управляемым ответом |
 | Push | Фейковый отправитель, складывает сообщения в память |
+| Брокер очередей | RabbitMQ в Testcontainers; без брокера — тестовый транспорт `Messaging:Transport=InMemory` (ADR-0005) |
+| Кэш | Redis в Testcontainers; без него — `Cache:Provider=InMemory` (ADR-0005) |
 
 Настоящие ключи нужны только на стендах и задаются переменными окружения (файл `docs/CONFIG.md` появится в
 задаче E01-13).
