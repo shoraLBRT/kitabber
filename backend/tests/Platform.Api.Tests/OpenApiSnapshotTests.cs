@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Platform.Testing.Api;
 
 namespace Platform.Api.Tests;
 
@@ -25,7 +26,7 @@ public sealed class OpenApiSnapshotTests
     [Fact]
     public async Task ServedDocumentMatchesTheSnapshot()
     {
-        using var factory = new ApiTestFactory();
+        using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var document = await client.GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken);
@@ -35,7 +36,7 @@ public sealed class OpenApiSnapshotTests
     [Fact]
     public async Task DocumentCoversModuleEndpointsUnderTheVersionOnly()
     {
-        using var factory = new ApiTestFactory(TestModule.Register);
+        using var factory = new PlatformApiFactory().WithModule(TestModule.Register);
         using var client = factory.CreateClient();
 
         var document = await client.GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken);

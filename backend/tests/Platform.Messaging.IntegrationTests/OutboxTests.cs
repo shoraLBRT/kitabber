@@ -3,9 +3,9 @@ using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Platform.Messaging.IntegrationTests.Containers;
 using Platform.Messaging.IntegrationTests.SampleModule;
 using Platform.Persistence;
+using Platform.Testing.Containers;
 using static Platform.Messaging.IntegrationTests.TestHosts;
 
 namespace Platform.Messaging.IntegrationTests;

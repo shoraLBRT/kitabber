@@ -2,7 +2,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Caching;
-using Platform.Messaging.IntegrationTests.Containers;
+using Platform.Testing.Containers;
 
 namespace Platform.Messaging.IntegrationTests;
 

@@ -5,7 +5,7 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <RootNamespace>Platform.Configuration.Tests</RootNamespace>
-        <!-- Run through VSTest, like the other test projects: verify.ps1 uses the TRX logger. -->
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
         <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
     </PropertyGroup>
 

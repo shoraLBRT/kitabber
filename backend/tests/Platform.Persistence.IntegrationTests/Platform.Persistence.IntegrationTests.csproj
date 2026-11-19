@@ -5,15 +5,13 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <RootNamespace>Platform.Persistence.IntegrationTests</RootNamespace>
-        <!-- Run through VSTest (xunit.runner.visualstudio): scripts/verify.ps1 calls `dotnet test` with the TRX logger.
-             Moving to Microsoft.Testing.Platform is up to the backend test framework task (E01-15). -->
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
         <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
         <PackageReference Include="xunit.v3" />
     </ItemGroup>
@@ -25,6 +23,7 @@
     <ItemGroup>
         <ProjectReference Include="../../src/Migrator/Platform.Migrator.csproj" />
         <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 
 </Project>

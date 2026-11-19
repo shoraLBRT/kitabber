@@ -2,11 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Platform.Migrator;
 using Platform.Persistence.IntegrationTests.SampleModules;
+using Platform.Testing.Containers;
 
 namespace Platform.Persistence.IntegrationTests;
 
 /// <summary>The migration command on a real PostgreSQL: apply on a clean database, roll back the last migration.</summary>
-[Collection(PostgresDatabases.Name)]
 public sealed class MigrationTests(PostgresFixture postgres)
 {
     private static void AddSampleModules(IServiceCollection services, string connectionString) => services

@@ -1,12 +1,12 @@
 using System.Text.RegularExpressions;
 using DotNet.Testcontainers.Containers;
 
-namespace Platform.Messaging.IntegrationTests.Containers;
+namespace Platform.Testing.Containers;
 
 /// <summary>
-/// One container per test run, from the same image as the compose.yaml service. Without Docker the tests that need
-/// it are skipped locally (or with VERIFY_SKIP_DOCKER=1); in CI they fail instead. The general test infrastructure
-/// (E01-15, #8) is expected to take these fixtures over.
+/// One container per test assembly, from the same image as the compose.yaml service; a test project declares it with
+/// <c>[assembly: AssemblyFixture(typeof(PostgresFixture))]</c> and every test class shares it (ADR-0008). Without
+/// Docker the tests that need it are skipped locally (or with VERIFY_SKIP_DOCKER=1); in CI they fail instead.
 /// </summary>
 public abstract class ContainerFixture<TContainer> : IAsyncLifetime
     where TContainer : class, IContainer

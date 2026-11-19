@@ -1,6 +1,6 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-13).
+Обновляется в каждом PR. Последнее обновление: 19 ноября 2026 (E01-15).
 
 ## Текущая веха
 
@@ -8,7 +8,7 @@
 
 ## Следующая задача
 
-\#8 «E01-15 Тестовый каркас бэкенда: xUnit, Testcontainers, фабрика приложения». Дальше — по [ROADMAP.md](ROADMAP.md).
+\#9 «E01-17 Сидер демо-данных и фабрики тестовых объектов» (после слияния PR задачи #8). Дальше — по [ROADMAP.md](ROADMAP.md).
 
 ## Что уже есть
 
@@ -24,6 +24,8 @@
   OpenAPI, принято в задаче E01-07).
   [ADR-0007](adr/0007-configuration-and-secrets.md) (настройки через переменные окружения, проверка на старте,
   gitleaks; хранилище секретов стендов выбирается в E01-03, принято в задаче E01-13).
+  [ADR-0008](adr/0008-backend-test-framework.md) (общий каркас тестов, контейнер на сборку, Respawn, управляемые
+  часы, остаёмся на VSTest; принято в задаче E01-15).
 - Бэклог в GitHub Issues: 255 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate.
@@ -52,7 +54,7 @@
   Модулей пока нет, поэтому `ModuleCatalog` пуст; накат на чистую базу, независимость схем и откат последней
   миграции проверяются на двух образцовых модулях в `backend/tests/Platform.Persistence.IntegrationTests`
   (PostgreSQL в Testcontainers; без Docker локально тесты пропускаются, в CI падают). Тесты пока запускаются через
-  VSTest (`IsTestingPlatformApplication=false`): переход на Microsoft.Testing.Platform и общий каркас — E01-15.
+  VSTest (`IsTestingPlatformApplication=false`), см. ADR-0008.
 
 - Очереди, воркеры и кэш (E01-06): `Platform.Messaging` — шина MassTransit 8.5 (Apache-2.0; 9+ платная, Renovate
   её не предлагает) на RabbitMQ или тестовом транспорте `InMemory` (`Messaging:Transport`); outbox и inbox модуля
@@ -88,14 +90,26 @@
   Правила и варианты хранилища секретов для стендов — [ADR-0007](adr/0007-configuration-and-secrets.md); выбор
   хранилища — в E01-03 (#10), код от него не зависит.
 
+- Каркас серверных тестов (E01-15): библиотека `backend/tests/Platform.Testing` — контейнеры PostgreSQL, Redis,
+  RabbitMQ из образов `compose.yaml` (один на тестовую сборку, `AssemblyFixture`), `PlatformApiFactory` (API в
+  процессе, окружение `Test`, `WithSetting`/`WithModule`), `IntegrationApiFactory` (API на PostgreSQL и Redis:
+  база и номерная база Redis на тестовый класс, миграции модулей один раз, `ResetAsync()` — Respawn и `FLUSHDB`
+  перед каждым тестом), `TestAuthentication` (заголовки `X-Test-Account`/`X-Test-Role`), `DatabaseReset`,
+  `TestClock` (`FakeTimeProvider`). API регистрирует `TimeProvider.System`, фабрика подменяет его. Все четыре
+  прежних тестовых проекта переведены на каркас; образец — `backend/tests/Platform.Api.IntegrationTests`
+  (образцовый модуль заметок: успешный путь, 401/403, ошибка валидации, кэш в Redis, часы, сброс). Раннер —
+  по-прежнему VSTest: переход на Microsoft.Testing.Platform отклонён (TRX и сводка CI), причины — в
+  [ADR-0008](adr/0008-backend-test-framework.md). Фабрики тестовых объектов и сидер — E01-17 (#9), место для них —
+  `Platform.Testing` и `WithModule`. Правила — [TESTING.md](TESTING.md).
+
 Функций продукта пока нет: оба клиента — пустые страницы, у API есть только `/health`.
 
 ## Базовая линия тестов
 
 | Набор | Число тестов |
 | --- | --- |
-| Сервер, модульные | 23 (`Platform.Api.Tests`: 11, курсорная пагинация; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов) |
-| Сервер, интеграционные | 55 (`Platform.Api.Tests`: 20 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 5 на PostgreSQL, 6 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker) |
+| Сервер, модульные | 25 (`Platform.Api.Tests`: 13 — курсорная пагинация и часы; `Platform.Configuration.Tests`: 12, проверка настроек и файлы секретов) |
+| Сервер, интеграционные | 68 (`Platform.Api.Tests`: 22 в процессе, без Docker; `Platform.Configuration.Tests`: 7, настоящие хосты и сверка с репозиторием; `Platform.Persistence.IntegrationTests`: 7 на PostgreSQL (миграции, сброс Respawn), 7 без базы; `Platform.Messaging.IntegrationTests`: 6 на контейнерах, 11 без Docker; `Platform.Api.IntegrationTests`: 8, API на PostgreSQL и Redis) |
 | Клиент, компонентные | 0 |
 | Сквозные (в каждом из двух профилей) | 0 |
 

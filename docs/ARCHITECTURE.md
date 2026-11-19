@@ -18,7 +18,8 @@ backend/                   решение .NET (Platform.slnx)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
-  tests/                   тестовые проекты (общий каркас — задача E01-15)
+  tests/Platform.Testing/  общий каркас тестов: контейнеры, фабрики API, Respawn, часы (ADR-0008)
+  tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
 tools/                     сидер, генерация клиента API, фейковые сервисы (появится в своих задачах)
@@ -138,7 +139,7 @@ Prettier отвечает за форматирование, ESLint — за о�
   свободных портах, ждёт healthcheck, достаёт каждый сервис с хоста, проверяет пароли и всё удаляет;
 - секреты (`scripts/secret-scan.ps1`): gitleaks по всем файлам, которые git закоммитил бы; сначала он должен
   найти подложенный токен; локально без gitleaks шаг пропускается, в CI обязателен;
-- backend: сборку без предупреждений, форматирование, тесты (в том числе миграции на PostgreSQL в Testcontainers);
+- backend: сборку без предупреждений, форматирование, тесты (в том числе API, миграции и очереди на PostgreSQL, Redis и RabbitMQ в Testcontainers);
 - frontend и admin: установку по lock-файлу, линтеры, проверку типов, сборку (`pnpm build`), тесты, если
   они есть;
 - саму себя (`scripts/verify-selftest.ps1`): упавший шаг роняет проверку, линтеры отвергают плохой код, workflow
