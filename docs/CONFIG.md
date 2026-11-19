@@ -68,6 +68,17 @@
 | --- | --- | --- | --- | --- | --- |
 | `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы в формате Npgsql: `Host=...;Port=...;Database=...;Username=...;Password=...` |
 
+## Сидер демо-данных (`backend/tools/Seed`)
+
+Сначала применяет миграции всех модулей, потом пишет демо-данные (ADR-0009). В `Staging` и `Production` без
+`Seed:AllowProtectedEnvironment=true` не пишет ничего и выходит с кодом 3.
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
+| --- | --- | --- | --- | --- | --- |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора |
+| `Seed:RandomSeed` | `Seed__RandomSeed` | нет | нет | `20260115` | зерно демо-данных: одно зерно — одни и те же данные |
+| `Seed:AllowProtectedEnvironment` | `Seed__AllowProtectedEnvironment` | нет | нет | `false` | `true` разрешает писать демо-данные в `Staging` и `Production` |
+
 ## Локальное окружение и клиенты
 
 - `.env.example` — порты и пароли инфраструктуры в `compose.yaml` (E01-04); копия `.env` в git не попадает.

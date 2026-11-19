@@ -60,6 +60,34 @@ public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyn
     }
 
     [Fact]
+    public async Task ModeratorDeletesANoteArrangedByTheFactory()
+    {
+        var notes = new NoteFactory(api.Data);
+        var kept = notes.Build();
+        var doomed = notes.Build(n => n.Title = "Удалить");
+        await api.SaveAsync<NotesDbContext>(kept, doomed);
+
+        using var response = await SendAsync(HttpMethod.Delete, $"{_path}/{doomed.Id}", "account-2", "moderator");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var list = await _client.GetFromJsonAsync<NoteView[]>(_path, Ct);
+        Assert.Equal([NoteView.From(kept)], list!);
+    }
+
+    [Fact]
+    public async Task DemoDataIsServedByTheApi()
+    {
+        var added = await api.SeedDemoAsync();
+
+        var list = await _client.GetFromJsonAsync<NoteView[]>(_path, Ct);
+
+        Assert.Equal(NotesDemoSeeder.Count, added);
+        Assert.Equal(NotesDemoSeeder.Count, list!.Length);
+        Assert.Equal(list.OrderByDescending(n => n.CreatedAt).Select(n => n.Id), list.Select(n => n.Id));
+        Assert.Equal(0, await api.SeedDemoAsync());
+    }
+
+    [Fact]
     public async Task ClockStartsAtTheFixedInstant()
     {
         Assert.True(api.Time.GetUtcNow() >= TestClock.Start);

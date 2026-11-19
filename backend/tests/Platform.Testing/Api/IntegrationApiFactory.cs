@@ -1,7 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Caching;
 using Platform.Persistence;
+using Platform.Seeding;
 using Platform.Testing.Containers;
+using Platform.Testing.Data;
 using Platform.Testing.Database;
 
 namespace Platform.Testing.Api;
@@ -20,6 +23,7 @@ public class IntegrationApiFactory(PostgresFixture postgres, RedisFixture redis)
 
     private readonly SemaphoreSlim _start = new(1, 1);
     private DatabaseReset? _reset;
+    private SeedData? _data;
 
     /// <summary>The test database of this factory; set by the first <see cref="ResetAsync"/>.</summary>
     public string DatabaseConnectionString { get; private set; } = string.Empty;
@@ -37,6 +41,27 @@ public class IntegrationApiFactory(PostgresFixture postgres, RedisFixture redis)
         await _reset!.ResetAsync();
         await RedisFixture.FlushAsync(RedisConnectionString);
     }
+
+    /// <summary>
+    /// The seed data of this factory: the fixed seed on the factory's clock (<see cref="PlatformApiFactory.Time"/>).
+    /// Give it to the module's factories to build the objects a test needs.
+    /// </summary>
+    public SeedData Data => _data ??= TestData.Create(Time);
+
+    /// <summary>Saves <paramref name="entities"/> (built by the module's factories) through the module context.</summary>
+    public async Task SaveAsync<TContext>(params object[] entities)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
+        db.AddRange(entities);
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Runs the demo seeders of the registered modules, as <c>tools/Seed</c> does.</summary>
+    /// <returns>The number of rows added.</returns>
+    public Task<int> SeedDemoAsync() => DemoSeedRunner.RunAsync(Services, Data, TextWriter.Null);
 
     public override async ValueTask DisposeAsync()
     {

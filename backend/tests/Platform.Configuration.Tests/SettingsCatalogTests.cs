@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Platform.Api;
 using Platform.Migrator;
+using Platform.Seeding;
 using Platform.Workers;
 
 namespace Platform.Configuration.Tests;
@@ -17,6 +18,7 @@ public sealed class SettingsCatalogTests
         .. ApiSettings.All,
         .. WorkerHost.Settings,
         .. MigratorApp.Settings,
+        .. SeedApp.Settings,
     ];
 
     private static readonly string _root = FindRoot();
