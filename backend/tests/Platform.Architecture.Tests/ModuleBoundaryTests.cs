@@ -6,12 +6,12 @@ namespace Platform.Architecture.Tests;
 /// </summary>
 public sealed class ModuleBoundaryTests
 {
-    private static readonly string Bin = AppContext.BaseDirectory;
+    private static readonly string _bin = AppContext.BaseDirectory;
 
     [Fact]
     public void PlatformAssembliesKeepModuleBoundaries()
     {
-        var platform = ModuleBoundaries.ReadClosure(Bin, ModuleBoundaries.Hosts);
+        var platform = ModuleBoundaries.ReadClosure(_bin, ModuleBoundaries.Hosts);
 
         // The scan is not vacuous: every host and the shared assemblies were found and read.
         Assert.All(ModuleBoundaries.Hosts, host => Assert.Contains(platform, a => a.Name == host));
@@ -27,7 +27,7 @@ public sealed class ModuleBoundaryTests
     [Fact]
     public void ModuleReferencingAnotherModulesInternalsIsReported()
     {
-        var fixtures = ModuleBoundaries.ReadClosure(Bin, ["Platform.Modules.FixtureFeed"]);
+        var fixtures = ModuleBoundaries.ReadClosure(_bin, ["Platform.Modules.FixtureFeed"]);
 
         Assert.Contains(fixtures, a => a.Name == "Platform.Modules.FixtureNotes.Contracts");
         var violation = Assert.Single(ModuleBoundaries.CheckReferences(fixtures));

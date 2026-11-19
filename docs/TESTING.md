@@ -78,6 +78,14 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - **Раннер** — xUnit v3 через VSTest (`IsTestingPlatformApplication=false`): так `dotnet test --logger trx` в
   `scripts/verify.ps1` пишет TRX для сводки CI. Почему не Microsoft.Testing.Platform — в ADR-0008.
 
+## Архитектурные тесты
+
+`backend/tests/Platform.Architecture.Tests` проверяет границы модулей (правила — в
+[ARCHITECTURE.md](ARCHITECTURE.md#границы-модулей)). Тест без Docker, идёт в общем шаге тестов backend. Каждое
+правило проверено на разрешённом и запрещённом примере, а на модулях-образцах из
+`backend/tests/ArchitectureFixtures` — на настоящих собранных сборках. Модули-образцы не подключает ни один хост,
+и в проверку платформы они не попадают.
+
 ## Отчёты о тестах
 
 Тестовые прогоны пишут отчёты в `artifacts/test-results/<часть>/`: `dotnet test` — TRX (это уже настроено в
