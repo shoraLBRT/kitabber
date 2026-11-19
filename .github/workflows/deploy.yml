@@ -1,0 +1,113 @@
+# Deploy of one published image tag to a stand (E01-03, docs/DEPLOY.md).
+# - stage: called by images.yml after every merge to main (once DEPLOY_STAGE=true), or run by hand;
+# - production: only by hand (Actions -> deploy -> Run workflow), protected by the `production` environment;
+# - rollback: run it by hand with an earlier tag.
+# The stand's values come from the GitHub environment of the same name; nothing here is needed for CI.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Stand
+        type: choice
+        options: [stage, production]
+        required: true
+      tag:
+        description: Image tag to deploy, for example sha-1a2b3c4 or 0.2.0 (an earlier one rolls back)
+        type: string
+        required: true
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Pulls the images from GHCR with this run's GITHUB_TOKEN.
+    permissions:
+      contents: read
+      packages: read
+    environment: ${{ inputs.environment }}
+    env:
+      STAND: ${{ inputs.environment }}
+      TAG: ${{ inputs.tag }}
+      DOCKER_HOST: ssh://${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the stand is connected
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+        run: |
+          missing=""
+          for name in DEPLOY_HOST DEPLOY_USER SITE_ADDRESS ADMIN_ADDRESS DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS \
+                      POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::environment '$STAND' lacks:$missing (docs/DEPLOY.md)"
+            exit 1
+          fi
+      - name: SSH access to the Docker host
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' > ~/.ssh/config
+      - name: Write the env file of the stand
+        env:
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+        run: |
+          umask 077
+          {
+            echo "STAGE_PROJECT=kitabber-$STAND"
+            echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}"
+            echo "IMAGE_TAG=$TAG"
+            for name in SITE_ADDRESS ADMIN_ADDRESS POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD; do
+              echo "$name=${!name}"
+            done
+          } > "$RUNNER_TEMP/stand.env"
+      - name: Log in to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Deploy (migrate, then replace the containers)
+        shell: pwsh
+        run: ./scripts/deploy.ps1 -EnvFile "$env:RUNNER_TEMP/stand.env" -Tag $env:TAG
+      - name: Record the deploy
+        if: always()
+        env:
+          STATUS: ${{ job.status }}
+        run: |
+          echo "### $STAND: $TAG ($STATUS)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Roll back: run the deploy workflow with the previous successful tag." >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$RUNNER_TEMP/stand.env" ~/.ssh/id_deploy

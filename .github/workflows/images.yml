@@ -1,0 +1,81 @@
+# Container images (E01-03, docs/DEPLOY.md). On every PR: build all images and run the deploy smoke test against
+# them (deploy, redeploy, roll back on this runner). On a merge to main: the same, then publish to GHCR as
+# sha-<short sha> and latest, then deploy to stage when the stage is connected. Called by release.yml with the
+# release version to publish <version> and <major>.<minor> as well.
+# Publishing needs only GITHUB_TOKEN; no hosting secret is read here. Static checks: scripts/deploy-test.ps1.
+name: images
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      version:
+        description: Release tag or version, for example v0.2.0 (the leading v is dropped)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}-${{ inputs.version || 'commit' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tags.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image names and tags
+        id: tags
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $registry = "ghcr.io/$($env:GITHUB_REPOSITORY.ToLowerInvariant())"
+          $sha = "sha-$($env:GITHUB_SHA.Substring(0, 7))"
+          $tags = @($sha)
+          if ($env:GITHUB_EVENT_NAME -eq 'push') { $tags += 'latest' }
+          $version = "$env:VERSION" -replace '^v', ''
+          if ($version) { $tags += $version, ($version -replace '^(\d+\.\d+)\..*$', '$1') }
+          "registry=$registry" >> $env:GITHUB_OUTPUT
+          "sha_tag=$sha" >> $env:GITHUB_OUTPUT
+          "tags=$($tags -join ',')" >> $env:GITHUB_OUTPUT
+      - name: Build images
+        shell: pwsh
+        run: ./scripts/images.ps1 -Registry '${{ steps.tags.outputs.registry }}' -Tags ('${{ steps.tags.outputs.tags }}' -split ',')
+      - name: Deploy smoke test (deploy, redeploy, roll back)
+        shell: pwsh
+        run: ./scripts/deploy-test.ps1 -Smoke -Registry '${{ steps.tags.outputs.registry }}' -Tag '${{ steps.tags.outputs.sha_tag }}' -NoBuild
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish images
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: ./scripts/images.ps1 -Registry '${{ steps.tags.outputs.registry }}' -Tags ('${{ steps.tags.outputs.tags }}' -split ',') -Push
+
+  # Runs only once the maintainer has connected the stage (repository variable DEPLOY_STAGE=true, docs/DEPLOY.md);
+  # until then it is skipped and CI stays green without any hosting secret.
+  deploy-stage:
+    needs: build
+    # A release run (inputs.version) publishes the same commit again: no second deploy.
+    if: github.event_name == 'push' && inputs.version == '' && vars.DEPLOY_STAGE == 'true'
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: stage
+      tag: ${{ needs.build.outputs.tag }}
+    secrets: inherit

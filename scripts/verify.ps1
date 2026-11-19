@@ -75,6 +75,16 @@ Step 'dev environment smoke' {
     & (Join-Path $PSScriptRoot 'dev-env-test.ps1') -Smoke
 }
 
+Step 'deploy config' { & (Join-Path $PSScriptRoot 'deploy-test.ps1') }
+
+Step 'deploy smoke' {
+    # Builds the images, then deploys, upgrades and rolls back the stage compose file on this Docker (E01-03). It takes
+    # minutes, so CI runs it in its own job (images / build, checked by the deploy config step and the self-test),
+    # not inside the 10 minutes of verify; locally it runs with VERIFY_IMAGES=1.
+    if ($env:VERIFY_IMAGES -ne '1') { Skip-Step 'runs in CI job images / build; set VERIFY_IMAGES=1 to run it here' }
+    & (Join-Path $PSScriptRoot 'deploy-test.ps1') -Smoke
+}
+
 Step 'secret scan' {
     # gitleaks over every file git would commit (scripts/secret-scan.ps1, docs/CONFIG.md). Locally it is skipped
     # when gitleaks is not installed; CI installs it and must always run it.
