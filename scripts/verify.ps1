@@ -21,7 +21,7 @@ function Step($name, [scriptblock]$body) {
 
 Step 'required docs' {
     $required = 'CLAUDE.md', 'README.md', 'docs/spec.md', 'docs/ROADMAP.md', 'docs/PROJECT_STATE.md',
-    'docs/TESTING.md', 'docs/telegram-bridge.md', 'docs/unified-accounts.md', 'docs/content-policy.md'
+    'docs/TESTING.md', 'docs/ARCHITECTURE.md', 'docs/telegram-bridge.md', 'docs/unified-accounts.md', 'docs/content-policy.md'
     $missing = $required | Where-Object { -not (Test-Path $_) }
     if ($missing) { throw "missing: $($missing -join ', ')" }
 }
@@ -54,6 +54,21 @@ Step 'json files' {
     }
 }
 
+Step 'repository layout' {
+    # The skeleton from E01-01: every top-level part exists and docs/ARCHITECTURE.md describes it.
+    $parts = [ordered]@{
+        'backend'  = 'backend/Platform.slnx', 'backend/Directory.Build.props', 'backend/Directory.Packages.props'
+        'frontend' = 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/nuxt.config.ts'
+        'admin'    = 'admin/package.json', 'admin/pnpm-lock.yaml', 'admin/vite.config.ts'
+    }
+    $files = @($parts.Values | ForEach-Object { $_ }) + 'global.json', '.editorconfig', '.prettierrc.json'
+    $missing = $files | Where-Object { -not (Test-Path $_) }
+    if ($missing) { throw "missing: $($missing -join ', ')" }
+    $architecture = Get-Content -Raw -Encoding utf8 'docs/ARCHITECTURE.md'
+    $undocumented = $parts.Keys | Where-Object { -not $architecture.Contains("``$_/``") }
+    if ($undocumented) { throw "docs/ARCHITECTURE.md does not describe: $($undocumented -join ', ')" }
+}
+
 $solution = Get-ChildItem -Path backend -Filter *.sln* -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($solution) {
     Step 'backend build' { dotnet build $solution.FullName --nologo -v q -warnaserror }
@@ -68,6 +83,7 @@ foreach ($app in 'frontend', 'admin') {
             Step "$app install" { pnpm install --frozen-lockfile --silent }
             Step "$app lint" { pnpm run --if-present lint }
             Step "$app typecheck" { pnpm run --if-present typecheck }
+            Step "$app build" { pnpm run --silent build }
             Step "$app unit tests" { pnpm run --if-present test }
             Step "$app e2e (desktop + mobile)" { pnpm run --if-present e2e }
         }
