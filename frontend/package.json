@@ -11,7 +11,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . && stylelint --allow-empty-input \"**/*.{css,vue}\" && prettier --check .",
     "format": "eslint . --fix && prettier --write .",
     "typecheck": "nuxt typecheck",
     "test": "vitest run --reporter=dot"
@@ -28,7 +28,9 @@
     "eslint": "9.39.5",
     "eslint-config-prettier": "10.1.8",
     "happy-dom": "21.0.4",
+    "postcss-html": "2.0.0",
     "prettier": "3.10.1",
+    "stylelint": "17.16.0",
     "typescript": "5.9.3",
     "vitest": "5.1.1",
     "vue-tsc": "3.3.14"

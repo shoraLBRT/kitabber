@@ -10,6 +10,8 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
   },
+  // Design tokens as CSS custom properties, generated from brand/ (ADR-0012).
+  css: [fileURLToPath(new URL('../brand/tokens.css', import.meta.url))],
   app: {
     head: {
       htmlAttrs: { lang: 'ru' },

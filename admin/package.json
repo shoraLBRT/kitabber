@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vue-tsc --build && vite build",
     "preview": "vite preview",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . && stylelint --allow-empty-input \"**/*.{css,vue}\" && prettier --check .",
     "format": "eslint . --fix && prettier --write .",
     "typecheck": "vue-tsc --build",
     "test": "vitest run --reporter=dot"
@@ -30,7 +30,9 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-vue": "10.12.1",
     "happy-dom": "21.0.4",
+    "postcss-html": "2.0.0",
     "prettier": "3.10.1",
+    "stylelint": "17.16.0",
     "typescript": "5.9.3",
     "vite": "8.3.8",
     "vitest": "5.1.1",

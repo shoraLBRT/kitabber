@@ -8,13 +8,15 @@ describe('BrandLogo', () => {
     const html = mount(BrandLogo).html()
     expect(html).toContain(brand.name)
     for (const d of brand.mark.strokes) expect(html).toContain(d)
-    expect(html).toContain(brand.palette.light.accent)
+    // Colours come from the tokens, so the logo follows the page theme unless one is pinned.
+    expect(html).not.toContain(brand.palette.light.accent)
+    expect(mount(BrandLogo).attributes('data-theme')).toBeUndefined()
   })
 
-  it('uses the dark palette and labels the bare mark', () => {
+  it('pins the dark palette and labels the bare mark', () => {
     const wrapper = mount(BrandLogo, { props: { theme: 'dark', withName: false } })
     expect(wrapper.find('svg').attributes('aria-label')).toBe(brand.name)
-    expect(wrapper.html()).toContain(brand.palette.dark.accent)
+    expect(wrapper.attributes('data-theme')).toBe('dark')
     expect(wrapper.find('.brand-logo__name').exists()).toBe(false)
   })
 })
