@@ -9,6 +9,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY . .
+# brand/ (ADR-0011) arrives as the named build context "brand" and sits next to the app, as in the repo.
+COPY --from=brand . /brand/
 RUN pnpm run build
 
 FROM ${NODE_IMAGE}

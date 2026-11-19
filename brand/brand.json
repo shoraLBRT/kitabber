@@ -1,0 +1,32 @@
+{
+  "name": "kitabber",
+  "tagline": "Текстовая платформа для авторов и читателей",
+  "mark": {
+    "viewBox": "0 0 32 32",
+    "radius": 8,
+    "strokes": ["M11 8v16", "M21 8l-7 8 7 8", "M14 16h3"]
+  },
+  "palette": {
+    "light": {
+      "background": "#F7F6F2",
+      "surface": "#FFFFFF",
+      "text": "#1C1E21",
+      "muted": "#5A6069",
+      "accent": "#0B6E5B",
+      "onAccent": "#FFFFFF"
+    },
+    "dark": {
+      "background": "#141619",
+      "surface": "#1D2024",
+      "text": "#ECEDEE",
+      "muted": "#A3A9B1",
+      "accent": "#3CC9A6",
+      "onAccent": "#0B1A16"
+    }
+  },
+  "icons": {
+    "package": "lucide-vue-next",
+    "license": "ISC",
+    "source": "https://lucide.dev"
+  }
+}
