@@ -19,12 +19,12 @@ public sealed class SettingsCatalogTests
         .. MigratorApp.Settings,
     ];
 
-    private static readonly string Root = FindRoot();
+    private static readonly string _root = FindRoot();
 
     [Fact]
     public void EverySettingIsDescribedInConfigDoc()
     {
-        var doc = File.ReadAllText(Path.Combine(Root, "docs", "CONFIG.md"));
+        var doc = File.ReadAllText(Path.Combine(_root, "docs", "CONFIG.md"));
 
         var undocumented = AllSettings
             .Where(s => !doc.Contains($"`{s.Key}`", StringComparison.Ordinal)
@@ -52,7 +52,7 @@ public sealed class SettingsCatalogTests
             using var json = JsonDocument.Parse(File.ReadAllText(file));
             found.AddRange(Flatten(json.RootElement, prefix: null)
                 .Where(secrets.Contains)
-                .Select(key => $"{Path.GetRelativePath(Root, file)}: {key}"));
+                .Select(key => $"{Path.GetRelativePath(_root, file)}: {key}"));
         }
 
         Assert.True(found.Count == 0, $"secrets in committed settings files: {string.Join("; ", found)}");
@@ -63,14 +63,14 @@ public sealed class SettingsCatalogTests
     {
         var unknown = SettingsFiles()
             .Where(f => EnvironmentOf(f) is { } e && !PlatformEnvironments.IsKnown(e))
-            .Select(f => Path.GetRelativePath(Root, f))
+            .Select(f => Path.GetRelativePath(_root, f))
             .ToList();
 
         Assert.Empty(unknown);
     }
 
     private static IEnumerable<string> SettingsFiles() =>
-        Directory.EnumerateFiles(Path.Combine(Root, "backend", "src"), "appsettings*.json", SearchOption.AllDirectories)
+        Directory.EnumerateFiles(Path.Combine(_root, "backend", "src"), "appsettings*.json", SearchOption.AllDirectories)
             .Where(f => !f.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(p => p is "bin" or "obj"));
 
     // appsettings.Production.json → Production; appsettings.json → null (every environment reads it).

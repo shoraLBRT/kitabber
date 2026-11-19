@@ -4,23 +4,23 @@ namespace Platform.Configuration.Tests;
 
 public sealed class ConfigurationValidatorTests
 {
-    private static readonly Setting Mode = new("Feature:Mode", "how the feature runs")
+    private static readonly Setting _mode = new("Feature:Mode", "how the feature runs")
     {
         AllowedValues = ["Real", "Fake"],
     };
 
-    private static readonly Setting Password = new("ConnectionStrings:Thing", "the thing")
+    private static readonly Setting _password = new("ConnectionStrings:Thing", "the thing")
     {
         Secret = true,
         RequiredWhen = c => !string.Equals(c["Feature:Mode"], "Fake", StringComparison.OrdinalIgnoreCase),
     };
 
-    private static readonly Setting[] Settings = [Mode, Password];
+    private static readonly Setting[] _settings = [_mode, _password];
 
     [Fact]
     public void MissingRequiredSettingIsNamedWithItsEnvironmentVariable()
     {
-        var problems = ConfigurationValidator.Validate(Build([]), PlatformEnvironments.Production, Settings);
+        var problems = ConfigurationValidator.Validate(Build([]), PlatformEnvironments.Production, _settings);
 
         var problem = Assert.Single(problems);
         Assert.Contains("ConnectionStrings:Thing is required", problem, StringComparison.Ordinal);
@@ -31,7 +31,7 @@ public sealed class ConfigurationValidatorTests
     public void ConditionalSettingIsNotRequiredWhenItsConditionDoesNotHold()
     {
         var problems = ConfigurationValidator.Validate(
-            Build(new() { ["Feature:Mode"] = "fake" }), PlatformEnvironments.Production, Settings);
+            Build(new() { ["Feature:Mode"] = "fake" }), PlatformEnvironments.Production, _settings);
 
         Assert.Empty(problems);
     }
@@ -42,7 +42,7 @@ public sealed class ConfigurationValidatorTests
         var problems = ConfigurationValidator.Validate(
             Build(new() { ["Feature:Mode"] = "Maybe", ["ConnectionStrings:Thing"] = "x" }),
             PlatformEnvironments.Production,
-            Settings);
+            _settings);
 
         Assert.Equal("Feature:Mode = 'Maybe': expected one of Real, Fake", Assert.Single(problems));
     }
@@ -51,7 +51,7 @@ public sealed class ConfigurationValidatorTests
     public void UnknownEnvironmentIsRejected()
     {
         var problems = ConfigurationValidator.Validate(
-            Build(new() { ["ConnectionStrings:Thing"] = "x" }), "Prod", Settings);
+            Build(new() { ["ConnectionStrings:Thing"] = "x" }), "Prod", _settings);
 
         Assert.Contains("environment 'Prod' is unknown", Assert.Single(problems), StringComparison.Ordinal);
     }
@@ -60,7 +60,7 @@ public sealed class ConfigurationValidatorTests
     public void EnsureValidThrowsWithEveryProblem()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => ConfigurationValidator.EnsureValid(
-            Build(new() { ["Feature:Mode"] = "Maybe" }), PlatformEnvironments.Staging, Settings));
+            Build(new() { ["Feature:Mode"] = "Maybe" }), PlatformEnvironments.Staging, _settings));
 
         Assert.Equal(2, e.Problems.Count);
         Assert.Contains("Feature:Mode", e.Message, StringComparison.Ordinal);
@@ -83,7 +83,7 @@ public sealed class ConfigurationValidatorTests
             .AddJsonFile("appsettings.json")
             .Build();
 
-        var problems = ConfigurationValidator.Validate(configuration, environment, Settings);
+        var problems = ConfigurationValidator.Validate(configuration, environment, _settings);
 
         Assert.Equal(rejected, problems.Count == 1);
         Assert.DoesNotContain(problems, p => p.Contains("very-secret-value", StringComparison.Ordinal));
@@ -106,7 +106,7 @@ public sealed class ConfigurationValidatorTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Thing"] = "from-environment" })
             .Build();
 
-        Assert.Empty(ConfigurationValidator.Validate(configuration, PlatformEnvironments.Production, Settings));
+        Assert.Empty(ConfigurationValidator.Validate(configuration, PlatformEnvironments.Production, _settings));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class ConfigurationValidatorTests
 
         Assert.Equal("Password=from-file", configuration["ConnectionStrings:Thing"]);
         Assert.DoesNotContain(configuration.AsEnumerable(), pair => pair.Key.StartsWith('.'));
-        Assert.Empty(ConfigurationValidator.Validate(configuration, PlatformEnvironments.Production, Settings));
+        Assert.Empty(ConfigurationValidator.Validate(configuration, PlatformEnvironments.Production, _settings));
     }
 
     [Fact]
