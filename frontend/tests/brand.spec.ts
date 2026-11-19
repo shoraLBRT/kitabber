@@ -86,7 +86,7 @@ describe('brand', () => {
   })
 
   it('installs the icon set under a compatible open licence', () => {
-    // Each app checks its own install; admin/tests/icons.test.ts does the same for the admin panel.
+    // Each app checks its own install; admin/tests/icons.spec.ts does the same for the admin panel.
     const installed = join(root, 'frontend', 'node_modules', brand.icons.package, 'package.json')
     const { license } = JSON.parse(readFileSync(installed, 'utf8'))
     expect(['MIT', 'ISC']).toContain(license)

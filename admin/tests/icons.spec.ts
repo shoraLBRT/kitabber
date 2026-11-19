@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import brand from '../../brand/brand.json'
 
-// The rest of the brand checks live in frontend/tests/brand.test.ts and cover both apps.
+// The rest of the brand checks live in frontend/tests/brand.spec.ts and cover both apps.
 describe('icons', () => {
   it('installs the icon set under a compatible open licence', () => {
     const here = dirname(fileURLToPath(import.meta.url))
