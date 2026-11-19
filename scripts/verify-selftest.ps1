@@ -35,6 +35,7 @@ try {
 param([switch]`$Fail)
 . '$lib'
 Step 'passing step' { }
+Step 'skipped step' { Skip-Step 'no tool' }
 if (`$Fail) {
     Step 'throwing step' { throw 'boom' }
     Step 'exit code step' { & '$shell' -NoProfile -Command 'exit 3' }
@@ -58,6 +59,7 @@ exit (Complete-Verify '$reports')
         else {
             Assert ($code -eq 0) "harness: passing steps must exit 0, got $code"
             Assert ($text.Contains('## verify: OK')) 'harness: summary must say OK'
+            Assert ($text.Contains('| skipped step | skipped |')) 'harness: a skipped step must show as skipped and not fail the run'
         }
         Assert ($text.Contains('| backend/sample.trx | 3 | 2 | 1 | 0 |')) 'harness: TRX report must reach the summary'
         Assert ($text.Contains('| frontend/junit.xml | 4 | 3 | 0 | 1 |')) 'harness: JUnit report must reach the summary'

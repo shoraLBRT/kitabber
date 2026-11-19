@@ -1,0 +1,159 @@
+# Local development environment (E01-04): every infrastructure service with a healthcheck.
+#   cp .env.example .env && docker compose up -d --wait
+# Ports and passwords come only from .env (template: .env.example); a missing variable stops compose.
+# Services publish on 127.0.0.1 only. Everything here is local: mail goes to Mailpit, files to MinIO.
+# Checked by scripts/dev-env-test.ps1 (a step of scripts/verify.ps1).
+name: platform
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?copy .env.example to .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env}
+      POSTGRES_DB: ${POSTGRES_DB:?copy .env.example to .env}
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:?copy .env.example to .env}:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --requirepass, '${REDIS_PASSWORD:?copy .env.example to .env}']
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?copy .env.example to .env}
+    ports:
+      - 127.0.0.1:${REDIS_PORT:?copy .env.example to .env}:6379
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD-SHELL, redis-cli ping | grep -q PONG]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?copy .env.example to .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?copy .env.example to .env}
+    ports:
+      - 127.0.0.1:${RABBITMQ_PORT:?copy .env.example to .env}:5672
+      - 127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:?copy .env.example to .env}:15672
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.3
+    environment:
+      discovery.type: single-node
+      # Local only: no TLS and no users, so there is no password to keep. Stands are configured separately.
+      DISABLE_SECURITY_PLUGIN: 'true'
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - 127.0.0.1:${OPENSEARCH_PORT:?copy .env.example to .env}:9200
+    volumes:
+      - opensearch:/usr/share/opensearch/data
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" > /dev/null']
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  minio:
+    # The official MinIO images are no longer published; Chainguard builds MinIO from source. Only its latest
+    # tag is free, so the image is pinned by digest (Renovate updates the digest).
+    image: cgr.dev/chainguard/minio:latest@sha256:16b824a0016ffad3dfa8b059755f83800aa42ca68fe86f1782cabd0c5a16d322
+    command: [server, /data, --console-address, ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?copy .env.example to .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?copy .env.example to .env}
+    ports:
+      - 127.0.0.1:${MINIO_PORT:?copy .env.example to .env}:9000
+      - 127.0.0.1:${MINIO_CONSOLE_PORT:?copy .env.example to .env}:9001
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: [CMD, mc, ready, local]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  imgproxy:
+    image: darthsim/imgproxy:v3.28
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      IMGPROXY_KEY: ${IMGPROXY_KEY:?copy .env.example to .env}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:?copy .env.example to .env}
+      IMGPROXY_USE_S3: 'true'
+      IMGPROXY_S3_ENDPOINT: http://minio:9000
+      IMGPROXY_S3_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?copy .env.example to .env}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?copy .env.example to .env}
+    ports:
+      - 127.0.0.1:${IMGPROXY_PORT:?copy .env.example to .env}:8080
+    healthcheck:
+      test: [CMD, imgproxy, health]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports:
+      - 127.0.0.1:${MAILPIT_SMTP_PORT:?copy .env.example to .env}:1025
+      - 127.0.0.1:${MAILPIT_UI_PORT:?copy .env.example to .env}:8025
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?copy .env.example to .env}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?copy .env.example to .env}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:?copy .env.example to .env}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    ports:
+      - 127.0.0.1:${CLICKHOUSE_HTTP_PORT:?copy .env.example to .env}:8123
+      - 127.0.0.1:${CLICKHOUSE_NATIVE_PORT:?copy .env.example to .env}:9000
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+    healthcheck:
+      test: [CMD-SHELL, clickhouse-client --user "$$CLICKHOUSE_USER" --password "$$CLICKHOUSE_PASSWORD" -q 'SELECT 1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres:
+  redis:
+  rabbitmq:
+  opensearch:
+  minio:
+  clickhouse:
