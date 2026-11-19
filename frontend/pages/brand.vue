@@ -18,12 +18,7 @@ useHead({ title: `Бренд — ${brand.name}` })
 
 <template>
   <main class="showcase">
-    <section
-      v-for="theme in themes"
-      :key="theme"
-      class="showcase__theme"
-      :data-theme="theme"
-    >
+    <section v-for="theme in themes" :key="theme" class="showcase__theme" :data-theme="theme">
       <h2>{{ theme === 'light' ? 'Светлая тема' : 'Тёмная тема' }}</h2>
       <BrandLogo :theme="theme" />
       <ul class="showcase__swatches">

@@ -50,7 +50,12 @@ const themeTitle = { light: 'Светлая тема', dark: 'Тёмная те�
 
     <section id="tokens-type" data-testid="type-scale">
       <h2>Кегли</h2>
-      <p v-for="name in fontSizes" :key="name" class="tokens__type-sample" :style="{ fontSize: `var(${name})` }">
+      <p
+        v-for="name in fontSizes"
+        :key="name"
+        class="tokens__type-sample"
+        :style="{ fontSize: `var(${name})` }"
+      >
         <code>{{ name }}</code> {{ scale[name] }} — Съешь же ещё этих мягких французских булок
       </p>
     </section>
@@ -68,7 +73,12 @@ const themeTitle = { light: 'Светлая тема', dark: 'Тёмная те�
     <section data-testid="radius-scale">
       <h2>Скругления</h2>
       <ul class="tokens__list tokens__list--row">
-        <li v-for="name in radii" :key="name" class="tokens__radius" :style="{ borderRadius: `var(${name})` }">
+        <li
+          v-for="name in radii"
+          :key="name"
+          class="tokens__radius"
+          :style="{ borderRadius: `var(${name})` }"
+        >
           <code>{{ name }}</code>
         </li>
       </ul>
@@ -79,7 +89,9 @@ const themeTitle = { light: 'Светлая тема', dark: 'Тёмная те�
       <table class="tokens__table">
         <tbody>
           <tr v-for="name in others" :key="name">
-            <td><code>{{ name }}</code></td>
+            <td>
+              <code>{{ name }}</code>
+            </td>
             <td>{{ scale[name] }}</td>
           </tr>
         </tbody>

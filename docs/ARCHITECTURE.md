@@ -24,7 +24,8 @@ backend/                   решение .NET (Platform.slnx)
   tools/Seed/              Platform.Seed — команда демо-данных: dotnet run --project backend/tools/Seed (ADR-0009)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
-brand/                     временный бренд: название, знак, палитра, набор иконок — brand.json (ADR-0011)
+brand/                     временный бренд: название, знак, палитра, набор иконок — brand.json (ADR-0011);
+                           дизайн-токены tokens.json → tokens.css и правила линтера стилей (ADR-0012)
 tools/                     инструменты не на .NET: генерация клиента API, фейковые сервисы (появится в своих задачах)
 deploy/                    compose-файл стенда stage и шаблон его значений; выкладка — docs/DEPLOY.md
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
