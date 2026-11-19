@@ -6,6 +6,9 @@
   <Folder Name="/src/Caching/">
     <Project Path="src/Caching/Platform.Caching.csproj" />
   </Folder>
+  <Folder Name="/src/Configuration/">
+    <Project Path="src/Configuration/Platform.Configuration.csproj" />
+  </Folder>
   <Folder Name="/src/Http/">
     <Project Path="src/Http/Platform.Http.csproj" />
   </Folder>
@@ -23,6 +26,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Platform.Api.Tests/Platform.Api.Tests.csproj" />
+    <Project Path="tests/Platform.Configuration.Tests/Platform.Configuration.Tests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />
   </Folder>

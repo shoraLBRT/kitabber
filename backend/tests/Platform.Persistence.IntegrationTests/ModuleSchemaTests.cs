@@ -53,7 +53,7 @@ public sealed class ModuleSchemaTests
         var exit = await Migrator.MigratorApp.RunAsync(["migrate", "--ConnectionStrings:Platform="], output, error);
 
         Assert.Equal(2, exit);
-        Assert.Contains("connection string 'Platform' is not set", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ConnectionStrings:Platform is required (environment variable ConnectionStrings__Platform)", error.ToString(), StringComparison.Ordinal);
     }
 
     /// <summary>

@@ -45,6 +45,18 @@ jobs:
           cache-dependency-path: |
             frontend/pnpm-lock.yaml
             admin/pnpm-lock.yaml
+      # The secret scan of verify.ps1 needs gitleaks (E01-13); the archive is checked against the release checksums.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          cd "$RUNNER_TEMP"
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
       - name: Verify
         shell: pwsh
         run: ./scripts/verify.ps1

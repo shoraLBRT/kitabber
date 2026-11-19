@@ -1,0 +1,12 @@
+# gitleaks configuration for scripts/secret-scan.ps1 (E01-13, ADR-0007): the default rules of gitleaks, minus the
+# files that hold only local throw-away values on purpose (docs/CONFIG.md). Nothing else is allowlisted: a real
+# secret belongs in environment variables or secret files, never in git.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "local development values only"
+paths = [
+    '''(^|[\/])\.env\.example$''',
+    '''(^|[\/])appsettings\.Development\.json$''',
+]

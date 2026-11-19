@@ -75,6 +75,16 @@ Step 'dev environment smoke' {
     & (Join-Path $PSScriptRoot 'dev-env-test.ps1') -Smoke
 }
 
+Step 'secret scan' {
+    # gitleaks over every file git would commit (scripts/secret-scan.ps1, docs/CONFIG.md). Locally it is skipped
+    # when gitleaks is not installed; CI installs it and must always run it.
+    if (-not (Get-Command gitleaks -ErrorAction SilentlyContinue)) {
+        if ($env:CI) { throw 'CI must run the secret scan: gitleaks is not installed' }
+        Skip-Step 'gitleaks is not installed (https://github.com/gitleaks/gitleaks#installing)'
+    }
+    & (Join-Path $PSScriptRoot 'secret-scan.ps1')
+}
+
 $solution = Get-ChildItem -Path backend -Filter *.sln* -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($solution) {
     Step 'backend build' { dotnet build $solution.FullName --nologo -v q -warnaserror }

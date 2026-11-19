@@ -13,7 +13,7 @@ public sealed class ApiTestFactory(Action<IServiceCollection>? configureServices
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment("Test");
         if (configureServices is not null)
         {
             builder.ConfigureTestServices(configureServices);

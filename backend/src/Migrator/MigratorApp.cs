@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Platform.Configuration;
 using Platform.Persistence;
 
 namespace Platform.Migrator;
@@ -12,6 +13,17 @@ namespace Platform.Migrator;
 public static class MigratorApp
 {
     public const string ConnectionStringName = "Platform";
+
+    /// <summary>The settings the command checks before it runs (ADR-0007); described in docs/CONFIG.md.</summary>
+    public static IReadOnlyList<Setting> Settings { get; } =
+    [
+        new($"ConnectionStrings:{ConnectionStringName}",
+            "PostgreSQL of the platform, Npgsql format: Host=...;Port=...;Database=...;Username=...;Password=...")
+        {
+            Secret = true,
+            RequiredWhen = Setting.Always,
+        },
+    ];
 
     public const string Usage = "usage: migrate | status | rollback <schema>";
 
@@ -36,12 +48,17 @@ public static class MigratorApp
             Args = options,
             ContentRootPath = AppContext.BaseDirectory,
         });
-        var connectionString = builder.Configuration.GetConnectionString(ConnectionStringName);
-        if (string.IsNullOrWhiteSpace(connectionString))
+        try
         {
-            await error.WriteLineAsync($"connection string '{ConnectionStringName}' is not set (ConnectionStrings__{ConnectionStringName})");
+            builder.ConfigurePlatform(Settings);
+        }
+        catch (InvalidConfigurationException e)
+        {
+            await error.WriteLineAsync(e.Message);
             return 2;
         }
+
+        var connectionString = builder.Configuration.GetConnectionString(ConnectionStringName)!;
 
         (addModules ?? ModuleCatalog.AddModuleDatabases)(builder.Services, connectionString);
         builder.Services.AddSingleton<ModuleMigrator>();

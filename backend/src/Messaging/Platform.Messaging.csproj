@@ -11,4 +11,8 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+    </ItemGroup>
+
 </Project>
