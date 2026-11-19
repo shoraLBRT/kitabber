@@ -17,10 +17,13 @@ jobs:
   release:
     uses: shoraLBRT/habze/.github/workflows/release.yml@v1
 
-  # Example: build and publish only when a release was created.
-  # publish:
-  #   needs: release
-  #   if: needs.release.outputs.release_created == 'true'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - run: echo "Publishing ${{ needs.release.outputs.tag_name }}"
+  # E01-03: a release also publishes the images as <version> and <major>.<minor> (images.yml, docs/DEPLOY.md).
+  images:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
+    with:
+      version: ${{ needs.release.outputs.tag_name }}
