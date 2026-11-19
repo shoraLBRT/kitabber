@@ -13,13 +13,15 @@
     "lint": "eslint . && stylelint --allow-empty-input \"**/*.{css,vue}\" && prettier --check .",
     "format": "eslint . --fix && prettier --write .",
     "typecheck": "vue-tsc --build",
-    "test": "vitest run --reporter=dot"
+    "test": "vitest run --reporter=dot --reporter=junit --outputFile.junit=../artifacts/test-results/admin/junit.xml",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "lucide-vue-next": "1.0.0",
     "vue": "3.5.45"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tsconfig/node22": "22.0.7",
     "@types/node": "22.20.5",
     "@vitejs/plugin-vue": "6.0.11",
