@@ -26,17 +26,53 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 `VERIFY_SKIP_DOCKER=1`. В CI (`CI` задана) пропуск запрещён: без Docker шаг падает. Пропущенный шаг виден в
 таблице шагов; выдавать его за пройденный нельзя.
 
-То же правило у серверных тестов на Testcontainers (сейчас — `backend/tests/Platform.Persistence.IntegrationTests`:
-миграции на чистую базу и откат последней миграции; `backend/tests/Platform.Messaging.IntegrationTests`: outbox,
-перезапуск воркера, Redis): без Docker или с `VERIFY_SKIP_DOCKER=1` они локально
-помечаются пропущенными (`Skipped` в отчёте), в CI падают. Каждый тест получает свою пустую базу в общем
-контейнере PostgreSQL того же образа, что в `compose.yaml`; RabbitMQ и Redis — тоже по одному контейнеру на запуск
-из образов `compose.yaml`. Общий каркас (фабрика приложения, Respawn) — E01-15.
+То же правило у серверных тестов на Testcontainers (`backend/tests/*.IntegrationTests`): без Docker или с
+`VERIFY_SKIP_DOCKER=1` они локально помечаются пропущенными (`Skipped` в отчёте), в CI падают.
+
+## Каркас серверных тестов
+
+Всё общее лежит в библиотеке `backend/tests/Platform.Testing`; её подключает каждый тестовый проект бэкенда.
+Правила и причины — [ADR-0008](adr/0008-backend-test-framework.md).
+
+- **Контейнеры** (`Platform.Testing.Containers`): `PostgresFixture`, `RedisFixture`, `RabbitMqFixture`, образы — из
+  `compose.yaml`. Один контейнер на тестовую сборку: проект объявляет его атрибутом
+  `[assembly: AssemblyFixture(typeof(PostgresFixture))]`, тестовые классы получают фикстуру в конструкторе.
+  Отдельный контейнер на класс или на тест не заводите — это минуты в CI.
+- **API в процессе без Docker** — `PlatformApiFactory`: окружение `Test`, настройки `WithSetting`, модули и
+  заглушки `WithModule`, тестовый вход `TestAuthentication` (`request.As("account-1", "moderator")`).
+- **API на настоящих PostgreSQL и Redis** — `IntegrationApiFactory`. Образец —
+  `backend/tests/Platform.Api.IntegrationTests` (`NotesApiTests`):
+
+  ```csharp
+  public sealed class NotesApi : IntegrationApiFactory
+  {
+      public NotesApi(PostgresFixture postgres, RedisFixture redis)
+          : base(postgres, redis) => WithModule(NotesModule.Register);
+  }
+
+  public sealed class NotesApiTests(NotesApi api) : IClassFixture<NotesApi>, IAsyncLifetime
+  {
+      public async ValueTask InitializeAsync() => await api.ResetAsync(); // затем api.CreateClient()
+  }
+  ```
+
+  Фабрика — одна на тестовый класс: своя база (миграции модулей накатываются один раз) и своя номерная база Redis.
+  `ResetAsync()` перед каждым тестом очищает таблицы модулей (Respawn; история миграций остаётся) и Redis.
+  Справочные таблицы из миграций, которые должны пережить сброс, перечисляются в `KeepTables`. Клиент создаётся
+  после первого `ResetAsync()`: до него хост ещё не знает строк подключения.
+- **База без API** — `PostgresFixture.CreateDatabaseAsync()` (новая пустая база) и `DatabaseReset` для очистки.
+- **Время** — `TestClock`: фабрика подменяет `TimeProvider` на `FakeTimeProvider` (`api.Time`), он стоит на
+  `TestClock.Start` и движется только по `Advance`/`SetUtcNow`. Часы общие на класс и назад не идут: сравнивайте
+  с `api.Time.GetUtcNow()`, а не с константой.
+- **Тестовые данные** — фабрики и сидер появятся в E01-17 (#9) в той же библиотеке; до них данные создаются через
+  API или контекст модуля.
+- **Раннер** — xUnit v3 через VSTest (`IsTestingPlatformApplication=false`): так `dotnet test --logger trx` в
+  `scripts/verify.ps1` пишет TRX для сводки CI. Почему не Microsoft.Testing.Platform — в ADR-0008.
 
 ## Отчёты о тестах
 
 Тестовые прогоны пишут отчёты в `artifacts/test-results/<часть>/`: `dotnet test` — TRX (это уже настроено в
-`scripts/verify.ps1`), Vitest и Playwright — JUnit XML (подключают E01-15 и E01-16). В конце проверка печатает
+`scripts/verify.ps1`), Vitest и Playwright — JUnit XML (подключает E01-16). В конце проверка печатает
 таблицу шагов и сводку по отчётам; в CI та же таблица попадает в сводку запуска (`GITHUB_STEP_SUMMARY`), а
 сами отчёты — в артефакт `test-results`. Каталог `artifacts/` в git не попадает.
 
@@ -81,9 +117,9 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 ## Детерминизм
 
-- Время — только через `TimeProvider`; в тестах часы управляемые.
+- Время — только через `TimeProvider`; в тестах часы управляемые (`TestClock`, `FakeTimeProvider`).
 - Данные — фабрики тестовых объектов и сидер с фиксированным зерном (E01-17).
-- База сбрасывается между интеграционными тестами.
+- База сбрасывается между интеграционными тестами (`IntegrationApiFactory.ResetAsync`, Respawn).
 - Тест, который падает случайно, чинится или удаляется в том же PR; «перезапустить и забыть» нельзя.
 
 ## Что обязано быть в каждом PR с кодом
