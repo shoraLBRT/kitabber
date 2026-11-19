@@ -1,0 +1,23 @@
+name: Ошибка
+description: Что-то работает не так, как описано в ТЗ
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидалось и получилось
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Где
+      options: [Десктоп, Телефон, Оба, Админ-панель, API]
+    validations:
+      required: true

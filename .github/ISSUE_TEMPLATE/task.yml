@@ -1,0 +1,28 @@
+name: Задача
+description: Работа по бэклогу или новая задача
+labels: []
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что сделать
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии приёмки
+      description: Каждый критерий должен проверяться автотестом
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Раздел ТЗ
+      placeholder: FR-EDITOR, FR-TG-6, ADR-0002
+  - type: input
+    id: deps
+    attributes:
+      label: Зависимости
+      placeholder: "#12, #40"
