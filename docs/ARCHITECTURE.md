@@ -21,6 +21,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
   tests/Platform.Testing/  общий каркас тестов: контейнеры, фабрики API, Respawn, часы (ADR-0008)
   tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
+  tests/ArchitectureFixtures/  модули-образцы с нарочным нарушением границ (Platform.Architecture.Tests)
   tools/Seed/              Platform.Seed — команда демо-данных: dotnet run --project backend/tools/Seed (ADR-0009)
 frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
 admin/                     админ-панель на Vue 3 + Vite (TypeScript)
@@ -147,6 +148,32 @@ builder.ConfigurePlatform(Settings);   // нет настройки → InvalidC
 название где-либо ещё в `frontend/` и `admin/`. Модули получат имена
 вида `Platform.Modules.<Модуль>` и `Platform.Modules.<Модуль>.Contracts`.
 
+## Границы модулей
+
+Правила проверяет `backend/tests/Platform.Architecture.Tests` (входит в `scripts/verify.ps1`, шаг тестов
+backend). Сборки различаются по имени, поэтому правила сразу действуют на будущие модули:
+`Platform.Modules.<Модуль>` — внутренности модуля, `Platform.Modules.<Модуль>.Contracts` — его контракты и
+события, `Platform.Api`, `Platform.Workers`, `Platform.Migrator`, `Platform.Seed` — хосты, остальные
+`Platform.*` — общие сборки.
+
+1. Модуль не ссылается на внутренности другого модуля — только на его `.Contracts` (и на события в них).
+2. Контракты не ссылаются ни на чьи внутренности, в том числе своего модуля; на чужие контракты — можно.
+3. Общие сборки (`Persistence`, `Messaging` и др.) не ссылаются на внутренности модулей.
+4. Внутренности модулей подключают только хосты: они собирают приложение.
+5. Библиотеки Telegram (`Telegram.Bot`, `WTelegramClient`, `TdLib`) — только в `Platform.Telegram.Gateway*`
+   (сервис-шлюз за `ITelegramGateway`, ADR-0003).
+6. Библиотеки хранения и хеширования учётных данных (ASP.NET Core Identity, сервер OpenIddict, BCrypt и др.) —
+   только во внутренностях модуля `Identity` (ADR-0002); проверка токенов (`OpenIddict.Validation`) разрешена всем.
+7. `DbContext` модуля (`IModuleDbContext`) живёт только во внутренностях модуля, и его схема — имя модуля в
+   snake_case, поэтому чужую схему модуль занять не может (ADR-0004).
+
+Проверка читает ссылки сборок из метаданных (`System.Reflection.Metadata`, без сторонних библиотек), начиная с
+хостов, и загружает сборки модулей, чтобы найти их `DbContext`. Неиспользуемую ссылку на проект компилятор не
+пишет в сборку: нарушением считается только настоящее использование. Что правила действительно ловят нарушения,
+доказывают модули-образцы в `backend/tests/ArchitectureFixtures`: `FixtureFeed` использует внутренний тип
+`FixtureNotes` и занимает его схему — тест ждёт ровно эти два нарушения. Новое правило добавляется в
+`ModuleBoundaries` вместе с примером нарушения.
+
 ## Инструменты
 
 | Что | Версия | Где задана |
@@ -182,7 +209,7 @@ Prettier отвечает за форматирование, ESLint — за о�
   свободных портах, ждёт healthcheck, достаёт каждый сервис с хоста, проверяет пароли и всё удаляет;
 - секреты (`scripts/secret-scan.ps1`): gitleaks по всем файлам, которые git закоммитил бы; сначала он должен
   найти подложенный токен; локально без gitleaks шаг пропускается, в CI обязателен;
-- backend: сборку без предупреждений, форматирование, тесты (в том числе API, миграции и очереди на PostgreSQL, Redis и RabbitMQ в Testcontainers);
+- backend: сборку без предупреждений, форматирование, тесты (в том числе границы модулей — раздел выше; API, миграции и очереди на PostgreSQL, Redis и RabbitMQ в Testcontainers);
 - frontend и admin: установку по lock-файлу, линтеры, проверку типов, сборку (`pnpm build`), тесты, если
   они есть;
 - саму себя (`scripts/verify-selftest.ps1`): упавший шаг роняет проверку, линтеры отвергают плохой код, workflow

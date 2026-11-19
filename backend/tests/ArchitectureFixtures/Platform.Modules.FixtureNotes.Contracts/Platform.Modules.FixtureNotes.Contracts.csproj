@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Fixture for Platform.Architecture.Tests: the public contracts of a sample module. Not a product module. -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.FixtureNotes.Contracts</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+</Project>

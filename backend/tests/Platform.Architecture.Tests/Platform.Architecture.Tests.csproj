@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>Platform.Architecture.Tests</RootNamespace>
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
+        <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+        <PackageReference Include="xunit.v3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- The hosts: every module the platform runs is reachable from one of them. -->
+        <ProjectReference Include="../../src/Api/Platform.Api.csproj" />
+        <ProjectReference Include="../../src/Migrator/Platform.Migrator.csproj" />
+        <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../src/Workers/Platform.Workers.csproj" />
+        <ProjectReference Include="../../tools/Seed/Platform.Seed.csproj" />
+        <!-- The fixture modules with deliberate violations; no host references them. -->
+        <ProjectReference Include="../ArchitectureFixtures/Platform.Modules.FixtureFeed/Platform.Modules.FixtureFeed.csproj" />
+    </ItemGroup>
+
+</Project>

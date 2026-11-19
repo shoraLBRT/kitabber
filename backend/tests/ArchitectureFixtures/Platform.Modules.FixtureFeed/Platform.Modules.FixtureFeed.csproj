@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      Fixture for Platform.Architecture.Tests: a sample module that breaks the boundaries on purpose.
+      It references the internals of FixtureNotes (forbidden) and FixtureNotes.Contracts (allowed), and its
+      DbContext takes the schema of FixtureNotes. The architecture tests must report exactly these violations.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.FixtureFeed</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../../src/Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../Platform.Modules.FixtureNotes/Platform.Modules.FixtureNotes.csproj" />
+        <ProjectReference Include="../Platform.Modules.FixtureNotes.Contracts/Platform.Modules.FixtureNotes.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>
