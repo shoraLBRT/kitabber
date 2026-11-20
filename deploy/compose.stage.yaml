@@ -31,8 +31,9 @@ services:
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
     healthcheck:
+      # Readiness (ADR-0015): the deploy waits until the API reaches its database, cache and bus.
       # The aspnet image has no curl: a plain HTTP request over bash.
-      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && grep -q "200 OK" <&3']
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /health/ready HTTP/1.0\r\n\r\n" >&3 && grep -q "200 OK" <&3']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -47,6 +48,9 @@ services:
   frontend:
     image: ${IMAGE_REGISTRY:?set in the env file}/frontend:${IMAGE_TAG:?set in the env file}
     restart: unless-stopped
+    environment:
+      # Server rendering calls the API inside the network; the browser calls it on the same origin (plugins/api.ts).
+      NUXT_API_BASE: http://api:8080
 
   admin:
     image: ${IMAGE_REGISTRY:?set in the env file}/admin:${IMAGE_TAG:?set in the env file}
@@ -121,7 +125,7 @@ configs:
     content: |
       {$$SITE_ADDRESS} {
         encode
-        @api path /api/* /openapi/* /health
+        @api path /api/* /openapi/* /health/*
         reverse_proxy @api api:8080
         reverse_proxy frontend:3000
       }

@@ -23,6 +23,9 @@ export default defineNuxtConfig({
       link: [{ rel: 'icon', type: 'image/svg+xml', href: faviconHref() }],
     },
   },
+  // The API origin for plugins/api.ts: apiBase (NUXT_API_BASE) for server rendering, which reaches the API inside
+  // the network; public.apiBase (NUXT_PUBLIC_API_BASE) for the browser, '' for the same origin behind the proxy.
+  runtimeConfig: { apiBase: '', public: { apiBase: '' } },
   // brand/ (ADR-0011) lies outside the app; let the dev server read it.
   vite: { server: { fs: { allow: [fileURLToPath(new URL('../brand', import.meta.url))] } } },
 })

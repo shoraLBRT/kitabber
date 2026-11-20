@@ -3,12 +3,24 @@
 // types by hand. tests/api-client.spec.ts fails when the file and the snapshot differ.
 import createClient, { type ClientOptions } from 'openapi-fetch'
 import type { paths } from './schema'
+import { childTraceparent, newTraceContext, type TraceContext } from './trace'
 
 export type { paths, components } from './schema'
 
-/** Paths in the schema already start with /api/v1, so baseUrl is the API origin ('' for the same origin). */
-export function createApiClient(options: ClientOptions = {}) {
-  return createClient<paths>(options)
+/**
+ * Paths in the schema already start with /api/v1, so baseUrl is the API origin ('' for the same origin).
+ * Every request carries a W3C `traceparent` (E01-09, ADR-0015) in the trace that `trace` returns; without it each
+ * request starts its own trace. plugins/api.ts gives server rendering one trace per page.
+ */
+export function createApiClient(options: ClientOptions = {}, trace: () => TraceContext = newTraceContext) {
+  const client = createClient<paths>(options)
+  client.use({
+    onRequest({ request }) {
+      request.headers.set('traceparent', childTraceparent(trace()))
+      return request
+    },
+  })
+  return client
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>

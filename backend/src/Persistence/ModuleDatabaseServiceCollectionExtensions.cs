@@ -6,6 +6,9 @@ namespace Platform.Persistence;
 
 public static partial class ModuleDatabaseServiceCollectionExtensions
 {
+    /// <summary>The tag of readiness checks, the same in every library and in the Api's /health/ready.</summary>
+    public const string ReadyTag = "ready";
+
     /// <summary>
     /// Registers a module's context on PostgreSQL: snake_case names, the module schema, and the migration history
     /// table in that schema. Migrations live in the context's assembly.
@@ -24,6 +27,9 @@ public static partial class ModuleDatabaseServiceCollectionExtensions
 
         services.AddDbContext<TContext>(options => UseModuleDatabase<TContext>(options, connectionString));
         services.AddSingleton(new ModuleDatabase(typeof(TContext), schema));
+
+        // Readiness (ADR-0015): the host is not ready while the module's database does not answer.
+        services.AddHealthChecks().AddDbContextCheck<TContext>($"database:{schema}", tags: [ReadyTag]);
         return services;
     }
 

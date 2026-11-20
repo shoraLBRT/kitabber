@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- OpenTelemetry for every host (ADR-0015): traces, metrics and logs with the platform's sources, sent over OTLP
+         when a collector is configured. Host-agnostic: the Api adds ASP.NET Core and Prometheus on top. -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Observability</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting" />
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+    </ItemGroup>
+
+</Project>

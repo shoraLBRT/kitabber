@@ -18,6 +18,9 @@
   <Folder Name="/src/Migrator/">
     <Project Path="src/Migrator/Platform.Migrator.csproj" />
   </Folder>
+  <Folder Name="/src/Observability/">
+    <Project Path="src/Observability/Platform.Observability.csproj" />
+  </Folder>
   <Folder Name="/src/Persistence/">
     <Project Path="src/Persistence/Platform.Persistence.csproj" />
   </Folder>

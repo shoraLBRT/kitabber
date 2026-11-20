@@ -1,4 +1,5 @@
 using Platform.Configuration;
+using Platform.Observability;
 
 namespace Platform.Api;
 
@@ -8,5 +9,5 @@ namespace Platform.Api;
 /// </summary>
 public static class ApiSettings
 {
-    public static IReadOnlyList<Setting> All { get; } = [];
+    public static IReadOnlyList<Setting> All { get; } = [.. ObservabilitySettings.All];
 }

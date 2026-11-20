@@ -16,6 +16,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
   src/Caching/             Platform.Caching — кэш IDistributedCache на Redis (ADR-0005)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
+  src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Seeding/             Platform.Seeding — демо-данные: зерно, фабрики объектов, демо-сидеры модулей (ADR-0009)
   src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
