@@ -13,7 +13,7 @@
 
 | Образ | Что внутри | Dockerfile |
 | --- | --- | --- |
-| `api` | `backend/src/Api`, порт 8080, `/health` | `backend/Dockerfile`, цель `api` |
+| `api` | `backend/src/Api`, порт 8080, `/health/live`, `/health/ready`, `/metrics` (ADR-0015) | `backend/Dockerfile`, цель `api` |
 | `workers` | `backend/src/Workers` | `backend/Dockerfile`, цель `workers` |
 | `migrator` | `backend/src/Migrator`, по умолчанию `migrate` | `backend/Dockerfile`, цель `migrator` |
 | `frontend` | сервер Nuxt (`.output`), порт 3000 | `frontend/Dockerfile` |
@@ -49,7 +49,7 @@
 `frontend`, `admin`, `migrator` (профиль `tools`, запускается только выкладкой), PostgreSQL, Redis, RabbitMQ и
 Caddy. Наружу смотрит только Caddy (порты 80 и 443), он сам получает сертификаты Let's Encrypt:
 
-- `SITE_ADDRESS` (например `stage.example.org`): `/api/*`, `/openapi/*` и `/health` → `api`, остальное →
+- `SITE_ADDRESS` (например `stage.example.org`): `/api/*`, `/openapi/*` и `/health/*` → `api` (`/metrics` наружу не отдаётся), остальное →
   `frontend`;
 - `ADMIN_ADDRESS` (например `admin.stage.example.org`) → `admin`.
 
@@ -119,7 +119,7 @@ pwsh scripts/deploy.ps1 -EnvFile stage.env -Tag <предыдущий тег>
 - `scripts/deploy-test.ps1 -Smoke` (задание `images / build` на каждом PR; локально — шаг `deploy smoke` при
   `VERIFY_IMAGES=1`): собирает образы, выкладывает stage-compose на этот Docker, обновляет до другого тега,
   проверяет, что упавшая миграция останавливает выкладку и оставляет работающую версию, откатывает и каждый раз
-  проверяет через Caddy сайт, `/health` API и админку (включая клиентский маршрут).
+  проверяет через Caddy сайт, `/health/live` API и админку (включая клиентский маршрут).
 
 Что автотест не доказывает: что публикация в GHCR и выкладка на реальный сервер прошли — это видно только в
 запуске `images` на `main` и `deploy` после подключения стенда.

@@ -150,6 +150,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 | Push | Фейковый отправитель, складывает сообщения в память |
 | Брокер очередей | RabbitMQ в Testcontainers; без брокера — тестовый транспорт `Messaging:Transport=InMemory` (ADR-0005) |
 | Кэш | Redis в Testcontainers; без него — `Cache:Provider=InMemory` (ADR-0005) |
+| Коллектор телеметрии (OTLP) | `TestTelemetry` из `Platform.Testing.Observability`: спаны и записи логов в памяти; `WithModule(telemetry.Register)`. Слушатель спанов общий на процесс — ищите свои спаны по trace id (`TestTelemetry.NewTraceparent()`) (ADR-0015) |
 
 Настоящие ключи нужны только на стендах и задаются переменными окружения (файл `docs/CONFIG.md` появится в
 задаче E01-13).
