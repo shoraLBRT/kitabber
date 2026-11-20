@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Modules.Identity;
+using Platform.Persistence;
+using Platform.Seeding;
 
 namespace Platform.Seed;
 
@@ -13,6 +16,6 @@ public static class SeedCatalog
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        // No modules yet: they arrive with their own tasks (ADR-0001).
+        services.AddModuleDbContext<IdentityDbContext>(connectionString).AddDemoSeeder<IdentityDemoSeeder>();
     }
 }

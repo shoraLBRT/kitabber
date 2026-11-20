@@ -2,6 +2,9 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Platform.Persistence;
 
 namespace Platform.Architecture.Tests;
@@ -11,6 +14,18 @@ public sealed record AssemblyNode(string Name, IReadOnlyList<string> References)
 
 /// <summary>A module database context found in an assembly, with the schema it declares.</summary>
 public sealed record DbContextNode(string Assembly, string Context, string Schema);
+
+/// <summary>
+/// A table of a module database context: its columns and the tables its foreign keys point to, as
+/// <c>schema.table</c>.
+/// </summary>
+public sealed record TableNode(
+    string Assembly,
+    string Context,
+    string Schema,
+    string Table,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<string> ForeignKeys);
 
 /// <summary>
 /// The module boundary rules (docs/ARCHITECTURE.md, «Границы модулей»). Assemblies are classified by name, so
@@ -41,6 +56,16 @@ public static class ModuleBoundaries
         "BCrypt.Net",
         "Konscious.Security.Cryptography",
     ];
+
+    /// <summary>Parts of a column name that mean mail or a password: such columns live only in Identity (FR-ID-1).</summary>
+    public static readonly IReadOnlyList<string> CredentialColumnParts = ["email", "e_mail", "password", "passwd"];
+
+    /// <summary>
+    /// Column names (or their last words) that mean an external sign-in identifier, the pair «provider, subject»
+    /// (FR-ID-4): such columns live only in Identity.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CredentialColumnSuffixes =
+        ["external_id", "provider_key", "provider_subject", "login_provider", "oidc_subject"];
 
     /// <summary>The module an assembly belongs to, or <c>null</c> when it is not a module assembly.</summary>
     public static string? ModuleOf(string assembly)
@@ -178,19 +203,7 @@ public static class ModuleBoundaries
         var contexts = new List<DbContextNode>();
         foreach (var name in assemblies)
         {
-            var assembly = Assembly.Load(new AssemblyName(name));
-            Type?[] types;
-            try
-            {
-                types = assembly.GetTypes();
-            }
-            catch (ReflectionTypeLoadException e)
-            {
-                types = e.Types;
-            }
-
-            foreach (var type in types.OfType<Type>()
-                         .Where(t => !t.IsAbstract && typeof(IModuleDbContext).IsAssignableFrom(t)))
+            foreach (var type in ModuleContextTypes(name))
             {
                 var getter = type.GetInterfaceMap(typeof(IModuleDbContext)).TargetMethods.Single();
                 var schema = (string)getter.Invoke(null, null)!;
@@ -199,6 +212,107 @@ public static class ModuleBoundaries
         }
 
         return contexts;
+    }
+
+    /// <summary>
+    /// The tables of every module database context in the given assemblies, read from the EF Core model the
+    /// migrations are generated from. No database is contacted.
+    /// </summary>
+    public static IReadOnlyList<TableNode> ReadTables(IEnumerable<string> assemblies)
+    {
+        ArgumentNullException.ThrowIfNull(assemblies);
+        return [.. assemblies.SelectMany(name => ModuleContextTypes(name).SelectMany(type => ReadTables(name, type)))];
+    }
+
+    /// <summary>The tables of one module database context, as if it were declared in <paramref name="assembly"/>.</summary>
+    public static IReadOnlyList<TableNode> ReadTables(string assembly, Type context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var options = (DbContextOptionsBuilder)Activator.CreateInstance(
+            typeof(DbContextOptionsBuilder<>).MakeGenericType(context))!;
+        typeof(ModuleDatabaseServiceCollectionExtensions)
+            .GetMethod(nameof(ModuleDatabaseServiceCollectionExtensions.UseModuleDatabase))!
+            .MakeGenericMethod(context)
+            .Invoke(null, [options, "Host=localhost;Database=architecture"]);
+        using var db = (DbContext)Activator.CreateInstance(context, options.Options)!;
+        var model = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+        return
+        [
+            .. model.Tables.Select(table => new TableNode(
+                assembly,
+                context.FullName ?? context.Name,
+                table.Schema ?? "public",
+                table.Name,
+                [.. table.Columns.Select(c => c.Name)],
+                [.. table.ForeignKeyConstraints.Select(fk => $"{fk.PrincipalTable.Schema ?? "public"}.{fk.PrincipalTable.Name}")])),
+        ];
+    }
+
+    /// <summary>
+    /// Every table that breaks FR-ID-1 or the schema rule: a module's table outside its own schema, a foreign key to
+    /// another schema, or a column for mail, a password or an external identifier outside the Identity module.
+    /// </summary>
+    public static IReadOnlyList<string> CheckTables(IEnumerable<TableNode> tables)
+    {
+        ArgumentNullException.ThrowIfNull(tables);
+        var violations = new List<string>();
+        foreach (var table in tables)
+        {
+            if (!IsModuleImplementation(table.Assembly))
+            {
+                continue; // CheckSchemas reports a DbContext outside a module.
+            }
+
+            var module = ModuleOf(table.Assembly)!;
+            var schema = SnakeCase(module);
+            var name = $"{table.Schema}.{table.Table} ({table.Context})";
+            if (table.Schema != schema)
+            {
+                violations.Add($"{name}: a table of module {module} lives only in schema '{schema}'");
+            }
+
+            foreach (var principal in table.ForeignKeys.Where(p => !p.StartsWith(table.Schema + ".", StringComparison.Ordinal)))
+            {
+                violations.Add(
+                    $"{name} -> {principal}: no foreign keys between schemas; refer to another module by its identifier");
+            }
+
+            if (module != IdentityModule)
+            {
+                foreach (var column in table.Columns.Where(IsCredentialColumn))
+                {
+                    violations.Add(
+                        $"{name}.{column}: mail, passwords and external identifiers live only in module {IdentityModule}; "
+                        + "other modules know only account_id");
+                }
+            }
+        }
+
+        return violations;
+    }
+
+    /// <summary>Whether a snake_case column holds mail, a password or an external sign-in identifier (FR-ID-1).</summary>
+    public static bool IsCredentialColumn(string column)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        return CredentialColumnParts.Any(part => column.Contains(part, StringComparison.Ordinal))
+            || CredentialColumnSuffixes.Any(suffix => column == suffix || column.EndsWith("_" + suffix, StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<Type> ModuleContextTypes(string name)
+    {
+        var assembly = Assembly.Load(new AssemblyName(name));
+        Type?[] types;
+        try
+        {
+            types = assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException e)
+        {
+            types = e.Types;
+        }
+
+        return types.OfType<Type>().Where(t => !t.IsAbstract && typeof(IModuleDbContext).IsAssignableFrom(t));
     }
 
     private static string? Violation(string from, string to)

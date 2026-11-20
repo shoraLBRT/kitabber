@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Modules.Identity;
+using Platform.Persistence;
 
 namespace Platform.Migrator;
 
@@ -12,6 +14,6 @@ public static class ModuleCatalog
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        // No modules yet: they arrive with their own tasks (ADR-0001).
+        services.AddModuleDbContext<IdentityDbContext>(connectionString);
     }
 }

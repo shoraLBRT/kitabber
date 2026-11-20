@@ -20,8 +20,14 @@ public sealed class ModuleBoundaryTests
             platform, a => a.Name.StartsWith(ModuleBoundaries.ModulePrefix + "Fixture", StringComparison.Ordinal));
 
         Assert.Empty(ModuleBoundaries.CheckReferences(platform));
-        var modules = platform.Select(a => a.Name).Where(ModuleBoundaries.IsModuleImplementation);
+        var modules = platform.Select(a => a.Name).Where(ModuleBoundaries.IsModuleImplementation).ToList();
+        Assert.Contains("Platform.Modules.Identity", modules);
         Assert.Empty(ModuleBoundaries.CheckSchemas(ModuleBoundaries.ReadDbContexts(modules)));
+
+        // FR-ID-1: credentials stay in Identity, no foreign keys between schemas. Not vacuous: the accounts are read.
+        var tables = ModuleBoundaries.ReadTables(modules);
+        Assert.Contains(tables, t => t.Schema == "identity" && t.Table == "accounts" && t.Columns.Contains("id"));
+        Assert.Empty(ModuleBoundaries.CheckTables(tables));
     }
 
     [Fact]
