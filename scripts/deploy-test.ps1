@@ -177,7 +177,9 @@ Set-Content -Encoding ascii -LiteralPath $envFile @(
     "STAGE_PROJECT=$project", "IMAGE_REGISTRY=$Registry", "IMAGE_TAG=$Tag",
     'SITE_ADDRESS=http://site.localhost', 'ADMIN_ADDRESS=http://admin.localhost',
     "HTTP_PORT=$httpPort", "HTTPS_PORT=$httpsPort",
-    "POSTGRES_PASSWORD=$(New-Password)", "REDIS_PASSWORD=$(New-Password)", "RABBITMQ_PASSWORD=$(New-Password)"
+    "POSTGRES_PASSWORD=$(New-Password)", "REDIS_PASSWORD=$(New-Password)", "RABBITMQ_PASSWORD=$(New-Password)",
+    # The workers start without reaching SMTP: a letter would only fail and wait in the queue.
+    'SMTP_HOST=smtp.invalid', 'SMTP_PORT=587', 'SMTP_SECURITY=StartTls', 'SMTP_USERNAME=smoke', "SMTP_PASSWORD=$(New-Password)", 'MAIL_FROM=noreply@site.localhost'
 )
 $dc = @('compose', '-f', $compose, '--env-file', $envFile)
 $deployScript = Join-Path $PSScriptRoot 'deploy.ps1'
