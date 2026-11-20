@@ -34,6 +34,12 @@ public static class IdentitySettings
     /// </summary>
     public static RateLimitPolicy EmailCodePolicy { get; } = new(5, TimeSpan.FromHours(1));
 
+    /// <summary>
+    /// Registrations and their new codes (E03-01): at most 10 an hour per network address, on top of the resend timer
+    /// of each registration. Overridden under <c>RateLimiting:Policies:identity.registrations</c>.
+    /// </summary>
+    public static RateLimitPolicy RegistrationPolicy { get; } = new(10, TimeSpan.FromHours(1), RateLimitPartition.Ip);
+
     public static IReadOnlyList<Setting> All { get; } =
     [
         new(DatabaseKey, "PostgreSQL of the platform: Host=...;Database=...;Username=...;Password=...")
@@ -74,5 +80,6 @@ public static class IdentitySettings
             Default = DefaultAudience,
         },
         .. RateLimitingSettings.Policy(Email.AccountEmailEndpoints.CodePolicy, EmailCodePolicy, "letters with an email confirmation code"),
+        .. RateLimitingSettings.Policy(Registration.RegistrationEndpoints.Policy, RegistrationPolicy, "registrations and their new codes"),
     ];
 }

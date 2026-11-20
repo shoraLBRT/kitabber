@@ -80,6 +80,21 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
         }
 
         var confirmation = await db.EmailConfirmations.SingleOrDefaultAsync(c => c.AccountId == accountId, cancellationToken);
+        if (!await QueueCodeAsync(accountId, confirmation, typed, normalized, cancellationToken))
+        {
+            return EmailChangeResult.Invalid;
+        }
+
+        return await SaveAsync(cancellationToken) ? EmailChangeResult.CodeSent : EmailChangeResult.Taken;
+    }
+
+    /// <summary>
+    /// Starts the confirmation of <paramref name="typed"/> for the account over <paramref name="confirmation"/> (or a new
+    /// one) and queues the letter with the code; nothing is saved. False when the mail library cannot parse the address.
+    /// </summary>
+    internal async Task<bool> QueueCodeAsync(
+        Guid accountId, EmailConfirmation? confirmation, string typed, string normalized, CancellationToken cancellationToken)
+    {
         if (confirmation is null)
         {
             confirmation = EmailConfirmation.Create(accountId);
@@ -96,14 +111,13 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
                 ["code"] = code,
                 ["lifetime"] = "30 минут",
             }, cancellationToken);
+            return true;
         }
         catch (ArgumentException)
         {
             // An address the normaliser accepts but the mail library does not parse.
-            return EmailChangeResult.Invalid;
+            return false;
         }
-
-        return await SaveAsync(cancellationToken) ? EmailChangeResult.CodeSent : EmailChangeResult.Taken;
     }
 
     /// <summary>Confirms the address the account's last code was sent to.</summary>
@@ -148,7 +162,7 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
         db.Accounts.AnyAsync(a => a.Id == accountId && a.EmailConfirmedAt != null, cancellationToken);
 
     // False when the unique index on the normalised email refused the change: another account got there first.
-    private async Task<bool> SaveAsync(CancellationToken cancellationToken)
+    internal async Task<bool> SaveAsync(CancellationToken cancellationToken)
     {
         try
         {

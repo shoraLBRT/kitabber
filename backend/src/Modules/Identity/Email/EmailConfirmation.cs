@@ -17,6 +17,9 @@ public sealed class EmailConfirmation
 
     public const int CodeLength = 6;
 
+    /// <summary>A registration gets a new code no sooner than this after the last one (the resend timer, FR-AUTH).</summary>
+    public static readonly TimeSpan ResendInterval = TimeSpan.FromSeconds(60);
+
     public Guid AccountId { get; private set; }
 
     /// <summary>The address being confirmed, as typed.</summary>
@@ -48,6 +51,10 @@ public sealed class EmailConfirmation
         ExpiresAt = now + Lifetime;
         FailedAttempts = 0;
     }
+
+    /// <summary>How long after <paramref name="now"/> a new code may be sent; zero when it may be sent now.</summary>
+    public TimeSpan ResendDelay(DateTimeOffset now) =>
+        CreatedAt + ResendInterval > now ? CreatedAt + ResendInterval - now : TimeSpan.Zero;
 
     /// <summary>Whether the code can still be used at <paramref name="now"/>.</summary>
     public bool IsUsable(DateTimeOffset now) => now < ExpiresAt && FailedAttempts < MaxAttempts;

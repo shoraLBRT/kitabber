@@ -530,6 +530,11 @@ namespace Platform.Modules.Identity.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("normalized_email");
 
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("password_hash");
+
                     b.HasKey("Id")
                         .HasName("pk_accounts");
 

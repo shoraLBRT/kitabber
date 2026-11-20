@@ -45,6 +45,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             // Unique among all accounts, confirmed or not (FR-ID); accounts without an email (NULL) do not collide.
             account.HasIndex(a => a.NormalizedEmail).IsUnique().HasDatabaseName(NormalizedEmailIndex);
             account.Ignore(a => a.HasConfirmedEmail);
+            account.Ignore(a => a.IsPendingRegistration);
+            account.Property(a => a.PasswordHash).HasMaxLength(256);
         });
         modelBuilder.Entity<EmailConfirmation>(confirmation =>
         {
