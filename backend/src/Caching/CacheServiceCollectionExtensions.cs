@@ -19,6 +19,9 @@ public static class CacheServiceCollectionExtensions
     public const string ProviderKey = "Cache:Provider";
     public const string RedisConnectionName = "Redis";
 
+    /// <summary>The tag of readiness checks, the same in every library and in the Api's /health/ready.</summary>
+    public const string ReadyTag = "ready";
+
     /// <summary>Prefix of every key, so the platform can share a Redis with other tools.</summary>
     public const string InstanceName = "platform:";
 
@@ -38,6 +41,9 @@ public static class CacheServiceCollectionExtensions
             throw new InvalidOperationException(
                 $"{ProviderKey} = '{value}': expected one of {string.Join(", ", Enum.GetNames<CacheProvider>())}.");
         }
+
+        // Readiness (ADR-0015): the host is not ready while the cache does not answer.
+        services.AddHealthChecks().AddCheck<CacheHealthCheck>("cache", tags: [ReadyTag]);
 
         if (provider == CacheProvider.InMemory)
         {

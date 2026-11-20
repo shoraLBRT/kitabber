@@ -4,13 +4,12 @@ using Platform.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.ConfigurePlatform(ApiSettings.All);
+builder.AddApiObservability();
 builder.Services.AddPlatformApi();
 
 var app = builder.Build();
 app.UsePlatformApi();
-
-// Liveness probe for compose and orchestration; outside the versioned API.
-app.MapGet("/health", () => Results.Ok()).ExcludeFromApi();
+app.MapApiObservability();
 
 app.Run();
 

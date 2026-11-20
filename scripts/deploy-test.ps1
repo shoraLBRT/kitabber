@@ -7,7 +7,7 @@
 #   -Smoke       the real thing on this Docker host, run by the images workflow on every PR: builds the images
 #                (or takes them with -NoBuild), deploys the stage compose file with scripts/deploy.ps1, upgrades to
 #                another tag, checks that a failing migration stops a deploy and keeps the running version, rolls
-#                back, and checks the site, the API's /health and the admin through Caddy each time.
+#                back, and checks the site, the API's /health/live and the admin through Caddy each time.
 param(
     [switch]$Smoke,
     [string]$Registry = 'local/kitabber-smoke',
@@ -210,8 +210,8 @@ function Assert-Running([string]$Expected, [string]$When) {
         Assert ($state -and $state[1] -eq 'running' -and $state[2] -eq "$Registry/${image}:$Expected") "${When}: ${image} should run ${Expected}, got '$($state -join ' ')'"
     }
     Assert (-not $states.ContainsKey('migrator')) "${When}: the migrator container must be removed after it ran"
-    $health = Get-Page 'site.localhost' '/health'
-    Assert ($health.Status -eq 200) "${When}: site /health through Caddy is $($health.Status)"
+    $health = Get-Page 'site.localhost' '/health/live'
+    Assert ($health.Status -eq 200) "${When}: site /health/live through Caddy is $($health.Status)"
     $site = Get-Page 'site.localhost' '/'
     Assert ($site.Status -eq 200 -and $site.Body -match '<div id="__nuxt"') "${When}: the site through Caddy is $($site.Status), not the Nuxt page"
     $admin = Get-Page 'admin.localhost' '/'

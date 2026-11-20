@@ -34,6 +34,19 @@
         <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.15" />
     </ItemGroup>
 
+    <!-- Observability: OpenTelemetry traces, metrics and logs, OTLP to a collector, Prometheus scrape endpoint on the
+         API, health checks (ADR-0015). The Prometheus exporter is published only as beta. -->
+    <ItemGroup>
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.15" />
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.15" />
+        <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+        <PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.21.0-beta.1" />
+        <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+        <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
+    </ItemGroup>
+
     <!-- Tests: xUnit v3 through VSTest, Testcontainers, Respawn and a fake clock (ADR-0008). -->
     <ItemGroup>
         <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
