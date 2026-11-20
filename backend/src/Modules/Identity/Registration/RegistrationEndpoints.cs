@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -102,8 +100,7 @@ public sealed class RegistrationEndpoints : IApiEndpoints
         if (accountId is { } id)
         {
             // The provider's session (ADR-0018): /connect/authorize now issues codes to this account.
-            var identity = new ClaimsIdentity([new Claim("sub", id.ToString("D"))], IdentityModule.SessionScheme);
-            await context.SignInAsync(IdentityModule.SessionScheme, new ClaimsPrincipal(identity));
+            await ProviderSession.SignInAsync(context, id);
             return TypedResults.NoContent();
         }
 

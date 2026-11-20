@@ -71,6 +71,21 @@ public sealed class Account
         NormalizedEmail = normalizedEmail;
     }
 
+    /// <summary>
+    /// Gives up an email that is not confirmed (ADR-0020, ADR-0022): another account has just proved the address is
+    /// its own. A confirmed email is never taken away.
+    /// </summary>
+    public void ReleaseUnconfirmedEmail()
+    {
+        if (HasConfirmedEmail)
+        {
+            throw new InvalidOperationException("A confirmed email is replaced only by another confirmed one.");
+        }
+
+        Email = null;
+        NormalizedEmail = null;
+    }
+
     /// <summary>Makes <paramref name="email"/> the account's email, confirmed at <paramref name="confirmedAt"/>.</summary>
     public void ConfirmEmail(string email, string normalizedEmail, DateTimeOffset confirmedAt)
     {

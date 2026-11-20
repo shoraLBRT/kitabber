@@ -176,6 +176,12 @@ public static class IdentityModule
         services.AddScoped<Registration.Registrations>();
         services.AddRateLimitPolicy(Registration.RegistrationEndpoints.Policy, IdentitySettings.RegistrationPolicy);
         services.AddApiEndpoints<Registration.RegistrationEndpoints>();
+        services.AddScoped<SignIns>();
+        services.AddRateLimitPolicy(SignInEndpoints.AttemptPolicy, IdentitySettings.SignInPolicy);
+        services.AddRateLimitPolicy(SignInEndpoints.AddressAttemptPolicy, IdentitySettings.SignInAddressPolicy);
+        services.AddRateLimitPolicy(SignInEndpoints.CodePolicy, IdentitySettings.SignInCodePolicy);
+        services.AddRateLimitPolicy(SignInEndpoints.AddressCodePolicy, IdentitySettings.SignInCodeAddressPolicy);
+        services.AddApiEndpoints<SignInEndpoints>();
     }
 
     /// <summary>Maps the authorization and token endpoints; discovery and keys are answered by the provider itself.</summary>

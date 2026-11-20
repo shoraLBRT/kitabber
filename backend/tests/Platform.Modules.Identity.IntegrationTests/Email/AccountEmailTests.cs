@@ -81,16 +81,45 @@ public sealed class AccountEmailTests(EmailApi api) : IClassFixture<EmailApi>, I
         var other = await api.CreateAccountAsync();
         var code = await api.RequestCodeAsync(owner, first);
 
-        using (var unconfirmedTaken = await api.ChangeEmailAsync(other, second))
-        {
-            Assert.Equal(HttpStatusCode.Conflict, unconfirmedTaken.StatusCode);
-            Assert.Equal(AccountEmailEndpoints.EmailTakenCode, await ProblemCodeAsync(unconfirmedTaken));
-        }
+        // An address held unconfirmed does not block another claim (ADR-0022): it waits in the confirmation, and the
+        // first code entered decides.
+        var othersCode = await api.RequestCodeAsync(other, second);
+        Assert.Null((await StoredAsync(other)).NormalizedEmail);
+        Assert.Equal(second, (await api.EmailStateAsync(other)).GetProperty("pendingEmail").GetString());
 
         (await api.ConfirmAsync(owner, code)).Dispose();
+        using (var late = await api.ConfirmAsync(other, othersCode))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
+            Assert.Equal(AccountEmailEndpoints.EmailTakenCode, await ProblemCodeAsync(late));
+        }
+
         using var confirmedTaken = await api.ChangeEmailAsync(other, second);
         Assert.Equal(HttpStatusCode.Conflict, confirmedTaken.StatusCode);
         Assert.Null((await StoredAsync(other)).NormalizedEmail);
+    }
+
+    [Fact]
+    public async Task FirstCodeEnteredTakesTheAddressFromAnAccountThatOnlyTypedIt()
+    {
+        var first = await api.CreateAccountAsync();
+        var second = await api.CreateAccountAsync();
+        var firstCode = await api.RequestCodeAsync(first, "shared@example.com");
+        using (var claimed = await api.ChangeEmailAsync(second, "Shared@Example.com"))
+        {
+            Assert.Equal(HttpStatusCode.Accepted, claimed.StatusCode);
+        }
+
+        var secondCode = CodeOf(await api.LetterToAsync("Shared@Example.com"));
+        using (var confirmed = await api.ConfirmAsync(second, secondCode))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, confirmed.StatusCode);
+        }
+
+        Assert.Equal("shared@example.com", (await StoredAsync(second)).NormalizedEmail);
+        Assert.Null((await StoredAsync(first)).NormalizedEmail);
+        using var late = await api.ConfirmAsync(first, firstCode);
+        Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
     }
 
     [Fact]
