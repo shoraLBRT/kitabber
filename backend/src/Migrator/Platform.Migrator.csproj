@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+        <ProjectReference Include="../Modules/Identity/Platform.Modules.Identity.csproj" />
         <ProjectReference Include="../Persistence/Platform.Persistence.csproj" />
     </ItemGroup>
 

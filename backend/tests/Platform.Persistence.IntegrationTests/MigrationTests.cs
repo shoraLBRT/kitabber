@@ -91,7 +91,67 @@ public sealed class MigrationTests(PostgresFixture postgres)
         var exit = await MigratorApp.RunAsync(["migrate", $"--ConnectionStrings:Platform={db}"], output, error);
 
         Assert.True(exit == 0, error.ToString());
+        Assert.Contains("identity: applied", output.ToString(), StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// FR-ID-1 on the database the real modules migrate, so a migration with hand-written SQL is checked too: no
+    /// column for mail, a password or an external identifier outside the schema <c>identity</c>, and no foreign key
+    /// from one schema to another. The same rule on the EF Core models is in Platform.Architecture.Tests.
+    /// </summary>
+    [Fact]
+    public async Task RealModulesKeepCredentialsInIdentityAndNoForeignKeysBetweenSchemas()
+    {
+        var db = await postgres.CreateDatabaseAsync();
+        using var output = new StringWriter();
+        Assert.Equal(0, await MigratorApp.RunAsync(["migrate", $"--ConnectionStrings:Platform={db}"], output, output));
+
+        Assert.Contains("identity.accounts", await Strings(db, AllTables));
+        Assert.Empty(await Strings(db, CredentialColumnsOutsideIdentity));
+        Assert.Empty(await Strings(db, ForeignKeysBetweenSchemas));
+    }
+
+    /// <summary>The queries above really find violations: a table that breaks both rules is reported.</summary>
+    [Fact]
+    public async Task CredentialColumnsAndForeignKeysBetweenSchemasAreFound()
+    {
+        var db = await postgres.CreateDatabaseAsync();
+        using var output = new StringWriter();
+        Assert.Equal(0, await MigratorApp.RunAsync(["migrate", $"--ConnectionStrings:Platform={db}"], output, output));
+
+        await Execute(db, """
+            CREATE SCHEMA posts;
+            CREATE TABLE posts.posts (
+                id uuid PRIMARY KEY,
+                author_id uuid NOT NULL CONSTRAINT fk_posts_accounts REFERENCES identity.accounts (id),
+                author_email text,
+                yandex_external_id text);
+            """);
+
+        Assert.Equal(
+            ["posts.posts.author_email", "posts.posts.yandex_external_id"],
+            await Strings(db, CredentialColumnsOutsideIdentity));
+        Assert.Equal(["posts.posts -> identity.accounts"], await Strings(db, ForeignKeysBetweenSchemas));
+    }
+
+    private const string AllTables = "SELECT table_schema || '.' || table_name FROM information_schema.tables";
+
+    private const string CredentialColumnsOutsideIdentity = """
+        SELECT table_schema || '.' || table_name || '.' || column_name FROM information_schema.columns
+        WHERE table_schema NOT IN ('identity', 'pg_catalog', 'information_schema')
+          AND (column_name ~ '(email|e_mail|password|passwd)'
+               OR column_name ~ '(^|_)(external_id|provider_key|provider_subject|login_provider|oidc_subject)$')
+        ORDER BY 1
+        """;
+
+    private const string ForeignKeysBetweenSchemas = """
+        SELECT sn.nspname || '.' || s.relname || ' -> ' || tn.nspname || '.' || t.relname
+        FROM pg_constraint c
+        JOIN pg_class s ON s.oid = c.conrelid JOIN pg_namespace sn ON sn.oid = s.relnamespace
+        JOIN pg_class t ON t.oid = c.confrelid JOIN pg_namespace tn ON tn.oid = t.relnamespace
+        WHERE c.contype = 'f' AND s.relnamespace <> t.relnamespace
+        ORDER BY 1
+        """;
 
     private static async Task<(int Exit, string Output)> Run(string connectionString, params string[] words)
     {

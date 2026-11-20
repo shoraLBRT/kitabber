@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The Identity module (ADR-0002, docs/unified-accounts.md): the account and, later, everything that signs it in.
+      Its tables live in the schema `identity`; other modules know an account only by its account_id.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Identity</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../Seeding/Platform.Seeding.csproj" />
+    </ItemGroup>
+
+</Project>

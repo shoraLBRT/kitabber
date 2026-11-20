@@ -20,7 +20,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Seeding/             Platform.Seeding — демо-данные: зерно, фабрики объектов, демо-сидеры модулей (ADR-0009)
-  src/Modules/             модули из ADR-0001 (появляются с задачами модулей)
+  src/Modules/             модули из ADR-0001 (появляются с задачами модулей); Identity — аккаунты (ADR-0002)
   tests/Platform.Testing/  общий каркас тестов: контейнеры, фабрики API, Respawn, часы (ADR-0008)
   tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
   tests/ArchitectureFixtures/  модули-образцы с нарочным нарушением границ (Platform.Architecture.Tests)
@@ -186,13 +186,19 @@ backend). Сборки различаются по имени, поэтому п
 6. Библиотеки хранения и хеширования учётных данных (ASP.NET Core Identity, сервер OpenIddict, BCrypt и др.) —
    только во внутренностях модуля `Identity` (ADR-0002); проверка токенов (`OpenIddict.Validation`) разрешена всем.
 7. `DbContext` модуля (`IModuleDbContext`) живёт только во внутренностях модуля, и его схема — имя модуля в
-   snake_case, поэтому чужую схему модуль занять не может (ADR-0004).
+. Таблицы модуля лежат только в его схеме, внешних ключей между схемами нет: модуль ссылается на чужой объект
+   только по идентификатору. Столбцы почты, паролей и внешних идентификаторов входа (`email`, `password`,
+   `external_id`, `provider_key` и подобные, список — `ModuleBoundaries`) есть только в схеме `identity`; остальные
+   модули знают лишь `account_id` (FR-ID-1). Правило читает модели EF Core модулей без базы; то же в реальной
+   базе после всех миграций проверяет `MigrationTests` в `Platform.Persistence.IntegrationTests`.
 
 Проверка читает ссылки сборок из метаданных (`System.Reflection.Metadata`, без сторонних библиотек), начиная с
 хостов, и загружает сборки модулей, чтобы найти их `DbContext`. Неиспользуемую ссылку на проект компилятор не
 пишет в сборку: нарушением считается только настоящее использование. Что правила действительно ловят нарушения,
 доказывают модули-образцы в `backend/tests/ArchitectureFixtures`: `FixtureFeed` использует внутренний тип
-`FixtureNotes` и занимает его схему — тест ждёт ровно эти два нарушения. Новое правило добавляется в
+`FixtureNotes` и занимает его схему — тест ждёт ровно эти два нарушения. Для правила 8 образец —
+`LeakyPostsDbContext` в `CredentialBoundaryTests`: почта, хеш пароля, таблица в схеме `identity` и внешний ключ
+на неё. Новое правило добавляется в
 `ModuleBoundaries` вместе с примером нарушения.
 
 ## Инструменты
