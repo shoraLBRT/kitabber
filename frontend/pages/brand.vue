@@ -19,6 +19,7 @@ definePageMeta({ layout: 'bare' })
 
 <template>
   <main class="showcase">
+    <h1>Бренд</h1>
     <section v-for="theme in themes" :key="theme" class="showcase__theme" :data-theme="theme">
       <h2>{{ theme === 'light' ? 'Светлая тема' : 'Тёмная тема' }}</h2>
       <BrandLogo :theme="theme" />
