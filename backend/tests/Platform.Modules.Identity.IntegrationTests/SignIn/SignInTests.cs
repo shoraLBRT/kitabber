@@ -18,7 +18,7 @@ namespace Platform.Modules.Identity.IntegrationTests.SignIn;
 /// </summary>
 public sealed class SignInTests(RegistrationApi api) : IClassFixture<RegistrationApi>, IAsyncLifetime
 {
-    private const string Password = "secret-1";
+    private const string _password = "secret-1";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -32,7 +32,7 @@ public sealed class SignInTests(RegistrationApi api) : IClassFixture<Registratio
         var (email, account) = await RegisteredAsync("Ivan.Petrov");
 
         using var browser = api.CreateBrowser();
-        using (var signedIn = await PasswordAsync(browser, email.ToUpperInvariant(), Password))
+        using (var signedIn = await PasswordAsync(browser, email.ToUpperInvariant(), _password))
         {
             Assert.Equal(HttpStatusCode.NoContent, signedIn.StatusCode);
             var cookie = Assert.Single(signedIn.Headers.GetValues("Set-Cookie"),
@@ -49,14 +49,14 @@ public sealed class SignInTests(RegistrationApi api) : IClassFixture<Registratio
         var (email, _) = await RegisteredAsync();
         using var pending = api.CreateClient();
         var unconfirmed = NewAddress("pending");
-        (await RegisterAsync(pending, unconfirmed, Password)).Dispose();
+        (await RegisterAsync(pending, unconfirmed, _password)).Dispose();
 
         using var browser = api.CreateBrowser();
         var answers = new List<string>();
         foreach (var (address, password) in new[]
                  {
-                     (email, "wrong-password"), (NewAddress("nobody"), Password), (unconfirmed, Password),
-                     ("not-an-email", Password), (email, "12345"), (email, (string?)null),
+                     (email, "wrong-password"), (NewAddress("nobody"), _password), (unconfirmed, _password),
+                     ("not-an-email", _password), (email, "12345"), (email, (string?)null),
                  })
         {
             using var refused = await PasswordAsync(browser, address, password);
@@ -244,19 +244,19 @@ public sealed class SignInTests(RegistrationApi api) : IClassFixture<Registratio
             Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
         }
 
-        using var limited = await PasswordAsync(api.CreateBrowser(), email, Password);
+        using var limited = await PasswordAsync(api.CreateBrowser(), email, _password);
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         Assert.Equal("too_many_requests", await ProblemCodeAsync(limited));
         Assert.NotNull(limited.Headers.RetryAfter);
 
         // Another address is not affected, and the window passes.
-        using (var other = await PasswordAsync(api.CreateBrowser(), NewAddress(), Password))
+        using (var other = await PasswordAsync(api.CreateBrowser(), NewAddress(), _password))
         {
             Assert.Equal(HttpStatusCode.BadRequest, other.StatusCode);
         }
 
         api.Time.Advance(IdentitySettings.SignInAddressPolicy.Window);
-        using var later = await PasswordAsync(api.CreateBrowser(), email, Password);
+        using var later = await PasswordAsync(api.CreateBrowser(), email, _password);
         Assert.Equal(HttpStatusCode.NoContent, later.StatusCode);
     }
 
@@ -311,7 +311,7 @@ public sealed class SignInTests(RegistrationApi api) : IClassFixture<Registratio
         return (challenge, await api.CodeFromMailpitAsync(email, letter));
     }
 
-    // A person who registered with Password and confirmed the address: the address and the account.
+    // A person who registered with the password and confirmed the address: the address and the account.
     private async Task<(string Email, Guid Account)> RegisteredAsync(string name = "reader")
     {
         using var client = api.CreateClient();
