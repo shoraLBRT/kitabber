@@ -23,11 +23,11 @@ backend/                   решение .NET (Platform.slnx)
   tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
   tests/ArchitectureFixtures/  модули-образцы с нарочным нарушением границ (Platform.Architecture.Tests)
   tools/Seed/              Platform.Seed — команда демо-данных: dotnet run --project backend/tools/Seed (ADR-0009)
-frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript)
-admin/                     админ-панель на Vue 3 + Vite (TypeScript)
+frontend/                  веб-клиент на Nuxt 3 (Vue 3, TypeScript); api/ — типизированный клиент API (ADR-0014)
+admin/                     админ-панель на Vue 3 + Vite (TypeScript); src/api/ — клиент API (ADR-0014)
 brand/                     временный бренд: название, знак, палитра, набор иконок — brand.json (ADR-0011);
                            дизайн-токены tokens.json → tokens.css и правила линтера стилей (ADR-0012)
-tools/                     инструменты не на .NET: генерация клиента API, фейковые сервисы (появится в своих задачах)
+tools/                     инструменты не на .NET: фейковые сервисы (появится в своих задачах)
 deploy/                    compose-файл стенда stage и шаблон его значений; выкладка — docs/DEPLOY.md
 compose.yaml               локальное окружение: вся инфраструктура в Docker (E01-04)
 .env.example               порты и пароли локального окружения; копия .env в git не попадает
@@ -119,6 +119,11 @@ services.AddApiEndpoints<PostsEndpoints>();  // PostsEndpoints : IApiEndpoints, 
 `ToRequest<TCursor>()` → `ToPage(...)`. Документ OpenAPI: `/openapi/v1.json` у работающего хоста и
 `backend/src/Api/obj/openapi/Platform.Api.json` после сборки; снимок `backend/src/Api/openapi/v1.json` обновляется
 запуском тестов с `UPDATE_OPENAPI_SNAPSHOT=1` и коммитится вместе с изменением API.
+
+Клиенты берут типы API только из снимка ([ADR-0014](adr/0014-typed-api-client.md)): `pnpm run api:generate` в
+`frontend/` и `admin/` пересобирает `schema.d.ts`, вызовы — через `createApiClient()` (`openapi-fetch`). Тест
+`tests/api-client.spec.ts` каждого клиента падает, если `schema.d.ts` отстал от снимка или в коде есть ручной
+`fetch` к API.
 
 ## Настройки и секреты
 
