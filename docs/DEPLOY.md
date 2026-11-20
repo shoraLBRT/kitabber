@@ -49,7 +49,8 @@
 `frontend`, `admin`, `migrator` (профиль `tools`, запускается только выкладкой), PostgreSQL, Redis, RabbitMQ и
 Caddy. Наружу смотрит только Caddy (порты 80 и 443), он сам получает сертификаты Let's Encrypt:
 
-- `SITE_ADDRESS` (например `stage.example.org`): `/api/*`, `/openapi/*` и `/health/*` → `api` (`/metrics` наружу не отдаётся), остальное →
+- `SITE_ADDRESS` (например `stage.example.org`): `/api/*`, `/openapi/*`, `/health/*` и хаб реального времени `/hubs/*`
+  (WebSocket проходит через Caddy без настроек, ADR-0019) → `api` (`/metrics` наружу не отдаётся), остальное →
   `frontend`;
 - `ADMIN_ADDRESS` (например `admin.stage.example.org`) → `admin`.
 

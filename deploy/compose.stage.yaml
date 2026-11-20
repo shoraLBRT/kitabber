@@ -149,7 +149,7 @@ configs:
     content: |
       {$$SITE_ADDRESS} {
         encode
-        @api path /api/* /openapi/* /health/* /.well-known/openid-configuration /.well-known/jwks /connect/*
+        @api path /api/* /openapi/* /health/* /hubs/* /.well-known/openid-configuration /.well-known/jwks /connect/*
         reverse_proxy @api api:8080
         reverse_proxy frontend:3000
       }

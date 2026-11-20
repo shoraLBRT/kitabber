@@ -34,10 +34,13 @@ export default defineNuxtConfig({
     public: { apiBase: '' },
   },
   // `nuxt dev` signs in at the API of `dotnet run` (backend/src/Api, launchSettings.json); its key is made at start.
+  // The realtime hub (E01-11) is reached on the same origin, as behind the stand's proxy: the dev server forwards it.
   $development: {
     runtimeConfig: {
+      apiBase: 'http://localhost:5103',
       oidc: { issuer: 'http://localhost:5103/', redirectUri: 'http://localhost:3000/auth/callback' },
     },
+    nitro: { devProxy: { '/hubs': { target: 'http://localhost:5103/hubs', ws: true } } },
   },
   // brand/ (ADR-0011) lies outside the app; let the dev server read it.
   vite: { server: { fs: { allow: [fileURLToPath(new URL('../brand', import.meta.url))] } } },
