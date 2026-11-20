@@ -19,7 +19,7 @@ mkdir -p "$state"
 missing_packages() {
     local pkg
     for pkg in $(cat "$state/packages"); do
-        dpkg-query -W -f='${Status}\n' "$pkg" 2>/dev/null | grep -q '^install ok installed$' || echo "$pkg"
+        [ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null)" = 'install ok installed' ] || echo "$pkg"
     done
 }
 
