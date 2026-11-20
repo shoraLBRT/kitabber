@@ -106,10 +106,15 @@ exit (Complete-Verify '$reports')
     Assert ($ci -match '\.nuget/packages') 'ci.yml: NuGet packages must be cached'
     Assert ($ci -match 'artifacts/test-results') 'ci.yml: test reports must be uploaded'
     Assert ($ci -match 'path: ~/\.cache/ms-playwright') 'ci.yml: Playwright browsers must be cached'
+    # #302: Chromium's system packages come from cached .deb files, not from the Ubuntu mirror on every run.
+    Assert (($ci -match 'scripts/ci/playwright-deps\.sh plan') -and ($ci -match 'scripts/ci/playwright-deps\.sh install') -and
+        ($ci -match 'path: ~/\.cache/playwright-deps')) 'ci.yml: Playwright system packages must be installed from a cache'
+    $verifyScript = Get-Content -Raw -Encoding utf8 (Join-Path $root 'scripts/verify.ps1')
+    Assert ($verifyScript -notmatch '--with-deps') 'verify.ps1: --with-deps would hit the Ubuntu mirror on every CI run'
 
     # 3a. verify.ps1 runs the client tests (E01-16): unit tests, then Playwright in both profiles after the build.
     $verify = Get-Content -Raw -Encoding utf8 (Join-Path $PSScriptRoot 'verify.ps1')
-    foreach ($expected in 'pnpm run --if-present test', 'pnpm run e2e', "'playwright', 'install', 'chromium'") {
+    foreach ($expected in 'pnpm run --if-present test', 'pnpm run e2e', 'pnpm exec playwright install chromium') {
         Assert $verify.Contains($expected) "verify.ps1: must run '$expected'"
     }
     Assert ($verify.IndexOf('"$app build"') -lt $verify.IndexOf('e2e (desktop + mobile)')) 'verify.ps1: e2e must run after the build'
