@@ -53,8 +53,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml', 'admin/pnpm-lock.yaml') }}
           restore-keys: playwright-${{ runner.os }}-
       # The secret scan of verify.ps1 needs gitleaks (E01-13); the archive is checked against the release checksums.
+      # Renovate bumps the version through the custom manager in renovate.json (#285); the checksums file comes
+      # from the same release, so the check keeps working after a bump.
       - name: Install gitleaks
         env:
+          # renovate: datasource=github-releases depName=gitleaks/gitleaks
           GITLEAKS_VERSION: 8.28.0
         run: |
           cd "$RUNNER_TEMP"
