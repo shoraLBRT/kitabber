@@ -45,13 +45,34 @@ jobs:
           cache-dependency-path: |
             frontend/pnpm-lock.yaml
             admin/pnpm-lock.yaml
-      # Playwright's Chromium for the e2e steps of verify.ps1 (E01-16); the script installs it and its system libraries.
+      # Playwright's Chromium for the e2e steps of verify.ps1 (E01-16); the script installs the browser itself.
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml', 'admin/pnpm-lock.yaml') }}
           restore-keys: playwright-${{ runner.os }}-
+      # Chromium's system packages (#302): only those missing from the runner image, from cached .deb files, so a slow
+      # Ubuntu mirror no longer costs minutes on every run. The key is the set of missing packages; see the script.
+      - name: Plan Playwright system packages
+        id: pw-deps
+        run: scripts/ci/playwright-deps.sh plan
+      - name: Restore Playwright system packages
+        if: steps.pw-deps.outputs.missing == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/playwright-deps
+          key: ${{ steps.pw-deps.outputs.key }}
+      - name: Install Playwright system packages
+        id: pw-deps-install
+        if: steps.pw-deps.outputs.missing == 'true'
+        run: scripts/ci/playwright-deps.sh install
+      - name: Save Playwright system packages
+        if: steps.pw-deps-install.outputs.save == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/playwright-deps
+          key: ${{ steps.pw-deps.outputs.key }}
       # The secret scan of verify.ps1 needs gitleaks (E01-13); the archive is checked against the release checksums.
       # Renovate bumps the version through the custom manager in renovate.json (#285); the checksums file comes
       # from the same release, so the check keeps working after a bump.

@@ -124,7 +124,11 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - **Против чего.** Продакшен-сборка, которую verify собирает шагом «build»: сайт — `node .output/server/index.mjs`
   на порту 3100, админка — `vite preview` на 4174; сервер поднимает `webServer` Playwright. Локально:
   `pnpm build`, затем `pnpm e2e` (один раз — `pnpm exec playwright install chromium --only-shell`; verify ставит
-  браузер сам, в CI — вместе с системными библиотеками, а сам браузер берёт из кэша).
+  браузер сам, а в CI берёт его из кэша). Системные пакеты Chromium в CI ставит не verify, а `ci.yml` через
+  `scripts/ci/playwright-deps.sh` (#302): из списка Playwright выбираются пакеты, которых нет в образе раннера, и
+  ставятся из кэша .deb-файлов через `dpkg`; к зеркалу Ubuntu шаг идёт, только если кэша нет или он не покрывает
+  набор. Ключ кэша — сам набор недостающих пакетов, поэтому смена версии Playwright (Renovate) или образа раннера
+  обновляет его сама.
 - **Фикстуры.** `frontend/e2e/fixtures.ts`: тест падает на ошибке скрипта или консоли (в том числе на ошибке
   гидратации); ожидаемо отсутствующие файлы перечисляются опцией `missingResources`. Там же помощники:
   `press` (касание в mobile, щелчок в desktop), `expectNoHorizontalScroll`, `makeScrollable`, `waitForHydration`.

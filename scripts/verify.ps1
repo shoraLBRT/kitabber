@@ -117,10 +117,9 @@ foreach ($app in 'frontend', 'admin') {
             Step "$app unit tests" { pnpm run --if-present test }
             Step "$app e2e (desktop + mobile)" {
                 # Playwright against the build above in the profiles desktop and mobile (E01-16, docs/TESTING.md). Only
-                # Chromium is installed (headless shell, reused when present); on the Linux CI runner with its libraries.
-                $install = 'exec', 'playwright', 'install', 'chromium', '--only-shell'
-                if ($env:CI -and $IsLinux) { $install += '--with-deps' }
-                pnpm @install
+                # Chromium is installed (headless shell, reused when present). Its system libraries on the Linux CI runner
+                # are prepared by ci.yml from a cache (scripts/ci/playwright-deps.sh, #302), not by Playwright here.
+                pnpm exec playwright install chromium --only-shell
                 if ($LASTEXITCODE) { throw "playwright install: exit code $LASTEXITCODE" }
                 pnpm run e2e
             }
