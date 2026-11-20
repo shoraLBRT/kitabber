@@ -1,8 +1,10 @@
-# Context of backend/Dockerfile (the repository root): only the backend sources and the root build files.
+# Context of backend/Dockerfile (the repository root): only the backend sources, the root build files and the brand.
 *
 !global.json
 !Directory.Build.props
 !backend/
+# Platform.Mail builds in the product name and palette (ADR-0011, ADR-0017).
+!brand/brand.json
 backend/**/bin/
 backend/**/obj/
 backend/**/TestResults/
