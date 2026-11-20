@@ -48,6 +48,13 @@
         <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
     </ItemGroup>
 
+    <!-- Sign-in: Identity is an OpenID Connect provider on OpenIddict (Apache-2.0); the API validates its tokens with
+         OpenIddict validation (ADR-0002, ADR-0018). -->
+    <ItemGroup>
+        <PackageVersion Include="OpenIddict.AspNetCore" Version="7.9.0" />
+        <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.9.0" />
+    </ItemGroup>
+
     <!-- Tests: xUnit v3 through VSTest, Testcontainers, Respawn and a fake clock (ADR-0008). -->
     <ItemGroup>
         <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />

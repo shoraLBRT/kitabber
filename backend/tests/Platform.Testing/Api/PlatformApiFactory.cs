@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
 using Platform.Caching;
 using Platform.Configuration;
+using Platform.Modules.Identity.SignIn;
 using Platform.Testing.Time;
 
 namespace Platform.Testing.Api;
@@ -22,6 +24,9 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
 {
     private readonly Dictionary<string, string?> _settings = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Action<IServiceCollection, IConfiguration>> _modules = [];
+
+    /// <summary>Whether the host has a real database; without one the module databases' readiness checks are left out.</summary>
+    protected virtual bool HasDatabase => false;
 
     /// <summary>The clock of the host: every <see cref="TimeProvider"/> in it is this one.</summary>
     public FakeTimeProvider Time { get; } = TestClock.Create();
@@ -57,6 +62,10 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         ArgumentNullException.ThrowIfNull(builder);
         builder.UseEnvironment(PlatformEnvironments.Test);
         builder.UseSetting(CacheServiceCollectionExtensions.ProviderKey, nameof(CacheProvider.InMemory));
+        // The Identity module needs the platform database; in process there is none (IntegrationApiFactory gives
+        // one), and nothing reaches it: the clients are not written at start and its readiness check is left out.
+        builder.UseSetting(IdentitySettings.DatabaseKey, "Host=localhost;Port=1;Database=no_database");
+        builder.UseSetting(IdentitySettings.SyncClientsKey, "false");
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);
@@ -73,6 +82,16 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Time);
+            if (!HasDatabase)
+            {
+                services.Configure<HealthCheckServiceOptions>(options =>
+                {
+                    foreach (var check in options.Registrations.Where(r => r.Name.StartsWith("database:", StringComparison.Ordinal)).ToList())
+                    {
+                        options.Registrations.Remove(check);
+                    }
+                });
+            }
         });
     }
 }
