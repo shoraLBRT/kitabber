@@ -1,6 +1,6 @@
 # ADR-0016. Лимиты частоты запросов: фиксированные окна в Redis, по аккаунту и по IP
 
-- Статус: предложено (задача E01-10, #21); владелец может пересмотреть в PR
+- Статус: принято владельцем 20 ноября 2026 (задача E01-10, #21)
 - Задачи: E01-10; опирается на [ADR-0005](0005-messaging-and-cache.md) (Redis и фейк в памяти),
   [ADR-0006](0006-rest-api-conventions.md) (problem details, код `too_many_requests`),
   [ADR-0007](0007-configuration-and-secrets.md) (настройки), [ADR-0010](0010-images-and-deployment.md) (стенд за Caddy)
