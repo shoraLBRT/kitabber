@@ -65,9 +65,11 @@ public sealed class RealtimeTicketStore(IDistributedCache cache, TimeProvider ti
 }
 
 /// <summary>
-/// The authentication of the hub: a ticket in <c>access_token</c>, where the SignalR clients put it, since a browser
-/// WebSocket carries no headers. Without one, the host's default scheme (the provider's bearer token, or the test
-/// scheme), so a server-side client connects with its own token.
+/// The authentication of the hub. The SignalR clients send the ticket where the transport allows: in
+/// <c>access_token</c> of the address for WebSockets (a browser WebSocket carries no headers), as
+/// <c>Authorization: Bearer</c> for negotiation and long polling. A bearer value with a dot is a JWT, not a ticket.
+/// Without a ticket, the host's default scheme (the provider's bearer token, or the test scheme), so a server-side
+/// client connects with its own token.
 /// </summary>
 internal sealed class RealtimeTicketHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder,
@@ -76,10 +78,19 @@ internal sealed class RealtimeTicketHandler(
 {
     public const string SchemeName = "Realtime.Ticket";
     public const string QueryParameter = "access_token";
+    private const string BearerPrefix = "Bearer ";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var ticket = Request.Query[QueryParameter].ToString();
+        var authorization = Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(ticket)
+            && authorization.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase)
+            && !authorization.Contains('.', StringComparison.Ordinal))
+        {
+            ticket = authorization[BearerPrefix.Length..].Trim();
+        }
+
         if (string.IsNullOrEmpty(ticket))
         {
             var fallback = await schemes.GetDefaultAuthenticateSchemeAsync();

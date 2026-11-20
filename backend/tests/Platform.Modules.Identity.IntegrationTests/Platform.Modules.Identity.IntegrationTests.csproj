@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
         <PackageReference Include="xunit.v3" />
@@ -21,6 +22,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/Modules/Identity/Platform.Modules.Identity.csproj" />
+        <ProjectReference Include="../../src/Realtime/Platform.Realtime.csproj" />
         <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 

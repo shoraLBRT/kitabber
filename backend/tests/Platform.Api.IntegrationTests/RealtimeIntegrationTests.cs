@@ -113,6 +113,23 @@ public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetim
     }
 
     [Fact]
+    public async Task TicketInTheAuthorizationHeaderOpensTheHub()
+    {
+        // Negotiation and long polling carry the ticket as a bearer header, not in the address.
+        var api = Instance();
+        var alice = Guid.NewGuid();
+        var ticket = await TicketAsync(api, alice);
+        var client = await ConnectAsync(api, ticket: null, bearer: ticket.Ticket);
+
+        await api.Services.GetRequiredService<IRealtimePublisher>()
+            .PublishAsync(RealtimeTopic.Account(alice), "ping", null, Ct);
+        Assert.Equal("ping", (await client.NextAsync()).Type);
+
+        var forged = await Assert.ThrowsAsync<HttpRequestException>(() => ConnectAsync(api, ticket: null, bearer: "forged"));
+        Assert.Equal(HttpStatusCode.Unauthorized, forged.StatusCode);
+    }
+
+    [Fact]
     public async Task ConnectionWithoutTicketOrTokenIsRejected()
     {
         var api = Instance();
@@ -213,7 +230,8 @@ public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetim
     /// Opens the hub the way the browser does: the ticket in <c>access_token</c> of the address. Without a ticket,
     /// <paramref name="account"/> signs in through the test scheme, as a server-side client with a token would.
     /// </summary>
-    private async Task<Client> ConnectAsync(PlatformApiFactory api, string? ticket, Guid? account = null)
+    private async Task<Client> ConnectAsync(
+        PlatformApiFactory api, string? ticket, Guid? account = null, string? bearer = null)
     {
         var address = new Uri(api.Server.BaseAddress, RealtimeServiceCollectionExtensions.HubPath
             + (ticket is null ? string.Empty : $"?access_token={Uri.EscapeDataString(ticket)}"));
@@ -223,6 +241,11 @@ public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetim
                 // The in-process server has no sockets: long polling through its handler.
                 options.Transports = HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => api.Server.CreateHandler();
+                if (bearer is not null)
+                {
+                    options.AccessTokenProvider = () => Task.FromResult<string?>(bearer);
+                }
+
                 if (account is not null)
                 {
                     options.Headers[TestAuthentication.AccountHeader] = account.Value.ToString("D");
