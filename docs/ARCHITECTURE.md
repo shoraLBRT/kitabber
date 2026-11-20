@@ -16,6 +16,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
   src/Caching/             Platform.Caching — кэш IDistributedCache и счётчики IRateCounter на Redis (ADR-0005)
   src/Mail/                Platform.Mail — шаблоны писем (Templates/<культура>/), очередь SendEmail, SMTP и фейк (ADR-0017)
+  src/Realtime/            Platform.Realtime — канал реального времени: хаб SignalR, темы, билеты хаба, Redis backplane (ADR-0019)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
@@ -147,6 +148,16 @@ posts.MapPost("/", Create).WithRateLimit("posts.create");
 через `.RequireAuthorization()`. Сайт входит через свой сервер: `frontend/server/routes/auth/` (`sign-in`,
 `callback`), токены — в памяти сервера Nuxt, браузеру — cookie `auth.session`; страница знает только
 `useAccount().value.signedIn`, а клиент API на сервере сам добавляет токен (`plugins/api.ts`).
+
+Реальное время ([ADR-0019](adr/0019-realtime-channel.md)): один хаб SignalR `/hubs/realtime` в API
+(`Platform.Realtime`), только для вошедших. Событие адресовано теме: `account:<id>` (соединение входит в неё само) или
+`post:<id>` (клиент подписывается методом `Subscribe`; кто может подписаться на тему вида, решает её
+`IRealtimeTopicPolicy`). Модуль отправляет событие через `IRealtimePublisher.PublishAsync(тема, тип, данные)`; клиенты
+только слушают, действия идут через REST. Несколько экземпляров API делят события через Redis backplane (когда
+`Cache:Provider=Redis`). Браузер открывает хаб по билету: страница просит его у своего сервера
+(`POST /auth/realtime-ticket`), сервер Nuxt — у API (`POST /api/v1/realtime/tickets`) с токеном человека; билет живёт
+60 секунд и открывает только хаб. Клиент сайта — `frontend/realtime/channel.ts` и `plugins/realtime.client.ts`,
+компонентам — `useRealtimeTopic(тема, обработчик)`.
 
 ## Настройки и секреты
 

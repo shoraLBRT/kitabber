@@ -34,6 +34,9 @@
   <Folder Name="/src/Workers/">
     <Project Path="src/Workers/Platform.Workers.csproj" />
   </Folder>
+  <Folder Name="/src/Realtime/">
+    <Project Path="src/Realtime/Platform.Realtime.csproj" />
+  </Folder>
   <Folder Name="/src/Seeding/">
     <Project Path="src/Seeding/Platform.Seeding.csproj" />
   </Folder>

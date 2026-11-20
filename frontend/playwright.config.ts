@@ -7,6 +7,7 @@ import { defineConfig, devices } from '@playwright/test'
 // artifacts/test-results/frontend-e2e/failures (uploaded by CI as the test-results artifact).
 const port = 3100
 const providerPort = 3101
+const apiPort = 3102
 const reports = '../artifacts/test-results/frontend-e2e'
 
 export default defineConfig({
@@ -40,9 +41,17 @@ export default defineConfig({
       },
     },
   ],
-  // The site in its production build, signing in at the fake OpenID Connect provider (e2e/fake-oidc-provider.mjs):
-  // external services only as fakes (docs/TESTING.md). The session key is new on every run, never committed.
+  // The site in its production build, signing in at the fake OpenID Connect provider (e2e/fake-oidc-provider.mjs) and
+  // talking to the fake API (e2e/fake-api.mjs: hub tickets and the realtime hub): external services only as fakes
+  // (docs/TESTING.md). The session key is new on every run, never committed.
   webServer: [
+    {
+      command: 'node e2e/fake-api.mjs',
+      url: `http://127.0.0.1:${apiPort}/`,
+      env: { FAKE_API_PORT: String(apiPort) },
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
     {
       command: 'node e2e/fake-oidc-provider.mjs',
       url: `http://127.0.0.1:${providerPort}/`,
@@ -64,6 +73,8 @@ export default defineConfig({
         NUXT_OIDC_ISSUER: `http://127.0.0.1:${providerPort}/`,
         NUXT_OIDC_REDIRECT_URI: `http://127.0.0.1:${port}/auth/callback`,
         NUXT_SESSION_PASSWORD: randomBytes(32).toString('base64url'),
+        NUXT_API_BASE: `http://127.0.0.1:${apiPort}`,
+        NUXT_PUBLIC_API_BASE: `http://127.0.0.1:${apiPort}`,
       },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

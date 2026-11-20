@@ -68,7 +68,7 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |
-| `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша и счётчиков лимитов частоты: `Redis` или `InMemory` (для тестов; не делится между экземплярами) |
+| `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша, счётчиков лимитов частоты, билетов хаба и backplane реального времени (ADR-0019): `Redis` или `InMemory` (для тестов; не делится между экземплярами) |
 | `ConnectionStrings:Redis` | `ConnectionStrings__Redis` | да | при кэше `Redis` | — | Redis в формате StackExchange.Redis: `host:port,password=...` |
 | `RateLimiting:Enabled` | `RateLimiting__Enabled` | нет | нет | `true` | лимиты частоты запросов к API (ADR-0016); `false` выключает их |
 | `RateLimiting:Policies:Default:PermitLimit` | `RateLimiting__Policies__Default__PermitLimit` | нет | нет | `300` | политика `Default` — все запросы под `/api`: сколько запросов разрешено за окно |

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The realtime channel (E01-11, ADR-0019): the SignalR hub, topics per account and per post, hub tickets,
+         the Redis backplane. Modules publish through IRealtimePublisher only. -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Realtime</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Caching/Platform.Caching.csproj" />
+        <ProjectReference Include="../Http/Platform.Http.csproj" />
+    </ItemGroup>
+
+</Project>
