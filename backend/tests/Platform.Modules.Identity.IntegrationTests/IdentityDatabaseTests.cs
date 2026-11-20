@@ -38,6 +38,7 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
             [
                 "created_at timestamp with time zone NO", "email character varying YES",
                 "email_confirmed_at timestamp with time zone YES", "id uuid NO", "normalized_email character varying YES",
+                "password_hash character varying YES",
             ],
             await Strings(db, """
                 SELECT column_name || ' ' || data_type || ' ' || is_nullable FROM information_schema.columns

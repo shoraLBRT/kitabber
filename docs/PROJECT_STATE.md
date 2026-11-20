@@ -212,7 +212,7 @@
   `Retry-After`), `POST /{id}/confirmation` (204 и cookie провайдера `identity.session`; 400
   `confirmation_invalid`). Лимит `identity.registrations` — 10 в час на адрес сети. Неподтверждённую регистрацию
   заменяет новая регистрация того же адреса после таймера; подтвердить можно только последнюю. Сайт: страница
-  `/register` (`components/auth/RegistrationForm.vue`, вызовы — `utils/registration.ts`): почта и пароль, шаг
+  `/register` (`components/auth/RegistrationForm.vue`, вызовы — `api/registration.ts`): почта и пароль, шаг
   кода с обратным отсчётом, ошибки API; после подтверждения — `/auth/sign-in`, и провайдер выдаёт код без окна
   входа. `nuxt dev` проксирует `/api` на API, чтобы cookie провайдера ставилась на том же хосте. Тесты —
   `Registration/RegistrationTests` (письма доставляются SMTP-отправителем в Mailpit, коды читаются оттуда; поток до

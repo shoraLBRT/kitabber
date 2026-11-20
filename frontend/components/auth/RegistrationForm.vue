@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Registration (E03-01, FR-AUTH): email and password, then the code from the letter with a resend timer. The minimal
 // screen this task needs; the finished sign-in and registration window for the desktop and the phone is E03-04 (#30).
-// The calls come in as `api` (utils/registration.ts), so the form is tested without a server. When the code is
+// The calls come in as `api` (api/registration.ts), so the form is tested without a server. When the code is
 // accepted the provider has signed the person in and the form emits `confirmed`; the page then finishes the sign-in.
 import { computed, onBeforeUnmount, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
-import { formatCountdown, passwordMinLength, type RegistrationApi } from '../../utils/registration'
+import { formatCountdown, passwordMinLength, type RegistrationApi } from '../../api/registration'
 
 const props = defineProps<{ api: RegistrationApi }>()
 const emit = defineEmits<{ confirmed: [] }>()

@@ -2,7 +2,7 @@
 // form understands. The browser calls the API on the provider's origin (the same origin behind the stand's proxy), so
 // the confirmation's answer sets the provider's session cookie there; the site then signs in through /auth/sign-in,
 // the usual authorization code flow (ADR-0018).
-import type { ApiClient } from '~/api/client'
+import type { ApiClient } from './client'
 
 /** What one call ended with: the HTTP status (0 when the API was not reached), the body and the Retry-After seconds. */
 export interface RegistrationOutcome {

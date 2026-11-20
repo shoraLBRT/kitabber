@@ -6,7 +6,7 @@ import {
   retryAfterSeconds,
   type RegistrationApi,
   type RegistrationOutcome,
-} from '../../utils/registration'
+} from '../../api/registration'
 
 const id = '0190f3a2-0000-7000-8000-000000000001'
 
