@@ -9,6 +9,7 @@
 // confirmation sets the provider's session cookie. The "letters" with the codes are read with GET /__letters?to=
 // (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
 // in the e2e run; the address taken@example.com is already taken.
+// Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below.
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
 
@@ -62,7 +63,7 @@ async function registration(request, response, url) {
     const id = randomBytes(16)
       .toString('hex')
       .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
-    const entry = { email, confirmed: false }
+    const entry = { email, password, confirmed: false }
     registrations.set(id, entry)
     return send(response, 202, sendCode(id, entry))
   }
@@ -78,10 +79,55 @@ async function registration(request, response, url) {
     if (!entry || entry.confirmed || code !== entry.code)
       return send(response, 400, { status: 400, code: 'confirmation_invalid' })
     entry.confirmed = true
+    passwords.set(entry.email.toLowerCase(), entry.password)
     response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
     return send(response, 204)
   }
   return send(response, 404, { status: 404, code: 'not_found' })
+}
+
+// Sign-in (E03-02): the password of a confirmed registration, or of reader@example.com ("secret-1"); a code to any
+// address, as the API sends one to every address it is asked for. Wrong answers are alike for every address.
+const passwords = new Map([['reader@example.com', 'secret-1']]) // email -> password of a confirmed account
+const signInCodes = new Map() // email -> { id, code, sentAt }
+
+async function signIn(request, response, url) {
+  const body = JSON.parse((await readBody(request)) || '{}')
+  if (url.pathname === '/api/v1/sign-in/password') {
+    const email = String(body.email ?? '').toLowerCase()
+    if (!passwords.has(email) || passwords.get(email) !== body.password)
+      return send(response, 400, { status: 400, code: 'invalid_credentials' })
+    response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+    return send(response, 204)
+  }
+  if (url.pathname === '/api/v1/sign-in/code') {
+    const email = String(body.email ?? '')
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+      return send(response, 400, {
+        status: 400,
+        code: 'validation_failed',
+        errors: { email: ['Not an email address.'] },
+      })
+    const last = signInCodes.get(email.toLowerCase())
+    if (last && resendLeft(last) > 0) return tooSoon(response, resendLeft(last))
+    const entry = {
+      id: randomBytes(16)
+        .toString('hex')
+        .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5'),
+      code: newCode(),
+      sentAt: Date.now(),
+    }
+    signInCodes.set(email.toLowerCase(), entry)
+    letters.push({ to: email, code: entry.code })
+    return send(response, 202, { challengeId: entry.id, resendAfterSeconds: resendSeconds })
+  }
+  const [, id] = url.pathname.match(/^\/api\/v1\/sign-in\/code\/([\w-]+)\/confirmation$/) ?? []
+  const found = [...signInCodes.entries()].find(([, entry]) => entry.id === id)
+  if (!found || found[1].code !== body.code)
+    return send(response, 400, { status: 400, code: 'confirmation_invalid' })
+  signInCodes.delete(found[0])
+  response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+  return send(response, 204)
 }
 
 function send(response, status, body, type = 'application/json') {
@@ -187,6 +233,8 @@ createServer(async (request, response) => {
       letters.filter((letter) => letter.to === to),
     )
   }
+  if (url.pathname.startsWith('/api/v1/sign-in/') && request.method === 'POST')
+    return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
     return registration(request, response, url)
 

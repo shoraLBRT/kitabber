@@ -32,7 +32,7 @@ export function formatCountdown(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-async function outcome(call: () => Promise<{ data?: unknown; error?: unknown; response: Response }>) {
+export async function outcome(call: () => Promise<{ data?: unknown; error?: unknown; response: Response }>) {
   try {
     const { data, error, response } = await call()
     return { status: response.status, body: data ?? error, retryAfter: retryAfterSeconds(response) }
