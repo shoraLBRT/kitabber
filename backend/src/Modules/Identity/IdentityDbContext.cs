@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using OpenIddict.EntityFrameworkCore.Models;
+using Platform.Messaging;
+using Platform.Modules.Identity.Email;
 using Platform.Persistence;
 
 namespace Platform.Modules.Identity;
@@ -8,14 +10,19 @@ namespace Platform.Modules.Identity;
 /// <summary>
 /// The database of the Identity module: schema <c>identity</c>. Mail, passwords and external identifiers are stored
 /// here and nowhere else, and so are the OpenID Connect clients, authorizations and tokens; no other schema has a
-/// foreign key to these tables (FR-ID-1).
+/// foreign key to these tables (FR-ID-1). The module's outbox (ADR-0005) carries its letters to the workers.
 /// </summary>
 public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options)
     : ModuleDbContext<IdentityDbContext>(options), IModuleDbContext
 {
+    /// <summary>The unique index on <see cref="Account.NormalizedEmail"/> (ADR-0020).</summary>
+    public const string NormalizedEmailIndex = "ux_accounts_normalized_email";
+
     public static string Schema => "identity";
 
     public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<EmailConfirmation> EmailConfirmations => Set<EmailConfirmation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,11 +34,26 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
         modelBuilder.Entity<OpenIddictEntityFrameworkCoreAuthorization>().ToTable("oidc_authorizations");
         modelBuilder.Entity<OpenIddictEntityFrameworkCoreScope>().ToTable("oidc_scopes");
         modelBuilder.Entity<OpenIddictEntityFrameworkCoreToken>().ToTable("oidc_tokens");
+        modelBuilder.AddOutboxTables();
         modelBuilder.Entity<Account>(account =>
         {
             account.HasKey(a => a.Id);
             // The application always sets the identifier (UUID v7); the database never generates one.
             account.Property(a => a.Id).ValueGeneratedNever();
+            account.Property(a => a.Email).HasMaxLength(EmailAddresses.MaxLength);
+            account.Property(a => a.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
+            // Unique among all accounts, confirmed or not (FR-ID); accounts without an email (NULL) do not collide.
+            account.HasIndex(a => a.NormalizedEmail).IsUnique().HasDatabaseName(NormalizedEmailIndex);
+            account.Ignore(a => a.HasConfirmedEmail);
+        });
+        modelBuilder.Entity<EmailConfirmation>(confirmation =>
+        {
+            confirmation.HasKey(c => c.AccountId);
+            confirmation.Property(c => c.AccountId).ValueGeneratedNever();
+            confirmation.Property(c => c.Email).HasMaxLength(EmailAddresses.MaxLength);
+            confirmation.Property(c => c.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
+            confirmation.HasOne<Account>().WithOne().HasForeignKey<EmailConfirmation>(c => c.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

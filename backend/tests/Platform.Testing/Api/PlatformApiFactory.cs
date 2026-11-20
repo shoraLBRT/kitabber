@@ -5,9 +5,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using Platform.Caching;
 using Platform.Configuration;
+using Platform.Messaging;
+using Platform.Modules.Identity;
 using Platform.Modules.Identity.SignIn;
 using Platform.Testing.Time;
 
@@ -66,6 +69,8 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         // one), and nothing reaches it: the clients are not written at start and its readiness check is left out.
         builder.UseSetting(IdentitySettings.DatabaseKey, "Host=localhost;Port=1;Database=no_database");
         builder.UseSetting(IdentitySettings.SyncClientsKey, "false");
+        // The bus is in memory; a test that needs a broker sets Messaging:Transport back to RabbitMq.
+        builder.UseSetting(MessagingServiceCollectionExtensions.TransportKey, nameof(MessagingTransport.InMemory));
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);
@@ -84,6 +89,12 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TimeProvider>(Time);
             if (!HasDatabase)
             {
+                // Without a database the Identity outbox has nothing to deliver and would only fail to connect.
+                foreach (var outbox in services.Where(IsIdentityOutboxService).ToList())
+                {
+                    services.Remove(outbox);
+                }
+
                 services.Configure<HealthCheckServiceOptions>(options =>
                 {
                     foreach (var check in options.Registrations.Where(r => r.Name.StartsWith("database:", StringComparison.Ordinal)).ToList())
@@ -94,4 +105,9 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
             }
         });
     }
+
+    private static bool IsIdentityOutboxService(ServiceDescriptor descriptor) =>
+        descriptor.ServiceType == typeof(IHostedService)
+        && descriptor.ImplementationType is { IsGenericType: true } type
+        && type.GetGenericArguments().Contains(typeof(IdentityDbContext));
 }

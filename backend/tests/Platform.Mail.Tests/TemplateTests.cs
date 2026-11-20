@@ -22,6 +22,7 @@ public sealed class TemplateTests
         new Dictionary<string, IReadOnlyDictionary<string, string>>
         {
             ["login-code"] = new Dictionary<string, string> { ["code"] = "482913", ["lifetime"] = "10 минут" },
+            ["email-confirmation"] = new Dictionary<string, string> { ["code"] = "305718", ["lifetime"] = "30 минут" },
         };
 
     private static readonly MailTemplateRenderer _renderer = new(EmbeddedMailTemplateSource.Instance, TestBrand);

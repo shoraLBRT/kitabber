@@ -2,6 +2,7 @@ using Platform.Api;
 using Platform.Configuration;
 using Platform.Http;
 using Platform.Http.RateLimiting;
+using Platform.Messaging;
 using Platform.Modules.Identity.SignIn;
 using Platform.Realtime;
 
@@ -12,6 +13,7 @@ builder.AddApiObservability();
 builder.Services.AddPlatformApi();
 builder.Services.AddPlatformRateLimiting(builder.Configuration);
 builder.AddIdentityModule();
+builder.Services.AddPlatformMessaging(builder.Configuration, bus => bus.AddIdentityOutbox());
 builder.Services.AddPlatformRealtime(builder.Configuration);
 
 var app = builder.Build();

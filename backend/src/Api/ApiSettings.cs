@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Platform.Caching;
 using Platform.Configuration;
 using Platform.Http.RateLimiting;
+using Platform.Messaging;
 using Platform.Modules.Identity.SignIn;
 using Platform.Observability;
 
@@ -17,12 +18,13 @@ public static class ApiSettings
     public static IReadOnlyList<Setting> All { get; } =
     [
         .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
+        .. MessagingSettings.All,
     ];
 
     /// <summary>
     /// The build writes the OpenAPI document by running the entry point under <c>GetDocument.Insider</c> (ADR-0006),
-    /// with no stand settings and no Redis. There the cache and the rate limit counters live in memory; the host
-    /// never serves a request.
+    /// with no stand settings, no Redis and no broker. There the cache, the rate limit counters and the bus live in
+    /// memory; the host never serves a request.
     /// </summary>
     public static WebApplicationBuilder UseInMemoryStoresForOpenApiBuild(this WebApplicationBuilder builder)
     {
@@ -30,6 +32,7 @@ public static class ApiSettings
         if (string.Equals(Assembly.GetEntryAssembly()?.GetName().Name, "GetDocument.Insider", StringComparison.Ordinal))
         {
             builder.Configuration[CacheServiceCollectionExtensions.ProviderKey] = nameof(CacheProvider.InMemory);
+            builder.Configuration[MessagingServiceCollectionExtensions.TransportKey] = nameof(MessagingTransport.InMemory);
             // No database is contacted and no token is issued: the host is built to describe its endpoints, never
             // started (yet its hosted services run), so keys of its own are enough.
             builder.Configuration[IdentitySettings.DatabaseKey] ??= "Host=localhost;Database=openapi_build";

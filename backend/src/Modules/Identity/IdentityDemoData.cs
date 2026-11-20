@@ -12,11 +12,18 @@ public sealed class AccountFactory(SeedData data) : ObjectFactory<Account>(data)
 {
     public override string Kind => "account";
 
-    protected override Account Create(int number) => new()
+    protected override Account Create(int number)
     {
-        Id = IdOf(number),
-        CreatedAt = Data.Now - TimeSpan.FromDays(number + 1) - TimeSpan.FromSeconds(Random.Next(3600)),
-    };
+        var account = new Account
+        {
+            Id = IdOf(number),
+            CreatedAt = Data.Now - TimeSpan.FromDays(number + 1) - TimeSpan.FromSeconds(Random.Next(3600)),
+        };
+        // Demo accounts may publish: their emails (RFC 2606 example.com, already normalised) are confirmed.
+        var email = $"demo{number}@example.com";
+        account.ConfirmEmail(email, email, account.CreatedAt + TimeSpan.FromMinutes(5));
+        return account;
+    }
 }
 
 /// <summary>The demo accounts: <see cref="Count"/> of them, added only where they are missing.</summary>
