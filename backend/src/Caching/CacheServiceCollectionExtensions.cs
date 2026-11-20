@@ -41,14 +41,7 @@ public static class CacheServiceCollectionExtensions
             return services;
         }
 
-        var value = configuration[ProviderKey];
-        var provider = CacheProvider.Redis;
-        if (!string.IsNullOrWhiteSpace(value)
-            && !(Enum.TryParse(value, ignoreCase: true, out provider) && Enum.IsDefined(provider)))
-        {
-            throw new InvalidOperationException(
-                $"{ProviderKey} = '{value}': expected one of {string.Join(", ", Enum.GetNames<CacheProvider>())}.");
-        }
+        var provider = ReadProvider(configuration);
 
         // Readiness (ADR-0015): the host is not ready while the cache does not answer.
         services.AddHealthChecks().AddCheck<CacheHealthCheck>("cache", tags: [ReadyTag]);
@@ -60,13 +53,7 @@ public static class CacheServiceCollectionExtensions
             return services.AddDistributedMemoryCache();
         }
 
-        var connection = configuration.GetConnectionString(RedisConnectionName);
-        if (string.IsNullOrWhiteSpace(connection))
-        {
-            throw new InvalidOperationException(
-                $"ConnectionStrings:{RedisConnectionName} is not set: give host:port,password=... " +
-                $"or set {ProviderKey} = InMemory.");
-        }
+        var connection = ReadRedisConnection(configuration);
 
         // AbortOnConnectFail = false: the host starts while Redis is down and reconnects; readiness reports it.
         services.AddSingleton<IConnectionMultiplexer>(_ =>
@@ -81,5 +68,39 @@ public static class CacheServiceCollectionExtensions
             options.Configuration = connection;
             options.InstanceName = InstanceName;
         });
+    }
+
+    /// <summary>
+    /// The store <c>Cache:Provider</c> names (Redis when it is empty). Other libraries that need Redis, such as the
+    /// realtime backplane, follow the same setting, so one switch moves the whole host to memory in tests.
+    /// </summary>
+    public static CacheProvider ReadProvider(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var value = configuration[ProviderKey];
+        var provider = CacheProvider.Redis;
+        if (!string.IsNullOrWhiteSpace(value)
+            && !(Enum.TryParse(value, ignoreCase: true, out provider) && Enum.IsDefined(provider)))
+        {
+            throw new InvalidOperationException(
+                $"{ProviderKey} = '{value}': expected one of {string.Join(", ", Enum.GetNames<CacheProvider>())}.");
+        }
+
+        return provider;
+    }
+
+    /// <summary>The Redis connection string (<c>ConnectionStrings:Redis</c>); throws when it is not set.</summary>
+    public static string ReadRedisConnection(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var connection = configuration.GetConnectionString(RedisConnectionName);
+        if (string.IsNullOrWhiteSpace(connection))
+        {
+            throw new InvalidOperationException(
+                $"ConnectionStrings:{RedisConnectionName} is not set: give host:port,password=... " +
+                $"or set {ProviderKey} = InMemory.");
+        }
+
+        return connection;
     }
 }
