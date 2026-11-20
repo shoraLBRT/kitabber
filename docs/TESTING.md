@@ -127,7 +127,11 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
   браузер сам, в CI — вместе с системными библиотеками, а сам браузер берёт из кэша).
 - **Фикстуры.** `frontend/e2e/fixtures.ts`: тест падает на ошибке скрипта или консоли (в том числе на ошибке
   гидратации); ожидаемо отсутствующие файлы перечисляются опцией `missingResources`. Там же помощники:
-  `press` (касание в mobile, щелчок в desktop), `expectNoHorizontalScroll`, `makeScrollable`.
+  `press` (касание в mobile, щелчок в desktop), `expectNoHorizontalScroll`, `makeScrollable`, `waitForHydration`.
+- **DOM меняется только после гидратации.** `page.goto` возвращается по событию load, а Nuxt может ещё
+  гидратировать страницу; правка DOM в этот момент — несовпадение гидратации, и Vue перерисовывает поддерево,
+  выбрасывая правку (#300). Перед `page.evaluate`, меняющим разметку, вызывайте `waitForHydration(page)`
+  (`makeScrollable` делает это сам).
 - **Ширины между профилями** (например, 1100 и 800 px) тест задаёт сам через `page.setViewportSize` и выполняется
   в обоих профилях. Безопасные зоны «чёлки» эмулируются через DevTools-протокол Chromium
   (`Emulation.setSafeAreaInsetsOverride`).
