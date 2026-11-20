@@ -42,13 +42,14 @@ export default defineConfig({
     },
   ],
   // The site in its production build, signing in at the fake OpenID Connect provider (e2e/fake-oidc-provider.mjs) and
-  // talking to the fake API (e2e/fake-api.mjs: hub tickets and the realtime hub): external services only as fakes
+  // talking to the fake API (e2e/fake-api.mjs: hub tickets, the realtime hub, registration): external services only as fakes
   // (docs/TESTING.md). The session key is new on every run, never committed.
   webServer: [
     {
       command: 'node e2e/fake-api.mjs',
       url: `http://127.0.0.1:${apiPort}/`,
-      env: { FAKE_API_PORT: String(apiPort) },
+      // A short resend timer, so the registration test sees it run out (e2e/registration.spec.ts).
+      env: { FAKE_API_PORT: String(apiPort), FAKE_RESEND_SECONDS: '3' },
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },
