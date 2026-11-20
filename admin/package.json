@@ -14,10 +14,12 @@
     "format": "eslint . --fix && prettier --write .",
     "typecheck": "vue-tsc --build",
     "test": "vitest run --reporter=dot --reporter=junit --outputFile.junit=../artifacts/test-results/admin/junit.xml",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "api:generate": "openapi-typescript ../backend/src/Api/openapi/v1.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "lucide-vue-next": "1.0.0",
+    "openapi-fetch": "0.17.0",
     "vue": "3.5.45"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-vue": "10.12.1",
     "happy-dom": "21.0.4",
+    "openapi-typescript": "7.13.0",
     "postcss-html": "2.0.0",
     "prettier": "3.10.1",
     "stylelint": "17.16.0",
