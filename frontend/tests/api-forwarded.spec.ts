@@ -7,7 +7,9 @@ import { forwardedHeaders } from '../api/forwarded'
 
 describe('forwardedHeaders', () => {
   it('carries the incoming x-forwarded-for on', () => {
-    expect(forwardedHeaders(' 203.0.113.7, 10.0.0.2 ')).toEqual({ 'x-forwarded-for': '203.0.113.7, 10.0.0.2' })
+    expect(forwardedHeaders(' 203.0.113.7, 10.0.0.2 ')).toEqual({
+      'x-forwarded-for': '203.0.113.7, 10.0.0.2',
+    })
   })
 
   it('adds nothing without an incoming header', () => {
