@@ -11,10 +11,10 @@ backend/                   решение .NET (Platform.slnx)
   Directory.Packages.props версии NuGet-пакетов (центральное управление пакетами)
   src/Api/                 Platform.Api — веб-хост API (ASP.NET Core); снимок OpenAPI — openapi/v1.json
   src/Configuration/       Platform.Configuration — окружения, проверка настроек на старте, файлы секретов (ADR-0007)
-  src/Http/                Platform.Http — соглашения REST: /api/v1, ProblemDetails, курсорная пагинация (ADR-0006)
+  src/Http/                Platform.Http — соглашения REST: /api/v1, ProblemDetails, курсорная пагинация (ADR-0006), лимиты частоты (ADR-0016)
   src/Workers/             Platform.Workers — хост фоновых воркеров: шина, потребители и outbox модулей (ADR-0005)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
-  src/Caching/             Platform.Caching — кэш IDistributedCache на Redis (ADR-0005)
+  src/Caching/             Platform.Caching — кэш IDistributedCache и счётчики IRateCounter на Redis (ADR-0005)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
@@ -120,6 +120,15 @@ services.AddApiEndpoints<PostsEndpoints>();  // PostsEndpoints : IApiEndpoints, 
 `ToRequest<TCursor>()` → `ToPage(...)`. Документ OpenAPI: `/openapi/v1.json` у работающего хоста и
 `backend/src/Api/obj/openapi/Platform.Api.json` после сборки; снимок `backend/src/Api/openapi/v1.json` обновляется
 запуском тестов с `UPDATE_OPENAPI_SNAPSHOT=1` и коммитится вместе с изменением API.
+
+Лимиты частоты ([ADR-0016](adr/0016-rate-limiting.md)) хост включает `AddPlatformRateLimiting(configuration)`; каждый
+запрос под `/api` считается в политики `Default` и (для записей) `Writes`. Эндпоинту с особым риском (вход, отправка
+формы, загрузка) модуль даёт свою политику:
+
+```csharp
+services.AddRateLimitPolicy("posts.create", new RateLimitPolicy(10, TimeSpan.FromMinutes(10)));
+posts.MapPost("/", Create).WithRateLimit("posts.create");
+```
 
 Клиенты берут типы API только из снимка ([ADR-0014](adr/0014-typed-api-client.md)): `pnpm run api:generate` в
 `frontend/` и `admin/` пересобирает `schema.d.ts`, вызовы — через `createApiClient()` (`openapi-fetch`). Тест
