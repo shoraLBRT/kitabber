@@ -16,7 +16,8 @@ const connections = new Map() // connection token -> connection
 
 const cors = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client',
+  'access-control-allow-headers':
+    'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client',
   'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
 }
 
@@ -72,7 +73,8 @@ function handleMessages(connection, body) {
     } else if (message.type === 1) {
       if (message.target === 'Subscribe') connection.topics.add(message.arguments[0])
       if (message.target === 'Unsubscribe') connection.topics.delete(message.arguments[0])
-      if (message.invocationId) enqueue(connection, { type: 3, invocationId: message.invocationId, result: null })
+      if (message.invocationId)
+        enqueue(connection, { type: 3, invocationId: message.invocationId, result: null })
     } else if (message.type === 7) {
       close(connection)
     }
@@ -84,11 +86,11 @@ function state(client) {
     connections: [...connections.values()]
       .filter((connection) => !client || connection.client === client)
       .map(({ ticket, open, handshake, topics }) => ({
-      ticket,
-      open,
-      handshake,
-      topics: [...topics],
-    })),
+        ticket,
+        open,
+        handshake,
+        topics: [...topics],
+      })),
   }
 }
 
@@ -127,7 +129,12 @@ createServer(async (request, response) => {
     connections.set(token, {
       client: request.headers['x-e2e-client'] ?? null,
       ticket,
-      open: true, handshake: false, topics: new Set(), queue: [], poll: null })
+      open: true,
+      handshake: false,
+      topics: new Set(),
+      queue: [],
+      poll: null,
+    })
     return send(response, 200, {
       negotiateVersion: 1,
       connectionId: randomBytes(16).toString('base64url'),
