@@ -179,7 +179,12 @@ Set-Content -Encoding ascii -LiteralPath $envFile @(
     "HTTP_PORT=$httpPort", "HTTPS_PORT=$httpsPort",
     "POSTGRES_PASSWORD=$(New-Password)", "REDIS_PASSWORD=$(New-Password)", "RABBITMQ_PASSWORD=$(New-Password)",
     # The workers start without reaching SMTP: a letter would only fail and wait in the queue.
-    'SMTP_HOST=smtp.invalid', 'SMTP_PORT=587', 'SMTP_SECURITY=StartTls', 'SMTP_USERNAME=smoke', "SMTP_PASSWORD=$(New-Password)", 'MAIL_FROM=noreply@site.localhost'
+    'SMTP_HOST=smtp.invalid', 'SMTP_PORT=587', 'SMTP_SECURITY=StartTls', 'SMTP_USERNAME=smoke', "SMTP_PASSWORD=$(New-Password)", 'MAIL_FROM=noreply@site.localhost',
+    # Sign-in (ADR-0018): keys made for this run only, never committed.
+    'SITE_URL=http://site.localhost',
+    "IDENTITY_SIGNING_KEY=$([Convert]::ToBase64String([System.Security.Cryptography.RSA]::Create(2048).ExportPkcs8PrivateKey()))",
+    "IDENTITY_ENCRYPTION_KEY=$([Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)))",
+    "SESSION_PASSWORD=$(New-Password)$(New-Password)"
 )
 $dc = @('compose', '-f', $compose, '--env-file', $envFile)
 $deployScript = Join-Path $PSScriptRoot 'deploy.ps1'

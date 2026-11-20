@@ -161,5 +161,17 @@ openssl rand -base64 32                                                         
 
 - `.env.example` — порты и пароли инфраструктуры в `compose.yaml` (E01-04); копия `.env` в git не попадает.
   Значения там — только для локальной машины. `appsettings.Development.json` хостов указывают на те же пароли.
-- `frontend/` и `admin/` настроек пока не читают. Когда появятся: Nuxt берёт их из `runtimeConfig` через
-  переменные `NUXT_*` и `NUXT_PUBLIC_*`, админка — через `VITE_*` на этапе сборки; секретов в клиентах нет.
+- Сайт (`frontend/`, сервер Nuxt) берёт настройки из `runtimeConfig` через переменные `NUXT_*`:
+
+  | Переменная | Секрет | По умолчанию | Что это |
+  | --- | --- | --- | --- |
+  | `NUXT_API_BASE` | нет | — | адрес API для отрисовки на сервере; на стенде `http://api:8080` |
+  | `NUXT_PUBLIC_API_BASE` | нет | тот же адрес сайта | адрес API для браузера |
+  | `NUXT_OIDC_ISSUER` | нет | в `nuxt dev` — `http://localhost:5103/` | провайдер входа (E18-02), на стенде — адрес сайта со слешем; должен совпадать с `Identity:Issuer` |
+  | `NUXT_OIDC_CLIENT_ID` | нет | `web` | клиент сайта у провайдера |
+  | `NUXT_OIDC_REDIRECT_URI` | нет | в `nuxt dev` — `http://localhost:3000/auth/callback` | адрес `/auth/callback` сайта, ровно как в `Identity:Clients:Web:RedirectUris` |
+  | `NUXT_SESSION_PASSWORD` | да | в `nuxt dev` создаётся при старте | ключ шифрования cookie сессии и входа, не короче 32 символов; без него собранный сайт не впускает |
+
+  Токены хранит только сервер Nuxt (в памяти процесса, пока нет #29); браузер получает cookie `auth.session`
+  (HttpOnly, SameSite=Lax, Secure на HTTPS) с одним случайным идентификатором сессии.
+- `admin/` настроек пока не читает. Когда появятся — через `VITE_*` на этапе сборки; секретов в админке нет.

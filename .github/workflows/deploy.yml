@@ -64,12 +64,16 @@ jobs:
           SMTP_SECURITY: ${{ vars.SMTP_SECURITY }}
           SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          IDENTITY_SIGNING_KEY: ${{ secrets.IDENTITY_SIGNING_KEY }}
+          IDENTITY_ENCRYPTION_KEY: ${{ secrets.IDENTITY_ENCRYPTION_KEY }}
+          SESSION_PASSWORD: ${{ secrets.SESSION_PASSWORD }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
         run: |
           missing=""
           for name in DEPLOY_HOST DEPLOY_USER SITE_ADDRESS ADMIN_ADDRESS DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS \
                       POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD \
-                      SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM; do
+                      SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM \
+                      IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
@@ -98,6 +102,9 @@ jobs:
           SMTP_SECURITY: ${{ vars.SMTP_SECURITY }}
           SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          IDENTITY_SIGNING_KEY: ${{ secrets.IDENTITY_SIGNING_KEY }}
+          IDENTITY_ENCRYPTION_KEY: ${{ secrets.IDENTITY_ENCRYPTION_KEY }}
+          SESSION_PASSWORD: ${{ secrets.SESSION_PASSWORD }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
         run: |
           umask 077
@@ -105,8 +112,10 @@ jobs:
             echo "STAGE_PROJECT=kitabber-$STAND"
             echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}"
             echo "IMAGE_TAG=$TAG"
+            echo "SITE_URL=https://$SITE_ADDRESS"
             for name in SITE_ADDRESS ADMIN_ADDRESS POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD \
-                        SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM; do
+                        SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM \
+                        IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD; do
               echo "$name=${!name}"
             done
           } > "$RUNNER_TEMP/stand.env"

@@ -33,6 +33,10 @@ export default defineNuxtConfig({
     sessionPassword: '',
     public: { apiBase: '' },
   },
+  // `nuxt dev` signs in at the API of `dotnet run` (backend/src/Api, launchSettings.json); its key is made at start.
+  $development: {
+    runtimeConfig: { oidc: { issuer: 'http://localhost:5103/', redirectUri: 'http://localhost:3000/auth/callback' } },
+  },
   // brand/ (ADR-0011) lies outside the app; let the dev server read it.
   vite: { server: { fs: { allow: [fileURLToPath(new URL('../brand', import.meta.url))] } } },
 })
