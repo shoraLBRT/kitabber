@@ -9,8 +9,7 @@
 #             when there is no cache, or the cached files do not cover the set, it falls back to apt-get and keeps
 #             the downloaded .deb files in the cache directory for the next run.
 # The Playwright version comes from frontend/package.json, so a Renovate bump changes the list and the key.
-set -Eeuo pipefail
-trap 'echo "::error::playwright-deps.sh: line $LINENO failed (exit code $?)"' ERR
+set -euo pipefail
 
 cache_dir="${PLAYWRIGHT_DEPS_CACHE:-$HOME/.cache/playwright-deps}"
 state="${RUNNER_TEMP:-/tmp}/playwright-deps"
