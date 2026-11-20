@@ -25,7 +25,14 @@ export default defineNuxtConfig({
   },
   // The API origin for plugins/api.ts: apiBase (NUXT_API_BASE) for server rendering, which reaches the API inside
   // the network; public.apiBase (NUXT_PUBLIC_API_BASE) for the browser, '' for the same origin behind the proxy.
-  runtimeConfig: { apiBase: '', public: { apiBase: '' } },
+  // Sign-in (E18-02, ADR-0018): the provider and this client (NUXT_OIDC_ISSUER, NUXT_OIDC_CLIENT_ID,
+  // NUXT_OIDC_REDIRECT_URI) and the key of the session cookies (NUXT_SESSION_PASSWORD); server-side only.
+  runtimeConfig: {
+    apiBase: '',
+    oidc: { issuer: '', clientId: 'web', redirectUri: '' },
+    sessionPassword: '',
+    public: { apiBase: '' },
+  },
   // brand/ (ADR-0011) lies outside the app; let the dev server read it.
   vite: { server: { fs: { allow: [fileURLToPath(new URL('../brand', import.meta.url))] } } },
 })
