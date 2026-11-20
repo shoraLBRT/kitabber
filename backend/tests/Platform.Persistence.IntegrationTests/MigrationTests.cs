@@ -106,9 +106,9 @@ public sealed class MigrationTests(PostgresFixture postgres)
         using var output = new StringWriter();
         Assert.Equal(0, await MigratorApp.RunAsync(["migrate", $"--ConnectionStrings:Platform={db}"], output, output));
 
-        Assert.Contains("identity.accounts", await Strings(db, AllTables));
-        Assert.Empty(await Strings(db, CredentialColumnsOutsideIdentity));
-        Assert.Empty(await Strings(db, ForeignKeysBetweenSchemas));
+        Assert.Contains("identity.accounts", await Strings(db, _allTables));
+        Assert.Empty(await Strings(db, _credentialColumnsOutsideIdentity));
+        Assert.Empty(await Strings(db, _foreignKeysBetweenSchemas));
     }
 
     /// <summary>The queries above really find violations: a table that breaks both rules is reported.</summary>
@@ -130,13 +130,13 @@ public sealed class MigrationTests(PostgresFixture postgres)
 
         Assert.Equal(
             ["posts.posts.author_email", "posts.posts.yandex_external_id"],
-            await Strings(db, CredentialColumnsOutsideIdentity));
-        Assert.Equal(["posts.posts -> identity.accounts"], await Strings(db, ForeignKeysBetweenSchemas));
+            await Strings(db, _credentialColumnsOutsideIdentity));
+        Assert.Equal(["posts.posts -> identity.accounts"], await Strings(db, _foreignKeysBetweenSchemas));
     }
 
-    private const string AllTables = "SELECT table_schema || '.' || table_name FROM information_schema.tables";
+    private const string _allTables = "SELECT table_schema || '.' || table_name FROM information_schema.tables";
 
-    private const string CredentialColumnsOutsideIdentity = """
+    private const string _credentialColumnsOutsideIdentity = """
         SELECT table_schema || '.' || table_name || '.' || column_name FROM information_schema.columns
         WHERE table_schema NOT IN ('identity', 'pg_catalog', 'information_schema')
           AND (column_name ~ '(email|e_mail|password|passwd)'
@@ -144,7 +144,7 @@ public sealed class MigrationTests(PostgresFixture postgres)
         ORDER BY 1
         """;
 
-    private const string ForeignKeysBetweenSchemas = """
+    private const string _foreignKeysBetweenSchemas = """
         SELECT sn.nspname || '.' || s.relname || ' -> ' || tn.nspname || '.' || t.relname
         FROM pg_constraint c
         JOIN pg_class s ON s.oid = c.conrelid JOIN pg_namespace sn ON sn.oid = s.relnamespace
