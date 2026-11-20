@@ -46,8 +46,22 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
   expect(scrollWidth).toBe(innerWidth)
 }
 
-/** Makes the page tall enough to scroll (the feed is still a placeholder). */
+/**
+ * Waits until Nuxt has hydrated the server-rendered page. `page.goto` resolves on the load event, which can come
+ * before hydration ends; a DOM change made in between is a hydration mismatch, and Vue then re-renders the changed
+ * subtree, dropping the change (#300). Reads `isHydrating` of the Nuxt app that Vue keeps on the mount element.
+ */
+export async function waitForHydration(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    type Mounted = { __vue_app__?: { $nuxt?: { isHydrating?: boolean } } }
+    const app = (document.querySelector('#__nuxt') as Mounted | null)?.__vue_app__
+    return app?.$nuxt?.isHydrating === false
+  })
+}
+
+/** Makes the page tall enough to scroll (the feed is still a placeholder); waits for hydration first. */
 export async function makeScrollable(page: Page): Promise<void> {
+  await waitForHydration(page)
   await page.evaluate(() => {
     const spacer = document.createElement('div')
     spacer.style.height = '3000px'
