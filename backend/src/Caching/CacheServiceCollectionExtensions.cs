@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using StackExchange.Redis;
 
 namespace Platform.Caching;
 
@@ -26,13 +28,19 @@ public static class CacheServiceCollectionExtensions
     public const string InstanceName = "platform:";
 
     /// <summary>
-    /// Registers <see cref="IDistributedCache"/> (ADR-0005): Redis, or memory when <c>Cache:Provider</c> is
-    /// <c>InMemory</c>. Modules depend on the interface only.
+    /// Registers <see cref="IDistributedCache"/> (ADR-0005) and <see cref="IRateCounter"/> (ADR-0016): Redis, or memory
+    /// when <c>Cache:Provider</c> is <c>InMemory</c>. Modules depend on the interfaces only. A second call (a host
+    /// and a module both register the cache) changes nothing.
     /// </summary>
     public static IServiceCollection AddPlatformCache(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IRateCounter)))
+        {
+            return services;
+        }
+
         var value = configuration[ProviderKey];
         var provider = CacheProvider.Redis;
         if (!string.IsNullOrWhiteSpace(value)
@@ -47,6 +55,8 @@ public static class CacheServiceCollectionExtensions
 
         if (provider == CacheProvider.InMemory)
         {
+            services.TryAddSingleton(TimeProvider.System);
+            services.AddSingleton<IRateCounter, InMemoryRateCounter>();
             return services.AddDistributedMemoryCache();
         }
 
@@ -58,6 +68,14 @@ public static class CacheServiceCollectionExtensions
                 $"or set {ProviderKey} = InMemory.");
         }
 
+        // AbortOnConnectFail = false: the host starts while Redis is down and reconnects; readiness reports it.
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            var options = ConfigurationOptions.Parse(connection);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
+        services.AddSingleton<IRateCounter, RedisRateCounter>();
         return services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = connection;

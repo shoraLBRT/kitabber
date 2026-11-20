@@ -13,7 +13,7 @@
 
 | Образ | Что внутри | Dockerfile |
 | --- | --- | --- |
-| `api` | `backend/src/Api`, порт 8080, `/health/live`, `/health/ready`, `/metrics` (ADR-0015) | `backend/Dockerfile`, цель `api` |
+| `api` | `backend/src/Api`, порт 8080, `/health/live`, `/health/ready`, `/metrics` (ADR-0015); лимиты частоты в Redis, адрес клиента из `X-Forwarded-For` Caddy (`Http__TrustedProxies`, ADR-0016) | `backend/Dockerfile`, цель `api` |
 | `workers` | `backend/src/Workers` | `backend/Dockerfile`, цель `workers` |
 | `migrator` | `backend/src/Migrator`, по умолчанию `migrate` | `backend/Dockerfile`, цель `migrator` |
 | `frontend` | сервер Nuxt (`.output`), порт 3000 | `frontend/Dockerfile` |

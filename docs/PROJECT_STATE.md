@@ -1,6 +1,6 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 20 ноября 2026 (#302).
+Обновляется в каждом PR. Последнее обновление: 20 ноября 2026 (#21).
 
 ## Текущая веха
 
@@ -43,7 +43,9 @@
   проверка расхождения со снимком OpenAPI; предложено в задаче E01-08).
   [ADR-0015](adr/0015-observability.md) (наблюдаемость: OpenTelemetry с выдачей по OTLP, `traceparent` от Nuxt,
   JSON-логи, `/health/live` и `/health/ready`, `/metrics` для Prometheus; предложено в задаче E01-09).
-- Бэклог в GitHub Issues: 261 задача в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
+  [ADR-0016](adr/0016-rate-limiting.md) (лимиты частоты: фиксированные окна в Redis, по аккаунту и по IP, политики
+  из настроек, доверенные прокси; предложено в задаче E01-10).
+- Бэклог в GitHub Issues: 262 задачи в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
   конфигурация Renovate (в том числе regex-менеджер для версии gitleaks в `ci.yml`, #285).
 
@@ -116,6 +118,18 @@
   (`Platform.Api.Tests`), `ObservabilityIntegrationTests` (`Platform.Api.IntegrationTests`: трасса до базы и
   готовность на PostgreSQL и Redis), `WorkerObservabilityTests` (`Platform.Configuration.Tests`),
   `frontend/tests/api-trace.spec.ts`. Коллектора, хранилищ и оповещений пока нет — см. открытые вопросы.
+- Лимиты частоты запросов (E01-10, [ADR-0016](adr/0016-rate-limiting.md)): `Platform.Http.RateLimiting` — промежуточное
+  ПО после аутентификации считает каждый запрос под `/api` в политики `Default` (300 в минуту) и `Writes` (`POST`,
+  `PUT`, `PATCH`, `DELETE`, 60 в минуту) по аккаунту, аноним — по IP (IPv6 — по /64); сверх лимита — 429,
+  `Retry-After` и problem details `too_many_requests`. Модуль объявляет свою политику (`AddRateLimitPolicy`) и вешает
+  её на эндпоинт (`.WithRateLimit`), исключение — `.WithoutRateLimit()`. Значения — настройки
+  `RateLimiting:Policies:<имя>:...` и `RateLimiting:Enabled` ([CONFIG.md](CONFIG.md)). Счётчики — `IRateCounter` из
+  `Platform.Caching` (Lua-скрипт `INCR` + `PEXPIRE` в Redis, фейк в памяти на `TimeProvider`), общие для всех
+  экземпляров API; при сбое Redis запрос проходит. API теперь подключает кэш (`ConnectionStrings:Redis`).
+  `X-Forwarded-For` принимается только от loopback и сетей `Http:TrustedProxies` (на стенде — частные сети Docker);
+  Nuxt при серверной отрисовке передаёт API входящий `x-forwarded-for` (`frontend/api/forwarded.ts`). Тесты —
+  `RateLimitingTests` (`Platform.Api.Tests`), `RateLimitingIntegrationTests` (два экземпляра API на одном Redis),
+  счётчики в `CacheTests`, `frontend/tests/api-forwarded.spec.ts`. Капча и лимиты попыток входа — E03-12 (#32).
 
 - Настройки и секреты (E01-13): `Platform.Configuration` — окружения `Development`/`Test`/`Staging`/`Production`
   (другое имя не стартует), слои `appsettings.json` → `appsettings.{Окружение}.json` → user secrets → переменные

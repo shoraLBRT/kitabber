@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <!-- REST conventions shared by the Api host and the modules: versions, problem details,
-         cursor pagination, OpenAPI (ADR-0006). -->
+         cursor pagination, OpenAPI (ADR-0006), rate limits (ADR-0016). -->
     <PropertyGroup>
         <RootNamespace>Platform.Http</RootNamespace>
     </PropertyGroup>
@@ -12,6 +12,10 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Caching/Platform.Caching.csproj" />
     </ItemGroup>
 
 </Project>

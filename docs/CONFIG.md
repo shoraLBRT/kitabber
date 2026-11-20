@@ -63,8 +63,25 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 
 ## API (`backend/src/Api`)
 
-Свои настройки — только наблюдаемость (выше); модули добавляют настройки в `ApiSettings` вместе с регистрацией и
-описывают здесь.
+Плюс настройки наблюдаемости (выше). Модули добавляют настройки в `ApiSettings` вместе с регистрацией и описывают
+здесь.
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
+| --- | --- | --- | --- | --- | --- |
+| `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша и счётчиков лимитов частоты: `Redis` или `InMemory` (для тестов; не делится между экземплярами) |
+| `ConnectionStrings:Redis` | `ConnectionStrings__Redis` | да | при кэше `Redis` | — | Redis в формате StackExchange.Redis: `host:port,password=...` |
+| `RateLimiting:Enabled` | `RateLimiting__Enabled` | нет | нет | `true` | лимиты частоты запросов к API (ADR-0016); `false` выключает их |
+| `RateLimiting:Policies:Default:PermitLimit` | `RateLimiting__Policies__Default__PermitLimit` | нет | нет | `300` | политика `Default` — все запросы под `/api`: сколько запросов разрешено за окно |
+| `RateLimiting:Policies:Default:WindowSeconds` | `RateLimiting__Policies__Default__WindowSeconds` | нет | нет | `60` | длина окна политики `Default` в секундах |
+| `RateLimiting:Policies:Default:Partition` | `RateLimiting__Policies__Default__Partition` | нет | нет | `Account` | кого считает один счётчик `Default`: `Account` (аккаунт; анонима — по IP) или `Ip` |
+| `RateLimiting:Policies:Writes:PermitLimit` | `RateLimiting__Policies__Writes__PermitLimit` | нет | нет | `60` | политика `Writes` — все `POST`, `PUT`, `PATCH`, `DELETE` под `/api`: сколько запросов за окно |
+| `RateLimiting:Policies:Writes:WindowSeconds` | `RateLimiting__Policies__Writes__WindowSeconds` | нет | нет | `60` | длина окна политики `Writes` в секундах |
+| `RateLimiting:Policies:Writes:Partition` | `RateLimiting__Policies__Writes__Partition` | нет | нет | `Account` | кого считает один счётчик `Writes`: `Account` или `Ip` |
+| `Http:TrustedProxies` | `Http__TrustedProxies` | нет | нет | — | сети обратных прокси, чьему `X-Forwarded-For` верим, через запятую в CIDR: `10.0.0.0/8,172.16.0.0/12`; без настройки доверяем только прокси на той же машине (loopback) |
+
+Политику модуля задают в коде (`AddRateLimitPolicy`), её ключи — `RateLimiting:Policies:<имя>:...` — модуль
+добавляет в `ApiSettings` и в эту таблицу. Политика в настройках, которой нет в коде, или неверное значение
+останавливают старт.
 
 Служебные адреса (вне `/api/v1` и вне OpenAPI): `/health/live` — процесс отвечает, ничего не проверяет;
 `/health/ready` — проверки с тегом `ready` (база модулей, кэш, шина), 503 при сбое; `/metrics` — метрики в

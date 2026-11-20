@@ -26,6 +26,11 @@ services:
   api:
     <<: *backend
     image: ${IMAGE_REGISTRY:?set in the env file}/api:${IMAGE_TAG:?set in the env file}
+    environment:
+      <<: *backend-env
+      # Caddy's X-Forwarded-For gives the client address the rate limits count (ADR-0016). The API publishes no
+      # port, so only containers of the stand's private network can reach it.
+      Http__TrustedProxies: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

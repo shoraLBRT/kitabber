@@ -1,11 +1,14 @@
 using Platform.Api;
 using Platform.Configuration;
 using Platform.Http;
+using Platform.Http.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.UseInMemoryStoresForOpenApiBuild();
 builder.ConfigurePlatform(ApiSettings.All);
 builder.AddApiObservability();
 builder.Services.AddPlatformApi();
+builder.Services.AddPlatformRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 app.UsePlatformApi();
