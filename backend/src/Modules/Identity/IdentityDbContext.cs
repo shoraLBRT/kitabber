@@ -24,6 +24,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
 
     public DbSet<EmailConfirmation> EmailConfirmations => Set<EmailConfirmation>();
 
+    public DbSet<SignIn.SignInCode> SignInCodes => Set<SignIn.SignInCode>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -56,6 +58,14 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             confirmation.Property(c => c.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
             confirmation.HasOne<Account>().WithOne().HasForeignKey<EmailConfirmation>(c => c.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        // One-time sign-in codes (ADR-0022): one per address, registered or not, so no account is referenced.
+        modelBuilder.Entity<SignIn.SignInCode>(code =>
+        {
+            code.HasKey(c => c.NormalizedEmail);
+            code.Property(c => c.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
+            code.Property(c => c.Email).HasMaxLength(EmailAddresses.MaxLength);
+            code.HasIndex(c => c.Id).IsUnique();
         });
     }
 }

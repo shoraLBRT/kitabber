@@ -69,14 +69,27 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
             return EmailChangeResult.AlreadyConfirmed;
         }
 
-        if (await db.Accounts.AnyAsync(a => a.NormalizedEmail == normalized && a.Id != accountId, cancellationToken))
+        var holder = await db.Accounts
+            .Where(a => a.NormalizedEmail == normalized && a.Id != accountId)
+            .Select(a => new { a.EmailConfirmedAt })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (holder?.EmailConfirmedAt is not null)
         {
             return EmailChangeResult.Taken;
         }
 
         if (!account.HasConfirmedEmail)
         {
-            account.SetUnconfirmedEmail(typed, normalized);
+            // Another account holds the address unconfirmed (ADR-0022): the claim waits in the confirmation, and the
+            // one who enters a code first gets the address.
+            if (holder is null)
+            {
+                account.SetUnconfirmedEmail(typed, normalized);
+            }
+            else if (account.NormalizedEmail is not null)
+            {
+                account.ReleaseUnconfirmedEmail();
+            }
         }
 
         var confirmation = await db.EmailConfirmations.SingleOrDefaultAsync(c => c.AccountId == accountId, cancellationToken);
@@ -137,9 +150,48 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
         }
 
         var account = await db.Accounts.SingleAsync(a => a.Id == accountId, cancellationToken);
-        account.ConfirmEmail(confirmation.Email, confirmation.NormalizedEmail, now);
         db.EmailConfirmations.Remove(confirmation);
+        if (!await ReleaseUnconfirmedAsync(confirmation.NormalizedEmail, accountId, cancellationToken))
+        {
+            return EmailConfirmResult.Taken;
+        }
+
+        account.ConfirmEmail(confirmation.Email, confirmation.NormalizedEmail, now);
         return await SaveAsync(cancellationToken) ? EmailConfirmResult.Confirmed : EmailConfirmResult.Taken;
+    }
+
+    /// <summary>
+    /// Takes <paramref name="normalized"/> away from the account other than <paramref name="claimant"/> that holds it
+    /// unconfirmed (ADR-0022): a code from the mailbox has just proved whose the address is. A registration waiting for
+    /// that address is deleted with its code, another account only loses the address. False when an account has the
+    /// address confirmed; nothing is saved.
+    /// </summary>
+    internal async Task<bool> ReleaseUnconfirmedAsync(string normalized, Guid? claimant, CancellationToken cancellationToken)
+    {
+        var holder = await db.Accounts.SingleOrDefaultAsync(
+            a => a.NormalizedEmail == normalized && a.Id != claimant, cancellationToken);
+        if (holder is null)
+        {
+            return true;
+        }
+
+        if (holder.HasConfirmedEmail)
+        {
+            return false;
+        }
+
+        if (holder.IsPendingRegistration)
+        {
+            db.Accounts.Remove(holder);
+        }
+        else
+        {
+            holder.ReleaseUnconfirmedEmail();
+        }
+
+        // Saved apart from the claim, so the unique index never sees the address twice whatever order EF chooses.
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     /// <summary>

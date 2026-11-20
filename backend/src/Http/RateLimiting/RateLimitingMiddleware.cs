@@ -115,19 +115,9 @@ internal sealed partial class RateLimitingMiddleware(
         }
     }
 
-    // Fixed windows aligned to the Unix epoch: window n covers [n * length, (n + 1) * length). Returns the time to
-    // the next window when the request is over the limit.
-    private async Task<TimeSpan?> CountAsync(HttpContext context, string name, RateLimitPolicy policy)
-    {
-        var length = (long)policy.Window.TotalMilliseconds;
-        var now = time.GetUtcNow().ToUnixTimeMilliseconds();
-        var window = now / length;
-        var key = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{KeyPrefix}{name.ToLowerInvariant()}:{PartitionKey(context, policy.Partition)}:{window}");
-        var count = await counter.IncrementAsync(key, policy.Window, context.RequestAborted);
-        return count > policy.PermitLimit ? TimeSpan.FromMilliseconds(((window + 1) * length) - now) : null;
-    }
+    private Task<TimeSpan?> CountAsync(HttpContext context, string name, RateLimitPolicy policy) =>
+        RateLimitCounter.CountAsync(
+            counter, time, name, policy, PartitionKey(context, policy.Partition), context.RequestAborted);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rate limit counters are unavailable; the request is let through")]
     private static partial void LogCounterFailed(ILogger logger, Exception exception);

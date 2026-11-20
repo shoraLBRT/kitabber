@@ -40,6 +40,27 @@ public static class IdentitySettings
     /// </summary>
     public static RateLimitPolicy RegistrationPolicy { get; } = new(10, TimeSpan.FromHours(1), RateLimitPartition.Ip);
 
+    /// <summary>
+    /// Password attempts and entries of a sign-in code (E03-02): at most 30 in 15 minutes per network address.
+    /// Overridden under <c>RateLimiting:Policies:identity.sign-in</c>.
+    /// </summary>
+    public static RateLimitPolicy SignInPolicy { get; } = new(30, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
+
+    /// <summary>
+    /// Password attempts for one email address (E03-02), from any network: at most 10 in 15 minutes, so a password is
+    /// not guessed from many addresses at once. The partition is the email; <c>Partition</c> has no effect.
+    /// </summary>
+    public static RateLimitPolicy SignInAddressPolicy { get; } = new(10, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
+
+    /// <summary>Sign-in codes requested from one network address (E03-02): at most 10 an hour.</summary>
+    public static RateLimitPolicy SignInCodePolicy { get; } = new(10, TimeSpan.FromHours(1), RateLimitPartition.Ip);
+
+    /// <summary>
+    /// Letters with a sign-in code to one email address (E03-02): at most 5 an hour on top of the resend timer, so
+    /// nobody's mailbox is flooded. The partition is the email; <c>Partition</c> has no effect.
+    /// </summary>
+    public static RateLimitPolicy SignInCodeAddressPolicy { get; } = new(5, TimeSpan.FromHours(1), RateLimitPartition.Ip);
+
     public static IReadOnlyList<Setting> All { get; } =
     [
         new(DatabaseKey, "PostgreSQL of the platform: Host=...;Database=...;Username=...;Password=...")
@@ -81,5 +102,9 @@ public static class IdentitySettings
         },
         .. RateLimitingSettings.Policy(Email.AccountEmailEndpoints.CodePolicy, EmailCodePolicy, "letters with an email confirmation code"),
         .. RateLimitingSettings.Policy(Registration.RegistrationEndpoints.Policy, RegistrationPolicy, "registrations and their new codes"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.AttemptPolicy, SignInPolicy, "password attempts and sign-in code entries"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.AddressAttemptPolicy, SignInAddressPolicy, "password attempts for one email address"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.CodePolicy, SignInCodePolicy, "sign-in code requests"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.AddressCodePolicy, SignInCodeAddressPolicy, "sign-in code letters to one email address"),
     ];
 }

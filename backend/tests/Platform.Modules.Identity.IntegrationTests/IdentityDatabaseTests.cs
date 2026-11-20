@@ -29,6 +29,7 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
                 "identity.__ef_migrations_history", "identity.accounts", "identity.email_confirmations",
                 "identity.inbox_state", "identity.oidc_applications", "identity.oidc_authorizations",
                 "identity.oidc_scopes", "identity.oidc_tokens", "identity.outbox_message", "identity.outbox_state",
+                "identity.sign_in_codes",
             ],
             await Strings(db, """
                 SELECT table_schema || '.' || table_name FROM information_schema.tables

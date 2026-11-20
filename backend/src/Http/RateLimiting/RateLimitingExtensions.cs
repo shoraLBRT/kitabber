@@ -22,6 +22,7 @@ public static class RateLimitingServiceCollectionExtensions
         services.AddPlatformCache(configuration);
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<RateLimitPolicyRegistry>();
+        services.TryAddSingleton<RateLimitCounter>();
         services.AddRateLimitPolicy(RateLimitPolicies.Default, RateLimitPolicies.DefaultPolicy);
         services.AddRateLimitPolicy(RateLimitPolicies.Writes, RateLimitPolicies.WritesPolicy);
         return services;

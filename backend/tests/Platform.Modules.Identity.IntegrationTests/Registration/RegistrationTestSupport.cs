@@ -33,6 +33,9 @@ public sealed partial class RegistrationApi : IdentityApi
         WithModule((services, configuration) => services.AddPlatformMailDelivery(configuration));
     }
 
+    /// <summary>The Mailpit the letters go to.</summary>
+    public MailpitFixture Mailpit => _mailpit;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     /// <summary>A new address for one test: Mailpit keeps the letters of every test.</summary>
