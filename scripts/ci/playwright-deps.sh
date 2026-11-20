@@ -9,7 +9,7 @@
 #             when there is no cache, or the cached files do not cover the set, it falls back to apt-get and keeps
 #             the downloaded .deb files in the cache directory for the next run.
 # The Playwright version comes from frontend/package.json, so a Renovate bump changes the list and the key.
-set -euo pipefail
+set -Eeuo pipefail
 trap 'echo "::error::playwright-deps.sh: line $LINENO failed (exit code $?)"' ERR
 
 cache_dir="${PLAYWRIGHT_DEPS_CACHE:-$HOME/.cache/playwright-deps}"
@@ -27,7 +27,7 @@ plan() {
     local version
     version=$(node -p "require('./frontend/package.json').devDependencies['@playwright/test']")
     # Dry run prints: sudo -- sh -c "apt-get update&& apt-get install -y --no-install-recommends <packages>"
-    npx --yes "playwright@$version" install-deps --dry-run chromium > "$state/dry-run.txt"
+    npx --yes "playwright@$version" install-deps --dry-run chromium > "$state/dry-run.txt" 2>&1 || { cat "$state/dry-run.txt"; exit 1; }
     sed -n 's/.*--no-install-recommends \([^"]*\)".*/\1/p' "$state/dry-run.txt" | tr ' ' '\n' | sed '/^$/d' | sort -u \
         > "$state/packages"
     if [ ! -s "$state/packages" ]; then
