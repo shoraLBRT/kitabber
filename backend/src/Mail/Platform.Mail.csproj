@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Mail (E01-12, ADR-0017): templates, the SendEmail message and its consumer, SMTP delivery and its fake. -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Mail</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MailKit" />
+        <PackageReference Include="MassTransit" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Templates keep their path (Templates/<culture>/<file>); the culture is the folder, not a satellite assembly. -->
+        <EmbeddedResource Include="Templates/**/*" LogicalName="Templates/%(RecursiveDir)%(Filename)%(Extension)" WithCulture="false" />
+        <!-- The product name and palette come from their single place (ADR-0011). -->
+        <EmbeddedResource Include="../../../brand/brand.json" LogicalName="brand.json" Link="brand.json" WithCulture="false" />
+    </ItemGroup>
+
+</Project>

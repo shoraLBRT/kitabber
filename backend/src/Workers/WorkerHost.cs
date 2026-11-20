@@ -1,13 +1,15 @@
 using MassTransit;
 using Platform.Caching;
 using Platform.Configuration;
+using Platform.Mail;
 using Platform.Messaging;
 using Platform.Observability;
 
 namespace Platform.Workers;
 
 /// <summary>
-/// Composition of the background workers host: the bus with every module's consumers and the cache. A module task
+/// Composition of the background workers host: the bus with every module's consumers, the cache and the delivery of
+/// queued mail (ADR-0017). A module task
 /// adds its consumers and outbox in <see cref="AddModules"/>; tests build the same host with their own consumers.
 /// </summary>
 public static class WorkerHost
@@ -16,7 +18,7 @@ public static class WorkerHost
     /// <summary>The service name in traces, metrics and logs (ADR-0015).</summary>
     public const string ServiceName = "platform-workers";
 
-    public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All, .. ObservabilitySettings.All];
+    public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All, .. MailSettings.All, .. ObservabilitySettings.All];
 
     public static HostApplicationBuilder CreateBuilder(string[] args, Action<IBusRegistrationConfigurator>? configureBus = null)
     {
@@ -34,8 +36,10 @@ public static class WorkerHost
     {
         services.AddSingleton(TimeProvider.System);
         services.AddPlatformCache(configuration);
+        services.AddPlatformMailDelivery(configuration);
         services.AddPlatformMessaging(configuration, bus =>
         {
+            bus.AddMailDelivery();
             AddModules(bus);
             configureBus?.Invoke(bus);
         });

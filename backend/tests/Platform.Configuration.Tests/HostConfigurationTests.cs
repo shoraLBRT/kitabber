@@ -16,6 +16,36 @@ public sealed class HostConfigurationTests
     }
 
     [Fact]
+    public void WorkersHostDoesNotStartWithoutSmtpSettingsAndNamesThem()
+    {
+        var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory"]));
+
+        Assert.Contains("Mail:Smtp:Host is required (environment variable Mail__Smtp__Host)", e.Message, StringComparison.Ordinal);
+        Assert.Contains("Mail:From:Address is required (environment variable Mail__From__Address)", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WorkersHostWithFakeMailNeedsNoSmtpSettings()
+    {
+        var builder = WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory"]);
+
+        Assert.Equal("InMemory", builder.Configuration["Mail:Provider"]);
+    }
+
+    [Fact]
+    public void WorkersHostRejectsUnknownMailProvider()
+    {
+        var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "Sendgrid"]));
+
+        Assert.Contains(e.Problems, p => p.Contains("Mail:Provider", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WorkersHostRejectsUnknownEnvironment()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
