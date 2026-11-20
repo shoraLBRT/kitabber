@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using Platform.Caching;
 using Platform.Configuration;
 using Platform.Testing.Time;
 
@@ -13,7 +14,8 @@ namespace Platform.Testing.Api;
 /// <summary>
 /// The Api host in process, in the <c>Test</c> environment, with a <see cref="FakeTimeProvider"/> in place of the
 /// system clock (ADR-0008). Tests add settings with <see cref="WithSetting"/> and modules or stand-ins with
-/// <see cref="WithModule"/> before the first request. Needs no Docker; <see cref="IntegrationApiFactory"/> adds
+/// <see cref="WithModule"/> before the first request. The cache and the rate limit counters are in memory
+/// (<c>Cache:Provider=InMemory</c>) unless a test sets otherwise. Needs no Docker; <see cref="IntegrationApiFactory"/> adds
 /// PostgreSQL and Redis.
 /// </summary>
 public class PlatformApiFactory : WebApplicationFactory<Program>
@@ -54,6 +56,7 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.UseEnvironment(PlatformEnvironments.Test);
+        builder.UseSetting(CacheServiceCollectionExtensions.ProviderKey, nameof(CacheProvider.InMemory));
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);

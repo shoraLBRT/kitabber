@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Http.RateLimiting;
 
 namespace Platform.Http;
 
@@ -14,13 +15,16 @@ public static class ApiApplicationExtensions
     public const string OpenApiRoute = "/openapi/{documentName}.json";
 
     /// <summary>
-    /// Exception and status code handling first, so every error below becomes problem details; then every
-    /// module's endpoints under <c>/api/v1</c>; then the OpenAPI documents.
+    /// The client address from a trusted proxy first; exception and status code handling next, so every error below
+    /// becomes problem details; rate limits after authentication (ADR-0016); then every module's endpoints under
+    /// <c>/api/v1</c>; then the OpenAPI documents.
     /// </summary>
     public static WebApplication UsePlatformApi(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        // X-Forwarded-For only from Http:TrustedProxies (AddPlatformApi): rate limits count the real client.
+        app.UseForwardedHeaders();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
 
@@ -35,6 +39,11 @@ public static class ApiApplicationExtensions
         if (app.Services.GetService<IAuthorizationHandlerProvider>() is not null)
         {
             app.UseAuthorization();
+        }
+
+        if (app.Services.GetService<RateLimitPolicyRegistry>() is not null)
+        {
+            app.UseMiddleware<RateLimitingMiddleware>();
         }
 
         var v1 = app.MapGroup(ApiVersions.Prefix(ApiVersions.V1));

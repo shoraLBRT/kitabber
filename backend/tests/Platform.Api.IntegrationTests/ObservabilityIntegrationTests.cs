@@ -50,8 +50,9 @@ public sealed class ObservabilityIntegrationTests(TracedNotesApi api) : IClassFi
         using var response = await _client.SendAsync(request, Ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // The server span ends after the response reaches the client: wait for it, then read the whole trace.
+        var server = Assert.Single(await api.Telemetry.WaitForTraceAsync(traceId, s => s.Kind == ActivityKind.Server, Ct));
         var trace = api.Telemetry.Trace(traceId);
-        var server = Assert.Single(trace, s => s.Kind == ActivityKind.Server);
         var database = Assert.Single(trace, s => s.Source == "Npgsql");
         Assert.Equal(ActivityKind.Client, database.Kind);
         Assert.Equal(server.SpanId, database.ParentSpanId);
