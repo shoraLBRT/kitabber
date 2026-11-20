@@ -14,7 +14,7 @@ namespace Platform.Modules.Identity.IntegrationTests.SignIn;
 /// </summary>
 public sealed class RealtimeSignInTests(IdentityApi api) : IClassFixture<IdentityApi>, IAsyncLifetime
 {
-    private const string TicketPath = "/api/v1/realtime/tickets";
+    private const string _ticketPath = "/api/v1/realtime/tickets";
     private HttpClient _browser = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -76,7 +76,7 @@ public sealed class RealtimeSignInTests(IdentityApi api) : IClassFixture<Identit
     private async Task<HttpResponseMessage> PostTicketAsync(string? accessToken)
     {
         using var client = api.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Post, TicketPath);
+        using var request = new HttpRequestMessage(HttpMethod.Post, _ticketPath);
         request.Headers.Authorization = new("Bearer", accessToken);
         return await client.SendAsync(request, Ct);
     }

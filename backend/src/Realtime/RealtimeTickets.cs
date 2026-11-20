@@ -28,7 +28,7 @@ public sealed record RealtimeTicket(string Ticket, DateTimeOffset ExpiresAt);
 public sealed class RealtimeTicketStore(IDistributedCache cache, TimeProvider time)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(60);
-    private const string KeyPrefix = "realtime:ticket:";
+    private const string _keyPrefix = "realtime:ticket:";
 
     public async Task<RealtimeTicket> IssueAsync(Guid accountId, CancellationToken cancellationToken)
     {
@@ -56,7 +56,7 @@ public sealed class RealtimeTicketStore(IDistributedCache cache, TimeProvider ti
     }
 
     private static string Key(string ticket) =>
-        KeyPrefix + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(ticket)));
+        _keyPrefix + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(ticket)));
 
     private static string Base64UrlEncode(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -78,17 +78,17 @@ internal sealed class RealtimeTicketHandler(
 {
     public const string SchemeName = "Realtime.Ticket";
     public const string QueryParameter = "access_token";
-    private const string BearerPrefix = "Bearer ";
+    private const string _bearerPrefix = "Bearer ";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var ticket = Request.Query[QueryParameter].ToString();
         var authorization = Request.Headers.Authorization.ToString();
         if (string.IsNullOrEmpty(ticket)
-            && authorization.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase)
+            && authorization.StartsWith(_bearerPrefix, StringComparison.OrdinalIgnoreCase)
             && !authorization.Contains('.', StringComparison.Ordinal))
         {
-            ticket = authorization[BearerPrefix.Length..].Trim();
+            ticket = authorization[_bearerPrefix.Length..].Trim();
         }
 
         if (string.IsNullOrEmpty(ticket))

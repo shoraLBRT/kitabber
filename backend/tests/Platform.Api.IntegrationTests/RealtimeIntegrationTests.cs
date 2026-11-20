@@ -18,19 +18,15 @@ namespace Platform.Api.IntegrationTests;
 /// and the Redis backplane carries an event published on one API instance to a client of another (ADR-0019).
 /// The client side of reconnecting is checked in frontend/tests/realtime.spec.ts.
 /// </summary>
-public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetime
+public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixture<RealtimeRedis>, IAsyncLifetime
 {
-    private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan _wait = TimeSpan.FromSeconds(10);
     private readonly List<IAsyncDisposable> _disposables = [];
-    private string _redis = string.Empty;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public async ValueTask InitializeAsync()
-    {
-        _redis = redis.CreateDatabase();
-        await RedisFixture.FlushAsync(_redis);
-    }
+    // Every test uses accounts and posts of its own, so they share the class's Redis database without a flush.
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
     public async ValueTask DisposeAsync()
     {
@@ -209,7 +205,7 @@ public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetim
     {
         var api = new PlatformApiFactory()
             .WithSetting(CacheServiceCollectionExtensions.ProviderKey, nameof(CacheProvider.Redis))
-            .WithSetting($"ConnectionStrings:{CacheServiceCollectionExtensions.RedisConnectionName}", _redis)
+            .WithSetting($"ConnectionStrings:{CacheServiceCollectionExtensions.RedisConnectionName}", redis.ConnectionString)
             .WithModule(services => services.AddTestAuthentication());
         _disposables.Add(api);
         return api;
@@ -287,8 +283,22 @@ public sealed class RealtimeIntegrationTests(RedisFixture redis) : IAsyncLifetim
         public async Task<RealtimeEvent> NextAsync()
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-            timeout.CancelAfter(Wait);
+            timeout.CancelAfter(_wait);
             return await _events.Reader.ReadAsync(timeout.Token);
         }
     }
+}
+
+/// <summary>One Redis database for the whole test class: there are only 15 (RedisFixture).</summary>
+public sealed class RealtimeRedis(RedisFixture redis) : IAsyncLifetime
+{
+    public string ConnectionString { get; private set; } = string.Empty;
+
+    public async ValueTask InitializeAsync()
+    {
+        ConnectionString = redis.CreateDatabase();
+        await RedisFixture.FlushAsync(ConnectionString);
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
