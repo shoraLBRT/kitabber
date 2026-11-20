@@ -87,24 +87,24 @@ public sealed class PostgresFixture : ContainerFixture<PostgreSqlContainer>
 /// </summary>
 public sealed class MailpitFixture : ContainerFixture<IContainer>
 {
-    private const ushort SmtpPort = 1025;
-    private const ushort ApiPort = 8025;
+    private const ushort _smtpPort = 1025;
+    private const ushort _apiPort = 8025;
 
     protected override string ImageName => "axllent/mailpit";
 
     public string SmtpHost => Container.Hostname;
 
-    public int SmtpMappedPort => Container.GetMappedPublicPort(SmtpPort);
+    public int SmtpMappedPort => Container.GetMappedPublicPort(_smtpPort);
 
     /// <summary>A client of the Mailpit API; dispose it after the test.</summary>
     public MailpitClient CreateClient() =>
-        new(new Uri($"http://{Container.Hostname}:{Container.GetMappedPublicPort(ApiPort)}/"));
+        new(new Uri($"http://{Container.Hostname}:{Container.GetMappedPublicPort(_apiPort)}/"));
 
     protected override IContainer Build(string image) => new ContainerBuilder(image)
-        .WithPortBinding(SmtpPort, assignRandomHostPort: true)
-        .WithPortBinding(ApiPort, assignRandomHostPort: true)
+        .WithPortBinding(_smtpPort, assignRandomHostPort: true)
+        .WithPortBinding(_apiPort, assignRandomHostPort: true)
         .WithEnvironment("MP_SMTP_AUTH_ACCEPT_ANY", "true")
         .WithEnvironment("MP_SMTP_AUTH_ALLOW_INSECURE", "true")
-        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(ApiPort).ForPath("/readyz")))
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(_apiPort).ForPath("/readyz")))
         .Build();
 }

@@ -13,8 +13,8 @@ public interface IMailTemplateSource
 /// <summary>The templates built into this assembly from <c>backend/src/Mail/Templates</c>.</summary>
 public sealed class EmbeddedMailTemplateSource : IMailTemplateSource
 {
-    private const string Prefix = "Templates/";
-    private const string SubjectSuffix = ".subject.txt";
+    private const string _prefix = "Templates/";
+    private const string _subjectSuffix = ".subject.txt";
 
     private readonly Dictionary<string, string> _files;
 
@@ -26,14 +26,14 @@ public sealed class EmbeddedMailTemplateSource : IMailTemplateSource
         {
             // MSBuild on Windows writes RecursiveDir with backslashes.
             var name = resource.Replace('\\', '/');
-            if (!name.StartsWith(Prefix, StringComparison.Ordinal))
+            if (!name.StartsWith(_prefix, StringComparison.Ordinal))
             {
                 continue;
             }
 
             using var stream = assembly.GetManifestResourceStream(resource)!;
             using var reader = new StreamReader(stream);
-            _files[name[Prefix.Length..]] = reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal);
+            _files[name[_prefix.Length..]] = reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal);
         }
     }
 
@@ -50,11 +50,11 @@ public sealed class EmbeddedMailTemplateSource : IMailTemplateSource
     public static IReadOnlyList<(string Culture, string Template)> ListOf(IEnumerable<string> paths) =>
     [
         .. paths
-            .Where(k => k.EndsWith(SubjectSuffix, StringComparison.Ordinal) && k.Contains('/', StringComparison.Ordinal))
+            .Where(k => k.EndsWith(_subjectSuffix, StringComparison.Ordinal) && k.Contains('/', StringComparison.Ordinal))
             .Select(k =>
             {
                 var slash = k.IndexOf('/', StringComparison.Ordinal);
-                return (Culture: k[..slash], Template: k[(slash + 1)..^SubjectSuffix.Length]);
+                return (Culture: k[..slash], Template: k[(slash + 1)..^_subjectSuffix.Length]);
             })
             .OrderBy(t => t.Template, StringComparer.Ordinal)
             .ThenBy(t => t.Culture, StringComparer.Ordinal),

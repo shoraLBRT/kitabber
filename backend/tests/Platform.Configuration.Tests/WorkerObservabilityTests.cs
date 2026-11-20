@@ -13,7 +13,7 @@ namespace Platform.Configuration.Tests;
 public sealed class WorkerObservabilityTests
 {
     private static readonly string[] _args =
-        ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory"];
+        ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory"];
 
     [Theory]
     [InlineData("Platform.Workers.Sample")]

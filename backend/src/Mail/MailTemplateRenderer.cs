@@ -20,10 +20,10 @@ public sealed partial class MailTemplateRenderer(IMailTemplateSource source, Mai
     /// <summary>The language of the product: every template exists in it, other cultures fall back to it.</summary>
     public const string DefaultCulture = "ru";
 
-    private const string Content = "content";
-    private const string Subject = "subject";
-    private const string Product = "product";
-    private const string ColorPrefix = "color.";
+    private const string _content = "content";
+    private const string _subject = "subject";
+    private const string _product = "product";
+    private const string _colorPrefix = "color.";
 
     public RenderedEmail Render(string template, CultureInfo culture, IReadOnlyDictionary<string, string> values)
     {
@@ -41,19 +41,19 @@ public sealed partial class MailTemplateRenderer(IMailTemplateSource source, Mai
         string File(string name) => source.Find(language, name)
             ?? throw new InvalidOperationException($"mail template {language}/{name} is missing");
 
-        string? Value(string key) => key == Product ? brand.ProductName
-            : key.StartsWith(ColorPrefix, StringComparison.Ordinal)
-                ? brand.Colors.GetValueOrDefault(key[ColorPrefix.Length..])
+        string? Value(string key) => key == _product ? brand.ProductName
+            : key.StartsWith(_colorPrefix, StringComparison.Ordinal)
+                ? brand.Colors.GetValueOrDefault(key[_colorPrefix.Length..])
                 : values.GetValueOrDefault(key);
 
         var subjectFile = $"{template}.subject.txt";
         var subject = Fill(subjectFile, File(subjectFile), Value, html: false).Trim();
-        string? WithSubject(string key) => key == Subject ? subject : Value(key);
+        string? WithSubject(string key) => key == _subject ? subject : Value(key);
 
         var text = Fill($"{template}.txt", File($"{template}.txt"), WithSubject, html: false).Trim();
         var html = Fill($"{template}.html", File($"{template}.html"), WithSubject, html: true).Trim();
-        var textLayout = Fill("_layout.txt", File("_layout.txt"), k => k == Content ? text : WithSubject(k), html: false);
-        var htmlLayout = Fill("_layout.html", File("_layout.html"), k => k == Content ? html : WithSubject(k), html: true);
+        var textLayout = Fill("_layout.txt", File("_layout.txt"), k => k == _content ? text : WithSubject(k), html: false);
+        var htmlLayout = Fill("_layout.html", File("_layout.html"), k => k == _content ? html : WithSubject(k), html: true);
         return new RenderedEmail(subject, textLayout.Trim() + "\n", htmlLayout.Trim() + "\n");
     }
 
@@ -75,7 +75,7 @@ public sealed partial class MailTemplateRenderer(IMailTemplateSource source, Mai
     }
 
     private static bool IsBuiltIn(string key) =>
-        key is Content or Subject or Product || key.StartsWith(ColorPrefix, StringComparison.Ordinal);
+        key is _content or _subject or _product || key.StartsWith(_colorPrefix, StringComparison.Ordinal);
 
     // {{content}} is the already rendered body: it is inserted as is, every other value is escaped in HTML.
     private static string Fill(string file, string text, Func<string, string?> value, bool html)
@@ -91,7 +91,7 @@ public sealed partial class MailTemplateRenderer(IMailTemplateSource source, Mai
                 return m.Value;
             }
 
-            return html && key != Content ? WebUtility.HtmlEncode(v) : v;
+            return html && key != _content ? WebUtility.HtmlEncode(v) : v;
         });
         return missing.Count == 0
             ? result

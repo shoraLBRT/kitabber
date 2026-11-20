@@ -49,7 +49,7 @@ public sealed class HostConfigurationTests
     public void WorkersHostRejectsUnknownEnvironment()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
-            ["--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory"]));
+            ["--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory"]));
 
         Assert.Contains("environment 'Prod' is unknown", Assert.Single(e.Problems), StringComparison.Ordinal);
     }
@@ -60,11 +60,14 @@ public sealed class HostConfigurationTests
         using var secrets = new TempDirectory();
         File.WriteAllText(Path.Combine(secrets.Path, "ConnectionStrings__RabbitMq"), "amqp://user:pass@rabbit:5672/");
         File.WriteAllText(Path.Combine(secrets.Path, "ConnectionStrings__Redis"), "redis:6379,password=pass");
+        File.WriteAllText(Path.Combine(secrets.Path, "Mail__Smtp__Password"), "smtp-pass");
 
         var builder = WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path]);
+            ["--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path,
+                "--Mail:Smtp:Host", "smtp.example.org", "--Mail:From:Address", "noreply@example.org"]);
 
         Assert.Equal("redis:6379,password=pass", builder.Configuration["ConnectionStrings:Redis"]);
+        Assert.Equal("smtp-pass", builder.Configuration["Mail:Smtp:Password"]);
     }
 
     [Fact]
