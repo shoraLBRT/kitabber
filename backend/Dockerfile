@@ -10,6 +10,8 @@ WORKDIR /src
 ENV DOTNET_NOLOGO=true DOTNET_CLI_TELEMETRY_OPTOUT=true
 COPY global.json Directory.Build.props ./
 COPY backend/ backend/
+# Platform.Mail builds in the product name and palette from their single place (ADR-0011).
+COPY brand/brand.json brand/
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     for project in Api Workers Migrator; do \
         dotnet publish "backend/src/$project/Platform.$project.csproj" -c Release -o "/out/$project" --nologo -v q -p:UseAppHost=false || exit 1; \

@@ -16,10 +16,40 @@ public sealed class HostConfigurationTests
     }
 
     [Fact]
+    public void WorkersHostDoesNotStartWithoutSmtpSettingsAndNamesThem()
+    {
+        var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory"]));
+
+        Assert.Contains("Mail:Smtp:Host is required (environment variable Mail__Smtp__Host)", e.Message, StringComparison.Ordinal);
+        Assert.Contains("Mail:From:Address is required (environment variable Mail__From__Address)", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WorkersHostWithFakeMailNeedsNoSmtpSettings()
+    {
+        var builder = WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory"]);
+
+        Assert.Equal("InMemory", builder.Configuration["Mail:Provider"]);
+    }
+
+    [Fact]
+    public void WorkersHostRejectsUnknownMailProvider()
+    {
+        var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
+            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "Sendgrid"]));
+
+        Assert.Contains(e.Problems, p => p.Contains("Mail:Provider", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WorkersHostRejectsUnknownEnvironment()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
-            ["--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory"]));
+            ["--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory"]));
 
         Assert.Contains("environment 'Prod' is unknown", Assert.Single(e.Problems), StringComparison.Ordinal);
     }
@@ -30,11 +60,14 @@ public sealed class HostConfigurationTests
         using var secrets = new TempDirectory();
         File.WriteAllText(Path.Combine(secrets.Path, "ConnectionStrings__RabbitMq"), "amqp://user:pass@rabbit:5672/");
         File.WriteAllText(Path.Combine(secrets.Path, "ConnectionStrings__Redis"), "redis:6379,password=pass");
+        File.WriteAllText(Path.Combine(secrets.Path, "Mail__Smtp__Password"), "smtp-pass");
 
         var builder = WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path]);
+            ["--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path,
+                "--Mail:Smtp:Host", "smtp.example.org", "--Mail:From:Address", "noreply@example.org"]);
 
         Assert.Equal("redis:6379,password=pass", builder.Configuration["ConnectionStrings:Redis"]);
+        Assert.Equal("smtp-pass", builder.Configuration["Mail:Smtp:Password"]);
     }
 
     [Fact]

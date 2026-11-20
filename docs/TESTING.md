@@ -150,7 +150,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 | Сервис | Локально и в тестах |
 | --- | --- |
-| Почта | Mailpit: тест читает письмо через его API |
+| Почта | Mailpit (`MailpitFixture` в Testcontainers): тест читает письмо через его API (`MailpitClient`); без SMTP — фейк `Mail:Provider=InMemory` (`InMemoryEmailSender`, ADR-0017). Тексты писем проверяются снимками `backend/tests/Platform.Mail.Tests/Snapshots` (`UPDATE_SNAPSHOTS=1`) |
 | Хранилище | MinIO (образ `cgr.dev/chainguard/minio`, см. [ARCHITECTURE.md](ARCHITECTURE.md)) |
 | Telegram | Фейковый `ITelegramGateway`, проигрывает записанные сценарии из `tools/fakes/telegram` |
 | Внешние провайдеры входа | Фейковый провайдер OIDC |

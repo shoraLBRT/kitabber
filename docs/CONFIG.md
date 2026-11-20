@@ -97,6 +97,17 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 | `ConnectionStrings:RabbitMq` | `ConnectionStrings__RabbitMq` | да | при транспорте `RabbitMq` | — | брокер: `amqp://user:password@host:port/vhost` |
 | `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша: `Redis` или `InMemory` (для тестов) |
 | `ConnectionStrings:Redis` | `ConnectionStrings__Redis` | да | при кэше `Redis` | — | Redis в формате StackExchange.Redis: `host:port,password=...` |
+| `Mail:Provider` | `Mail__Provider` | нет | нет | `Smtp` | почтовый сервис ([ADR-0017](adr/0017-mail.md)): `Smtp` или `InMemory` (фейк для тестов, письма остаются в памяти) |
+| `Mail:Smtp:Host` | `Mail__Smtp__Host` | нет | при почте `Smtp` | — | SMTP-сервер; в Development — Mailpit, `localhost` |
+| `Mail:Smtp:Port` | `Mail__Smtp__Port` | нет | нет | `587` | порт SMTP: `587` со `StartTls`, `465` с `SslOnConnect`; в Development — `1025` (Mailpit) |
+| `Mail:Smtp:Security` | `Mail__Smtp__Security` | нет | нет | `StartTls` | защита соединения: `StartTls`, `SslOnConnect` или `None` (только для Mailpit) |
+| `Mail:Smtp:Username` | `Mail__Smtp__Username` | нет | нет | — | логин SMTP; без него сервер используется без входа |
+| `Mail:Smtp:Password` | `Mail__Smtp__Password` | да | нет | — | пароль SMTP или ключ почтового сервиса |
+| `Mail:From:Address` | `Mail__From__Address` | нет | при почте `Smtp` | — | адрес отправителя всех писем, например `noreply@example.org`; в Development — `noreply@localhost` |
+| `Mail:From:Name` | `Mail__From__Name` | нет | нет | название из `brand/brand.json` | имя отправителя |
+
+Письма в Development ловит Mailpit из `compose.yaml`: веб-интерфейс — `http://localhost:8025` (порт
+`MAILPIT_UI_PORT` из `.env`).
 
 ## Мигратор (`backend/src/Migrator`)
 

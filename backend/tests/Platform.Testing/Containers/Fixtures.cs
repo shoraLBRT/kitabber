@@ -1,3 +1,5 @@
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Npgsql;
 using StackExchange.Redis;
 using Testcontainers.PostgreSql;
@@ -77,4 +79,32 @@ public sealed class PostgresFixture : ContainerFixture<PostgreSqlContainer>
     }
 
     protected override PostgreSqlContainer Build(string image) => new PostgreSqlBuilder(image).Build();
+}
+
+/// <summary>
+/// Mailpit, the mail catcher of compose.yaml: the application sends to its SMTP port, a test reads the letter through
+/// its API (<see cref="MailpitClient"/>). Accepts any SMTP login, so the authenticated path is tested too.
+/// </summary>
+public sealed class MailpitFixture : ContainerFixture<IContainer>
+{
+    private const ushort _smtpPort = 1025;
+    private const ushort _apiPort = 8025;
+
+    protected override string ImageName => "axllent/mailpit";
+
+    public string SmtpHost => Container.Hostname;
+
+    public int SmtpMappedPort => Container.GetMappedPublicPort(_smtpPort);
+
+    /// <summary>A client of the Mailpit API; dispose it after the test.</summary>
+    public MailpitClient CreateClient() =>
+        new(new Uri($"http://{Container.Hostname}:{Container.GetMappedPublicPort(_apiPort)}/"));
+
+    protected override IContainer Build(string image) => new ContainerBuilder(image)
+        .WithPortBinding(_smtpPort, assignRandomHostPort: true)
+        .WithPortBinding(_apiPort, assignRandomHostPort: true)
+        .WithEnvironment("MP_SMTP_AUTH_ACCEPT_ANY", "true")
+        .WithEnvironment("MP_SMTP_AUTH_ALLOW_INSECURE", "true")
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(_apiPort).ForPath("/readyz")))
+        .Build();
 }

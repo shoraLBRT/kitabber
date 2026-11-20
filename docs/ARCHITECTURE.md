@@ -15,6 +15,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Workers/             Platform.Workers — хост фоновых воркеров: шина, потребители и outbox модулей (ADR-0005)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
   src/Caching/             Platform.Caching — кэш IDistributedCache и счётчики IRateCounter на Redis (ADR-0005)
+  src/Mail/                Platform.Mail — шаблоны писем (Templates/<культура>/), очередь SendEmail, SMTP и фейк (ADR-0017)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
@@ -134,6 +135,11 @@ posts.MapPost("/", Create).WithRateLimit("posts.create");
 `frontend/` и `admin/` пересобирает `schema.d.ts`, вызовы — через `createApiClient()` (`openapi-fetch`). Тест
 `tests/api-client.spec.ts` каждого клиента падает, если `schema.d.ts` отстал от снимка или в коде есть ручной
 `fetch` к API.
+
+Почта ([ADR-0017](adr/0017-mail.md)): код модуля вызывает `IMailer.SendAsync(адрес, "login-code", культура, значения)`
+— письмо рендерится сразу из `backend/src/Mail/Templates` и уходит в очередь сообщением `SendEmail`; воркеры
+доставляют его через `IEmailSender` (SMTP или фейк) с повтором шины. Новый шаблон — три файла в папке культуры и
+образцовые значения в `TemplateTests.Samples`; снимок пишет тест (`UPDATE_SNAPSHOTS=1`).
 
 ## Настройки и секреты
 

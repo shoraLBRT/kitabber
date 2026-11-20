@@ -131,7 +131,10 @@ pwsh scripts/deploy.ps1 -EnvFile stage.env -Tag <предыдущий тег>
 1. **Сервер** с Docker Engine и плагином compose, открытыми портами 80 и 443, пользователем для выкладки в группе
    `docker`. Хватит 2 vCPU и 4 ГБ памяти на нынешний состав.
 2. **Домен**: две записи DNS на сервер — для сайта и для админки.
-3. **GitHub → Settings → Environments → `stage`**:
+3. **Почтовый сервис** с SMTP (любой, [ADR-0017](adr/0017-mail.md)) и домен отправителя: в DNS этого домена —
+   записи SPF, DKIM и DMARC, которые даст почтовый сервис; без них письма попадут в спам. Значения SMTP — в
+   таблице ниже. Имя отправителя по умолчанию — название продукта из `brand/brand.json`.
+4. **GitHub → Settings → Environments → `stage`**:
 
    | Имя | Вид | Что это |
    | --- | --- | --- |
@@ -144,11 +147,17 @@ pwsh scripts/deploy.ps1 -EnvFile stage.env -Tag <предыдущий тег>
    | `POSTGRES_PASSWORD` | секрет | пароль PostgreSQL стенда (длинный случайный) |
    | `REDIS_PASSWORD` | секрет | пароль Redis стенда |
    | `RABBITMQ_PASSWORD` | секрет | пароль RabbitMQ стенда |
+   | `SMTP_HOST` | переменная | SMTP-сервер почтового сервиса, например `smtp.example.org` (ADR-0017) |
+   | `SMTP_PORT` | переменная | порт SMTP: `587` или `465` |
+   | `SMTP_SECURITY` | переменная | защита соединения: `StartTls` (порт 587) или `SslOnConnect` (порт 465) |
+   | `SMTP_USERNAME` | переменная | логин SMTP |
+   | `SMTP_PASSWORD` | секрет | пароль SMTP или ключ почтового сервиса |
+   | `MAIL_FROM` | переменная | адрес отправителя писем, например `noreply@stage.example.org` |
 
-4. **GitHub → Settings → Variables → Repository**: `DEPLOY_STAGE` = `true` — включает автовыкладку на stage после
+5. **GitHub → Settings → Variables → Repository**: `DEPLOY_STAGE` = `true` — включает автовыкладку на stage после
    слияния в `main`. До этого задание пропускается.
-5. Для `production` — то же окружение `production` со своими значениями и **Required reviewers**.
-6. По желанию: сделать пакеты GHCR публичными или оставить приватными (выкладка входит в GHCR с `GITHUB_TOKEN`
+6. Для `production` — то же окружение `production` со своими значениями и **Required reviewers**.
+7. По желанию: сделать пакеты GHCR публичными или оставить приватными (выкладка входит в GHCR с `GITHUB_TOKEN`
    своего запуска, ей хватает права `packages: read`).
 
 Хранилище секретов — секреты окружений GitHub Actions, которые выкладка пишет в env-файл (рекомендация

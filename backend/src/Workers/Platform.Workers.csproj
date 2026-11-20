@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../Caching/Platform.Caching.csproj" />
+        <ProjectReference Include="../Mail/Platform.Mail.csproj" />
         <ProjectReference Include="../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../Observability/Platform.Observability.csproj" />
     </ItemGroup>

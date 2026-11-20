@@ -12,6 +12,9 @@
   <Folder Name="/src/Http/">
     <Project Path="src/Http/Platform.Http.csproj" />
   </Folder>
+  <Folder Name="/src/Mail/">
+    <Project Path="src/Mail/Platform.Mail.csproj" />
+  </Folder>
   <Folder Name="/src/Messaging/">
     <Project Path="src/Messaging/Platform.Messaging.csproj" />
   </Folder>
@@ -38,6 +41,7 @@
     <Project Path="tests/Platform.Architecture.Tests/Platform.Architecture.Tests.csproj" />
     <Project Path="tests/Platform.Api.Tests/Platform.Api.Tests.csproj" />
     <Project Path="tests/Platform.Configuration.Tests/Platform.Configuration.Tests.csproj" />
+    <Project Path="tests/Platform.Mail.Tests/Platform.Mail.Tests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Seeding.Tests/Platform.Seeding.Tests.csproj" />

@@ -46,6 +46,15 @@ services:
   workers:
     <<: *backend
     image: ${IMAGE_REGISTRY:?set in the env file}/workers:${IMAGE_TAG:?set in the env file}
+    environment:
+      <<: *backend-env
+      # The stand's mail service (ADR-0017): any SMTP server, chosen by the owner (docs/DEPLOY.md).
+      Mail__Smtp__Host: ${SMTP_HOST:?set in the env file}
+      Mail__Smtp__Port: ${SMTP_PORT:?set in the env file}
+      Mail__Smtp__Security: ${SMTP_SECURITY:?set in the env file}
+      Mail__Smtp__Username: ${SMTP_USERNAME:?set in the env file}
+      Mail__Smtp__Password: ${SMTP_PASSWORD:?set in the env file}
+      Mail__From__Address: ${MAIL_FROM:?set in the env file}
     depends_on:
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
