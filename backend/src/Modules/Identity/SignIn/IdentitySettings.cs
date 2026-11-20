@@ -36,8 +36,8 @@ public static class IdentitySettings
         },
         new(IssuerKey, "public address of the OpenID Connect provider, the iss of every token, for example " +
             "https://example.org/; without it the address of the request"),
-        new(SigningKeyKey, "RSA private key that signs tokens, PEM or base64 of PKCS#8; required outside Development " +
-            "and Test, where a key is generated at start")
+        new(SigningKeyKey, "RSA private key that signs tokens, PEM or base64 of DER (PKCS#8 or PKCS#1); required " +
+            "outside Development and Test, where a key is generated at start")
         {
             Secret = true,
         },

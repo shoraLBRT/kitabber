@@ -32,14 +32,14 @@ public static class ProviderKeys
             }
             else
             {
-                rsa.ImportPkcs8PrivateKey(Convert.FromBase64String(value.Trim()), out _);
+                ImportDer(rsa, Convert.FromBase64String(value.Trim()));
             }
         }
         catch (Exception e) when (e is CryptographicException or FormatException or ArgumentException)
         {
             rsa.Dispose();
             throw new InvalidConfigurationException(
-                [$"{IdentitySettings.SigningKeyKey}: not an RSA private key in PEM or base64 PKCS#8"]);
+                [$"{IdentitySettings.SigningKeyKey}: not an RSA private key in PEM or base64 DER (PKCS#8 or PKCS#1)"]);
         }
 
         if (rsa.KeySize < 2048)
@@ -78,6 +78,19 @@ public static class ProviderKeys
             ? new SymmetricSecurityKey(bytes)
             : throw new InvalidConfigurationException(
                 [$"{IdentitySettings.EncryptionKeyKey}: expected 32 bytes (AES-256), got {bytes.Length}"]);
+    }
+
+    /// <summary>A DER private key: PKCS#8, or PKCS#1 as some versions of openssl write it.</summary>
+    private static void ImportDer(RSA rsa, byte[] der)
+    {
+        try
+        {
+            rsa.ImportPkcs8PrivateKey(der, out _);
+        }
+        catch (CryptographicException)
+        {
+            rsa.ImportRSAPrivateKey(der, out _);
+        }
     }
 
     /// <summary>Whether <paramref name="environment"/> may run on keys generated at start.</summary>

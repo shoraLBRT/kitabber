@@ -40,11 +40,14 @@ public sealed class ProviderConfigurationTests
         var pem = ProviderKeys.SigningKey(Settings(new() { [IdentitySettings.SigningKeyKey] = rsa.ExportPkcs8PrivateKeyPem() }), PlatformEnvironments.Staging);
         var der = ProviderKeys.SigningKey(
             Settings(new() { [IdentitySettings.SigningKeyKey] = Convert.ToBase64String(rsa.ExportPkcs8PrivateKey()) }), PlatformEnvironments.Staging);
+        var pkcs1 = ProviderKeys.SigningKey(
+            Settings(new() { [IdentitySettings.SigningKeyKey] = Convert.ToBase64String(rsa.ExportRSAPrivateKey()) }), PlatformEnvironments.Staging);
         var aes = ProviderKeys.EncryptionKey(
             Settings(new() { [IdentitySettings.EncryptionKeyKey] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), PlatformEnvironments.Staging);
 
         Assert.NotNull(pem);
         Assert.Equal(pem.KeyId, der!.KeyId);
+        Assert.Equal(pem.KeyId, pkcs1!.KeyId);
         Assert.Equal(32, aes!.Key.Length);
     }
 
