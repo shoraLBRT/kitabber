@@ -12,7 +12,7 @@ public static class EmailAddresses
     /// <summary>The longest address SMTP carries (RFC 5321: a path of 256 octets minus the angle brackets).</summary>
     public const int MaxLength = 254;
 
-    private const int MaxLocalLength = 64;
+    private const int _maxLocalLength = 64;
 
     // Gmail ignores dots in the mailbox name and serves both domains; no other provider's aliases are folded.
     private static readonly string[] _gmailDomains = ["gmail.com", "googlemail.com"];
@@ -63,7 +63,7 @@ public static class EmailAddresses
     // A dot-atom mailbox name (RFC 5322) with Unicode letters allowed (RFC 6531); quoted names are not accepted.
     private static string? LocalPart(string local)
     {
-        if (local.Length > MaxLocalLength)
+        if (local.Length > _maxLocalLength)
         {
             return null;
         }
