@@ -121,6 +121,24 @@ exit (Complete-Verify '$reports')
     }
     Assert ($ci -match 'gitleaks_\$\{GITLEAKS_VERSION\}_checksums\.txt') 'ci.yml: gitleaks must be installed and its checksum checked for the secret scan'
 
+    # 3b. Renovate sees the gitleaks version in ci.yml (#285): a regex manager of renovate.json covers ci.yml and
+    # extracts exactly the version the install step uses, from GitHub releases.
+    $renovate = Get-Content -Raw -Encoding utf8 (Join-Path $root 'renovate.json') | ConvertFrom-Json
+    $installed = [regex]::Match($ci, '(?m)^\s+GITLEAKS_VERSION:\s*(\S+)\s*$').Groups[1].Value
+    $found = $false
+    foreach ($manager in @($renovate.customManagers) | Where-Object { $_ -and $_.customType -eq 'regex' }) {
+        $files = @($manager.managerFilePatterns) | Where-Object { '.github/workflows/ci.yml' -match $_.Trim('/') }
+        if (-not $files) { continue }
+        foreach ($pattern in $manager.matchStrings) {
+            $match = [regex]::Match($ci, $pattern)
+            if ($match.Success -and $match.Groups['depName'].Value -eq 'gitleaks/gitleaks' -and
+                $match.Groups['datasource'].Value -eq 'github-releases' -and $match.Groups['currentValue'].Value -eq $installed) {
+                $found = $true
+            }
+        }
+    }
+    Assert ($installed -and $found) "renovate.json: a regex manager must extract the gitleaks version '$installed' from ci.yml"
+
     # 4. The screen-spec check (E02-03) rejects a broken tree: missing screen, sections, FR, tokens, anchors, links.
     # The state headings are Russian; the script stays ASCII so Windows PowerShell 5.1 reads it without a BOM.
     $empty, $loading, $failure = '\u041f\u0443\u0441\u0442\u043e', '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430', '\u041e\u0448\u0438\u0431\u043a\u0430' | ForEach-Object { [regex]::Unescape($_) }

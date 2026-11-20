@@ -1,12 +1,12 @@
 # Состояние проекта
 
-Обновляется в каждом PR. Последнее обновление: 20 ноября 2026 (E01-09).
+Обновляется в каждом PR. Последнее обновление: 20 ноября 2026 (#285).
 
 ## Текущая веха
 
 **M0. Фундамент.** Критерий выхода: PR проверяется автоматически; пустой каркас открывается на 1440 и 390 px.
 Критерий показан автотестом: сквозные тесты Playwright (E01-16) открывают каркас в профилях desktop и mobile в
-`ci / verify`. В M0 остаются задачи P1–P2 (#285, #296).
+`ci / verify`. В M0 остаются задачи P1–P2 (#296, #300, #302).
 
 ## Следующая задача
 
@@ -41,9 +41,9 @@
   проверка расхождения со снимком OpenAPI; предложено в задаче E01-08).
   [ADR-0015](adr/0015-observability.md) (наблюдаемость: OpenTelemetry с выдачей по OTLP, `traceparent` от Nuxt,
   JSON-логи, `/health/live` и `/health/ready`, `/metrics` для Prometheus; предложено в задаче E01-09).
-- Бэклог в GitHub Issues: 256 задач в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
+- Бэклог в GitHub Issues: 261 задача в 19 эпиках и 8 вехах; порядок — в [ROADMAP.md](ROADMAP.md).
 - Процесс: `CLAUDE.md`, `scripts/verify.ps1`, CI (`ci / verify`), проверка заголовка PR, release-please,
-  конфигурация Renovate.
+  конфигурация Renovate (в том числе regex-менеджер для версии gitleaks в `ci.yml`, #285).
 
 - Каркас монорепозитория (E01-01): решение .NET `backend/Platform.slnx` (хосты `Api` и `Workers`, net10.0),
   веб-клиент на Nuxt 3 в `frontend/`, админка на Vue 3 + Vite в `admin/`; общие `.editorconfig`,
@@ -121,7 +121,7 @@
   файла настроек — тоже ошибка. Все настройки — в [CONFIG.md](CONFIG.md), тест сверяет документ с кодом и
   проверяет, что в `appsettings.json`/`Staging`/`Production` нет секретов. `scripts/secret-scan.ps1` (шаг
   `secret scan`) гоняет gitleaks по всем файлам, которые git закоммитил бы, после проверки на подложенном токене;
-  CI ставит gitleaks 8.28.0, локально шаг пропускается без gitleaks. Тесты — `backend/tests/Platform.Configuration.Tests`.
+  CI ставит gitleaks 8.28.0 и сверяет архив с контрольными суммами релиза; версию обновляет Renovate (regex-менеджер в `renovate.json`, #285, самопроверка verify проверяет, что он находит версию в `ci.yml`); локально шаг пропускается без gitleaks. Тесты — `backend/tests/Platform.Configuration.Tests`.
   Правила и варианты хранилища секретов для стендов — [ADR-0007](adr/0007-configuration-and-secrets.md); выбор
   хранилища — за владельцем; выкладка E01-03 пишет env-файл из секретов окружения GitHub, код от этого не зависит.
 
