@@ -1,6 +1,6 @@
 # ADR-0018. Провайдер OpenID Connect: OpenIddict в модуле Identity, сайт — клиент через свой сервер
 
-- Статус: предложено (20 ноября 2026), задача E18-02 (#24)
+- Статус: принято владельцем 20 ноября 2026, задача E18-02 (#24)
 - Требования: [unified-accounts.md](../unified-accounts.md) (FR-ID-2), [ADR-0002](0002-identity.md)
 - Связанные решения: [ADR-0007](0007-configuration-and-secrets.md) (секреты), [ADR-0016](0016-rate-limiting.md)
   (лимиты по аккаунту)
