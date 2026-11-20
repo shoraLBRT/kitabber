@@ -16,6 +16,7 @@ cache_dir="${PLAYWRIGHT_DEPS_CACHE:-$HOME/.cache/playwright-deps}"
 state="${RUNNER_TEMP:-/tmp}/playwright-deps"
 mkdir -p "$state"
 
+# Packages of $state/packages that are not installed (for the older dry-run format).
 missing_packages() {
     local pkg
     for pkg in $(cat "$state/packages"); do
@@ -24,19 +25,34 @@ missing_packages() {
 }
 
 plan() {
-    local version
+    local version rc=0
     version=$(node -p "require('./frontend/package.json').devDependencies['@playwright/test']")
-    # Dry run prints: sudo -- sh -c "apt-get update&& apt-get install -y --no-install-recommends <packages>"
-    npx --yes "playwright@$version" install-deps --dry-run chromium > "$state/dry-run.txt" 2>&1 || { cat "$state/dry-run.txt"; exit 1; }
-    sed -n 's/.*--no-install-recommends \([^"]*\)".*/\1/p' "$state/dry-run.txt" | tr ' ' '\n' | sed '/^$/d' | sort -u \
-        > "$state/packages"
-    if [ ! -s "$state/packages" ]; then
-        echo "::error::Could not read the package list from 'playwright install-deps --dry-run':"
+    npx --yes "playwright@$version" install-deps --dry-run chromium > "$state/dry-run.txt" 2>&1 || rc=$?
+    if grep -q '^Missing system dependencies' "$state/dry-run.txt"; then
+        # Playwright 1.65+ checks the host itself and lists what is missing, exiting with 1:
+        #   Missing system dependencies (9):
+        #     fonts-freefont-ttf
+        sed -n '/^Missing system dependencies/,$ s/^ \+\([a-z0-9][a-z0-9.+-]*\)$/\1/p' "$state/dry-run.txt" | sort -u \
+            > "$state/missing"
+    elif grep -q -- '--no-install-recommends' "$state/dry-run.txt"; then
+        # Older Playwright prints the whole command:
+        #   sudo -- sh -c "apt-get update&& apt-get install -y --no-install-recommends <packages>"
+        sed -n 's/.*--no-install-recommends \([^"]*\)".*/\1/p' "$state/dry-run.txt" | tr ' ' '\n' | sed '/^$/d' \
+            | sort -u > "$state/packages"
+        missing_packages > "$state/missing"
+    elif [ "$rc" -eq 0 ]; then
+        : > "$state/missing"
+    else
+        echo "::error::Could not read 'playwright install-deps --dry-run' (exit code $rc):"
         cat "$state/dry-run.txt"
         exit 1
     fi
-    missing_packages > "$state/missing"
-    echo "Playwright $version needs $(wc -l < "$state/packages") packages; not installed: $(tr '\n' ' ' < "$state/missing")"
+    if [ "$rc" -ne 0 ] && [ ! -s "$state/missing" ]; then
+        echo "::error::'playwright install-deps --dry-run' failed (exit code $rc) without a package list:"
+        cat "$state/dry-run.txt"
+        exit 1
+    fi
+    echo "Playwright $version: missing system packages: $(tr '\n' ' ' < "$state/missing")"
     {
         echo "key=playwright-deps-${ImageOS:-linux}-$(sha256sum "$state/missing" | cut -c1-16)"
         if [ -s "$state/missing" ]; then echo "missing=true"; else echo "missing=false"; fi
