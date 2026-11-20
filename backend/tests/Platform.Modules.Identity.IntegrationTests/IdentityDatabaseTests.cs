@@ -14,7 +14,7 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task MigrationCreatesAccountsInTheIdentitySchemaOnly()
+    public async Task MigrationCreatesAccountsAndProviderTablesInTheIdentitySchemaOnly()
     {
         var db = await postgres.CreateDatabaseAsync();
 
@@ -25,7 +25,10 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
         }
 
         Assert.Equal(
-            ["identity.__ef_migrations_history", "identity.accounts"],
+            [
+                "identity.__ef_migrations_history", "identity.accounts", "identity.oidc_applications",
+                "identity.oidc_authorizations", "identity.oidc_scopes", "identity.oidc_tokens",
+            ],
             await Strings(db, """
                 SELECT table_schema || '.' || table_name FROM information_schema.tables
                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY 1

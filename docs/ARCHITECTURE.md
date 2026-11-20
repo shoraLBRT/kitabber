@@ -141,6 +141,13 @@ posts.MapPost("/", Create).WithRateLimit("posts.create");
 доставляют его через `IEmailSender` (SMTP или фейк) с повтором шины. Новый шаблон — три файла в папке культуры и
 образцовые значения в `TemplateTests.Samples`; снимок пишет тест (`UPDATE_SNAPSHOTS=1`).
 
+Вход ([ADR-0018](adr/0018-openid-connect-provider.md)): модуль `Identity` — провайдер OpenID Connect (OpenIddict) в
+процессе API, код авторизации с PKCE S256. Каждый запрос к API с `Authorization: Bearer` проверяется провайдером из
+`Auth:Authority` (по умолчанию своим), `HttpContext.User` несёт `sub` = `account_id`; эндпоинт модуля требует входа
+через `.RequireAuthorization()`. Сайт входит через свой сервер: `frontend/server/routes/auth/` (`sign-in`,
+`callback`), токены — в памяти сервера Nuxt, браузеру — cookie `auth.session`; страница знает только
+`useAccount().value.signedIn`, а клиент API на сервере сам добавляет токен (`plugins/api.ts`).
+
 ## Настройки и секреты
 
 Правила — [ADR-0007](adr/0007-configuration-and-secrets.md), перечень настроек — [CONFIG.md](CONFIG.md), код —

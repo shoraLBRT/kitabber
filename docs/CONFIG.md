@@ -87,6 +87,37 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 `/health/ready` — проверки с тегом `ready` (база модулей, кэш, шина), 503 при сбое; `/metrics` — метрики в
 текстовом формате Prometheus. Прокси стенда отдаёт наружу `/health/*`, но не `/metrics`.
 
+### Вход: модуль Identity в API
+
+Identity — провайдер OpenID Connect ([ADR-0002](adr/0002-identity.md), [ADR-0018](adr/0018-openid-connect-provider.md)).
+Адреса провайдера: `/.well-known/openid-configuration`, `/.well-known/jwks`, `/connect/authorize`, `/connect/token`
+(вне `/api/v1` и вне OpenAPI). API принимает токены доступа провайдера из `Auth:Authority` — по умолчанию своего.
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
+| --- | --- | --- | --- | --- | --- |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: аккаунты, клиенты, коды и токены в схеме `identity` |
+| `Identity:Issuer` | `Identity__Issuer` | нет | нет | адрес запроса | публичный адрес провайдера, `iss` всех токенов, например `https://example.org/`; на стенде — адрес сайта |
+| `Identity:SigningKey` | `Identity__SigningKey` | да | вне Development и Test | ключ создаётся при старте | закрытый ключ RSA (от 2048 бит), которым подписываются токены: PEM или base64 от DER (PKCS#8 или PKCS#1) |
+| `Identity:EncryptionKey` | `Identity__EncryptionKey` | да | вне Development и Test | ключ создаётся при старте | base64 от 32 случайных байт (AES-256): шифрует коды авторизации |
+| `Identity:SignInPath` | `Identity__SignInPath` | нет | нет | `/login` | окно входа, куда провайдер отправляет человека без сессии; после входа он возвращается к `/connect/authorize` |
+| `Identity:Clients:Web:RedirectUris` | `Identity__Clients__Web__RedirectUris` | нет | нет | — | адреса возврата сайта (Nuxt) через запятую, точное совпадение: `https://example.org/auth/callback`; без них клиент `web` не регистрируется |
+| `Identity:Clients:Admin:RedirectUris` | `Identity__Clients__Admin__RedirectUris` | нет | нет | — | адреса возврата админ-панели через запятую; без них клиент `admin` не регистрируется |
+| `Identity:SyncClients` | `Identity__SyncClients` | нет | нет | `true` | `false` — API не записывает клиентов в базу при старте (сборка OpenAPI и тесты без базы) |
+| `Auth:Authority` | `Auth__Authority` | нет | нет | — (свой провайдер) | чьи токены доступа принимает API; внешний адрес (`https://accounts.example.org/`) переключает API на другой провайдер OpenID Connect — ключи берутся из его `/.well-known/openid-configuration` |
+| `Auth:Audience` | `Auth__Audience` | нет | нет | `platform-api` | аудитория (`aud`), которую должен нести токен доступа |
+
+Ключи провайдера. В Development и Test их нет в репозитории: при старте создаются новые, и токены живут до
+перезапуска. На стенде без обоих ключей API не стартует: созданные ключи различались бы между экземплярами и
+менялись бы при каждом перезапуске. Как получить:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -outform DER | base64 -w0   # Identity__SigningKey
+openssl rand -base64 32                                                                    # Identity__EncryptionKey
+```
+
+Смена ключа подписи выводит из строя выданные токены доступа (живут 15 минут); ротация без перерыва — отдельная
+задача.
+
 ## Воркеры (`backend/src/Workers`)
 
 Плюс настройки наблюдаемости (выше).
@@ -130,5 +161,17 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 
 - `.env.example` — порты и пароли инфраструктуры в `compose.yaml` (E01-04); копия `.env` в git не попадает.
   Значения там — только для локальной машины. `appsettings.Development.json` хостов указывают на те же пароли.
-- `frontend/` и `admin/` настроек пока не читают. Когда появятся: Nuxt берёт их из `runtimeConfig` через
-  переменные `NUXT_*` и `NUXT_PUBLIC_*`, админка — через `VITE_*` на этапе сборки; секретов в клиентах нет.
+- Сайт (`frontend/`, сервер Nuxt) берёт настройки из `runtimeConfig` через переменные `NUXT_*`:
+
+  | Переменная | Секрет | По умолчанию | Что это |
+  | --- | --- | --- | --- |
+  | `NUXT_API_BASE` | нет | — | адрес API для отрисовки на сервере; на стенде `http://api:8080` |
+  | `NUXT_PUBLIC_API_BASE` | нет | тот же адрес сайта | адрес API для браузера |
+  | `NUXT_OIDC_ISSUER` | нет | в `nuxt dev` — `http://localhost:5103/` | провайдер входа (E18-02), на стенде — адрес сайта со слешем; должен совпадать с `Identity:Issuer` |
+  | `NUXT_OIDC_CLIENT_ID` | нет | `web` | клиент сайта у провайдера |
+  | `NUXT_OIDC_REDIRECT_URI` | нет | в `nuxt dev` — `http://localhost:3000/auth/callback` | адрес `/auth/callback` сайта, ровно как в `Identity:Clients:Web:RedirectUris` |
+  | `NUXT_SESSION_PASSWORD` | да | в `nuxt dev` создаётся при старте | ключ шифрования cookie сессии и входа, не короче 32 символов; без него собранный сайт не впускает |
+
+  Токены хранит только сервер Nuxt (в памяти процесса, пока нет #29); браузер получает cookie `auth.session`
+  (HttpOnly, SameSite=Lax, Secure на HTTPS) с одним случайным идентификатором сессии.
+- `admin/` настроек пока не читает. Когда появятся — через `VITE_*` на этапе сборки; секретов в админке нет.

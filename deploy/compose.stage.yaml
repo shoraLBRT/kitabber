@@ -31,6 +31,12 @@ services:
       # Caddy's X-Forwarded-For gives the client address the rate limits count (ADR-0016). The API publishes no
       # port, so only containers of the stand's private network can reach it.
       Http__TrustedProxies: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # The OpenID Connect provider (ADR-0018): the site's address is the issuer, the site's /auth/callback the only
+      # redirect of the web client; the keys are secrets of the stand (docs/CONFIG.md).
+      Identity__Issuer: ${SITE_URL:?set in the env file}/
+      Identity__Clients__Web__RedirectUris: ${SITE_URL:?set in the env file}/auth/callback
+      Identity__SigningKey: ${IDENTITY_SIGNING_KEY:?set in the env file}
+      Identity__EncryptionKey: ${IDENTITY_ENCRYPTION_KEY:?set in the env file}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -65,6 +71,10 @@ services:
     environment:
       # Server rendering calls the API inside the network; the browser calls it on the same origin (plugins/api.ts).
       NUXT_API_BASE: http://api:8080
+      # Sign-in through the provider at the site's own address (E18-02); the session cookies are sealed with this key.
+      NUXT_OIDC_ISSUER: ${SITE_URL:?set in the env file}/
+      NUXT_OIDC_REDIRECT_URI: ${SITE_URL:?set in the env file}/auth/callback
+      NUXT_SESSION_PASSWORD: ${SESSION_PASSWORD:?set in the env file}
 
   admin:
     image: ${IMAGE_REGISTRY:?set in the env file}/admin:${IMAGE_TAG:?set in the env file}
@@ -139,7 +149,7 @@ configs:
     content: |
       {$$SITE_ADDRESS} {
         encode
-        @api path /api/* /openapi/* /health/*
+        @api path /api/* /openapi/* /health/* /.well-known/openid-configuration /.well-known/jwks /connect/*
         reverse_proxy @api api:8080
         reverse_proxy frontend:3000
       }

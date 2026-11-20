@@ -2,6 +2,7 @@ using Platform.Api;
 using Platform.Configuration;
 using Platform.Http;
 using Platform.Http.RateLimiting;
+using Platform.Modules.Identity.SignIn;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.UseInMemoryStoresForOpenApiBuild();
@@ -9,9 +10,11 @@ builder.ConfigurePlatform(ApiSettings.All);
 builder.AddApiObservability();
 builder.Services.AddPlatformApi();
 builder.Services.AddPlatformRateLimiting(builder.Configuration);
+builder.AddIdentityModule();
 
 var app = builder.Build();
 app.UsePlatformApi();
+app.MapIdentityEndpoints();
 app.MapApiObservability();
 
 app.Run();

@@ -54,7 +54,9 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
             </template>
           </UiMenu>
         </template>
-        <NuxtLink v-else :to="loginPath" class="shell-header__login" data-nav="login">Войти</NuxtLink>
+        <NuxtLink v-else :to="loginPath" external class="shell-header__login" data-nav="login"
+          >Войти</NuxtLink
+        >
       </div>
     </div>
   </header>

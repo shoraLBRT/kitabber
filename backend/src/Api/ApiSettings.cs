@@ -1,7 +1,9 @@
 using System.Reflection;
+using System.Security.Cryptography;
 using Platform.Caching;
 using Platform.Configuration;
 using Platform.Http.RateLimiting;
+using Platform.Modules.Identity.SignIn;
 using Platform.Observability;
 
 namespace Platform.Api;
@@ -12,7 +14,10 @@ namespace Platform.Api;
 /// </summary>
 public static class ApiSettings
 {
-    public static IReadOnlyList<Setting> All { get; } = [.. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All];
+    public static IReadOnlyList<Setting> All { get; } =
+    [
+        .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
+    ];
 
     /// <summary>
     /// The build writes the OpenAPI document by running the entry point under <c>GetDocument.Insider</c> (ADR-0006),
@@ -25,6 +30,13 @@ public static class ApiSettings
         if (string.Equals(Assembly.GetEntryAssembly()?.GetName().Name, "GetDocument.Insider", StringComparison.Ordinal))
         {
             builder.Configuration[CacheServiceCollectionExtensions.ProviderKey] = nameof(CacheProvider.InMemory);
+            // No database is contacted and no token is issued: the host is built to describe its endpoints, never
+            // started (yet its hosted services run), so keys of its own are enough.
+            builder.Configuration[IdentitySettings.DatabaseKey] ??= "Host=localhost;Database=openapi_build";
+            builder.Configuration[IdentitySettings.SyncClientsKey] = "false";
+            using var rsa = RSA.Create(2048);
+            builder.Configuration[IdentitySettings.SigningKeyKey] = rsa.ExportPkcs8PrivateKeyPem();
+            builder.Configuration[IdentitySettings.EncryptionKeyKey] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         }
 
         return builder;

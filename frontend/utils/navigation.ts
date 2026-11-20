@@ -47,7 +47,8 @@ export const topicsPath = '/topics'
 
 /** Addresses of the header actions; on phones they move to the floating button and the "Меню" screen. */
 export const writePath = '/write'
-export const loginPath = '/login'
+// Sign-in starts on the Nuxt server (E18-02): a server route, not a page, so links to it leave the app router.
+export const loginPath = '/auth/sign-in'
 export const notificationsPath = '/notifications'
 /** Address of the phone "Меню" screen, which replaces the left column below breakpoint.md. */
 export const menuPath = '/menu'

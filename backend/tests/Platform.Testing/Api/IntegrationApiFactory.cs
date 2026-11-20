@@ -31,6 +31,8 @@ public class IntegrationApiFactory(PostgresFixture postgres, RedisFixture redis)
     /// <summary>The Redis database of this factory; set by the first <see cref="ResetAsync"/>.</summary>
     public string RedisConnectionString { get; private set; } = string.Empty;
 
+    protected override bool HasDatabase => true;
+
     /// <summary>Tables, as <c>schema.table</c>, whose rows survive a reset: reference data seeded by migrations.</summary>
     protected virtual IEnumerable<string> KeepTables => [];
 

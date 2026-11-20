@@ -38,7 +38,7 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
         </span>
         <ChevronRight class="menu-screen__chevron" aria-hidden="true" />
       </NuxtLink>
-      <NuxtLink v-else :to="loginPath" class="menu-screen__row" data-nav="login">
+      <NuxtLink v-else :to="loginPath" external class="menu-screen__row" data-nav="login">
         <LogIn class="menu-screen__icon" aria-hidden="true" />
         Войти
       </NuxtLink>
