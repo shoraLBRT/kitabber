@@ -160,7 +160,8 @@ public static class IdentityModule
         return bus;
     }
 
-    // The account's email and its confirmation (ADR-0020), and the policy other modules require to publish.
+    // The account's email and its confirmation (ADR-0020), the policy other modules require to publish, and the
+    // registration by email and password that confirms its address the same way (E03-01).
     private static void AddEmail(IServiceCollection services)
     {
         services.AddPlatformMail();
@@ -172,6 +173,9 @@ public static class IdentityModule
             .AddRequirements(new ConfirmedEmailRequirement()));
         services.AddRateLimitPolicy(AccountEmailEndpoints.CodePolicy, IdentitySettings.EmailCodePolicy);
         services.AddApiEndpoints<AccountEmailEndpoints>();
+        services.AddScoped<Registration.Registrations>();
+        services.AddRateLimitPolicy(Registration.RegistrationEndpoints.Policy, IdentitySettings.RegistrationPolicy);
+        services.AddApiEndpoints<Registration.RegistrationEndpoints>();
     }
 
     /// <summary>Maps the authorization and token endpoints; discovery and keys are answered by the provider itself.</summary>

@@ -27,6 +27,28 @@ public sealed class Account
     /// <summary>Whether the account may publish and comment: its email is confirmed.</summary>
     public bool HasConfirmedEmail => EmailConfirmedAt is not null;
 
+    /// <summary>
+    /// The Argon2id hash of the password (<see cref="Passwords.PasswordHasher"/>, ADR-0021); <c>null</c> for an account
+    /// that signs in only in other ways.
+    /// </summary>
+    public string? PasswordHash { get; private set; }
+
+    /// <summary>
+    /// A registration by email and password that is not confirmed yet (ADR-0020): it holds its address only until the
+    /// same address is registered again, and only its confirmation signs the person in.
+    /// </summary>
+    public bool IsPendingRegistration => PasswordHash is not null && EmailConfirmedAt is null;
+
+    /// <summary>A new account registered with <paramref name="email"/> (not confirmed) and a password hash.</summary>
+    public static Account Register(TimeProvider time, string email, string normalizedEmail, string passwordHash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        var account = Create(time);
+        account.SetUnconfirmedEmail(email, normalizedEmail);
+        account.PasswordHash = passwordHash;
+        return account;
+    }
+
     /// <summary>A new account with a UUID v7 identifier taken at the current time of <paramref name="time"/>.</summary>
     public static Account Create(TimeProvider time)
     {

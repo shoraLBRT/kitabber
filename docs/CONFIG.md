@@ -82,6 +82,9 @@ OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTO
 | `RateLimiting:Policies:identity.email-codes:PermitLimit` | `RateLimiting__Policies__identity.email-codes__PermitLimit` | нет | нет | `5` | политика `identity.email-codes` — письма с кодом подтверждения почты (`PUT /api/v1/account/email`, ADR-0020): сколько за окно |
 | `RateLimiting:Policies:identity.email-codes:WindowSeconds` | `RateLimiting__Policies__identity.email-codes__WindowSeconds` | нет | нет | `3600` | длина окна политики `identity.email-codes` в секундах |
 | `RateLimiting:Policies:identity.email-codes:Partition` | `RateLimiting__Policies__identity.email-codes__Partition` | нет | нет | `Account` | кого считает один счётчик `identity.email-codes`: `Account` или `Ip` |
+| `RateLimiting:Policies:identity.registrations:PermitLimit` | `RateLimiting__Policies__identity.registrations__PermitLimit` | нет | нет | `10` | политика `identity.registrations` — регистрации и повторные коды (`POST /api/v1/registration`, `POST /api/v1/registration/{id}/code`, E03-01): сколько за окно |
+| `RateLimiting:Policies:identity.registrations:WindowSeconds` | `RateLimiting__Policies__identity.registrations__WindowSeconds` | нет | нет | `3600` | длина окна политики `identity.registrations` в секундах |
+| `RateLimiting:Policies:identity.registrations:Partition` | `RateLimiting__Policies__identity.registrations__Partition` | нет | нет | `Ip` | кого считает один счётчик `identity.registrations`: `Account` или `Ip` |
 | `Http:TrustedProxies` | `Http__TrustedProxies` | нет | нет | — | сети обратных прокси, чьему `X-Forwarded-For` верим, через запятую в CIDR: `10.0.0.0/8,172.16.0.0/12`; без настройки доверяем только прокси на той же машине (loopback) |
 
 Политику модуля задают в коде (`AddRateLimitPolicy`), её ключи — `RateLimiting:Policies:<имя>:...` — модуль

@@ -5,6 +5,10 @@
 // every open connection, as a restart of the API would), POST /__realtime/push (sends an event to every connection).
 // Tests run in parallel, so each marks its browser with an `x-e2e-client` header and reads only its own connections
 // (`?client=`).
+// Registration (E03-01): POST /api/v1/registration, /{id}/code and /{id}/confirmation with the API's answers; the
+// confirmation sets the provider's session cookie. The "letters" with the codes are read with GET /__letters?to=
+// (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
+// in the e2e run; the address taken@example.com is already taken.
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
 
@@ -13,12 +17,71 @@ const hub = '/hubs/realtime'
 const separator = '\u001e'
 const tickets = new Map() // ticket -> bearer token it was bought with
 const connections = new Map() // connection token -> connection
+const registrations = new Map() // registration id -> { email, code, sentAt, confirmed }
+const letters = [] // { to, code }
+const resendSeconds = Number(process.env.FAKE_RESEND_SECONDS ?? 60)
 
 const cors = {
-  'access-control-allow-origin': '*',
   'access-control-allow-headers':
-    'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client',
+    'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client, traceparent',
   'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+  'access-control-allow-credentials': 'true',
+}
+
+function newCode() {
+  return String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')
+}
+
+function sendCode(id, registration) {
+  registration.code = newCode()
+  registration.sentAt = Date.now()
+  letters.push({ to: registration.email, code: registration.code })
+  return { registrationId: id, resendAfterSeconds: resendSeconds }
+}
+
+function resendLeft(registration) {
+  return Math.ceil((registration.sentAt + resendSeconds * 1000 - Date.now()) / 1000)
+}
+
+function tooSoon(response, seconds) {
+  response.setHeader('retry-after', String(seconds))
+  response.setHeader('access-control-expose-headers', 'retry-after')
+  return send(response, 429, { status: 429, code: 'code_too_soon' })
+}
+
+async function registration(request, response, url) {
+  if (url.pathname === '/api/v1/registration') {
+    const { email = '', password = '' } = JSON.parse((await readBody(request)) || '{}')
+    const errors = {}
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.email = ['Not an email address.']
+    if (password.trim().length < 6) errors.password = ['From 6 to 128 characters.']
+    if (Object.keys(errors).length > 0)
+      return send(response, 400, { status: 400, code: 'validation_failed', errors })
+    if (email.toLowerCase() === 'taken@example.com')
+      return send(response, 409, { status: 409, code: 'email_taken' })
+    const id = randomBytes(16)
+      .toString('hex')
+      .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
+    const entry = { email, confirmed: false }
+    registrations.set(id, entry)
+    return send(response, 202, sendCode(id, entry))
+  }
+  const [, id, action] = url.pathname.match(/^\/api\/v1\/registration\/([\w-]+)\/(code|confirmation)$/) ?? []
+  const entry = registrations.get(id)
+  if (action === 'code') {
+    if (!entry || entry.confirmed) return send(response, 404, { status: 404, code: 'registration_not_found' })
+    const left = resendLeft(entry)
+    return left > 0 ? tooSoon(response, left) : send(response, 202, sendCode(id, entry))
+  }
+  if (action === 'confirmation') {
+    const { code = '' } = JSON.parse((await readBody(request)) || '{}')
+    if (!entry || entry.confirmed || code !== entry.code)
+      return send(response, 400, { status: 400, code: 'confirmation_invalid' })
+    entry.confirmed = true
+    response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+    return send(response, 204)
+  }
+  return send(response, 404, { status: 404, code: 'not_found' })
 }
 
 function send(response, status, body, type = 'application/json') {
@@ -96,6 +159,8 @@ function state(client) {
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`)
+  // Credentialed requests (the registration's cookie) need the caller's origin, not '*'.
+  response.setHeader('access-control-allow-origin', request.headers.origin ?? '*')
   if (request.method === 'OPTIONS') return send(response, 204)
 
   if (url.pathname === '/') return send(response, 200, { ok: true })
@@ -113,6 +178,17 @@ createServer(async (request, response) => {
         enqueue(connection, { type: 1, target: 'Receive', arguments: [event] })
     return send(response, 200, state(client))
   }
+
+  if (url.pathname === '/__letters' && request.method === 'GET') {
+    const to = url.searchParams.get('to')
+    return send(
+      response,
+      200,
+      letters.filter((letter) => letter.to === to),
+    )
+  }
+  if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
+    return registration(request, response, url)
 
   if (url.pathname === '/api/v1/realtime/tickets' && request.method === 'POST') {
     const token = bearer(request)
