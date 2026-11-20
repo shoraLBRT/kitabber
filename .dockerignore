@@ -2,6 +2,8 @@
 *
 !global.json
 !Directory.Build.props
+# The analyzer settings, so the image builds with the same rules as verify (generated migrations are skipped).
+!.editorconfig
 !backend/
 # Platform.Mail builds in the product name and palette (ADR-0011, ADR-0017).
 !brand/brand.json

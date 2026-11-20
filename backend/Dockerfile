@@ -8,7 +8,8 @@ ARG RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0@sha256:12b1135f5f8b3c0a21
 FROM ${SDK_IMAGE} AS build
 WORKDIR /src
 ENV DOTNET_NOLOGO=true DOTNET_CLI_TELEMETRY_OPTOUT=true
-COPY global.json Directory.Build.props ./
+# .editorconfig: the same analyzer rules as verify; generated migrations are skipped.
+COPY global.json Directory.Build.props .editorconfig ./
 COPY backend/ backend/
 # Platform.Mail builds in the product name and palette from their single place (ADR-0011).
 COPY brand/brand.json brand/
