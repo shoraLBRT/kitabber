@@ -1,4 +1,5 @@
 using Platform.Configuration;
+using Platform.Http.RateLimiting;
 
 namespace Platform.Modules.Identity.SignIn;
 
@@ -26,6 +27,12 @@ public static class IdentitySettings
 
     /// <summary>Where the provider sends a person who has not signed in yet (the sign-in window, E03).</summary>
     public const string DefaultSignInPath = "/login";
+
+    /// <summary>
+    /// Letters with an email confirmation code (ADR-0020): at most 5 an hour per account, so the platform cannot be
+    /// used to flood someone else's mailbox. Overridden under <c>RateLimiting:Policies:identity.email-codes</c>.
+    /// </summary>
+    public static RateLimitPolicy EmailCodePolicy { get; } = new(5, TimeSpan.FromHours(1));
 
     public static IReadOnlyList<Setting> All { get; } =
     [
@@ -66,5 +73,6 @@ public static class IdentitySettings
         {
             Default = DefaultAudience,
         },
+        .. RateLimitingSettings.Policy(Email.AccountEmailEndpoints.CodePolicy, EmailCodePolicy, "letters with an email confirmation code"),
     ];
 }

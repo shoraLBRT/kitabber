@@ -1,4 +1,6 @@
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -6,6 +8,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenIddict.Validation.AspNetCore;
+using Platform.Http;
+using Platform.Http.RateLimiting;
+using Platform.Mail;
+using Platform.Messaging;
+using Platform.Modules.Identity.Email;
 using Platform.Persistence;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -138,7 +145,33 @@ public static class IdentityModule
         }
 
         services.AddSingleton(new AccessTokenAudience(audience));
+        AddEmail(services);
         return builder;
+    }
+
+    /// <summary>
+    /// Adds the module's outbox to the host's bus (<c>AddPlatformMessaging</c>): the letters the module sends, such as
+    /// the email confirmation code, are saved with its changes and delivered from there (ADR-0005, ADR-0017).
+    /// </summary>
+    public static IBusRegistrationConfigurator AddIdentityOutbox(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        bus.AddModuleOutbox<IdentityDbContext>();
+        return bus;
+    }
+
+    // The account's email and its confirmation (ADR-0020), and the policy other modules require to publish.
+    private static void AddEmail(IServiceCollection services)
+    {
+        services.AddPlatformMail();
+        services.AddScoped<AccountEmails>();
+        services.AddScoped<IAuthorizationHandler, ConfirmedEmailHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ConfirmedEmailResultHandler>();
+        services.AddAuthorizationBuilder().AddPolicy(AccountPolicies.ConfirmedEmail, policy => policy
+            .RequireAuthenticatedUser()
+            .AddRequirements(new ConfirmedEmailRequirement()));
+        services.AddRateLimitPolicy(AccountEmailEndpoints.CodePolicy, IdentitySettings.EmailCodePolicy);
+        services.AddApiEndpoints<AccountEmailEndpoints>();
     }
 
     /// <summary>Maps the authorization and token endpoints; discovery and keys are answered by the provider itself.</summary>

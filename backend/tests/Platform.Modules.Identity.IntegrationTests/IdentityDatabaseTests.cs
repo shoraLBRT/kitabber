@@ -26,15 +26,19 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
 
         Assert.Equal(
             [
-                "identity.__ef_migrations_history", "identity.accounts", "identity.oidc_applications",
-                "identity.oidc_authorizations", "identity.oidc_scopes", "identity.oidc_tokens",
+                "identity.__ef_migrations_history", "identity.accounts", "identity.email_confirmations",
+                "identity.inbox_state", "identity.oidc_applications", "identity.oidc_authorizations",
+                "identity.oidc_scopes", "identity.oidc_tokens", "identity.outbox_message", "identity.outbox_state",
             ],
             await Strings(db, """
                 SELECT table_schema || '.' || table_name FROM information_schema.tables
                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY 1
                 """));
         Assert.Equal(
-            ["created_at timestamp with time zone NO", "id uuid NO"],
+            [
+                "created_at timestamp with time zone NO", "email character varying YES",
+                "email_confirmed_at timestamp with time zone YES", "id uuid NO", "normalized_email character varying YES",
+            ],
             await Strings(db, """
                 SELECT column_name || ' ' || data_type || ' ' || is_nullable FROM information_schema.columns
                 WHERE table_schema = 'identity' AND table_name = 'accounts' ORDER BY column_name
@@ -87,6 +91,11 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
         var author = data.Id("account", 3);
         Assert.True(await identity.Accounts.AnyAsync(a => a.Id == author, Ct));
         Assert.All(await identity.Accounts.ToListAsync(Ct), a => Assert.True(a.CreatedAt < data.Now));
+        // Demo accounts may publish (ADR-0020): each has its own confirmed email.
+        var accounts = await identity.Accounts.ToListAsync(Ct);
+        Assert.All(accounts, a => Assert.True(a.EmailConfirmedAt > a.CreatedAt));
+        Assert.Equal(IdentityDemoSeeder.Count, accounts.Select(a => a.NormalizedEmail).Distinct().Count());
+        Assert.Contains(accounts, a => a.Id == author && a.Email == "demo3@example.com");
     }
 
     private static ServiceProvider Provider(string connectionString) =>
