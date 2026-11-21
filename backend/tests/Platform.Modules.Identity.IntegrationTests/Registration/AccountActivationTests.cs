@@ -11,7 +11,7 @@ using static Platform.Modules.Identity.IntegrationTests.Registration.Registratio
 namespace Platform.Modules.Identity.IntegrationTests.Registration;
 
 /// <summary>
-/// E04-01 (ADR-0024): Identity tells other modules about an account once it is here to stay — its email is confirmed
+/// E04-01 (ADR-0025): Identity tells other modules about an account once it is here to stay — its email is confirmed
 /// for the first time — through the module outbox, so the Blogs module can give it a personal blog. A registration
 /// waiting for its code is not announced; a later sign-in of the same account is not announced again.
 /// </summary>

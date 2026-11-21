@@ -144,7 +144,7 @@ openssl rand -base64 32                                                         
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |
-| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: блоги и inbox потребителей модуля Blogs в схеме `blogs` ([ADR-0024](adr/0024-blogs-subsite-and-profile.md)) |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: блоги и inbox потребителей модуля Blogs в схеме `blogs` ([ADR-0025](adr/0025-blogs-subsite-and-profile.md)) |
 | `Messaging:Transport` | `Messaging__Transport` | нет | нет | `RabbitMq` | транспорт шины: `RabbitMq` или `InMemory` (для тестов) |
 | `ConnectionStrings:RabbitMq` | `ConnectionStrings__RabbitMq` | да | при транспорте `RabbitMq` | — | брокер: `amqp://user:password@host:port/vhost` |
 | `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша: `Redis` или `InMemory` (для тестов) |

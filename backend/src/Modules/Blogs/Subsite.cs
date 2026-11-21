@@ -14,7 +14,7 @@ public enum SubsiteType
 }
 
 /// <summary>
-/// A blog (ADR-0024): the personal blog of an account or a topic. The owner is known only by the account_id
+/// A blog (ADR-0025): the personal blog of an account or a topic. The owner is known only by the account_id
 /// (FR-ID-1); the name, the description and the nickname are the profile people see.
 /// </summary>
 public sealed class Subsite

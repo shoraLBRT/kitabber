@@ -233,7 +233,7 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, IPublish
         }
     }
 
-    // An account whose email is confirmed for the first time in this save is activated (ADR-0024): the event goes into
+    // An account whose email is confirmed for the first time in this save is activated (ADR-0025): the event goes into
     // the module's outbox and is saved, or dropped, together with the confirmation.
     private async Task PublishActivationsAsync(CancellationToken cancellationToken)
     {

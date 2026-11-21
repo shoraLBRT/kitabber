@@ -18,7 +18,7 @@ namespace Platform.Modules.Blogs.Profiles;
 public sealed record Profile(Guid Id, string Type, string? Name, string? Nickname, string? Description, DateTimeOffset? RegisteredAt);
 
 /// <summary>
-/// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0024): a blog's profile by its identifier or by its nickname, open to
+/// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0025): a blog's profile by its identifier or by its nickname, open to
 /// everyone, and the signed-in account's own profile. Editing the profile is E04-03, the nickname rules E04-05.
 /// </summary>
 public sealed class ProfileEndpoints : IApiEndpoints
