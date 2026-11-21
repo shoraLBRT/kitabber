@@ -97,6 +97,12 @@ test.describe('настройки блога', () => {
     const avatar = blog.locator('img.blog__avatar')
     await expect(avatar).toHaveAttribute('src', saved.avatarUrl)
     await expect.poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    // The 64 px avatar in the width for the screen's density (ADR-0040): 64 at one device pixel per CSS pixel
+    // (desktop), 192 at three (the phone profile).
+    const density = await page.evaluate(() => window.devicePixelRatio)
+    await expect
+      .poll(() => avatar.evaluate((img: HTMLImageElement) => img.currentSrc))
+      .toMatch(new RegExp(`-${64 * density}\\.webp$`))
 
     // And after a reload, rendered by the server.
     await page.reload()

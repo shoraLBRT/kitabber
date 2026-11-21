@@ -6,14 +6,21 @@ import { Bookmark, FileText, LogOut, Pencil, Settings, Trash2, User } from 'luci
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { faviconHref } from '../../brand/favicon'
 import { useToast } from '../composables/useToast'
-import type { MenuItem, TabItem } from '../types/ui'
+import type { ImageSource, MenuItem, TabItem } from '../types/ui'
 import UiAvatar from './ui/UiAvatar.vue'
 import UiButton from './ui/UiButton.vue'
 import UiField from './ui/UiField.vue'
+import UiImage from './ui/UiImage.vue'
 import UiMenu from './ui/UiMenu.vue'
 import UiModal from './ui/UiModal.vue'
 import UiSheet from './ui/UiSheet.vue'
 import UiTabs from './ui/UiTabs.vue'
+
+// One picture in three widths (server/routes/showcase), as the API gives the sources of an uploaded image (ADR-0040).
+const landscape: ImageSource[] = [320, 640, 1280].map((width) => ({
+  url: `/showcase/landscape-${width}.svg`,
+  width,
+}))
 
 const themeTabs: TabItem[] = [
   { id: 'system', label: 'Системная' },
@@ -163,6 +170,41 @@ function save() {
         <UiAvatar name="Вера Лис" src="/missing-avatar.png" size="sm" />
       </div>
     </section>
+
+    <section class="showcase__section" data-testid="showcase-UiImage">
+      <h2>Изображение — UiImage</h2>
+      <p>
+        Место под картинку занято заранее, браузер берёт ширину под плотность экрана и загружает картинку,
+        только когда до неё доходит прокрутка. Без ссылки и при ошибке остаётся заглушка того же размера.
+      </p>
+      <div class="showcase__images">
+        <figure class="showcase__figure">
+          <UiImage
+            :sources="landscape"
+            sizes="320px"
+            :width="320"
+            :height="200"
+            alt="Горы у озера"
+            data-testid="showcase-image"
+          />
+          <figcaption>Загружено</figcaption>
+        </figure>
+        <figure class="showcase__figure">
+          <UiImage :width="320" :height="200" alt="Нет изображения" data-testid="showcase-image-empty" />
+          <figcaption>Пусто</figcaption>
+        </figure>
+        <figure class="showcase__figure">
+          <UiImage
+            src="/missing-image.svg"
+            :width="320"
+            :height="200"
+            alt="Горы у озера"
+            data-testid="showcase-image-error"
+          />
+          <figcaption>Ошибка</figcaption>
+        </figure>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -184,6 +226,25 @@ function save() {
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+.showcase__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+/* Half the feed, 320 px, as the sizes of the picture say; narrower on a phone. */
+.showcase__figure {
+  width: calc(var(--size-feed) / 2);
+  max-width: 100%;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.showcase__figure figcaption {
+  margin-top: var(--space-2);
 }
 
 .showcase__grid {

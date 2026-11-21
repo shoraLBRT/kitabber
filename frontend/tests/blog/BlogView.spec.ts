@@ -17,6 +17,7 @@ const anna: Profile = {
   registeredAt: null,
   avatarId: null,
   avatarUrl: null,
+  avatarSources: [],
 }
 
 function mountView(state: ProfileLookup | { status: 'loading' }, tab: 'posts' | 'comments' = 'posts') {
@@ -42,6 +43,17 @@ describe('BlogView', () => {
     const avatarUrl = 'https://example.org/img/signature/rs:fill:128:128:0/g:ce/b3JpZ2luYWxz.webp'
     const withAvatar = mountView({ status: 'found', profile: { ...anna, avatarUrl }, owner: false })
     expect(withAvatar.get('img.blog__avatar').attributes('src')).toBe(avatarUrl)
+    // With its sources the browser picks the width for the screen's density (ADR-0040).
+    const avatarSources = [64, 128, 192].map((width) => ({
+      url: `https://example.org/img/${width}.webp`,
+      width,
+    }))
+    const dense = mountView({ status: 'found', profile: { ...anna, avatarUrl, avatarSources }, owner: false })
+    const img = dense.get('img.blog__avatar')
+    expect(img.attributes('srcset')).toBe(
+      'https://example.org/img/64.webp 64w, https://example.org/img/128.webp 128w, https://example.org/img/192.webp 192w',
+    )
+    expect(img.attributes('sizes')).toBe('64px')
     const without = mountView({ status: 'found', profile: anna, owner: false })
     expect(without.find('img.blog__avatar').exists()).toBe(false)
     expect(without.get('.blog__avatar').text()).toBe('А')

@@ -1,26 +1,29 @@
 <script setup lang="ts">
 // Avatar (E02-04, ADR-0013): the picture, or the initials when there is none or it fails to load. Its accessible
-// name is the person's name; next to a visible name pass decorative to hide it from screen readers.
-import { computed, onMounted, ref, watch } from 'vue'
+// name is the person's name; next to a visible name pass decorative to hide it from screen readers. The picture is a
+// UiImage (E06-04, ADR-0040): with sources the browser takes the width that fits the avatar's size at the screen's
+// density.
+import { computed, ref, watch } from 'vue'
+import type { ImageSource } from '../../types/ui'
+import UiImage from './UiImage.vue'
 
 const props = withDefaults(
   defineProps<{
     name: string
     src?: string
+    sources?: readonly ImageSource[]
     size?: 'sm' | 'md' | 'lg'
     decorative?: boolean
   }>(),
-  { src: undefined, size: 'md' },
+  { src: undefined, sources: () => [], size: 'md' },
 )
 
+// The CSS width of each size (--space-8, --space-10, --space-16), the sizes attribute of the picture.
+const pixels = { sm: 32, md: 40, lg: 64 } as const
+
 const failed = ref(false)
-const img = ref<HTMLImageElement>()
-// A picture rendered on the server may fail before hydration, when @error is not listened to yet.
-onMounted(() => {
-  if (img.value?.complete && img.value.naturalWidth === 0) failed.value = true
-})
 watch(
-  () => props.src,
+  () => [props.src, props.sources],
   () => {
     failed.value = false
   },
@@ -38,12 +41,15 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <img
-    v-if="src && !failed"
-    ref="img"
+  <UiImage
+    v-if="(src || sources.length > 0) && !failed"
     class="ui-avatar"
     :class="`ui-avatar--${size}`"
     :src="src"
+    :sources="sources"
+    :sizes="`${pixels[size]}px`"
+    :width="pixels[size]"
+    :height="pixels[size]"
     :alt="decorative ? '' : name"
     :aria-hidden="decorative ? 'true' : undefined"
     @error="failed = true"
@@ -69,7 +75,6 @@ const initials = computed(() => {
   width: var(--space-10);
   height: var(--space-10);
   border-radius: var(--radius-full);
-  object-fit: cover;
 }
 
 .ui-avatar--sm {

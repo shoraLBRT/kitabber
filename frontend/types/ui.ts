@@ -14,3 +14,9 @@ export interface TabItem {
   label: string
   disabled?: boolean
 }
+
+/** One width of a responsive picture (ADR-0040): a link and the width in pixels it asks for, a srcset candidate. */
+export interface ImageSource {
+  url: string
+  width: number
+}

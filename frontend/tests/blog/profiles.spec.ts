@@ -24,6 +24,7 @@ const profile = {
   registeredAt: null,
   avatarId: null,
   avatarUrl: null,
+  avatarSources: [],
 }
 
 function clientAnswering(status: number, body: unknown) {
