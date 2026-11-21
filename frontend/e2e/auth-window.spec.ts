@@ -63,7 +63,10 @@ test.describe('окно входа', () => {
     await expectAccessible(page)
 
     await password.fill('secret-1')
+    // The sign-in leaves /ui for the provider and comes back through the callback.
+    const callback = page.waitForRequest((request) => new URL(request.url()).pathname === '/auth/callback')
     await press(submit)
+    await callback
 
     // Back on the same page, signed in, and the like is set by itself — once.
     await page.waitForURL((url) => url.pathname === '/ui')

@@ -13,6 +13,18 @@ const registration = registrationApi($api)
 const state = useAuthWindow()
 const route = useRoute()
 
+// The window is rendered from its first opening on, never on the server: an empty teleport of a closed window next
+// to the open editor window in #teleports made the hydration of /write mismatch. Once rendered it stays, so closing
+// returns the focus to the button that opened it.
+const rendered = ref(false)
+watch(
+  () => state.value.open,
+  (isOpen) => {
+    if (isOpen) rendered.value = true
+  },
+  { immediate: true },
+)
+
 const open = computed({
   get: () => state.value.open,
   set: (value: boolean) => {
@@ -35,6 +47,7 @@ async function signedIn() {
 
 <template>
   <AuthWindow
+    v-if="rendered"
     v-model:open="open"
     v-model:mode="mode"
     :sign-in-api="signIn"
