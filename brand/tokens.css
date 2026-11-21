@@ -45,6 +45,8 @@
   --size-aside: 320px;
   --size-touch: 44px;
   --size-tab-bar: 56px;
+  --size-editor-width: 800px;
+  --size-editor-height: 700px;
 }
 
 :root,
