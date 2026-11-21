@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Media module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such as
+      Blogs for the avatar (E04-03, ADR-0034), ask about an uploaded file without reading the schema `media`.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Media.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>

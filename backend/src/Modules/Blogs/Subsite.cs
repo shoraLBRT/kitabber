@@ -37,6 +37,12 @@ public sealed class Subsite
     /// <summary>The short address in lower case (<see cref="SubsiteRules.NormalizeNickname"/>); <c>null</c> until it is set.</summary>
     public string? Nickname { get; private set; }
 
+    /// <summary>
+    /// The avatar: an image uploaded through the Media module (ADR-0034), already cropped by the client; <c>null</c>
+    /// until it is set. Only the identifier is kept here, the file stays in the schema <c>media</c>.
+    /// </summary>
+    public Guid? AvatarMediaId { get; private set; }
+
     /// <summary>The personal blog of <paramref name="ownerAccountId"/>, created at <paramref name="createdAt"/>, with an empty profile.</summary>
     public static Subsite CreatePersonal(Guid ownerAccountId, DateTimeOffset createdAt)
     {
@@ -77,6 +83,20 @@ public sealed class Subsite
         }
 
         Description = value;
+    }
+
+    /// <summary>
+    /// Sets the avatar to the uploaded image <paramref name="mediaId"/>, or removes it with <c>null</c>. Whether the file
+    /// is an image of the owner is checked by the caller through <c>IMediaLibrary</c> (ADR-0034).
+    /// </summary>
+    public void SetAvatar(Guid? mediaId)
+    {
+        if (mediaId == Guid.Empty)
+        {
+            throw new ArgumentException("Not a media file identifier.", nameof(mediaId));
+        }
+
+        AvatarMediaId = mediaId;
     }
 
     /// <summary>

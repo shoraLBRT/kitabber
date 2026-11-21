@@ -166,7 +166,8 @@ export interface paths {
         };
         /** The signed-in account's personal blog */
         get: operations["GetOwnProfile"];
-        put?: never;
+        /** Replaces the name, the description and the avatar of the signed-in account's personal blog */
+        put: operations["UpdateOwnProfile"];
         post?: never;
         delete?: never;
         options?: never;
@@ -362,6 +363,14 @@ export interface components {
             description: null | string;
             /** Format: date-time */
             registeredAt: null | string;
+            /** Format: uuid */
+            avatarId: null | string;
+        };
+        ProfileInput: {
+            name?: null | string;
+            description?: null | string;
+            /** Format: uuid */
+            avatarId?: null | string;
         };
         RealtimeTicket: {
             ticket: string;
@@ -859,6 +868,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOwnProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Unauthorized */
