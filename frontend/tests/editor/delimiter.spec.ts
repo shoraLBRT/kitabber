@@ -130,8 +130,7 @@ describe('removeSelectedDelimiter', () => {
 })
 
 describe('continueAfterDelimiter', () => {
-  const added = (name: string, selected = true) =>
-    ({ id: 'd1', name, selected }) as unknown as BlockAPI
+  const added = (name: string, selected = true) => ({ id: 'd1', name, selected }) as unknown as BlockAPI
 
   it('adds a text block after a delimiter added last and puts the caret there', () => {
     const api = fakeApi(2)

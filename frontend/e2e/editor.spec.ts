@@ -615,8 +615,26 @@ async function startWithDelimiter(page: Page) {
   await expect(paragraphs(page).nth(1)).toBeFocused()
   await page.keyboard.type('Второй')
   await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
-  // Editor.js reports the added blocks in a batch a moment later; the keys of the tests come after it.
-  await expect.poll(() => step(page)).toBeGreaterThan(2)
+  await settled(page)
+}
+
+/**
+ * Waits until the history stops moving: Editor.js reports changes in batches some time after them, and the keys of
+ * a test should come after the last one.
+ */
+async function settled(page: Page) {
+  let last = -1
+  await expect
+    .poll(
+      async () => {
+        const now = await step(page)
+        const same = now === last
+        last = now
+        return same && now > 0
+      },
+      { intervals: [800] },
+    )
+    .toBe(true)
 }
 
 test('adds a delimiter that is not editable and keeps it through undo and redo', async ({ page }) => {
