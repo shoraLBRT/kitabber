@@ -244,6 +244,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a file: an image, a video, audio or a PDF, checked by its content */
+        post: operations["UploadMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realtime/tickets": {
         parameters: {
             query?: never;
@@ -290,6 +307,8 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        /** Format: binary */
+        IFormFile: string;
         JsonElement: unknown;
         JsonObject: Record<string, never>;
         PasswordSignInRequest: {
@@ -370,6 +389,17 @@ export interface components {
             challengeId: string;
             /** Format: int32 */
             resendAfterSeconds: number;
+        };
+        UploadedMedia: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            contentType: string;
+            /** Format: int64 */
+            size: number;
+            fileName: null | string;
+            /** Format: date-time */
+            createdAt: string;
         };
     };
     responses: never;
@@ -1095,6 +1125,68 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadedMedia"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

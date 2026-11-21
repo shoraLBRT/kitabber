@@ -21,6 +21,7 @@
         <ProjectReference Include="../Http/Platform.Http.csproj" />
         <ProjectReference Include="../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../Modules/Blogs/Platform.Modules.Blogs.csproj" />
+        <ProjectReference Include="../Modules/Media/Platform.Modules.Media.csproj" />
         <ProjectReference Include="../Modules/Editor/Platform.Modules.Editor.csproj" />
         <ProjectReference Include="../Modules/Identity/Platform.Modules.Identity.csproj" />
         <ProjectReference Include="../Modules/Posts/Platform.Modules.Posts.csproj" />

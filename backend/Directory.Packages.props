@@ -64,6 +64,10 @@
     <ItemGroup>
         <PackageVersion Include="HtmlSanitizer" Version="11.0.26" />
     </ItemGroup>
+    <!-- The object storage of media over the S3 API: any S3-compatible service, MinIO locally (Apache-2.0; ADR-0030). -->
+    <ItemGroup>
+        <PackageVersion Include="AWSSDK.S3" Version="4.1.2" />
+    </ItemGroup>
 
     <!-- Tests: xUnit v3 through VSTest, Testcontainers, Respawn and a fake clock (ADR-0008). -->
     <ItemGroup>

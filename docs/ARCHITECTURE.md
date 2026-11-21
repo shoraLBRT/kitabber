@@ -21,7 +21,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>
   src/Seeding/             Platform.Seeding — демо-данные: зерно, фабрики объектов, демо-сидеры модулей (ADR-0009)
-  src/Modules/             модули из ADR-0001 (появляются с задачами модулей); Identity — аккаунты (ADR-0002); Editor — схемы блоков и очистка HTML (ADR-0023)
+  src/Modules/             модули из ADR-0001 (появляются с задачами модулей); Identity — аккаунты (ADR-0002); Editor — схемы блоков и очистка HTML (ADR-0023); Media — загрузка файлов и хранилище S3 (ADR-0030)
   tests/Platform.Testing/  общий каркас тестов: контейнеры, фабрики API, Respawn, часы (ADR-0008)
   tests/                   тестовые проекты: *.Tests без Docker, *.IntegrationTests на Testcontainers
   tests/ArchitectureFixtures/  модули-образцы с нарочным нарушением границ (Platform.Architecture.Tests)

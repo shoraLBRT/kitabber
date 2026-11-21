@@ -37,6 +37,12 @@ services:
       Identity__Clients__Web__RedirectUris: ${SITE_URL:?set in the env file}/auth/callback
       Identity__SigningKey: ${IDENTITY_SIGNING_KEY:?set in the env file}
       Identity__EncryptionKey: ${IDENTITY_ENCRYPTION_KEY:?set in the env file}
+      # The stand's S3 bucket of media (ADR-0030): any S3-compatible service, chosen by the owner (docs/DEPLOY.md).
+      Media__Storage__ServiceUrl: ${MEDIA_STORAGE_URL:?set in the env file}
+      Media__Storage__Region: ${MEDIA_STORAGE_REGION:?set in the env file}
+      Media__Storage__Bucket: ${MEDIA_STORAGE_BUCKET:?set in the env file}
+      Media__Storage__AccessKey: ${MEDIA_STORAGE_ACCESS_KEY:?set in the env file}
+      Media__Storage__SecretKey: ${MEDIA_STORAGE_SECRET_KEY:?set in the env file}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

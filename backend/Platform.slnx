@@ -37,6 +37,9 @@
   <Folder Name="/src/Modules/Identity/">
     <Project Path="src/Modules/Identity/Platform.Modules.Identity.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Media/">
+    <Project Path="src/Modules/Media/Platform.Modules.Media.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity.Contracts/">
     <Project Path="src/Modules/Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
   </Folder>
@@ -71,6 +74,7 @@
     <Project Path="tests/Platform.Modules.Editor.Tests/Platform.Modules.Editor.Tests.csproj" />
     <Project Path="tests/Platform.Modules.Identity.IntegrationTests/Platform.Modules.Identity.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Posts.IntegrationTests/Platform.Modules.Posts.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Modules.Media.IntegrationTests/Platform.Modules.Media.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Seeding.Tests/Platform.Seeding.Tests.csproj" />

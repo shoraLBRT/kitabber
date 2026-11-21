@@ -12,6 +12,7 @@ using Platform.Configuration;
 using Platform.Messaging;
 using Platform.Modules.Identity;
 using Platform.Modules.Identity.SignIn;
+using Platform.Modules.Media;
 using Platform.Testing.Time;
 
 namespace Platform.Testing.Api;
@@ -71,6 +72,8 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(IdentitySettings.SyncClientsKey, "false");
         // The bus is in memory; a test that needs a broker sets Messaging:Transport back to RabbitMq.
         builder.UseSetting(MessagingServiceCollectionExtensions.TransportKey, nameof(MessagingTransport.InMemory));
+        // The object storage is the in-memory fake; a test of the S3 storage starts MinIO itself (MinioFixture).
+        builder.UseSetting(MediaSettings.ProviderKey, nameof(StorageProvider.InMemory));
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);
