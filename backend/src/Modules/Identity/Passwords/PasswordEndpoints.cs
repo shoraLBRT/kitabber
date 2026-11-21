@@ -55,9 +55,8 @@ public sealed class PasswordEndpoints : IApiEndpoints
             .WithName("ResetPassword")
             .WithSummary("Sets the new password with the code from the letter, ends every earlier session and signs the person in");
 
-        v1.MapPut("/account/password", ChangeAsync)
-            .RequireAuthorization()
-            .WithTags("Account")
+        var account = v1.MapGroup("/account/password").RequireAuthorization().WithTags("Account");
+        account.MapPut(string.Empty, ChangeAsync)
             .WithRateLimit(SignInEndpoints.AttemptPolicy)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
