@@ -442,6 +442,7 @@ export interface components {
             /** Format: uuid */
             authorAccountId: string;
             title: null | string;
+            slug: null | string;
             body: components["schemas"]["JsonObject"];
             status: string;
             origin: string;

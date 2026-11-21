@@ -32,6 +32,10 @@ public sealed record PostSourceView(string Channel, string Message, string? Url)
 /// <param name="BlogId">The blog it is in.</param>
 /// <param name="AuthorAccountId">Its author.</param>
 /// <param name="Title"><c>null</c> for a short post.</param>
+/// <param name="Slug">
+/// The slug of the post's address <c>&lt;blog address&gt;/&lt;id&gt;-&lt;slug&gt;</c>, transliterated from the title
+/// (ADR-0041); <c>null</c> for a post without a title, whose address ends with the id alone.
+/// </param>
 /// <param name="Body">The cleaned block document.</param>
 /// <param name="Status"><c>draft</c> (only the author sees it) or <c>published</c>.</param>
 /// <param name="Origin"><c>native</c> or <c>telegram</c>.</param>
@@ -44,6 +48,7 @@ public sealed record PostView(
     Guid BlogId,
     Guid AuthorAccountId,
     string? Title,
+    string? Slug,
     JsonObject Body,
     string Status,
     string Origin,
@@ -234,6 +239,7 @@ public sealed class PostEndpoints : IApiEndpoints
         post.BlogId,
         post.AuthorAccountId,
         post.Title,
+        PostSlug.From(post.Title),
         JsonNode.Parse(post.Body)!.AsObject(),
         post.Status == PostStatus.Published ? "published" : "draft",
         post.Origin == PostOrigin.Telegram ? "telegram" : "native",
