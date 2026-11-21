@@ -205,6 +205,8 @@ public static class IdentityModule
         services.AddRateLimitPolicy(SignInEndpoints.CodePolicy, IdentitySettings.SignInCodePolicy);
         services.AddRateLimitPolicy(SignInEndpoints.AddressCodePolicy, IdentitySettings.SignInCodeAddressPolicy);
         services.AddApiEndpoints<SignInEndpoints>();
+        services.AddScoped<Passwords.AccountPasswords>();
+        services.AddApiEndpoints<Passwords.PasswordEndpoints>();
     }
 
     /// <summary>Maps the authorization and token endpoints; discovery and keys are answered by the provider itself.</summary>

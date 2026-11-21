@@ -26,6 +26,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
 
     public DbSet<SignIn.SignInCode> SignInCodes => Set<SignIn.SignInCode>();
 
+    public DbSet<Passwords.PasswordReset> PasswordResets => Set<Passwords.PasswordReset>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,6 +51,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             account.Ignore(a => a.HasConfirmedEmail);
             account.Ignore(a => a.IsPendingRegistration);
             account.Property(a => a.PasswordHash).HasMaxLength(256);
+            account.Property(a => a.SessionStamp).HasMaxLength(64);
         });
         modelBuilder.Entity<EmailConfirmation>(confirmation =>
         {
@@ -66,6 +69,13 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             code.Property(c => c.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
             code.Property(c => c.Email).HasMaxLength(EmailAddresses.MaxLength);
             code.HasIndex(c => c.Id).IsUnique();
+        });
+        // Password reset codes (ADR-0036): one per address, registered or not, like the sign-in codes.
+        modelBuilder.Entity<Passwords.PasswordReset>(reset =>
+        {
+            reset.HasKey(r => r.NormalizedEmail);
+            reset.Property(r => r.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
+            reset.HasIndex(r => r.Id).IsUnique();
         });
     }
 }
