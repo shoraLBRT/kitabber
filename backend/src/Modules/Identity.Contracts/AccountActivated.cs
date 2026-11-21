@@ -1,7 +1,7 @@
 namespace Platform.Modules.Identity.Contracts;
 
 /// <summary>
-/// An account is here to stay (ADR-0023): it has just got its first confirmed way to sign in, the email confirmed by a
+/// An account is here to stay (ADR-0024): it has just got its first confirmed way to sign in, the email confirmed by a
 /// code. A registration that is still waiting for its code is not one yet: it may be replaced and deleted (ADR-0021).
 /// Published once per account through the Identity outbox; other modules create what every account has, such as its
 /// personal blog, and must handle a repeat without harm.

@@ -6,7 +6,7 @@ using Platform.Modules.Identity.Contracts;
 
 namespace Platform.Modules.Blogs;
 
-/// <summary>The personal blog every account has (FR-PROFILE, ADR-0023).</summary>
+/// <summary>The personal blog every account has (FR-PROFILE, ADR-0024).</summary>
 public sealed class PersonalBlogs(BlogsDbContext db, TimeProvider time)
 {
     /// <summary>The personal blog of <paramref name="accountId"/>, or <c>null</c> when it has none yet.</summary>

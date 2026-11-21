@@ -10,7 +10,7 @@ using Platform.Persistence;
 namespace Platform.Modules.Blogs;
 
 /// <summary>
-/// The Blogs module in the hosts (ADR-0023): the profile API in the API host, the consumer of Identity events in the
+/// The Blogs module in the hosts (ADR-0024): the profile API in the API host, the consumer of Identity events in the
 /// workers.
 /// </summary>
 public static class BlogsModule

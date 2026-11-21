@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <!--
-      The Blogs module (FR-PROFILE, ADR-0023): the Subsite, one entity for a person's blog and for a topic, and the
+      The Blogs module (FR-PROFILE, ADR-0024): the Subsite, one entity for a person's blog and for a topic, and the
       profile API. Its tables live in the schema `blogs`; it knows an account only by its account_id (FR-ID-1) and
       learns about new accounts from the Identity event AccountActivated.
     -->
