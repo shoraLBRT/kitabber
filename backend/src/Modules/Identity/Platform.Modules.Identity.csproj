@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../Configuration/Platform.Configuration.csproj" />
+        <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../../Http/Platform.Http.csproj" />
         <ProjectReference Include="../../Mail/Platform.Mail.csproj" />
         <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />

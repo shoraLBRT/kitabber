@@ -115,7 +115,7 @@ Identity — провайдер OpenID Connect ([ADR-0002](adr/0002-identity.md)
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |
-| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: аккаунты, клиенты, коды и токены в схеме `identity` |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: аккаунты, клиенты, коды и токены в схеме `identity`, блоги в схеме `blogs` |
 | `Identity:Issuer` | `Identity__Issuer` | нет | нет | адрес запроса | публичный адрес провайдера, `iss` всех токенов, например `https://example.org/`; на стенде — адрес сайта |
 | `Identity:SigningKey` | `Identity__SigningKey` | да | вне Development и Test | ключ создаётся при старте | закрытый ключ RSA (от 2048 бит), которым подписываются токены: PEM или base64 от DER (PKCS#8 или PKCS#1) |
 | `Identity:EncryptionKey` | `Identity__EncryptionKey` | да | вне Development и Test | ключ создаётся при старте | base64 от 32 случайных байт (AES-256): шифрует коды авторизации |
@@ -144,6 +144,7 @@ openssl rand -base64 32                                                         
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: блоги и inbox потребителей модуля Blogs в схеме `blogs` ([ADR-0025](adr/0025-blogs-subsite-and-profile.md)) |
 | `Messaging:Transport` | `Messaging__Transport` | нет | нет | `RabbitMq` | транспорт шины: `RabbitMq` или `InMemory` (для тестов) |
 | `ConnectionStrings:RabbitMq` | `ConnectionStrings__RabbitMq` | да | при транспорте `RabbitMq` | — | брокер: `amqp://user:password@host:port/vhost` |
 | `Cache:Provider` | `Cache__Provider` | нет | нет | `Redis` | хранилище кэша: `Redis` или `InMemory` (для тестов) |

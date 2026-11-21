@@ -1,0 +1,72 @@
+using MassTransit;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Platform.Configuration;
+using Platform.Http;
+using Platform.Modules.Blogs.Profiles;
+using Platform.Persistence;
+
+namespace Platform.Modules.Blogs;
+
+/// <summary>
+/// The Blogs module in the hosts (ADR-0025): the profile API in the API host, the consumer of Identity events in the
+/// workers.
+/// </summary>
+public static class BlogsModule
+{
+    /// <summary>The platform database, as in the migrator (ADR-0004).</summary>
+    public const string ConnectionStringName = "Platform";
+
+    public const string DatabaseKey = "ConnectionStrings:" + ConnectionStringName;
+
+    /// <summary>The settings the workers check at start for this module; each one is described in docs/CONFIG.md.</summary>
+    public static IReadOnlyList<Setting> WorkerSettings { get; } =
+    [
+        new(DatabaseKey, "PostgreSQL of the platform: Host=...;Database=...;Username=...;Password=...")
+        {
+            Secret = true,
+            RequiredWhen = Setting.Always,
+        },
+    ];
+
+    /// <summary>The profile API (<see cref="ProfileEndpoints"/>) and its database, in the API host.</summary>
+    public static WebApplicationBuilder AddBlogsModule(this WebApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        AddServices(builder.Services, builder.Configuration);
+        builder.Services.AddApiEndpoints<ProfileEndpoints>();
+        return builder;
+    }
+
+    /// <summary>The module's database and services in the workers host; the consumers come from <see cref="AddBlogsConsumers"/>.</summary>
+    public static IServiceCollection AddBlogsWorkers(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+        AddServices(services, configuration);
+        return services;
+    }
+
+    /// <summary>
+    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing, so its outbox is
+    /// not the bus outbox of the host (#281): only the consumers' inbox and their own sends use it.
+    /// </summary>
+    public static IBusRegistrationConfigurator AddBlogsConsumers(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        bus.AddConsumer<AccountActivatedConsumer, AccountActivatedConsumerDefinition>();
+        bus.AddEntityFrameworkOutbox<BlogsDbContext>(outbox =>
+        {
+            outbox.UsePostgres();
+            outbox.DuplicateDetectionWindow = TimeSpan.FromDays(1);
+        });
+        return bus;
+    }
+
+    private static void AddServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddModuleDbContext<BlogsDbContext>(configuration.GetConnectionString(ConnectionStringName)!);
+        services.AddScoped<PersonalBlogs>();
+    }
+}

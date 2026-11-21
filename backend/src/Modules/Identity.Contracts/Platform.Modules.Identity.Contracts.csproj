@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Identity module (docs/ARCHITECTURE.md, "Границы модулей"): the events other modules
+      react to. They carry only the account_id and times, never an email or a password (FR-ID-1).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Identity.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>

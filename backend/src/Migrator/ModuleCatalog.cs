@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Modules.Blogs;
 using Platform.Modules.Identity;
 using Platform.Persistence;
 
@@ -15,5 +16,6 @@ public static class ModuleCatalog
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddModuleDbContext<IdentityDbContext>(connectionString);
+        services.AddModuleDbContext<BlogsDbContext>(connectionString);
     }
 }

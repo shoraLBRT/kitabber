@@ -3,6 +3,7 @@ using Platform.Configuration;
 using Platform.Http;
 using Platform.Http.RateLimiting;
 using Platform.Messaging;
+using Platform.Modules.Blogs;
 using Platform.Modules.Editor;
 using Platform.Modules.Identity.SignIn;
 using Platform.Realtime;
@@ -15,6 +16,7 @@ builder.Services.AddPlatformApi();
 builder.Services.AddPlatformRateLimiting(builder.Configuration);
 builder.AddIdentityModule();
 builder.Services.AddEditorModule();
+builder.AddBlogsModule();
 builder.Services.AddPlatformMessaging(builder.Configuration, bus => bus.AddIdentityOutbox());
 builder.Services.AddPlatformRealtime(builder.Configuration);
 

@@ -10,7 +10,7 @@ namespace Platform.Modules.Identity;
 /// </summary>
 public sealed class AccountFactory(SeedData data) : ObjectFactory<Account>(data)
 {
-    public override string Kind => "account";
+    public override string Kind => Contracts.IdentityDemo.AccountKind;
 
     protected override Account Create(int number)
     {
@@ -29,7 +29,7 @@ public sealed class AccountFactory(SeedData data) : ObjectFactory<Account>(data)
 /// <summary>The demo accounts: <see cref="Count"/> of them, added only where they are missing.</summary>
 public sealed class IdentityDemoSeeder(IdentityDbContext db) : IDemoSeeder
 {
-    public const int Count = 20;
+    public const int Count = Contracts.IdentityDemo.AccountCount;
 
     public string Name => IdentityDbContext.Schema;
 
