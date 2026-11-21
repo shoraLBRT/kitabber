@@ -513,6 +513,130 @@
         }
       }
     },
+    "/api/v1/profiles/me": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "The signed-in account's personal blog",
+        "operationId": "GetOwnProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "A blog's profile by its identifier",
+        "operationId": "GetProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/by-nickname/{nickname}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "A blog's profile by its nickname (with or without @, any case)",
+        "operationId": "GetProfileByNickname",
+        "parameters": [
+          {
+            "name": "nickname",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realtime/tickets": {
       "post": {
         "tags": [
@@ -723,6 +847,51 @@
           }
         }
       },
+      "Profile": {
+        "required": [
+          "id",
+          "type",
+          "name",
+          "nickname",
+          "description",
+          "registeredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "registeredAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "RealtimeTicket": {
         "required": [
           "ticket",
@@ -836,6 +1005,9 @@
     },
     {
       "name": "Editor"
+    },
+    {
+      "name": "Profiles"
     },
     {
       "name": "Realtime"
