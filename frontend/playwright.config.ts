@@ -59,6 +59,9 @@ export default defineConfig({
       env: {
         FAKE_OIDC_PORT: String(providerPort),
         FAKE_OIDC_REDIRECT_URI: `http://127.0.0.1:${port}/auth/callback`,
+        // Access tokens of 3 seconds: the site renews them on almost every request, so every test runs through the
+        // silent refresh (E03-03), and e2e/session.spec.ts sees a session outlive its first token.
+        FAKE_OIDC_ACCESS_SECONDS: '3',
       },
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

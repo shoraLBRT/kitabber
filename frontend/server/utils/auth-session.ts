@@ -1,22 +1,30 @@
-// The person's session on the Nuxt server (BFF, ADR-0018): the tokens stay in server storage under a random id, the
-// browser holds only that id in an encrypted, HttpOnly, SameSite=Lax cookie. Server storage is in memory for now:
-// a restart signs everyone out of the site (not out of the provider), sessions shared between instances and refresh
-// tokens come with #29.
+// The person's session on the Nuxt server (BFF, ADR-0018, ADR-0024): the tokens stay in server storage under a random
+// id — Redis on the stands (server/plugins/auth-storage.ts), so all instances share sessions and a restart signs nobody
+// out — and the browser holds only that id in an encrypted, HttpOnly, SameSite=Lax cookie. The access token is renewed
+// by the refresh token before it expires; the cookie lives as long as the refresh token and is renewed with it.
 import { randomBytes } from 'node:crypto'
 import {
   flowCookie,
   flowMaxAgeSeconds,
+  providerConfiguration,
   readOidcSettings,
+  refreshSession,
   sessionCookie,
   type SignInFlow,
   type StoredSession,
 } from './oidc'
+import { SessionStore } from './session-store'
 
 // h3 is Nitro's own dependency; its types are taken from the auto-imported functions.
 type H3Event = Parameters<typeof getCookie>[0]
 type SessionConfig = Parameters<typeof useSession>[1]
 
-const storage = () => useStorage<StoredSession>('auth-sessions')
+export const sessionStorageMount = 'auth-sessions'
+
+const store = new SessionStore(
+  () => useStorage<StoredSession>(sessionStorageMount),
+  async (stored) => refreshSession(await providerConfiguration(oidcSettings()), stored, Date.now()),
+)
 
 let generatedPassword: string | undefined
 
@@ -59,21 +67,55 @@ export async function takeFlow(event: H3Event): Promise<SignInFlow | undefined> 
   return flow
 }
 
-export async function startSession(event: H3Event, stored: StoredSession): Promise<void> {
-  const id = randomBytes(32).toString('base64url')
-  await storage().setItem(id, stored)
-  const maxAge = Math.max(1, Math.floor((stored.expiresAt - Date.now()) / 1000))
-  const session = await useSession<{ sid?: string }>(event, cookieConfig(sessionCookie, maxAge))
+function cookieMaxAge(stored: StoredSession): number {
+  return Math.max(1, Math.floor((stored.expiresAt - Date.now()) / 1000))
+}
+
+async function sessionId(event: H3Event): Promise<string | undefined> {
+  if (!getCookie(event, sessionCookie)) return undefined
+  const session = await useSession<{ sid?: string }>(event, cookieConfig(sessionCookie, undefined))
+  return session.data.sid
+}
+
+async function writeCookie(event: H3Event, id: string, stored: StoredSession): Promise<void> {
+  const session = await useSession<{ sid?: string }>(event, cookieConfig(sessionCookie, cookieMaxAge(stored)))
   await session.update({ sid: id })
 }
 
-/** The session of the request, or null; an expired one is removed. Without the cookie no session is created. */
+export async function startSession(event: H3Event, stored: StoredSession): Promise<void> {
+  const id = randomBytes(32).toString('base64url')
+  await store.save(id, stored)
+  await writeCookie(event, id, stored)
+}
+
+/**
+ * The session of the request, or null; its access token is renewed if it is about to expire, and a session the
+ * provider no longer accepts is removed. Without the cookie no session is created.
+ */
 export async function readSession(event: H3Event): Promise<StoredSession | null> {
-  if (!getCookie(event, sessionCookie)) return null
-  const session = await useSession<{ sid?: string }>(event, cookieConfig(sessionCookie, undefined))
-  const id = session.data.sid
-  const stored = id ? await storage().getItem(id) : null
-  if (stored && stored.expiresAt > Date.now()) return stored
-  if (id) await storage().removeItem(id)
-  return null
+  const id = await sessionId(event)
+  if (!id) return null
+  const result = await store.read(id)
+  if (result?.renewed) await writeCookie(event, id, result.session)
+  return result?.session ?? null
+}
+
+/** Renews the request's tokens now: the API has refused the access token. The renewed session, or null. */
+export async function renewSession(event: H3Event): Promise<StoredSession | null> {
+  const id = await sessionId(event)
+  if (!id) return null
+  const result = await store.renewNow(id, event.context.auth?.accessToken ?? '')
+  if (result?.renewed) await writeCookie(event, id, result.session)
+  event.context.auth = result?.session ?? null
+  return event.context.auth
+}
+
+/** Ends the request's session on the site: removes it from storage and the cookie. Its tokens, for the provider. */
+export async function endSession(event: H3Event): Promise<StoredSession | null> {
+  const id = await sessionId(event)
+  const stored = id ? await useStorage<StoredSession>(sessionStorageMount).getItem(id) : null
+  if (id) await store.remove(id)
+  deleteCookie(event, sessionCookie, { path: '/' })
+  event.context.auth = null
+  return stored
 }

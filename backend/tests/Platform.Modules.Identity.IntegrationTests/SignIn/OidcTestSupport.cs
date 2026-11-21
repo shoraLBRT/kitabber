@@ -97,14 +97,15 @@ public static class OidcFlow
         string method = "S256",
         string? prompt = null,
         string state = "state-1",
-        string nonce = "nonce-1")
+        string nonce = "nonce-1",
+        string scope = "openid offline_access")
     {
         var query = new Dictionary<string, string?>
         {
             ["client_id"] = clientId,
             ["redirect_uri"] = redirectUri,
             ["response_type"] = "code",
-            ["scope"] = "openid",
+            ["scope"] = scope,
             ["state"] = state,
             ["nonce"] = nonce,
             ["prompt"] = prompt,
@@ -168,6 +169,37 @@ public static class OidcFlow
         var (status, tokens) = await ExchangeAsync(browser, code, pkce.Verifier);
         Assert.Equal(HttpStatusCode.OK, status);
         return (account, tokens);
+    }
+
+    /// <summary>A refresh token grant (ADR-0024), as the site's server makes it.</summary>
+    public static Task<(HttpStatusCode Status, JsonElement Body)> RefreshAsync(HttpClient client, string refreshToken, string clientId = "web") =>
+        PostFormAsync(client, IdentityModule.TokenPath, new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = refreshToken,
+            ["client_id"] = clientId,
+        });
+
+    /// <summary>The revocation of a token (RFC 7009) by the client it was issued to.</summary>
+    public static async Task<HttpStatusCode> RevokeAsync(HttpClient client, string token, string clientId = "web")
+    {
+        var (status, _) = await PostFormAsync(client, IdentityModule.RevocationPath, new Dictionary<string, string>
+        {
+            ["token"] = token,
+            ["token_type_hint"] = "refresh_token",
+            ["client_id"] = clientId,
+        });
+        return status;
+    }
+
+    private static async Task<(HttpStatusCode Status, JsonElement Body)> PostFormAsync(
+        HttpClient client, string path, Dictionary<string, string> fields)
+    {
+        using var form = new FormUrlEncodedContent(fields);
+        using var response = await client.PostAsync(path, form, Ct);
+        var text = await response.Content.ReadAsStringAsync(Ct);
+        var body = JsonDocument.Parse(text.Length == 0 ? "{}" : text).RootElement.Clone();
+        return (response.StatusCode, body);
     }
 
     public static async Task<HttpResponseMessage> WhoAmIAsync(HttpClient client, string? accessToken)

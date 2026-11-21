@@ -75,6 +75,11 @@ services:
       NUXT_OIDC_ISSUER: ${SITE_URL:?set in the env file}/
       NUXT_OIDC_REDIRECT_URI: ${SITE_URL:?set in the env file}/auth/callback
       NUXT_SESSION_PASSWORD: ${SESSION_PASSWORD:?set in the env file}
+      # The site's sessions live in the stand's Redis (ADR-0024): all instances share them, a restart signs nobody out.
+      NUXT_SESSION_REDIS_URL: redis://redis:6379
+      NUXT_SESSION_REDIS_PASSWORD: ${REDIS_PASSWORD:?set in the env file}
+    depends_on:
+      redis: { condition: service_healthy }
 
   admin:
     image: ${IMAGE_REGISTRY:?set in the env file}/admin:${IMAGE_TAG:?set in the env file}
