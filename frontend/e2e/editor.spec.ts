@@ -524,3 +524,178 @@ test('keeps the list and its nesting through undo and redo', async ({ page }) =>
   expect(await levels(page)).toEqual(['0', '1'])
   await expect(lists(page).first()).toHaveJSProperty('tagName', 'OL')
 })
+
+// Quote and delimiter blocks (E05-05, #40): the quote keeps its text and the caption of its source in two fields; the
+// delimiter has no content, is not editable and goes with one key.
+
+const quotes = (page: Page) => page.locator('.cdx-quote')
+const quoteText = (page: Page) => page.locator('.cdx-quote__text')
+const quoteCaption = (page: Page) => page.locator('.cdx-quote__caption')
+const delimiters = (page: Page) => page.locator('.ce-delimiter')
+const selectedDelimiter = (page: Page) => page.locator('.ce-block--selected .ce-delimiter')
+
+/** Opens the block menu with «+» of the empty block under the caret and adds the block named `name`. */
+async function addBlock(page: Page, name: string) {
+  await press(page.locator('.ce-toolbar__plus'))
+  await press(page.locator('.ce-popover-item__title:visible').filter({ hasText: new RegExp(`^${name}$`) }))
+}
+
+/**
+ * Undoes or redoes until `reached` passes. Editor.js reports typing in batches, so the number of steps to a state
+ * varies; each step is still rendered from the saved document.
+ */
+async function stepUntil(page: Page, action: (page: Page) => Promise<void>, reached: () => Promise<void>) {
+  await expect(async () => {
+    await action(page)
+    await reached()
+  }).toPass({ intervals: [0], timeout: 15_000 })
+}
+
+test('keeps the text and the caption of a quote apart, also through undo and redo', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await addBlock(page, 'Цитата')
+  await expect(quotes(page)).toHaveCount(1)
+  await expect(paragraphs(page)).toHaveCount(0)
+  await expect(quoteText(page)).toHaveAttribute('data-placeholder', 'Цитата')
+  await expect(quoteCaption(page)).toHaveAttribute('data-placeholder', 'Подпись, источник')
+
+  await press(quoteText(page))
+  await page.keyboard.type('Быть или не быть')
+  // Enter in the text goes to the caption.
+  await page.keyboard.press('Enter')
+  await expect(quoteCaption(page)).toBeFocused()
+  await page.keyboard.type('Гамлет')
+  await expect(quoteText(page)).toHaveText('Быть или не быть')
+  await expect(quoteCaption(page)).toHaveText('Гамлет')
+
+  // Undo to before the quote and redo to the end render the saved document: each field comes back on its own.
+  await stepUntil(page, undo, () => expect(quotes(page)).toHaveCount(0, { timeout: 500 }))
+  await stepUntil(page, redo, () => expect(quoteCaption(page)).toHaveText('Гамлет', { timeout: 500 }))
+  await expect(quoteText(page)).toHaveText('Быть или не быть')
+
+  // Enter in the caption goes on with text after the quote.
+  await press(quoteCaption(page))
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Дальше')
+  await expect(paragraphs(page)).toHaveText(['Дальше'])
+  await expect(quotes(page)).toHaveCount(1)
+  await expect(quoteCaption(page)).toHaveText('Гамлет')
+})
+
+test('converts text to a quote and the quote back to text with its caption', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.type('Слова')
+  await atStep(page, 1)
+  await convert(page, 5, 'Цитата')
+  await expect(quoteText(page)).toHaveText('Слова')
+  await expect(quoteCaption(page)).toHaveText('')
+
+  await press(quoteText(page))
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Автор')
+  await convert(page, 5, 'Текст')
+  await expect(quotes(page)).toHaveCount(0)
+  await expect.poll(() => htmls(page)).toEqual(['Слова — Автор'])
+})
+
+/** Writes «Первый», adds a delimiter after it and writes «Второй» in the text block below the delimiter. */
+async function startWithDelimiter(page: Page) {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.type('Первый')
+  await page.keyboard.press('Enter')
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+  await addBlock(page, 'Разделитель')
+  await expect(delimiters(page)).toHaveCount(1)
+  // The caret goes on below the line.
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+  await page.keyboard.type('Второй')
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
+  await settled(page)
+}
+
+/**
+ * Waits until the history stops moving: Editor.js reports changes in batches some time after them, and the keys of
+ * a test should come after the last one.
+ */
+async function settled(page: Page) {
+  let last = -1
+  await expect
+    .poll(
+      async () => {
+        const now = await step(page)
+        const same = now === last
+        last = now
+        return same && now > 0
+      },
+      { intervals: [800] },
+    )
+    .toBe(true)
+}
+
+test('adds a delimiter that is not editable and keeps it through undo and redo', async ({ page }) => {
+  await startWithDelimiter(page)
+  const delimiter = delimiters(page).first()
+  await expect(delimiter).toHaveAttribute('contenteditable', 'false')
+  await expect(delimiter).toHaveRole('separator')
+  await expect(delimiter).toBeEmpty()
+  await expect(delimiter.locator('[contenteditable="true"]')).toHaveCount(0)
+
+  // Undo to before the delimiter and redo to the end render it from the saved document (`data: {}`).
+  await stepUntil(page, undo, () => expect(delimiters(page)).toHaveCount(0, { timeout: 500 }))
+  await stepUntil(page, redo, () =>
+    expect(paragraphs(page)).toHaveText(['Первый', 'Второй'], { timeout: 500 }),
+  )
+  await expect(delimiters(page)).toHaveCount(1)
+  await expect(delimiters(page).first()).toHaveAttribute('contenteditable', 'false')
+})
+
+test('removes the delimiter with Backspace at the start of the next block', async ({ page }) => {
+  await startWithDelimiter(page)
+  await page.keyboard.press('Home')
+  await page.keyboard.press('Backspace')
+  await expect(delimiters(page)).toHaveCount(0)
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+})
+
+test('removes the delimiter with Delete at the end of the block before', async ({ page }) => {
+  await startWithDelimiter(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.press('End')
+  await page.keyboard.press('Delete')
+  await expect(delimiters(page)).toHaveCount(0)
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
+  await expect(paragraphs(page).first()).toBeFocused()
+})
+
+test('removes a selected delimiter with one key and leaves no empty block', async ({ page }) => {
+  await startWithDelimiter(page)
+
+  // A click selects it; Backspace removes it and puts the caret at the end of the block before.
+  await press(delimiters(page).first())
+  await expect(selectedDelimiter(page)).toHaveCount(1)
+  await page.keyboard.press('Backspace')
+  await expect(delimiters(page)).toHaveCount(0)
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
+  await page.keyboard.type('!')
+  await expect(paragraphs(page)).toHaveText(['Первый!', 'Второй'])
+
+  // The arrow from the start of the next block selects it too; Delete removes it.
+  await page.keyboard.press('Backspace')
+  await page.keyboard.press('Enter')
+  await addBlock(page, 'Разделитель')
+  await expect(delimiters(page)).toHaveCount(1)
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+  await settled(page)
+  await page.keyboard.press('ArrowLeft')
+  await expect(selectedDelimiter(page)).toHaveCount(1)
+  await page.keyboard.press('Delete')
+  await expect(delimiters(page)).toHaveCount(0)
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+})

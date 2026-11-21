@@ -2,10 +2,12 @@
 // component speaks the schema format (document.ts) and asks the engine only for what undo, redo and the caret need.
 import type { OutputData, ToolConstructable } from '@editorjs/editorjs'
 import { caretOffsetIn, placeCaret } from './caret'
+import { continueAfterDelimiter, DelimiterTool, removeSelectedDelimiter } from './delimiter'
 import type { Caret } from './history'
 import { HeaderTool } from './header'
 import { cleanPastedHtml } from './inline'
 import { ListTool } from './list'
+import { QuoteTool } from './quote'
 import { LinkTool, MarkerTool } from './tools'
 
 export interface EngineOptions {
@@ -41,6 +43,8 @@ const messages = {
     Subheading: 'Подзаголовок',
     'Bulleted list': 'Маркированный список',
     'Numbered list': 'Нумерованный список',
+    Quote: 'Цитата',
+    Delimiter: 'Разделитель',
     Bold: 'Жирный',
     Italic: 'Курсив',
     Marker: 'Маркер',
@@ -77,15 +81,28 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
         class: ListTool as unknown as ToolConstructable,
         inlineToolbar: ['bold', 'italic', 'marker', 'link'],
       },
+      // «Цитата», E05-05: the text and the caption of its source in two fields, each with the inline tools.
+      quote: {
+        class: QuoteTool as unknown as ToolConstructable,
+        inlineToolbar: ['bold', 'italic', 'marker', 'link'],
+      },
+      // «Разделитель», E05-05: no content; removed by one key (delimiter.ts).
+      delimiter: { class: DelimiterTool as unknown as ToolConstructable },
       marker: { class: MarkerTool as unknown as ToolConstructable, shortcut: 'CMD+SHIFT+M' },
       // The same name as the built-in link tool, so it takes its place.
       link: { class: LinkTool as unknown as ToolConstructable },
     },
-    onChange: () => onChange(),
+    onChange: (api, event) => {
+      for (const change of Array.isArray(event) ? event : [event]) {
+        if (change.type === 'block-added') continueAfterDelimiter(api, change.detail.target)
+      }
+      onChange()
+    },
   })
   await editor.isReady
   const stopCleaning = cleanTransfers(holder)
   const stopPlacing = placeToolbarAbove(holder)
+  const stopRemoving = removeSelectedDelimiter(holder, editor)
 
   const inputOf = (index: number): HTMLElement | null => {
     const block = editor.blocks.getBlockByIndex(index)
@@ -114,6 +131,7 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
     destroy() {
       stopCleaning()
       stopPlacing()
+      stopRemoving()
       editor.destroy()
     },
   }
