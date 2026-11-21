@@ -58,9 +58,11 @@ function failed() {
 const hydrating = !!getCurrentInstance()?.vnode.el
 onMounted(() => {
   const element = img.value
-  if (!hydrating || !element?.complete) return
+  if (!hydrating || !element?.complete || element.currentSrc === '') return
+  // A tiny picture taken for a dense screen can have a natural width under one pixel, reported as 0: only decoding
+  // tells it from a broken one.
   if (element.naturalWidth > 0) loaded()
-  else if (element.currentSrc !== '') failed()
+  else element.decode().then(loaded, failed)
 })
 
 watch([link, srcset], () => {

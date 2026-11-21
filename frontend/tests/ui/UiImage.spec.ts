@@ -88,12 +88,18 @@ describe('UiImage', () => {
     const proto = HTMLImageElement.prototype
     const complete = vi.spyOn(proto, 'complete', 'get').mockReturnValue(true)
     const width = vi.spyOn(proto, 'naturalWidth', 'get').mockReturnValue(0)
+    const decode = vi.spyOn(proto, 'decode').mockRejectedValue(new DOMException('broken', 'EncodingError'))
     const failed = await hydrate(UiImage, { src: '/p.webp', width: 1, height: 1, alt: '' })
+    // A one-pixel picture taken for a dense screen: a natural width of 0, yet it decodes.
+    decode.mockResolvedValue()
+    const tiny = await hydrate(UiImage, { src: '/p.webp', width: 1, height: 1, alt: '' })
     width.mockReturnValue(320)
     const loaded = await hydrate(UiImage, { src: '/p.webp', width: 1, height: 1, alt: '' })
     complete.mockRestore()
     width.mockRestore()
+    decode.mockRestore()
     expect(failed.getAttribute('data-state')).toBe('error')
+    expect(tiny.getAttribute('data-state')).toBe('loaded')
     expect(loaded.getAttribute('data-state')).toBe('loaded')
   })
 

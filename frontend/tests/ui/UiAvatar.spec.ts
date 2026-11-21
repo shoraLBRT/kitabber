@@ -35,9 +35,11 @@ describe('UiAvatar', () => {
     const proto = HTMLImageElement.prototype
     const complete = vi.spyOn(proto, 'complete', 'get').mockReturnValue(true)
     const width = vi.spyOn(proto, 'naturalWidth', 'get').mockReturnValue(0)
+    const decode = vi.spyOn(proto, 'decode').mockRejectedValue(new DOMException('broken', 'EncodingError'))
     const avatar = await hydrate(UiAvatar, { name: 'Анна Котова', src: '/missing.png' })
     complete.mockRestore()
     width.mockRestore()
+    decode.mockRestore()
     expect(avatar.textContent).toBe('АК')
   })
 
