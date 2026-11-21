@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Sign-in (E03-02, FR-AUTH): with the email and the password, or with a one-time code from a letter and a resend
-// timer. The minimal screen this task needs; the finished sign-in window for the desktop and the phone is E03-04 (#30).
+// timer. Shown on the /login page and, `embedded`, inside the sign-in window (AuthWindow, E03-04): there the window
+// gives the heading and the link to the registration, so the form leaves out its own.
 // The calls come in as `api` (api/sign-in.ts), so the form is tested without a server. Once the provider has signed
 // the person in the form emits `signed-in`; the page then finishes the sign-in. No message tells whether an address
 // is registered: the API does not say it either.
@@ -10,7 +11,7 @@ import UiField from '../ui/UiField.vue'
 import { formatCountdown } from '../../api/registration'
 import type { SignInApi } from '../../api/sign-in'
 
-const props = defineProps<{ api: SignInApi }>()
+const props = defineProps<{ api: SignInApi; embedded?: boolean }>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
@@ -24,6 +25,7 @@ const challengeId = ref('')
 const loading = ref(false)
 const resending = ref(false)
 const emailError = ref<string>()
+const passwordError = ref<string>()
 const codeError = ref<string>()
 const formError = ref<string>()
 const notice = ref<string>()
@@ -55,7 +57,7 @@ function tooMany(retryAfter: number | undefined) {
 }
 
 function clearMessages() {
-  emailError.value = codeError.value = formError.value = notice.value = undefined
+  emailError.value = passwordError.value = codeError.value = formError.value = notice.value = undefined
 }
 
 function switchMode(next: 'password' | 'code') {
@@ -75,7 +77,7 @@ async function signInWithPassword() {
     return
   }
   if (result.status === 400) {
-    formError.value = 'Неверная почта или пароль.'
+    passwordError.value = 'Неверная почта или пароль.'
     return
   }
   formError.value = result.status === 429 ? tooMany(result.retryAfter) : unreachable
@@ -126,8 +128,13 @@ async function signInWithCode() {
 </script>
 
 <template>
-  <section class="sign-in" data-testid="sign-in" aria-labelledby="sign-in-title">
-    <h1 id="sign-in-title" class="sign-in__title">Вход</h1>
+  <section
+    class="sign-in"
+    :class="{ 'sign-in--embedded': embedded }"
+    data-testid="sign-in"
+    :aria-labelledby="embedded ? undefined : 'sign-in-title'"
+  >
+    <h1 v-if="!embedded" id="sign-in-title" class="sign-in__title">Вход</h1>
 
     <form v-if="mode === 'password'" class="sign-in__form" novalidate @submit.prevent="signInWithPassword">
       <UiField
@@ -146,6 +153,7 @@ async function signInWithCode() {
         name="password"
         autocomplete="current-password"
         required
+        :error="passwordError"
       />
       <p v-if="formError" class="sign-in__error" role="alert">{{ formError }}</p>
       <UiButton type="submit" block :loading="loading" :disabled="!canSignIn">Войти</UiButton>
@@ -196,7 +204,9 @@ async function signInWithCode() {
       </div>
     </form>
 
-    <p class="sign-in__footer">Нет аккаунта? <NuxtLink to="/register">Зарегистрироваться</NuxtLink></p>
+    <p v-if="!embedded" class="sign-in__footer">
+      Нет аккаунта? <NuxtLink to="/register">Зарегистрироваться</NuxtLink>
+    </p>
   </section>
 </template>
 
@@ -206,6 +216,10 @@ async function signInWithCode() {
   margin: 0 auto;
   padding: var(--space-8) var(--space-4);
   box-sizing: border-box;
+}
+
+.sign-in--embedded {
+  padding: 0;
 }
 
 .sign-in__title {

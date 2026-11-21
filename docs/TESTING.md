@@ -142,6 +142,8 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - **Отчёты.** JUnit — `artifacts/test-results/<пакет>-e2e/junit.xml`; при падении трасса (`trace.zip`, открывается
   `pnpm exec playwright show-trace`) и снимок экрана — в `artifacts/test-results/<пакет>-e2e/failures/`, в CI это
   артефакт `test-results`.
+- **Доступность.** Формы и окна проверяет axe (`@axe-core/playwright`, правила WCAG 2.1 A и AA) прямо в сквозном
+  тесте: пустыми и с ошибками, в обоих профилях; нарушений должно быть ноль. Пример — `frontend/e2e/auth-window.spec.ts`.
 - **Снимков для сравнения нет.** Если они появятся, эталоны снимаются на раннере CI (ubuntu), а не на Windows.
 
 ## Внешние сервисы: только фейки

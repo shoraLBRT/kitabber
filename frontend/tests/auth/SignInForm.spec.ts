@@ -66,7 +66,12 @@ describe('SignInForm', () => {
     await wrapper.get('input[name="password"]').setValue('wrong')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toBe('Неверная почта или пароль.')
+    const password = wrapper.get('input[name="password"]')
+    expect(password.attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get(`[id="${password.attributes('aria-describedby')}"]`).text()).toBe(
+      'Неверная почта или пароль.',
+    )
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.emitted('signed-in')).toBeUndefined()
   })
 
