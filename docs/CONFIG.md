@@ -115,7 +115,7 @@ Identity — провайдер OpenID Connect ([ADR-0002](adr/0002-identity.md)
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |
-| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: аккаунты, клиенты, коды и токены в схеме `identity`, блоги в схеме `blogs` |
+| `ConnectionStrings:Platform` | `ConnectionStrings__Platform` | да | да | — | PostgreSQL платформы, как у мигратора: аккаунты, клиенты, коды и токены в схеме `identity`, блоги в схеме `blogs`, посты в схеме `posts` |
 | `Identity:Issuer` | `Identity__Issuer` | нет | нет | адрес запроса | публичный адрес провайдера, `iss` всех токенов, например `https://example.org/`; на стенде — адрес сайта |
 | `Identity:SigningKey` | `Identity__SigningKey` | да | вне Development и Test | ключ создаётся при старте | закрытый ключ RSA (от 2048 бит), которым подписываются токены: PEM или base64 от DER (PKCS#8 или PKCS#1) |
 | `Identity:EncryptionKey` | `Identity__EncryptionKey` | да | вне Development и Test | ключ создаётся при старте | base64 от 32 случайных байт (AES-256): шифрует коды авторизации |

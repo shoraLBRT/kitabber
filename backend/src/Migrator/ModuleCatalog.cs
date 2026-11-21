@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Modules.Blogs;
 using Platform.Modules.Identity;
+using Platform.Modules.Posts;
 using Platform.Persistence;
 
 namespace Platform.Migrator;
@@ -17,5 +18,6 @@ public static class ModuleCatalog
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddModuleDbContext<IdentityDbContext>(connectionString);
         services.AddModuleDbContext<BlogsDbContext>(connectionString);
+        services.AddModuleDbContext<PostsDbContext>(connectionString);
     }
 }
