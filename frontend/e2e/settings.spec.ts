@@ -93,10 +93,15 @@ test.describe('настройки блога', () => {
     const blog = page.getByTestId('blog')
     await expect(blog.getByRole('heading', { level: 1, name: 'Анна К.' })).toBeVisible()
     await expect(blog.getByText('Пишу о книгах, городах и поездах.')).toBeVisible()
+    // The avatar is shown through its delivery link (ADR-0037), not the letter placeholder.
+    const avatar = blog.locator('img.blog__avatar')
+    await expect(avatar).toHaveAttribute('src', saved.avatarUrl)
+    await expect.poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
 
     // And after a reload, rendered by the server.
     await page.reload()
     await expect(page.getByRole('heading', { level: 1, name: 'Анна К.' })).toBeVisible()
+    await expect(page.getByTestId('blog').locator('img.blog__avatar')).toHaveAttribute('src', saved.avatarUrl)
   })
 
   test('сбой сохранения — тост, введённое остаётся', async ({ page }) => {

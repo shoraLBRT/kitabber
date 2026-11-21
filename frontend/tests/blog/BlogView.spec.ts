@@ -16,6 +16,7 @@ const anna: Profile = {
   description: 'Пишу о книгах и городах.',
   registeredAt: null,
   avatarId: null,
+  avatarUrl: null,
 }
 
 function mountView(state: ProfileLookup | { status: 'loading' }, tab: 'posts' | 'comments' = 'posts') {
@@ -35,6 +36,15 @@ describe('BlogView', () => {
     expect(wrapper.find('[data-testid="blog-registered"]').exists()).toBe(false)
     expect(wrapper.find('[aria-label="Управление блогом"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="tab-content"]').text()).toBe('содержимое')
+  })
+
+  it('shows the avatar from its delivery link, and the initials without one', () => {
+    const avatarUrl = 'https://example.org/img/signature/rs:fill:128:128:0/g:ce/b3JpZ2luYWxz.webp'
+    const withAvatar = mountView({ status: 'found', profile: { ...anna, avatarUrl }, owner: false })
+    expect(withAvatar.get('img.blog__avatar').attributes('src')).toBe(avatarUrl)
+    const without = mountView({ status: 'found', profile: anna, owner: false })
+    expect(without.find('img.blog__avatar').exists()).toBe(false)
+    expect(without.get('.blog__avatar').text()).toBe('А')
   })
 
   it('shows the owner the registration date and the management buttons', () => {

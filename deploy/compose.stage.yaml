@@ -43,6 +43,10 @@ services:
       Media__Storage__Bucket: ${MEDIA_STORAGE_BUCKET:?set in the env file}
       Media__Storage__AccessKey: ${MEDIA_STORAGE_ACCESS_KEY:?set in the env file}
       Media__Storage__SecretKey: ${MEDIA_STORAGE_SECRET_KEY:?set in the env file}
+      # Images through imgproxy at the site's /img (ADR-0037): the API signs the links with imgproxy's key and salt.
+      Media__Images__BaseUrl: ${SITE_URL:?set in the env file}/img
+      Media__Images__Key: ${IMGPROXY_KEY:?set in the env file}
+      Media__Images__Salt: ${IMGPROXY_SALT:?set in the env file}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -90,6 +94,28 @@ services:
   admin:
     image: ${IMAGE_REGISTRY:?set in the env file}/admin:${IMAGE_TAG:?set in the env file}
     restart: unless-stopped
+
+  # Resizes and converts images from the media bucket (ADR-0037); only links signed by the API are served. Caddy
+  # gives it the site's /img, a CDN may stand in front of the site; the answers are cached for a year.
+  imgproxy:
+    image: darthsim/imgproxy:v3.28@sha256:afa85d78fc28c1b37ca965f022a9e55100f17dcac9edefbe684ca5af9df3a1e1
+    restart: unless-stopped
+    environment:
+      IMGPROXY_KEY: ${IMGPROXY_KEY:?set in the env file}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:?set in the env file}
+      IMGPROXY_PATH_PREFIX: /img
+      IMGPROXY_BASE_URL: s3://${MEDIA_STORAGE_BUCKET:?set in the env file}/
+      IMGPROXY_USE_ETAG: 'true'
+      IMGPROXY_USE_S3: 'true'
+      IMGPROXY_S3_ENDPOINT: ${MEDIA_STORAGE_URL:?set in the env file}
+      IMGPROXY_S3_REGION: ${MEDIA_STORAGE_REGION:?set in the env file}
+      AWS_ACCESS_KEY_ID: ${MEDIA_STORAGE_ACCESS_KEY:?set in the env file}
+      AWS_SECRET_ACCESS_KEY: ${MEDIA_STORAGE_SECRET_KEY:?set in the env file}
+    healthcheck:
+      test: [CMD, imgproxy, health]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   # The only published ports. Caddy gets TLS certificates for the addresses itself (Let's Encrypt).
   caddy:
@@ -162,6 +188,7 @@ configs:
         encode
         @api path /api/* /openapi/* /health/* /hubs/* /.well-known/openid-configuration /.well-known/jwks /connect/*
         reverse_proxy @api api:8080
+        reverse_proxy /img/* imgproxy:8080
         reverse_proxy frontend:3000
       }
       {$$ADMIN_ADDRESS} {

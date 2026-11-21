@@ -433,6 +433,8 @@ export interface components {
             registeredAt: null | string;
             /** Format: uuid */
             avatarId: null | string;
+            /** Format: uri */
+            avatarUrl: null | string;
         };
         ProfileInput: {
             name?: null | string;

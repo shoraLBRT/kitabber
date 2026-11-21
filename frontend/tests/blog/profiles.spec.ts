@@ -23,6 +23,7 @@ const profile = {
   description: null,
   registeredAt: null,
   avatarId: null,
+  avatarUrl: null,
 }
 
 function clientAnswering(status: number, body: unknown) {

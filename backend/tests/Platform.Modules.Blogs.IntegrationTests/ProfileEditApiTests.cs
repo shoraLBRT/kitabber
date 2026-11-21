@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Platform.Modules.Media.Images;
 using Platform.Testing.Api;
 
 namespace Platform.Modules.Blogs.IntegrationTests;
@@ -46,6 +47,18 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
         Assert.Equal("О книгах 📚", seen.GetProperty("description").GetString());
         Assert.Equal(avatar, seen.GetProperty("avatarId").GetGuid());
         Assert.Equal("demo0", seen.GetProperty("nickname").GetString());
+        AssertAvatarLink(seen.GetProperty("avatarUrl").GetString());
+        Assert.Equal(seen.GetProperty("avatarUrl").GetString(), saved.GetProperty("avatarUrl").GetString());
+    }
+
+    [Fact]
+    public async Task ProfileWithoutAnAvatarHasNoAvatarLink()
+    {
+        var blog = await SaveDemoBlogAsync();
+
+        var seen = await GetAsync($"/api/v1/profiles/{blog.Id}");
+
+        Assert.Equal(JsonValueKind.Null, seen.GetProperty("avatarUrl").ValueKind);
     }
 
     [Fact]
@@ -63,6 +76,7 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
         Assert.Equal(JsonValueKind.Null, seen.GetProperty("name").ValueKind);
         Assert.Equal(JsonValueKind.Null, seen.GetProperty("description").ValueKind);
         Assert.Equal(JsonValueKind.Null, seen.GetProperty("avatarId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, seen.GetProperty("avatarUrl").ValueKind);
     }
 
     [Fact]
@@ -135,6 +149,23 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var own = await GetAsync("/api/v1/profiles/me", account);
         Assert.Equal("Новичок", own.GetProperty("name").GetString());
+    }
+
+    // A WebP square of 128 px from imgproxy of the test host, signed with its key and salt (ADR-0037).
+    private static void AssertAvatarLink(string? link)
+    {
+        Assert.NotNull(link);
+        Assert.StartsWith(PlatformApiFactory.ImgproxyBaseUrl, link, StringComparison.Ordinal);
+        var rest = link[PlatformApiFactory.ImgproxyBaseUrl.Length..];
+        var signature = rest[..rest.IndexOf('/', StringComparison.Ordinal)];
+        var path = rest[signature.Length..];
+        Assert.StartsWith("/rs:fill:128:128:0/g:ce/", path, StringComparison.Ordinal);
+        Assert.EndsWith(".webp", path, StringComparison.Ordinal);
+        var urls = new ImgproxyUrls(new ImgproxyOptions(
+            new Uri(PlatformApiFactory.ImgproxyBaseUrl),
+            Convert.FromHexString(PlatformApiFactory.ImgproxyKey),
+            Convert.FromHexString(PlatformApiFactory.ImgproxySalt)));
+        Assert.Equal(urls.Sign(path), signature);
     }
 
     private static byte[] Png() =>

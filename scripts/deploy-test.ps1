@@ -187,7 +187,9 @@ Set-Content -Encoding ascii -LiteralPath $envFile @(
     "SESSION_PASSWORD=$(New-Password)$(New-Password)",
     # The API starts without reaching S3 (ADR-0030): only an upload would, and the smoke test uploads nothing.
     'MEDIA_STORAGE_URL=http://s3.invalid', 'MEDIA_STORAGE_REGION=us-east-1', 'MEDIA_STORAGE_BUCKET=smoke', 'MEDIA_STORAGE_ACCESS_KEY=smoke',
-    "MEDIA_STORAGE_SECRET_KEY=$(New-Password)"
+    "MEDIA_STORAGE_SECRET_KEY=$(New-Password)",
+    # imgproxy starts without reaching S3 too; the key and salt are hex made for this run (ADR-0037).
+    "IMGPROXY_KEY=$(New-Password)", "IMGPROXY_SALT=$(New-Password)"
 )
 $dc = @('compose', '-f', $compose, '--env-file', $envFile)
 $deployScript = Join-Path $PSScriptRoot 'deploy.ps1'
@@ -222,6 +224,9 @@ function Assert-Running([string]$Expected, [string]$When) {
     Assert (-not $states.ContainsKey('migrator')) "${When}: the migrator container must be removed after it ran"
     $health = Get-Page 'site.localhost' '/health/live'
     Assert ($health.Status -eq 200) "${When}: site /health/live through Caddy is $($health.Status)"
+    # imgproxy answers at /img (ADR-0037) and refuses a link without a signature.
+    $unsigned = Get-Page 'site.localhost' '/img/insecure/rs:fit:64:0:0/b3JpZ2luYWxzL3g.webp'
+    Assert ($unsigned.Status -eq 403) "${When}: an unsigned image link at /img through Caddy is $($unsigned.Status), not 403 from imgproxy"
     $site = Get-Page 'site.localhost' '/'
     Assert ($site.Status -eq 200 -and $site.Body -match '<div id="__nuxt"') "${When}: the site through Caddy is $($site.Status), not the Nuxt page"
     $admin = Get-Page 'admin.localhost' '/'

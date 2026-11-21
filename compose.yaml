@@ -106,6 +106,10 @@ services:
       IMGPROXY_USE_S3: 'true'
       IMGPROXY_S3_ENDPOINT: http://minio:9000
       IMGPROXY_S3_REGION: us-east-1
+      # ADR-0037: a link names only the key in the bucket of the API (Media:Storage:Bucket in
+      # appsettings.Development.json); the API signs it with the same key and salt (Media:Images:*).
+      IMGPROXY_BASE_URL: s3://platform-media/
+      IMGPROXY_USE_ETAG: 'true'
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?copy .env.example to .env}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?copy .env.example to .env}
     ports:

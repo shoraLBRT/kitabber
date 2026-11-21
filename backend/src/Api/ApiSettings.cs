@@ -35,6 +35,9 @@ public static class ApiSettings
             builder.Configuration[CacheServiceCollectionExtensions.ProviderKey] = nameof(CacheProvider.InMemory);
             builder.Configuration[MessagingServiceCollectionExtensions.TransportKey] = nameof(MessagingTransport.InMemory);
             builder.Configuration[MediaSettings.ProviderKey] = nameof(StorageProvider.InMemory);
+            builder.Configuration[MediaSettings.ImagesBaseUrlKey] ??= "http://localhost/img";
+            builder.Configuration[MediaSettings.ImagesKeyKey] ??= Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            builder.Configuration[MediaSettings.ImagesSaltKey] ??= Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             // No database is contacted and no token is issued: the host is built to describe its endpoints, never
             // started (yet its hosted services run), so keys of its own are enough.
             builder.Configuration[IdentitySettings.DatabaseKey] ??= "Host=localhost;Database=openapi_build";
