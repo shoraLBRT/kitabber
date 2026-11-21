@@ -68,7 +68,10 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 (`caret.ts`) и движок `EditorEngine` с реализацией на Editor.js (`engine.ts`). Компоненты —
 `frontend/components/editor/`: `BlockEditor` (движок, история, клавиши, состояния) и `EditorWindow` (окно 800×700 px
 или весь экран на телефоне); страница нового поста — `frontend/pages/write.vue`. Новый тип блока подключает свой
-инструмент Editor.js в `engine.ts` и свой перевод в `document.ts`.
+инструмент Editor.js в `engine.ts` и свой перевод в `document.ts`. Встроенная разметка текстовых полей (E05-02,
+ADR-0028) — `inline.ts`: белый список сервера, проверка ссылок (`normalizeLink`), очистка поля (`cleanInline`, её
+зовёт `toPostDocument`) и вставки (`cleanPastedHtml`, её подставляет движок на `paste` и `drop`); инструменты
+панели «маркер» и «ссылка» — `tools.ts`.
 
 ## База данных
 

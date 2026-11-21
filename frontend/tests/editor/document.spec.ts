@@ -24,7 +24,10 @@ const everyBlock: PostDocument = {
     {
       id: 'l1',
       type: 'list',
-      data: { style: 'ordered', items: ['первый', '<a href="https://example.org">второй</a>'] },
+      data: {
+        style: 'ordered',
+        items: ['первый', '<a href="https://example.org" rel="nofollow ugc noopener noreferrer">второй</a>'],
+      },
     },
     { id: 'l2', type: 'list', data: { style: 'unordered', items: ['пункт'] } },
     { id: 'q1', type: 'quote', data: { text: 'Цитата<br>в две строки', caption: 'Автор' } },
@@ -101,6 +104,27 @@ describe('post document', () => {
       type: 'quote',
       data: { text: 'Слова', caption: '' },
     })
+  })
+
+  it('cleans every text field to the allow list of the server (E05-02)', () => {
+    const dirty =
+      '<span style="x">a</span> <a href="javascript:alert(1)">b</a> <a href="https://e.test/">c</a>'
+    const clean = 'a b <a href="https://e.test/" rel="nofollow ugc noopener noreferrer">c</a>'
+    const output = {
+      blocks: [
+        { id: 'p', type: 'paragraph', data: { text: dirty } },
+        { id: 'h', type: 'header', data: { text: dirty, level: 2 } },
+        { id: 'q', type: 'quote', data: { text: dirty, caption: '<script>x</script>и' } },
+        { id: 'l', type: 'list', data: { style: 'unordered', items: [dirty] } },
+      ],
+    } as OutputData
+
+    expect(toPostDocument(output).blocks.map((block) => block.data)).toEqual([
+      { text: clean },
+      { text: clean, level: 2 },
+      { text: clean, caption: 'и' },
+      { style: 'unordered', items: [clean] },
+    ])
   })
 
   it('rejects a block type the schema does not have', () => {

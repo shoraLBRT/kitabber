@@ -3,6 +3,7 @@
 // fields (`time`, its own `version`, block `tunes`) and keeps some blocks in a richer shape than schema version 1;
 // toPostDocument drops and flattens them, toEditorData gives Editor.js back what it needs to render the document.
 import type { OutputBlockData, OutputData } from '@editorjs/editorjs'
+import { cleanInline } from './inline'
 
 /** The schema version the client writes (ADR-0023, Platform.Modules.Editor BlockSchemas.V1). */
 export const documentVersion = 1
@@ -93,7 +94,7 @@ function stripTags(html: string): string {
     .replace(/&nbsp;/g, ' ')
 }
 
-/** Editor.js output to the schema format, fields in schema order, nothing else. */
+/** Editor.js output to the schema format, fields in schema order, nothing else; text fields cleaned (cleanInline). */
 export function toPostDocument(output: OutputData): PostDocument {
   return { version: documentVersion, blocks: output.blocks.map(toPostBlock) }
 }
@@ -124,8 +125,10 @@ function toPostBlock(block: OutputBlockData): PostBlock {
   }
 }
 
+// Text fields hold inline HTML; whatever Editor.js kept outside the allow list of ADR-0023 is cleaned here, so the
+// document the editor gives is the one the server stores (E05-02, ADR-0028).
 function text(value: unknown): string {
-  return typeof value === 'string' ? value : ''
+  return typeof value === 'string' ? cleanInline(value) : ''
 }
 
 // The list plugin of Editor.js (version 2) keeps items as `{content, meta, items}` with nesting; version 1 of the
@@ -133,7 +136,7 @@ function text(value: unknown): string {
 function listItems(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((item): string[] => {
-    if (typeof item === 'string') return [item]
+    if (typeof item === 'string') return [text(item)]
     if (item && typeof item === 'object') {
       const nested = item as { content?: unknown; items?: unknown }
       return [text(nested.content), ...listItems(nested.items)]
