@@ -13,6 +13,7 @@ function signInApi(): SignInApi {
     withPassword: vi.fn(async () => ({ status: 204 })),
     requestCode: vi.fn(async () => ({ status: 202, body: { challengeId: id, resendAfterSeconds: 60 } })),
     withCode: vi.fn(async () => ({ status: 204 })),
+    captcha: vi.fn(async () => 'solution'),
   }
 }
 

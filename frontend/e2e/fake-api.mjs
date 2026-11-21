@@ -9,7 +9,8 @@
 // confirmation sets the provider's session cookie. The "letters" with the codes are read with GET /__letters?to=
 // (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
 // in the e2e run; the address taken@example.com is already taken.
-// Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below.
+// Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below. The captcha
+// (E03-12): GET /api/v1/sign-in/captcha.
 // Password (E03-05): POST /api/v1/password-reset and /{id}/confirmation, PUT /api/v1/account/password.
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -91,13 +92,23 @@ async function registration(request, response, url) {
 // address, as the API sends one to every address it is asked for. Wrong answers are alike for every address.
 const passwords = new Map([['reader@example.com', 'secret-1']]) // email -> password of a confirmed account
 const signInCodes = new Map() // email -> { id, code, sentAt }
+// The captcha (E03-12): after three failed passwords to an address every attempt needs the fake provider's solution,
+// until one succeeds. The real thresholds per address and per network are tested by the backend (SignInTests).
+const failedPasswords = new Map() // email -> failures
+const captchaSolution = 'fake-captcha-solved'
 
 async function signIn(request, response, url) {
   const body = JSON.parse((await readBody(request)) || '{}')
   if (url.pathname === '/api/v1/sign-in/password') {
     const email = String(body.email ?? '').toLowerCase()
-    if (!passwords.has(email) || passwords.get(email) !== body.password)
+    const failures = failedPasswords.get(email) ?? 0
+    if (failures >= 3 && body.captcha !== captchaSolution)
+      return send(response, 400, { status: 400, code: 'captcha_required' })
+    if (!passwords.has(email) || passwords.get(email) !== body.password) {
+      failedPasswords.set(email, failures + 1)
       return send(response, 400, { status: 400, code: 'invalid_credentials' })
+    }
+    failedPasswords.delete(email)
     response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
     return send(response, 204)
   }
@@ -437,6 +448,15 @@ createServer(async (request, response) => {
       letters.filter((letter) => letter.to === to),
     )
   }
+  if (url.pathname === '/api/v1/sign-in/captcha' && request.method === 'GET')
+    return send(response, 200, {
+      provider: 'fake',
+      algorithm: null,
+      challenge: null,
+      salt: null,
+      signature: null,
+      maxNumber: null,
+    })
   if (url.pathname.startsWith('/api/v1/sign-in/') && request.method === 'POST')
     return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')

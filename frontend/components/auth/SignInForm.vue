@@ -6,12 +6,16 @@
 // the person in the form emits `signed-in`; the page then finishes the sign-in. No message tells whether an address
 // is registered: the API does not say it either. With `resetApi` the password mode offers «Забыли пароль?», which
 // turns the form into the password reset (PasswordResetForm, E03-05); the reset signs in too.
+// After a series of failed attempts the API answers `captcha_required` (E03-12): the form then shows CaptchaCheck and
+// sends its solution with each attempt until the sign-in succeeds; a solution is spent by one attempt.
 import { computed, onBeforeUnmount, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
+import { needsCaptcha } from '../../api/captcha'
 import { formatCountdown } from '../../api/registration'
 import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
+import CaptchaCheck from './CaptchaCheck.vue'
 import PasswordResetForm from './PasswordResetForm.vue'
 
 const props = defineProps<{ api: SignInApi; resetApi?: PasswordResetApi; embedded?: boolean }>()
@@ -33,11 +37,28 @@ const codeError = ref<string>()
 const formError = ref<string>()
 const notice = ref<string>()
 const resendLeft = ref(0)
+const captchaShown = ref(false)
+const captcha = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
 
-const canSignIn = computed(() => email.value.trim() !== '' && password.value !== '')
+const captchaReady = computed(() => !captchaShown.value || captcha.value !== '')
+const canSignIn = computed(() => email.value.trim() !== '' && password.value !== '' && captchaReady.value)
 const canRequest = computed(() => email.value.trim() !== '')
-const canConfirm = computed(() => /^\d{6}$/.test(code.value.trim()))
+const canConfirm = computed(() => /^\d{6}$/.test(code.value.trim()) && captchaReady.value)
+
+// The solution for the next attempt, if the captcha is shown; it is spent by that attempt.
+function spendCaptcha(): string[] {
+  const solution = captcha.value
+  captcha.value = ''
+  return solution ? [solution] : []
+}
+
+// Whether the answer asks for the captcha: then the form shows it and says why.
+function captchaAsked(body: unknown): boolean {
+  if (!needsCaptcha(body)) return false
+  captchaShown.value = true
+  return true
+}
 
 function startTimer(seconds: number) {
   stopTimer()
@@ -73,12 +94,13 @@ function switchMode(next: 'password' | 'code' | 'reset') {
 async function signInWithPassword() {
   clearMessages()
   loading.value = true
-  const result = await props.api.withPassword(email.value.trim(), password.value)
+  const result = await props.api.withPassword(email.value.trim(), password.value, ...spendCaptcha())
   loading.value = false
   if (result.status === 204) {
     emit('signed-in')
     return
   }
+  if (result.status === 400 && captchaAsked(result.body)) return
   if (result.status === 400) {
     passwordError.value = 'Неверная почта или пароль.'
     return
@@ -115,13 +137,14 @@ async function requestCode(again = false) {
 async function signInWithCode() {
   clearMessages()
   loading.value = true
-  const result = await props.api.withCode(challengeId.value, code.value.trim())
+  const result = await props.api.withCode(challengeId.value, code.value.trim(), ...spendCaptcha())
   loading.value = false
   if (result.status === 204) {
     stopTimer()
     emit('signed-in')
     return
   }
+  if (result.status === 400 && captchaAsked(result.body)) return
   if (result.status === 400) {
     codeError.value = 'Неверный или просроченный код. Проверьте письмо или отправьте код снова.'
     return
@@ -160,6 +183,7 @@ async function signInWithCode() {
         required
         :error="passwordError"
       />
+      <CaptchaCheck v-if="captchaShown" v-model="captcha" :solve="api.captcha" />
       <p v-if="formError" class="sign-in__error" role="alert">{{ formError }}</p>
       <UiButton type="submit" block :loading="loading" :disabled="!canSignIn">Войти</UiButton>
       <UiButton variant="ghost" block @click="switchMode('code')">Войти по коду из письма</UiButton>
@@ -205,6 +229,7 @@ async function signInWithCode() {
         required
         :error="codeError"
       />
+      <CaptchaCheck v-if="captchaShown" v-model="captcha" :solve="api.captcha" />
       <p v-if="notice" class="sign-in__notice" role="status">{{ notice }}</p>
       <UiButton type="submit" block :loading="loading" :disabled="!canConfirm">Войти</UiButton>
       <div class="sign-in__resend">
