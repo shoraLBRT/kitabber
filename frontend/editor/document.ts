@@ -23,8 +23,18 @@ export interface HeaderBlock {
 export interface ListBlock {
   id: string
   type: 'list'
-  data: { style: 'unordered' | 'ordered'; items: string[] }
+  /**
+   * `levels` gives each item's nesting, 0 (top) or 1 (under the item above), or is empty when every item is at the
+   * top (ADR-0033). The client writes it empty in that case, as the server's default for documents without it.
+   */
+  data: { style: 'unordered' | 'ordered'; items: string[]; levels: ListLevel[] }
 }
+
+/** Nesting of a list item: 0 at the top, 1 under the item above (E05-04, ADR-0033). */
+export type ListLevel = 0 | 1
+
+/** The deepest list level (Platform.Modules.Editor BlockSchemas.MaxListLevel). */
+export const maxListLevel: ListLevel = 1
 
 export interface QuoteBlock {
   id: string
@@ -121,7 +131,7 @@ function toPostBlock(block: OutputBlockData): PostBlock {
         type: 'list',
         data: {
           style: data.style === 'ordered' ? 'ordered' : 'unordered',
-          items: listItems(data.items),
+          ...listItems(data.items, data.levels),
         },
       }
     case 'quote':
@@ -139,18 +149,43 @@ function text(value: unknown): string {
   return typeof value === 'string' ? cleanInline(value) : ''
 }
 
-// The list plugin of Editor.js (version 2) keeps items as `{content, meta, items}` with nesting; version 1 of the
-// schema has a flat list of strings, so nested items follow their parent in reading order (ADR-0023, consequences).
-function listItems(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.flatMap((item): string[] => {
-    if (typeof item === 'string') return [text(item)]
-    if (item && typeof item === 'object') {
-      const nested = item as { content?: unknown; items?: unknown }
-      return [text(nested.content), ...listItems(nested.items)]
-    }
-    return []
-  })
+/**
+ * Items and their levels in schema form (ADR-0033): the first item at the top, an item at most one level under the one
+ * above and no deeper than maxListLevel; levels empty when every item is at the top.
+ */
+export function normalizeLevels(levels: readonly unknown[], count: number): ListLevel[] {
+  const result: ListLevel[] = []
+  for (let index = 0; index < count; index++) {
+    const level = levels[index]
+    const previous = index === 0 ? -1 : result[index - 1]!
+    const wanted = typeof level === 'number' && Number.isInteger(level) ? level : 0
+    result.push(Math.max(0, Math.min(wanted, previous + 1, maxListLevel)) as ListLevel)
+  }
+  return result.some((level) => level > 0) ? result : []
+}
+
+// The list tool of the editor (list.ts) gives strings and their levels. The list plugin of Editor.js (version 2) keeps
+// items as `{content, meta, items}` with nesting; nested items follow their parent in reading order, and an item
+// deeper than maxListLevel stays at that level.
+function listItems(value: unknown, levels: unknown): { items: string[]; levels: ListLevel[] } {
+  const items: string[] = []
+  const given: number[] = []
+  const walk = (list: unknown, depth: number) => {
+    if (!Array.isArray(list)) return
+    list.forEach((item: unknown, index) => {
+      if (typeof item === 'string') {
+        items.push(text(item))
+        given.push(depth === 0 && Array.isArray(levels) ? Number(levels[index] ?? 0) : depth)
+      } else if (item && typeof item === 'object') {
+        const nested = item as { content?: unknown; items?: unknown }
+        items.push(text(nested.content))
+        given.push(depth)
+        walk(nested.items, depth + 1)
+      }
+    })
+  }
+  walk(value, 0)
+  return { items, levels: normalizeLevels(given, items.length) }
 }
 
 /** The schema format to the data Editor.js renders. Block ids are kept, so undo and redo keep them too. */

@@ -29,7 +29,8 @@
    не содержат. Неизвестная версия отклоняется с перечнем поддерживаемых. Преобразование старых документов в новую
    версию появится вместе со второй версией.
 4. **Версия 1** — блоки вехи M1 без медиа: `paragraph` (`text`), `header` (`text`, `level` 2 или 3), `list`
-   (`style` `unordered` или `ordered`, непустой `items`), `quote` (`text`, `caption` по умолчанию пустой),
+   (`style` `unordered` или `ordered`, непустой `items`; необязательное `levels` — вложенность пунктов,
+   [ADR-0033](0033-list-block-nesting.md)), `quote` (`text`, `caption` по умолчанию пустой),
    `delimiter` (пустой `data`). Медиа и остальные блоки добавляют свои задачи.
 5. **Очистка HTML** — белым списком на [HtmlSanitizer](https://github.com/mganss/HtmlSanitizer) (MIT, разбор на
    AngleSharp, как в браузере). Разрешены `b`, `strong`, `i`, `em`, `mark`, `a`, `br`; из атрибутов — только `href`

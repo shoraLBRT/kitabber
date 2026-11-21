@@ -5,6 +5,7 @@ import { caretOffsetIn, placeCaret } from './caret'
 import type { Caret } from './history'
 import { HeaderTool } from './header'
 import { cleanPastedHtml } from './inline'
+import { ListTool } from './list'
 import { LinkTool, MarkerTool } from './tools'
 
 export interface EngineOptions {
@@ -38,6 +39,8 @@ const messages = {
     Text: 'Текст',
     Heading: 'Заголовок',
     Subheading: 'Подзаголовок',
+    'Bulleted list': 'Маркированный список',
+    'Numbered list': 'Нумерованный список',
     Bold: 'Жирный',
     Italic: 'Курсив',
     Marker: 'Маркер',
@@ -67,6 +70,11 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       // tools as the text block: Editor.js cleans converted text by the target's tools, so text↔heading keeps markup.
       header: {
         class: HeaderTool as unknown as ToolConstructable,
+        inlineToolbar: ['bold', 'italic', 'marker', 'link'],
+      },
+      // «Маркированный список» and «Нумерованный список», E05-04: one tool with two entries, items nest one level.
+      list: {
+        class: ListTool as unknown as ToolConstructable,
         inlineToolbar: ['bold', 'italic', 'marker', 'link'],
       },
       marker: { class: MarkerTool as unknown as ToolConstructable, shortcut: 'CMD+SHIFT+M' },
