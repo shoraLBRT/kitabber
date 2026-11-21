@@ -186,8 +186,8 @@ Set-Content -Encoding ascii -LiteralPath $envFile @(
     "IDENTITY_ENCRYPTION_KEY=$([Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)))",
     "SESSION_PASSWORD=$(New-Password)$(New-Password)",
     # The API starts without reaching S3 (ADR-0030): only an upload would, and the smoke test uploads nothing.
-    'MEDIA_S3_URL=http://s3.invalid', 'MEDIA_S3_REGION=us-east-1', 'MEDIA_S3_BUCKET=smoke', 'MEDIA_S3_ACCESS_KEY=smoke',
-    "MEDIA_S3_SECRET_KEY=$(New-Password)"
+    'MEDIA_STORAGE_URL=http://s3.invalid', 'MEDIA_STORAGE_REGION=us-east-1', 'MEDIA_STORAGE_BUCKET=smoke', 'MEDIA_STORAGE_ACCESS_KEY=smoke',
+    "MEDIA_STORAGE_SECRET_KEY=$(New-Password)"
 )
 $dc = @('compose', '-f', $compose, '--env-file', $envFile)
 $deployScript = Join-Path $PSScriptRoot 'deploy.ps1'
