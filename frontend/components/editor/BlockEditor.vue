@@ -313,6 +313,66 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
   color: var(--color-muted);
 }
 
+/* Moving blocks (E05-07, editor/move.ts): «⋮⋮» is the drag handle, so a finger on it drags instead of scrolling; the
+   dragged block fades and a line in the accent colour shows where it lands. */
+.block-editor :deep(.ce-toolbar__settings-btn) {
+  cursor: grab;
+  touch-action: none;
+}
+
+.block-editor :deep(.ce-block--dragging) {
+  opacity: 0.4;
+}
+
+.block-editor :deep(.ce-block[data-drop='before']) {
+  box-shadow: inset 0 var(--size-focus-ring) 0 var(--color-accent);
+}
+
+.block-editor :deep(.ce-block[data-drop='after']) {
+  box-shadow: inset 0 calc(-1 * var(--size-focus-ring)) 0 var(--color-accent);
+}
+
+/* The block menu with its search (E05-07): on a phone Editor.js shows it fixed at the bottom; here it is a bottom
+   sheet like UiSheet — the full width, rounded top corners, the overlay of the app, above the home indicator. Only
+   the menu «+»: the other menus stay as Editor.js draws them. Its 650 px breakpoint is Editor.js's own. */
+@media (max-width: 650px) {
+  .block-editor :deep(.ce-toolbox .ce-popover .ce-popover__container) {
+    inset: auto 0 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: 70vh;
+    padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--color-surface);
+  }
+
+  .block-editor :deep(.ce-toolbox .ce-popover__overlay) {
+    background: var(--color-overlay);
+    opacity: 1;
+  }
+
+  .block-editor :deep(.ce-toolbox .ce-popover-item) {
+    min-height: var(--size-touch);
+  }
+
+  /* The search the sheet gets from editor/menu.ts, with the field of Editor.js's desktop menu. */
+  .block-editor :deep(.block-menu-search) {
+    align-items: center;
+    min-height: var(--size-touch);
+    margin-block-end: var(--space-2);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+    color: var(--color-muted);
+  }
+
+  .block-editor :deep(.block-menu-search .cdx-search-field__input) {
+    font-size: var(--font-size-md);
+    color: var(--color-text);
+  }
+}
+
 .block-editor :deep(.ce-block mark) {
   background: color-mix(in srgb, var(--color-warning) 30%, transparent);
   color: inherit;

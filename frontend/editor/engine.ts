@@ -7,6 +7,8 @@ import type { Caret } from './history'
 import { HeaderTool } from './header'
 import { cleanPastedHtml } from './inline'
 import { ListTool } from './list'
+import { searchOnPhone } from './menu'
+import { moveBlocks } from './move'
 import { QuoteTool } from './quote'
 import { LinkTool, MarkerTool } from './tools'
 
@@ -103,6 +105,8 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
   const stopCleaning = cleanTransfers(holder)
   const stopPlacing = placeToolbarAbove(holder)
   const stopRemoving = removeSelectedDelimiter(holder, editor)
+  const stopMoving = moveBlocks(holder, editor)
+  const stopSearching = searchOnPhone(holder, messages.ui.popover.Filter)
 
   const inputOf = (index: number): HTMLElement | null => {
     const block = editor.blocks.getBlockByIndex(index)
@@ -132,6 +136,8 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       stopCleaning()
       stopPlacing()
       stopRemoving()
+      stopMoving()
+      stopSearching()
       editor.destroy()
     },
   }

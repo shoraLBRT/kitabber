@@ -699,3 +699,182 @@ test('removes a selected delimiter with one key and leaves no empty block', asyn
   await expect(paragraphs(page)).toHaveText(['Первый', 'Второй'])
   await expect(paragraphs(page).nth(1)).toBeFocused()
 })
+
+// The block menu with its search and moving blocks (E05-07, #41): «+» opens the menu, typing filters it and the arrows
+// with Enter pick a block; on a phone the menu is a bottom sheet. A block is dragged by «⋮⋮» or moved by
+// Ctrl+Shift+↑/↓, and the move is undone like any change.
+
+const menuItems = (page: Page) => page.locator('.ce-toolbox .ce-popover-item:visible')
+const menuSearch = (page: Page) => page.locator('.ce-toolbox .cdx-search-field__input')
+const menuPanel = (page: Page) => page.locator('.ce-toolbox .ce-popover--opened > .ce-popover__container')
+
+async function startWithThree(page: Page) {
+  await open(page)
+  await press(paragraphs(page).first())
+  // Each Enter waits for the history to settle: a change Editor.js reports during the key can lose it.
+  await page.keyboard.type('Первый')
+  await settled(page)
+  await page.keyboard.press('Enter')
+  await expect(paragraphs(page).nth(1)).toBeFocused()
+  await page.keyboard.type('Второй')
+  await settled(page)
+  await page.keyboard.press('Enter')
+  await expect(paragraphs(page).nth(2)).toBeFocused()
+  await page.keyboard.type('Третий')
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй', 'Третий'])
+  await settled(page)
+}
+
+test('filters the block menu by typing and adds the block picked with the keyboard', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await press(page.locator('.ce-toolbar__plus'))
+  await expect(menuSearch(page)).toHaveAttribute('placeholder', 'Поиск')
+  // On a desktop the search takes the focus; on a phone it waits for a tap, so the sheet does not move the caret.
+  if (isTouch()) {
+    await expect(menuSearch(page)).not.toBeFocused()
+    await press(menuSearch(page))
+  }
+  await expect(menuSearch(page)).toBeFocused()
+  await expect(menuItems(page)).toHaveCount(7)
+
+  await page.keyboard.type('спис')
+  await expect(menuItems(page)).toHaveText(['Маркированный список', 'Нумерованный список'])
+  await page.keyboard.type('ок-нет')
+  await expect(menuItems(page)).toHaveCount(0)
+  await expect(page.locator('.ce-toolbox .ce-popover__nothing-found-message')).toHaveText('Ничего не найдено')
+  await expect(page.locator('.ce-toolbox .ce-popover__nothing-found-message')).toBeVisible()
+  for (let left = 6; left > 0; left--) await page.keyboard.press('Backspace')
+  await expect(menuItems(page)).toHaveCount(2)
+  await expect(page.locator('.ce-toolbox .ce-popover__nothing-found-message')).toBeHidden()
+
+  if (isTouch()) {
+    // On a phone Enter adds the first block found.
+    await menuSearch(page).fill('нумер')
+    await expect(menuItems(page)).toHaveText(['Нумерованный список'])
+  } else {
+    // The arrows go through the found blocks, Enter adds the focused one.
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await expect(page.locator('.ce-toolbox .ce-popover-item--focused')).toHaveText('Нумерованный список')
+  }
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.cdx-list--ordered')).toHaveCount(1)
+  await expect(menuPanel(page)).toHaveCount(0)
+  await expect(paragraphs(page)).toHaveCount(0)
+
+  // Enter in the empty item ends the list; the menu opens again with all its blocks.
+  await page.keyboard.press('Enter')
+  await expect(paragraphs(page)).toHaveCount(1)
+  await press(paragraphs(page).first())
+  await press(page.locator('.ce-toolbar__plus'))
+  await expect(menuItems(page)).toHaveCount(7)
+})
+
+test('opens the block menu by "/" in an empty block and closes it on Escape', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.press('/')
+  await expect(menuPanel(page)).toBeVisible()
+  if (!isTouch()) {
+    await page.keyboard.type('цит')
+    await expect(menuItems(page)).toHaveText(['Цитата'])
+  }
+  await page.keyboard.press('Escape')
+  await expect(menuPanel(page)).toHaveCount(0)
+  await expect(page.getByTestId('editor-window')).toBeVisible()
+})
+
+test('shows the block menu under «+» on a desktop and as a bottom sheet on a phone', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await press(page.locator('.ce-toolbar__plus'))
+  const viewport = page.viewportSize()!
+  if (isTouch()) {
+    // The sheet slides in; its place is checked once it stands.
+    await expect
+      .poll(async () => {
+        const panel = await box(menuPanel(page))
+        return [panel.x, panel.width, panel.y + panel.height].map(Math.round)
+      })
+      .toEqual([0, viewport.width, viewport.height])
+    await expect(page.locator('.ce-toolbox .ce-popover__overlay')).toBeVisible()
+    // A tap on the overlay closes the sheet.
+    await page.touchscreen.tap(viewport.width / 2, 20)
+    await expect(menuPanel(page)).toHaveCount(0)
+  } else {
+    const panel = await box(menuPanel(page))
+    const plus = await box(page.locator('.ce-toolbar__plus'))
+    expect(panel.width).toBeLessThan(viewport.width / 2)
+    expect(panel.y).toBeGreaterThanOrEqual(plus.y + plus.height)
+    await expect(page.locator('.ce-toolbox .ce-popover__overlay')).toBeHidden()
+  }
+})
+
+test('drags a block by «⋮⋮» to another place and undoes the move', async ({ page }) => {
+  await startWithThree(page)
+  const before = await step(page)
+
+  // The toolbar of the first block: under the pointer on a desktop, of the focused block on a phone.
+  if (isTouch()) await press(paragraphs(page).first())
+  else {
+    // The pointer is already over the first block from the click that started typing: it has to come back to it.
+    await paragraphs(page).nth(2).hover()
+    await paragraphs(page).first().hover()
+  }
+  // On a desktop the handle stands at the block's line, on a phone under it; it is read once the toolbar has moved.
+  const first = await box(paragraphs(page).first())
+  await expect
+    .poll(async () => {
+      const handle = await box(page.locator('.ce-toolbar__settings-btn'))
+      const top = handle.y + handle.height / 2
+      return top > first.y && top < first.y + first.height * (isTouch() ? 2.5 : 1)
+    })
+    .toBe(true)
+  const handle = await box(page.locator('.ce-toolbar__settings-btn'))
+  const last = await box(paragraphs(page).nth(2))
+  const x = handle.x + handle.width / 2
+  await page.mouse.move(x, handle.y + handle.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(x, last.y + last.height / 2, { steps: 5 })
+  await page.mouse.move(x, last.y + last.height, { steps: 5 })
+  await expect(page.locator('.ce-block--dragging')).toHaveCount(1)
+  await expect(page.locator('.ce-block[data-drop="after"]')).toHaveText('Третий')
+  await page.mouse.up()
+
+  await expect(paragraphs(page)).toHaveText(['Второй', 'Третий', 'Первый'])
+  await expect(page.locator('.ce-block--dragging, .ce-block[data-drop]')).toHaveCount(0)
+  // Letting go does not open the block menu.
+  await expect(page.locator('.ce-settings .ce-popover--opened')).toHaveCount(0)
+  await atStep(page, before + 1)
+
+  await undo(page)
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Второй', 'Третий'])
+  await redo(page)
+  await expect(paragraphs(page)).toHaveText(['Второй', 'Третий', 'Первый'])
+})
+
+test('moves a block with Ctrl+Shift+arrows and keeps the caret in it', async ({ page }) => {
+  await startWithThree(page)
+  const before = await step(page)
+  await press(paragraphs(page).nth(1))
+  await page.keyboard.press('End')
+
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowUp')
+  await expect(paragraphs(page)).toHaveText(['Второй', 'Первый', 'Третий'])
+  await page.keyboard.type('!')
+  await expect(paragraphs(page)).toHaveText(['Второй!', 'Первый', 'Третий'])
+
+  // At the top it stays; down twice takes it to the end.
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowUp')
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowDown')
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowDown')
+  await expect(paragraphs(page)).toHaveText(['Первый', 'Третий', 'Второй!'])
+  await expect(paragraphs(page).nth(2)).toBeFocused()
+  await settled(page)
+  expect(await step(page)).toBeGreaterThan(before)
+
+  await stepUntil(page, undo, () =>
+    expect(paragraphs(page)).toHaveText(['Первый', 'Второй', 'Третий'], { timeout: 500 }),
+  )
+})
