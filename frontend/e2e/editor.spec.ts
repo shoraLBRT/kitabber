@@ -128,7 +128,9 @@ test('restores formatted text from the saved document without loss', async ({ pa
   await atStep(page, 2)
   await page.keyboard.type('Второй')
   await atStep(page, 3)
-  const written = await paragraphs(page).evaluateAll((elements) => elements.map((element) => element.innerHTML))
+  const written = await paragraphs(page).evaluateAll((elements) =>
+    elements.map((element) => element.innerHTML),
+  )
   expect(written[0]).toContain('<b>жирный</b>')
 
   // Undo to the start and redo to the end: each step is rendered from the document in the schema format.
@@ -141,9 +143,9 @@ test('restores formatted text from the saved document without loss', async ({ pa
     await atStep(page, step)
   }
 
-  expect(await paragraphs(page).evaluateAll((elements) => elements.map((element) => element.innerHTML))).toEqual(
-    written,
-  )
+  expect(
+    await paragraphs(page).evaluateAll((elements) => elements.map((element) => element.innerHTML)),
+  ).toEqual(written)
 })
 
 test('opens from "Написать" and closes with "✕" back to where it was opened from', async ({ page }) => {

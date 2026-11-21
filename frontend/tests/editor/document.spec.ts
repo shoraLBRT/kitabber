@@ -14,10 +14,18 @@ import {
 const everyBlock: PostDocument = {
   version: 1,
   blocks: [
-    { id: 'p1', type: 'paragraph', data: { text: 'Текст с <b>жирным</b>, <i>курсивом</i> и <mark>маркером</mark>' } },
+    {
+      id: 'p1',
+      type: 'paragraph',
+      data: { text: 'Текст с <b>жирным</b>, <i>курсивом</i> и <mark>маркером</mark>' },
+    },
     { id: 'h2', type: 'header', data: { text: 'Подзаголовок', level: 2 } },
     { id: 'h3', type: 'header', data: { text: 'Ещё уровень', level: 3 } },
-    { id: 'l1', type: 'list', data: { style: 'ordered', items: ['первый', '<a href="https://example.org">второй</a>'] } },
+    {
+      id: 'l1',
+      type: 'list',
+      data: { style: 'ordered', items: ['первый', '<a href="https://example.org">второй</a>'] },
+    },
     { id: 'l2', type: 'list', data: { style: 'unordered', items: ['пункт'] } },
     { id: 'q1', type: 'quote', data: { text: 'Цитата<br>в две строки', caption: 'Автор' } },
     { id: 'd1', type: 'delimiter', data: {} },
@@ -88,7 +96,11 @@ describe('post document', () => {
   it('fills a missing quote caption with the schema default', () => {
     const output = { blocks: [{ id: 'q', type: 'quote', data: { text: 'Слова' } }] } as OutputData
 
-    expect(toPostDocument(output).blocks[0]).toEqual({ id: 'q', type: 'quote', data: { text: 'Слова', caption: '' } })
+    expect(toPostDocument(output).blocks[0]).toEqual({
+      id: 'q',
+      type: 'quote',
+      data: { text: 'Слова', caption: '' },
+    })
   })
 
   it('rejects a block type the schema does not have', () => {

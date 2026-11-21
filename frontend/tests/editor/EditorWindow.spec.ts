@@ -45,7 +45,10 @@ describe('EditorWindow', () => {
 
   it('expands to the whole screen and back', async () => {
     mountWindow()
-    const expand = { trigger: (e: string) => button().trigger(e), attributes: (a: string) => button().attributes(a) }
+    const expand = {
+      trigger: (e: string) => button().trigger(e),
+      attributes: (a: string) => button().attributes(a),
+    }
 
     await expand.trigger('click')
     expect(wrapper.get('[data-testid="editor-window"]').classes()).toContain('editor-window--expanded')

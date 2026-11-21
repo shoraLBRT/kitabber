@@ -149,13 +149,7 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
 </script>
 
 <template>
-  <div
-    class="block-editor"
-    :data-state="state"
-    :data-step="step"
-    data-testid="block-editor"
-    ref="root"
-  >
+  <div ref="root" class="block-editor" :data-state="state" :data-step="step" data-testid="block-editor">
     <div v-if="state === 'loading'" class="block-editor__skeleton" aria-hidden="true">
       <span v-for="line in 3" :key="line" class="block-editor__line" />
     </div>

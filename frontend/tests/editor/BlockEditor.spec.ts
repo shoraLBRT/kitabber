@@ -44,7 +44,10 @@ const fakeEngine: CreateEngine = async (options) => {
   return engine
 }
 
-async function mountEditor(createEngine: CreateEngine = fakeEngine, document: PostDocument = emptyDocument()) {
+async function mountEditor(
+  createEngine: CreateEngine = fakeEngine,
+  document: PostDocument = emptyDocument(),
+) {
   wrapper = mount(BlockEditor, {
     props: {
       document,
@@ -61,7 +64,13 @@ const texts = () =>
   (wrapper.props('document') as PostDocument).blocks.map((block) => (block.data as { text: string }).text)
 
 async function keydown(code: string, options: KeyboardEventInit = {}) {
-  const event = new KeyboardEvent('keydown', { code, ctrlKey: true, bubbles: true, cancelable: true, ...options })
+  const event = new KeyboardEvent('keydown', {
+    code,
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+    ...options,
+  })
   wrapper.get('[data-testid="block-editor-holder"]').element.dispatchEvent(event)
   await flushPromises()
   return event
@@ -186,7 +195,12 @@ describe('BlockEditor', () => {
     const field = window.document.createElement('input')
     window.document.body.append(field)
 
-    const elsewhere = new KeyboardEvent('keydown', { code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true })
+    const elsewhere = new KeyboardEvent('keydown', {
+      code: 'KeyZ',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
     field.dispatchEvent(elsewhere)
     await flushPromises()
     expect(elsewhere.defaultPrevented).toBe(false)
