@@ -175,6 +175,9 @@ importers:
 
   .:
     dependencies:
+      '@editorjs/editorjs':
+        specifier: 2.31.7
+        version: 2.31.7
       '@microsoft/signalr':
         specifier: 10.0.11
         version: 10.0.11
@@ -455,6 +458,18 @@ packages:
 
   '@dxup/unimport@0.1.2':
     resolution: {integrity: sha512-/B8YJGPzaYq1NbsQmwgP8EZqg40NpTw4ZB3suuI0TplbxKHeK94jeaawLmVhCv+YwUnOpiWEz9U6SeThku/8JQ==}
+
+  '@editorjs/caret@1.1.0':
+    resolution: {integrity: sha512-dzUjrPV7mtqM0HR/7IwT1/1PfyMxUfe5MRXo9joFmBRDIcrQ5ikbqVxSL9+Hy5tQ+BUWBwqLUgX1UKTJylWW9Q==}
+
+  '@editorjs/dom@1.2.0':
+    resolution: {integrity: sha512-0b7kyM6bKBNqr90JruQCghwoR7zFfXJp1Ysuj2CG8Df1lGBq2/aKGzPnJteXgFHmViykdebAVTICvQsUk9ocHQ==}
+
+  '@editorjs/editorjs@2.31.7':
+    resolution: {integrity: sha512-te4wI1heK3B8s0pz1asyRPEmOglfkb9ex5nvvCN5OUVDLSnohTszI+yyLI73qOIuUWxenIvJYkOuGHzh/a47Hw==}
+
+  '@editorjs/helpers@1.2.3':
+    resolution: {integrity: sha512-8NnWyZhVqfkaDSRTOpayd8oaGkppw00XvOvUIxPB6SZFd9LKgQo31o9v6eDK4XFsbTed8LQt2xmvZFFK9wNTSg==}
 
   '@es-joy/jsdoccomment@0.91.0':
     resolution: {integrity: sha512-vgqlMGNNhZxwDYbUNIHj3Hskb4R28iqdXx90ufHyt/NeuTQkeqjTDslAs9I0/GCAfbxP5BpH5WsL1R1fht5Lxg==}
@@ -2193,6 +2208,12 @@ packages:
   cluster-key-slot@1.1.1:
     resolution: {integrity: sha512-rwHwUfXL40Chm1r08yrhU3qpUvdVlgkKNeyeGPOxnW8/SyVDvgRaed/Uz54AqWNaTCAThlj6QAs3TZcKI0xDEw==}
     engines: {node: '>=0.10.0'}
+
+  codex-notifier@1.1.2:
+    resolution: {integrity: sha512-DCp6xe/LGueJ1N5sXEwcBc3r3PyVkEEDNWCVigfvywAkeXcZMk9K41a31tkEFBW0Ptlwji6/JlAb49E3Yrxbtg==}
+
+  codex-tooltip@1.1.0:
+    resolution: {integrity: sha512-4AHzIapwZ979nzOPR9YYd8GU+xRAxrc5i5vV6+A6OZRRarLW2ToJZv63E/sYONeJSxUQ1Dyn+PtnVGA3OuoKhA==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -5231,6 +5252,24 @@ snapshots:
 
   '@dxup/unimport@0.1.2': {}
 
+  '@editorjs/caret@1.1.0':
+    dependencies:
+      '@editorjs/dom': 1.2.0
+
+  '@editorjs/dom@1.2.0':
+    dependencies:
+      '@editorjs/helpers': 1.2.3
+
+  '@editorjs/editorjs@2.31.7':
+    dependencies:
+      '@editorjs/caret': 1.1.0
+      codex-notifier: 1.1.2
+      codex-tooltip: 1.1.0
+
+  '@editorjs/helpers@1.2.3':
+    dependencies:
+      codex-tooltip: 1.1.0
+
   '@es-joy/jsdoccomment@0.91.0':
     dependencies:
       '@types/estree': 1.0.10
@@ -7053,6 +7092,10 @@ snapshots:
       wrap-ansi: 9.0.2
 
   cluster-key-slot@1.1.1: {}
+
+  codex-notifier@1.1.2: {}
+
+  codex-tooltip@1.1.0: {}
 
   color-convert@2.0.1:
     dependencies:
