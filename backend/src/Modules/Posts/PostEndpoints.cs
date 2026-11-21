@@ -19,7 +19,7 @@ namespace Platform.Modules.Posts;
 /// </param>
 /// <param name="Title">The title; empty or missing for a short post without one.</param>
 /// <param name="Body">The block document <c>{"version", "blocks": [{"id", "type", "data"}]}</c> (ADR-0023).</param>
-public sealed record PostInput(Guid? BlogId, string? Title, JsonElement Body);
+public sealed record PostInput(JsonElement Body, Guid? BlogId = null, string? Title = null);
 
 /// <summary>The external source of a post carried over from Telegram (ADR-0003).</summary>
 /// <param name="Channel">The channel in the external service.</param>
