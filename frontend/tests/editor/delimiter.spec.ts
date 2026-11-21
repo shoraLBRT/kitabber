@@ -1,6 +1,7 @@
 import type { BlockAPI, BlockToolConstructorOptions } from '@editorjs/editorjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  type BlockApi,
   continueAfterDelimiter,
   delimiterLabel,
   DelimiterTool,
@@ -10,7 +11,7 @@ import {
 // The delimiter block (E05-05, #40): no content, not editable, removed by one key.
 
 function fakeApi(count: number, index = 1) {
-  return {
+  const api = {
     blocks: {
       getBlockIndex: vi.fn(() => index),
       getBlocksCount: vi.fn(() => count),
@@ -19,6 +20,7 @@ function fakeApi(count: number, index = 1) {
     },
     caret: { setToBlock: vi.fn() },
   }
+  return api as unknown as typeof api & BlockApi
 }
 
 /** An editor holder with blocks; the one at `selected` is a delimiter and selected. */
@@ -128,7 +130,8 @@ describe('removeSelectedDelimiter', () => {
 })
 
 describe('continueAfterDelimiter', () => {
-  const added = (name: string) => ({ id: 'd1', name }) as unknown as BlockAPI
+  const added = (name: string, selected = true) =>
+    ({ id: 'd1', name, selected }) as unknown as BlockAPI
 
   it('adds a text block after a delimiter added last and puts the caret there', () => {
     const api = fakeApi(2)
@@ -142,6 +145,13 @@ describe('continueAfterDelimiter', () => {
     continueAfterDelimiter(api, added('delimiter'))
     expect(api.blocks.insert).not.toHaveBeenCalled()
     expect(api.caret.setToBlock).toHaveBeenCalledWith(2, 'start')
+  })
+
+  it('leaves the caret alone once the author has moved it off the new delimiter', () => {
+    const api = fakeApi(2)
+    continueAfterDelimiter(api, added('delimiter', false))
+    expect(api.blocks.insert).not.toHaveBeenCalled()
+    expect(api.caret.setToBlock).not.toHaveBeenCalled()
   })
 
   it('ignores other blocks', () => {

@@ -11,6 +11,12 @@ const delimiterIcon =
 /** The class of the delimiter's element; the engine finds a selected delimiter by it. */
 export const delimiterClass = 'ce-delimiter'
 
+/** The part of the Editor.js API the delimiter's keys and the caret after it use. */
+export interface BlockApi {
+  blocks: Pick<API['blocks'], 'getBlockIndex' | 'getBlocksCount' | 'delete' | 'insert'>
+  caret: Pick<API['caret'], 'setToBlock'>
+}
+
 /** What a screen reader says for the delimiter (role separator). */
 export const delimiterLabel = 'Разделитель'
 
@@ -56,7 +62,7 @@ function select(api: API, block: BlockAPI | undefined) {
  * (Backspace) or the start of the block after it (Delete), or to the other side when there is none. Listens on the
  * window in the capture phase, before Editor.js's document handler, which would put an empty text block in its place.
  */
-export function removeSelectedDelimiter(holder: HTMLElement, api: Pick<API, 'blocks' | 'caret'>): () => void {
+export function removeSelectedDelimiter(holder: HTMLElement, api: BlockApi): () => void {
   const onKeydown = (event: KeyboardEvent) => {
     if (event.key !== 'Backspace' && event.key !== 'Delete') return
     if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
@@ -80,10 +86,14 @@ export function removeSelectedDelimiter(holder: HTMLElement, api: Pick<API, 'blo
 
 /**
  * After a delimiter is added from the block menu, the caret goes to the block after it, so writing goes on below the
- * line; a text block is added when the delimiter is the last block. Called with the blocks Editor.js reports as added.
+ * line; a text block is added when the delimiter is the last block. Called with the blocks Editor.js reports as added,
+ * which it reports in batches some time later: only while the new delimiter is still selected (Editor.js selects a
+ * block without fields it puts the caret on), so a caret the author has moved meanwhile stays where it is. A click on
+ * the block menu below the last block already gives a text block after it (Editor.js), and the delimiter is not
+ * selected then.
  */
-export function continueAfterDelimiter(api: Pick<API, 'blocks' | 'caret'>, added: BlockAPI) {
-  if (added.name !== 'delimiter') return
+export function continueAfterDelimiter(api: BlockApi, added: BlockAPI) {
+  if (added.name !== 'delimiter' || !added.selected) return
   const index = api.blocks.getBlockIndex(added.id)
   if (index === undefined || index < 0) return
   if (index === api.blocks.getBlocksCount() - 1)
