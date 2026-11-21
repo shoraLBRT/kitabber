@@ -15,6 +15,7 @@ const anna: Profile = {
   nickname: 'anna',
   description: 'Пишу о книгах и городах.',
   registeredAt: null,
+  avatarId: null,
 }
 
 function mountView(state: ProfileLookup | { status: 'loading' }, tab: 'posts' | 'comments' = 'posts') {
@@ -40,11 +41,19 @@ describe('BlogView', () => {
     const profile = { ...anna, registeredAt: '2026-03-14T23:30:00Z' }
     const wrapper = mountView({ status: 'found', profile, owner: true })
     expect(wrapper.get('[data-testid="blog-registered"]').text()).toBe('На сайте с 14 марта 2026 г.')
-    const buttons = wrapper.get('[aria-label="Управление блогом"]').findAll('button')
-    expect(buttons.map((button) => button.text())).toEqual(['Ред.', 'Статистика', 'Настройки'])
-    // Their screens come with their own issues; until then the buttons say so instead of leading nowhere.
-    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
-    expect(wrapper.get('#blog-soon').text()).toContain('появятся позже')
+    const actions = wrapper.get('[aria-label="Управление блогом"]')
+    expect(actions.findAll('a, button').map((item) => item.text())).toEqual([
+      'Ред.',
+      'Статистика',
+      'Настройки',
+    ])
+    // «Ред.» and «Настройки» open the blog settings (E04-03); statistics comes with its own issue and says so.
+    expect(actions.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/settings/blog',
+      '/settings/blog',
+    ])
+    expect(actions.get('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('#blog-soon').text()).toContain('появится позже')
   })
 
   it('leaves out what a new blog does not have yet', () => {

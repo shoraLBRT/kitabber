@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Http;
+using Platform.Modules.Media.Contracts;
 using Platform.Modules.Media.Storage;
 using Platform.Modules.Media.Uploads;
 using Platform.Persistence;
@@ -33,6 +34,7 @@ public static class MediaModule
         }
 
         services.AddScoped<MediaUploads>();
+        services.AddScoped<IMediaLibrary, MediaLibrary>();
         services.AddApiEndpoints<UploadEndpoints>();
         return builder;
     }

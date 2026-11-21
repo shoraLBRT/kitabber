@@ -62,3 +62,58 @@ export async function ownProfile(client: ApiClient): Promise<Profile | null> {
     return null
   }
 }
+
+// Editing the own profile (E04-03, FR-PROFILE, ADR-0034): the name, the description and the avatar. The limits are
+// the API's (SubsiteRules): characters as people see them, after the surrounding spaces are cut.
+export type ProfileInput = components['schemas']['ProfileInput']
+
+export const nameMaxLength = 25
+export const descriptionMaxLength = 160
+
+const graphemes = new Intl.Segmenter('ru', { granularity: 'grapheme' })
+
+/** The length the limits count: grapheme clusters of the trimmed text, so an emoji is one character. */
+export function profileTextLength(text: string | null | undefined): number {
+  return [...graphemes.segment(text?.trim() ?? '')].length
+}
+
+/** Field errors of the input as the API would give them, found before it is sent; empty when it fits. */
+export function profileInputErrors(
+  input: Pick<ProfileInput, 'name' | 'description'>,
+): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (profileTextLength(input.name) > nameMaxLength)
+    errors.name = `Название — не длиннее ${nameMaxLength} символов.`
+  if (profileTextLength(input.description) > descriptionMaxLength)
+    errors.description = `Описание — не длиннее ${descriptionMaxLength} символов.`
+  return errors
+}
+
+export type ProfileSave =
+  | { status: 'saved'; profile: Profile }
+  | { status: 'invalid'; errors: Record<string, string> }
+  | { status: 'unauthorized' }
+  | { status: 'error' }
+
+/** The first message of each field of a validation problem (ADR-0006: `errors` keyed by field). */
+function fieldErrors(problem: unknown): Record<string, string> {
+  const errors = (problem as { errors?: Record<string, string[]> } | undefined)?.errors ?? {}
+  return Object.fromEntries(
+    Object.entries(errors)
+      .filter(([, messages]) => messages.length > 0)
+      .map(([field, messages]) => [field, messages[0]!]),
+  )
+}
+
+/** Saves the own profile: PUT /profiles/me replaces the name, the description and the avatar. */
+export async function saveOwnProfile(client: ApiClient, input: ProfileInput): Promise<ProfileSave> {
+  try {
+    const { data, error, response } = await client.PUT('/api/v1/profiles/me', { body: input })
+    if (data) return { status: 'saved', profile: data }
+    if (response.status === 400) return { status: 'invalid', errors: fieldErrors(error) }
+    if (response.status === 401) return { status: 'unauthorized' }
+    return { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}

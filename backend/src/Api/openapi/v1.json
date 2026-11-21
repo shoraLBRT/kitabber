@@ -542,6 +542,55 @@
             }
           }
         }
+      },
+      "put": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Replaces the name, the description and the avatar of the signed-in account's personal blog",
+        "operationId": "UpdateOwnProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/profiles/{id}": {
@@ -1286,7 +1335,8 @@
           "name",
           "nickname",
           "description",
-          "registeredAt"
+          "registeredAt",
+          "avatarId"
         ],
         "type": "object",
         "properties": {
@@ -1321,6 +1371,37 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "avatarId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ProfileInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatarId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

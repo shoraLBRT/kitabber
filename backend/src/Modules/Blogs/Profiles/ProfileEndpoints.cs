@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Blogs.Profiles;
 
@@ -15,11 +16,29 @@ namespace Platform.Modules.Blogs.Profiles;
 /// <param name="Nickname">The short address without <c>@</c>; <c>null</c> until the owner sets it.</param>
 /// <param name="Description">At most 160 characters.</param>
 /// <param name="RegisteredAt">When the owner registered; only the owner sees it.</param>
-public sealed record Profile(Guid Id, string Type, string? Name, string? Nickname, string? Description, DateTimeOffset? RegisteredAt);
+/// <param name="AvatarId">
+/// The avatar: an image uploaded through <c>POST /api/v1/media</c>; <c>null</c> when there is none. How it is shown is
+/// the media delivery's (E06-02, ADR-0034).
+/// </param>
+public sealed record Profile(
+    Guid Id,
+    string Type,
+    string? Name,
+    string? Nickname,
+    string? Description,
+    DateTimeOffset? RegisteredAt,
+    Guid? AvatarId);
+
+/// <summary>What the owner edits in the profile (E04-03). Every field is replaced: missing or empty clears it.</summary>
+/// <param name="Name">The name, at most 25 characters.</param>
+/// <param name="Description">The description, at most 160 characters.</param>
+/// <param name="AvatarId">An image the owner uploaded through <c>POST /api/v1/media</c>; <c>null</c> removes the avatar.</param>
+public sealed record ProfileInput(string? Name = null, string? Description = null, Guid? AvatarId = null);
 
 /// <summary>
 /// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0025): a blog's profile by its identifier or by its nickname, open to
-/// everyone, and the signed-in account's own profile. Editing the profile is E04-03, the nickname rules E04-05.
+/// everyone, and the signed-in account's own profile, which its owner edits (E04-03: name, description, avatar). The
+/// nickname rules are E04-05.
 /// </summary>
 public sealed class ProfileEndpoints : IApiEndpoints
 {
@@ -34,6 +53,13 @@ public sealed class ProfileEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("GetOwnProfile")
             .WithSummary("The signed-in account's personal blog");
+        profiles.MapPut("/me", UpdateOwnAsync)
+            .RequireAuthorization()
+            .Produces<Profile>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithName("UpdateOwnProfile")
+            .WithSummary("Replaces the name, the description and the avatar of the signed-in account's personal blog");
         profiles.MapGet("/{id:guid}", GetByIdAsync)
             .Produces<Profile>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -56,6 +82,59 @@ public sealed class ProfileEndpoints : IApiEndpoints
 
         return TypedResults.Ok(View(await blogs.EnsureAsync(accountId, ct), accountId));
     }
+
+    private static async Task<IResult> UpdateOwnAsync(
+        ProfileInput input,
+        ClaimsPrincipal user,
+        PersonalBlogs blogs,
+        BlogsDbContext db,
+        IMediaLibrary media,
+        CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } accountId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var errors = new Dictionary<string, string[]>();
+        if (!SubsiteRules.IsValidName(input.Name))
+        {
+            errors["name"] = [$"Название — не длиннее {SubsiteRules.NameMaxLength} символов."];
+        }
+
+        if (!SubsiteRules.IsValidDescription(input.Description))
+        {
+            errors["description"] = [$"Описание — не длиннее {SubsiteRules.DescriptionMaxLength} символов."];
+        }
+
+        if (input.AvatarId is { } avatarId && await AvatarProblemAsync(avatarId, accountId, media, ct) is { } avatarProblem)
+        {
+            errors["avatarId"] = [avatarProblem];
+        }
+
+        if (errors.Count > 0)
+        {
+            return ApiProblems.Validation(errors);
+        }
+
+        var blog = await blogs.EnsureAsync(accountId, ct);
+        blog.Rename(input.Name);
+        blog.Describe(input.Description);
+        blog.SetAvatar(input.AvatarId);
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(View(blog, accountId));
+    }
+
+    // Someone else's file is answered as a missing one, so the owner of a file is not given away (ADR-0034).
+    private static async Task<string?> AvatarProblemAsync(
+        Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
+        await media.FindAsync(avatarId, ct) switch
+        {
+            null => "Такого загруженного файла нет.",
+            { } file when file.OwnerAccountId != accountId => "Такого загруженного файла нет.",
+            { Kind: not MediaFileKind.Image } => "Аватар — это изображение.",
+            _ => null,
+        };
 
     private static async Task<IResult> GetByIdAsync(Guid id, ClaimsPrincipal user, BlogsDbContext db, CancellationToken ct) =>
         await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct) is { } blog
@@ -84,7 +163,8 @@ public sealed class ProfileEndpoints : IApiEndpoints
         blog.Name,
         blog.Nickname,
         blog.Description,
-        viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null);
+        viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null,
+        blog.AvatarMediaId);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

@@ -22,6 +22,7 @@
         <ProjectReference Include="../../Http/Platform.Http.csproj" />
         <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
         <ProjectReference Include="../../Configuration/Platform.Configuration.csproj" />
+        <ProjectReference Include="../Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

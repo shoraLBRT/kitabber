@@ -71,6 +71,19 @@ public sealed class SubsiteRulesTests
         Assert.Null(blog.Description);
     }
 
+    [Fact]
+    public void AvatarIsSetAndRemovedButNeverAnEmptyId()
+    {
+        var blog = Subsite.CreatePersonal(Guid.CreateVersion7(_now), _now);
+        var image = Guid.CreateVersion7(_now);
+
+        blog.SetAvatar(image);
+        Assert.Equal(image, blog.AvatarMediaId);
+        blog.SetAvatar(null);
+        Assert.Null(blog.AvatarMediaId);
+        Assert.Throws<ArgumentException>(() => blog.SetAvatar(Guid.Empty));
+    }
+
     [Theory]
     [InlineData("reader", "reader")]
     [InlineData("@Reader_42", "reader_42")]

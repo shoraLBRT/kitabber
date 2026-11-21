@@ -40,6 +40,9 @@
   <Folder Name="/src/Modules/Media/">
     <Project Path="src/Modules/Media/Platform.Modules.Media.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Media.Contracts/">
+    <Project Path="src/Modules/Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity.Contracts/">
     <Project Path="src/Modules/Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
   </Folder>

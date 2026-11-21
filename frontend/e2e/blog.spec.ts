@@ -68,8 +68,9 @@ test.describe('страница блога', () => {
     const blog = page.getByTestId('blog')
     await expect(blog.getByTestId('blog-registered')).toHaveText('На сайте с 14 марта 2026 г.')
     const actions = blog.getByRole('group', { name: 'Управление блогом' })
-    for (const name of ['Ред.', 'Статистика', 'Настройки'])
-      await expect(actions.getByRole('button', { name, exact: true })).toBeVisible()
+    for (const name of ['Ред.', 'Настройки'])
+      await expect(actions.getByRole('link', { name, exact: true })).toHaveAttribute('href', '/settings/blog')
+    await expect(actions.getByRole('button', { name: 'Статистика', exact: true })).toBeDisabled()
     await expect(blog.getByRole('link', { name: 'Написать первый пост' })).toHaveAttribute('href', '/write')
     await expectNoHorizontalScroll(page)
 
