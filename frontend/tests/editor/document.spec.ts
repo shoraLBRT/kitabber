@@ -27,9 +27,10 @@ const everyBlock: PostDocument = {
       data: {
         style: 'ordered',
         items: ['первый', '<a href="https://example.org" rel="nofollow ugc noopener noreferrer">второй</a>'],
+        levels: [0, 1],
       },
     },
-    { id: 'l2', type: 'list', data: { style: 'unordered', items: ['пункт'] } },
+    { id: 'l2', type: 'list', data: { style: 'unordered', items: ['пункт'], levels: [] } },
     { id: 'q1', type: 'quote', data: { text: 'Цитата<br>в две строки', caption: 'Автор' } },
     { id: 'd1', type: 'delimiter', data: {} },
     { id: 'p2', type: 'paragraph', data: { text: '' } },
@@ -71,7 +72,7 @@ describe('post document', () => {
     )
   })
 
-  it('flattens the nested items of the Editor.js list plugin into the flat list of version 1', () => {
+  it('flattens the nested items of the Editor.js list plugin into items with their levels', () => {
     const output = {
       blocks: [
         {
@@ -92,7 +93,7 @@ describe('post document', () => {
     expect(toPostDocument(output).blocks[0]).toEqual({
       id: 'l',
       type: 'list',
-      data: { style: 'ordered', items: ['один', 'один-а', 'два'] },
+      data: { style: 'ordered', items: ['один', 'один-а', 'два'], levels: [0, 1, 0] },
     })
   })
 
@@ -123,7 +124,7 @@ describe('post document', () => {
       { text: clean },
       { text: clean, level: 2 },
       { text: clean, caption: 'и' },
-      { style: 'unordered', items: [clean] },
+      { style: 'unordered', items: [clean], levels: [] },
     ])
   })
 

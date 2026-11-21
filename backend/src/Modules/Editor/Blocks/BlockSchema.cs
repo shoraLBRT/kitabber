@@ -23,6 +23,12 @@ public sealed class BlockSchema
 
     public IReadOnlyList<BlockField> Fields { get; }
 
+    /// <summary>
+    /// A check across fields, run on the canonical <c>data</c> once every field has been read without errors; it adds
+    /// its errors under the path of <c>data</c>.
+    /// </summary>
+    public Action<JsonObject, string, ICollection<BlockDocumentError>>? Check { get; init; }
+
     /// <summary>Reads <paramref name="data"/> into canonical form (fields in schema order, defaults filled in).</summary>
     public JsonObject? Read(JsonElement data, string path, ICollection<BlockDocumentError> errors)
     {
@@ -55,6 +61,11 @@ public sealed class BlockSchema
             {
                 result[field.Name] = field.DefaultValue!.DeepClone();
             }
+        }
+
+        if (errors.Count == before)
+        {
+            Check?.Invoke(result, path, errors);
         }
 
         return errors.Count == before ? result : null;

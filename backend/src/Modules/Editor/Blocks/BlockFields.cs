@@ -113,3 +113,39 @@ public sealed class InlineHtmlListField(string name, InlineHtml html) : BlockFie
         return valid ? items : null;
     }
 }
+
+/// <summary>An array of integers from 0 to a maximum, empty when absent: the nesting levels of list items.</summary>
+public sealed class LevelListField(string name, int maxLevel) : BlockField(name, new JsonArray())
+{
+    public int MaxLevel { get; } = maxLevel;
+
+    public override JsonNode? Read(JsonElement value, string path, ICollection<BlockDocumentError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add(new(path, "Must be an array of levels."));
+            return null;
+        }
+
+        var levels = new JsonArray();
+        var index = 0;
+        var valid = true;
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var level) && level >= 0 && level <= MaxLevel)
+            {
+                levels.Add(JsonValue.Create(level));
+            }
+            else
+            {
+                errors.Add(new($"{path}[{index}]", $"Must be an integer from 0 to {MaxLevel}."));
+                valid = false;
+            }
+
+            index++;
+        }
+
+        return valid ? levels : null;
+    }
+}

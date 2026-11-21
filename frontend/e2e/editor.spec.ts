@@ -400,3 +400,127 @@ test('gives a heading an anchor that stays while its text changes and after undo
   await expect(headers(page).first()).toHaveText('Введение в тему')
   expect(await anchor(page)).toBe(id)
 })
+
+// List blocks (E05-04, #39): bulleted and numbered, one level of nesting by Tab and Shift+Tab, Enter adds an item and
+// an empty item ends the list, the style switches without losing the items or their levels (ADR-0033).
+
+const lists = (page: Page) => page.locator('.cdx-list')
+const items = (page: Page) => page.locator('.cdx-list__item')
+
+async function levels(page: Page) {
+  return items(page).evaluateAll((elements) =>
+    elements.map((element) => (element as HTMLElement).dataset.level),
+  )
+}
+
+async function itemHtmls(page: Page) {
+  return items(page).evaluateAll((elements) => elements.map((element) => element.innerHTML))
+}
+
+/** Writes «Первый» and turns it into a list of the given kind with the panel's menu; the caret ends the item. */
+async function startList(page: Page, kind: string) {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.type('Первый')
+  await atStep(page, 1)
+  await convert(page, 6, kind)
+  await expect(items(page)).toHaveCount(1)
+  await press(items(page).first())
+  await page.keyboard.press('End')
+}
+
+test('adds items on Enter, nests them on Tab and lifts them on Shift+Tab', async ({ page }) => {
+  await startList(page, 'Маркированный список')
+  await expect(lists(page).first()).toHaveJSProperty('tagName', 'UL')
+
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Вложенный')
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Ещё вложенный')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Второй')
+  await page.keyboard.press('Shift+Tab')
+
+  await expect(items(page)).toHaveText(['Первый', 'Вложенный', 'Ещё вложенный', 'Второй'])
+  expect(await levels(page)).toEqual(['0', '1', '1', '0'])
+  // Tab stays in the list: the first item has no parent, and one level is the deepest.
+  await press(items(page).first())
+  await page.keyboard.press('Tab')
+  await press(items(page).nth(1))
+  await page.keyboard.press('Tab')
+  expect(await levels(page)).toEqual(['0', '1', '1', '0'])
+  await expect(items(page).nth(1)).toBeFocused()
+
+  // Enter inside an item splits it at the caret.
+  await press(items(page).nth(3))
+  await page.keyboard.press('End')
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('Enter')
+  await expect(items(page)).toHaveText(['Первый', 'Вложенный', 'Ещё вложенный', 'Вт', 'орой'])
+  await expect(items(page).nth(4)).toBeFocused()
+})
+
+test('ends the list on Enter in an empty item and goes on with text', async ({ page }) => {
+  await startList(page, 'Нумерованный список')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Вложенный')
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Enter')
+
+  // Enter in an empty nested item lifts it; Enter in an empty top item ends the list.
+  await page.keyboard.press('Enter')
+  expect(await levels(page)).toEqual(['0', '1', '0'])
+  await page.keyboard.press('Enter')
+  await expect(items(page)).toHaveText(['Первый', 'Вложенный'])
+  await page.keyboard.type('После списка')
+  await expect(paragraphs(page)).toHaveText(['После списка'])
+
+  const order = await page
+    .locator('.ce-block')
+    .evaluateAll((blocks) => blocks.map((block) => (block.querySelector('.cdx-list') ? 'list' : 'text')))
+  expect(order).toEqual(['list', 'text'])
+})
+
+test('switches between bullets and numbers without losing the text or the nesting', async ({ page }) => {
+  await startList(page, 'Маркированный список')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Вложенный ')
+  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.type('жирный')
+  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.press('Tab')
+  const written = await itemHtmls(page)
+  expect(written[1]).toContain('<b>жирный</b>')
+
+  await convert(page, 6, 'Нумерованный список')
+  await expect(lists(page)).toHaveCount(1)
+  await expect(lists(page).first()).toHaveJSProperty('tagName', 'OL')
+  expect(await itemHtmls(page)).toEqual(written)
+  expect(await levels(page)).toEqual(['0', '1'])
+
+  await press(items(page).nth(1))
+  await page.keyboard.press('End')
+  await convert(page, 6, 'Маркированный список')
+  await expect(lists(page).first()).toHaveJSProperty('tagName', 'UL')
+  expect(await itemHtmls(page)).toEqual(written)
+  expect(await levels(page)).toEqual(['0', '1'])
+})
+
+test('keeps the list and its nesting through undo and redo', async ({ page }) => {
+  await startList(page, 'Нумерованный список')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Вложенный')
+  await page.keyboard.press('Tab')
+  await expect.poll(() => levels(page)).toEqual(['0', '1'])
+  await expect.poll(() => step(page)).toBeGreaterThan(1)
+  const done = await step(page)
+
+  await undo(page)
+  await atStep(page, done - 1)
+  await redo(page)
+  await atStep(page, done)
+  await expect(items(page)).toHaveText(['Первый', 'Вложенный'])
+  expect(await levels(page)).toEqual(['0', '1'])
+  await expect(lists(page).first()).toHaveJSProperty('tagName', 'OL')
+})

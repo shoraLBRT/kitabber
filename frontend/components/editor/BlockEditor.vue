@@ -233,6 +233,47 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
   color: var(--color-muted);
 }
 
+/* List blocks (E05-04): items are flat elements with data-level; a nested item is indented one step and numbered on
+   its own under its parent (1, 2 and a, b), as on the reader page. */
+.block-editor :deep(.cdx-list) {
+  margin: 0;
+  padding-block: var(--space-1);
+  padding-inline-start: var(--space-6);
+  counter-reset: list-item-top;
+}
+
+.block-editor :deep(.cdx-list__item) {
+  padding-block: var(--space-1);
+  outline: none;
+}
+
+.block-editor :deep(.cdx-list__item[data-level='0']) {
+  counter-increment: list-item-top;
+  counter-reset: list-item-nested;
+}
+
+.block-editor :deep(.cdx-list__item[data-level='1']) {
+  margin-inline-start: var(--space-6);
+  counter-increment: list-item-nested;
+}
+
+.block-editor :deep(.cdx-list--unordered > .cdx-list__item[data-level='1']) {
+  list-style-type: circle;
+}
+
+.block-editor :deep(.cdx-list--ordered > .cdx-list__item[data-level='0']::marker) {
+  content: counter(list-item-top) '. ';
+}
+
+.block-editor :deep(.cdx-list--ordered > .cdx-list__item[data-level='1']::marker) {
+  content: counter(list-item-nested, lower-alpha) '. ';
+}
+
+.block-editor :deep(.cdx-list__item:empty::before) {
+  content: attr(data-placeholder);
+  color: var(--color-muted);
+}
+
 .block-editor :deep(.ce-block mark) {
   background: color-mix(in srgb, var(--color-warning) 30%, transparent);
   color: inherit;

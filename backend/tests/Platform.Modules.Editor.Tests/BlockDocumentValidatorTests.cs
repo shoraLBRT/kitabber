@@ -29,7 +29,7 @@ public sealed class BlockDocumentValidatorTests
         Assert.Equal(
             """{"version":1,"blocks":[{"id":"p1","type":"paragraph","data":{"text":"Hello <b>world</b>"}},"""
             + """{"id":"h1","type":"header","data":{"text":"Heading","level":2}},"""
-            + """{"id":"l1","type":"list","data":{"style":"ordered","items":["one","<i>two</i>"]}},"""
+            + """{"id":"l1","type":"list","data":{"style":"ordered","items":["one","<i>two</i>"],"levels":[]}},"""
             + """{"id":"q1","type":"quote","data":{"text":"Quote","caption":""}},"""
             + """{"id":"d1","type":"delimiter","data":{}}]}""",
             result.Document!.ToJsonString(_readable));
@@ -57,6 +57,12 @@ public sealed class BlockDocumentValidatorTests
     [InlineData("""{"id": "a", "type": "list", "data": {"style": "checklist", "items": ["x"]}}""", "blocks[0].data.style")]
     [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": []}}""", "blocks[0].data.items")]
     [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", {"content": "y"}]}}""", "blocks[0].data.items[1]")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": [0, 2]}}""", "blocks[0].data.levels[1]")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": [0, "1"]}}""", "blocks[0].data.levels[1]")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": [0, -1]}}""", "blocks[0].data.levels[1]")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": 1}}""", "blocks[0].data.levels")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": [0]}}""", "blocks[0].data.levels")]
+    [InlineData("""{"id": "a", "type": "list", "data": {"style": "ordered", "items": ["x", "y"], "levels": [1, 0]}}""", "blocks[0].data.levels[0]")]
     [InlineData("""{"id": "a", "type": "delimiter", "data": {"line": true}}""", "blocks[0].data.line")]
     [InlineData("""{"id": "", "type": "delimiter", "data": {}}""", "blocks[0].id")]
     [InlineData("""{"id": "a b", "type": "delimiter", "data": {}}""", "blocks[0].id")]
@@ -69,6 +75,32 @@ public sealed class BlockDocumentValidatorTests
         Assert.False(result.IsValid);
         Assert.Null(result.Document);
         Assert.Contains(result.Errors, e => e.Path == path);
+    }
+
+    [Fact]
+    public void KeepsTheNestingLevelsOfAListItemByItem()
+    {
+        var result = Validate("""
+            {"version": 1, "blocks": [
+              {"id": "l", "type": "list", "data": {"levels": [0, 1, 1, 0], "style": "unordered", "items": ["a", "b", "c", "d"]}}
+            ]}
+            """);
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.Equal(
+            """{"style":"unordered","items":["a","b","c","d"],"levels":[0,1,1,0]}""",
+            result.Document!["blocks"]![0]!["data"]!.ToJsonString(_readable));
+    }
+
+    [Fact]
+    public void ReadsAListWithoutLevelsAsAFlatList()
+    {
+        var result = Validate("""
+            {"version": 1, "blocks": [{"id": "l", "type": "list", "data": {"style": "ordered", "items": ["a", "b"]}}]}
+            """);
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.Empty(result.Document!["blocks"]![0]!["data"]!["levels"]!.AsArray());
     }
 
     [Fact]
