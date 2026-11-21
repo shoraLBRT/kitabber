@@ -274,6 +274,45 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
   color: var(--color-muted);
 }
 
+/* Quote block (E05-05): a line on the start side, the caption under the text in a smaller muted type. */
+.block-editor :deep(.cdx-quote) {
+  margin: 0;
+  padding-block: var(--space-2);
+  padding-inline-start: var(--space-4);
+  border-inline-start: var(--space-1) solid var(--color-border);
+}
+
+.block-editor :deep(.cdx-quote__text),
+.block-editor :deep(.cdx-quote__caption) {
+  outline: none;
+}
+
+.block-editor :deep(.cdx-quote__caption) {
+  padding-block-start: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.block-editor :deep(.cdx-quote__text:empty::before),
+.block-editor :deep(.cdx-quote__caption:empty::before) {
+  content: attr(data-placeholder);
+  color: var(--color-muted);
+}
+
+/* Delimiter block (E05-05): three dots drawn by styles, the element itself stays empty (delimiter.ts). */
+.block-editor :deep(.ce-delimiter) {
+  padding-block: var(--space-4);
+  text-align: center;
+  line-height: var(--line-height-tight);
+  cursor: default;
+}
+
+.block-editor :deep(.ce-delimiter::before) {
+  content: '* * *';
+  letter-spacing: var(--space-2);
+  color: var(--color-muted);
+}
+
 .block-editor :deep(.ce-block mark) {
   background: color-mix(in srgb, var(--color-warning) 30%, transparent);
   color: inherit;
