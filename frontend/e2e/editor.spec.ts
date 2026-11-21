@@ -322,3 +322,81 @@ test('cleans text pasted from a web page to the allowed markup', async ({ page }
     page.locator('.codex-editor script, .codex-editor iframe, .codex-editor [onclick]'),
   ).toHaveCount(0)
 })
+
+// Heading blocks (E05-03, #38): «Заголовок» (H2) and «Подзаголовок» (H3), converted from and to text by the
+// «Превратить в» menu of the formatting panel, with an anchor from the block id (ADR-0031).
+
+const headers = (page: Page) => page.locator('.ce-header')
+
+/** Selects the last `count` characters before the caret and converts the block with the panel's menu. */
+async function convert(page: Page, count: number, to: string) {
+  for (let i = 0; i < count; i++) await page.keyboard.press('Shift+ArrowLeft')
+  await press(tool(page, 'convert-to'))
+  await press(page.locator('.ce-popover-item__title:visible').filter({ hasText: new RegExp(`^${to}$`) }))
+}
+
+async function anchor(page: Page) {
+  const heading = headers(page).first()
+  const id = await heading.evaluate((element) => element.closest<HTMLElement>('.ce-block')!.dataset.id!)
+  await expect(heading).toHaveAttribute('id', `h-${id}`)
+  return `h-${id}`
+}
+
+async function step(page: Page) {
+  return Number(await editor(page).getAttribute('data-step'))
+}
+
+test('converts text to a heading and a subheading and back keeping its content', async ({ page }) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.type('Глава ')
+  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.type('первая')
+  await page.keyboard.press('ControlOrMeta+b')
+  await atStep(page, 1)
+
+  await convert(page, 12, 'Заголовок')
+  await expect(page.locator('h2.ce-header')).toHaveJSProperty('innerHTML', 'Глава <b>первая</b>')
+  await expect(paragraphs(page)).toHaveCount(0)
+
+  await convert(page, 12, 'Подзаголовок')
+  await expect(page.locator('h3.ce-header')).toHaveJSProperty('innerHTML', 'Глава <b>первая</b>')
+  await expect(headers(page)).toHaveCount(1)
+
+  await convert(page, 12, 'Текст')
+  await expect(headers(page)).toHaveCount(0)
+  // The text stays; its inline markup does not: the text block of Editor.js 2.31 cleans converted text by its
+  // per-field config read as a list of tags (ADR-0031, follow-up issue).
+  await expect.poll(() => html(page)).toBe('Глава первая')
+})
+
+test('gives a heading an anchor that stays while its text changes and after undo and redo', async ({
+  page,
+}) => {
+  await open(page)
+  await press(paragraphs(page).first())
+  await page.keyboard.type('Введение')
+  await atStep(page, 1)
+  await convert(page, 8, 'Заголовок')
+  await expect(headers(page)).toHaveCount(1)
+  await expect.poll(() => step(page)).toBeGreaterThan(1)
+  const id = await anchor(page)
+
+  const converted = await step(page)
+  await page.keyboard.press('End')
+  await page.keyboard.type(' в тему')
+  await expect.poll(() => step(page)).toBeGreaterThan(converted)
+  await expect(headers(page).first()).toHaveText('Введение в тему')
+  expect(await anchor(page)).toBe(id)
+
+  const typed = await step(page)
+  await undo(page)
+  await atStep(page, typed - 1)
+  await expect(headers(page)).toHaveCount(1)
+  await expect(headers(page).first()).not.toHaveText('Введение в тему')
+  expect(await anchor(page)).toBe(id)
+  await redo(page)
+  await atStep(page, typed)
+  await expect(headers(page).first()).toHaveText('Введение в тему')
+  expect(await anchor(page)).toBe(id)
+})

@@ -211,6 +211,28 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
   bottom: var(--space-1);
 }
 
+/* Heading blocks (E05-03): sizes of the reader page (docs/ui/post.md), the placeholder while empty. */
+.block-editor :deep(.ce-header) {
+  margin: 0;
+  padding-block: var(--space-2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  outline: none;
+}
+
+.block-editor :deep(h2.ce-header) {
+  font-size: var(--font-size-2xl);
+}
+
+.block-editor :deep(h3.ce-header) {
+  font-size: var(--font-size-xl);
+}
+
+.block-editor :deep(.ce-header:empty::before) {
+  content: attr(data-placeholder);
+  color: var(--color-muted);
+}
+
 .block-editor :deep(.ce-block mark) {
   background: color-mix(in srgb, var(--color-warning) 30%, transparent);
   color: inherit;

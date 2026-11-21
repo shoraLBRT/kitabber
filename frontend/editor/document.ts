@@ -67,6 +67,14 @@ export function isEmptyDocument(document: PostDocument): boolean {
   return document.blocks.every((block) => blockText(block).trim() === '')
 }
 
+/**
+ * The anchor of a heading (ADR-0031): `h-` and the block id. The id is kept by the server and by undo and redo, so the
+ * anchor stays while the heading's text changes; the reader page and a table of contents link to `#h-<id>`.
+ */
+export function headerAnchor(blockId: string): string {
+  return `h-${blockId}`
+}
+
 /** Equal content: same blocks with the same ids, types and data. */
 export function sameDocument(a: PostDocument, b: PostDocument): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
