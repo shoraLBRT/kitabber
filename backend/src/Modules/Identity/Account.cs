@@ -39,6 +39,26 @@ public sealed class Account
     /// </summary>
     public bool IsPendingRegistration => PasswordHash is not null && EmailConfirmedAt is null;
 
+    /// <summary>
+    /// The mark every provider session of the account carries (ADR-0036): a session with another mark is over. It is
+    /// <c>null</c> until the password is first reset; every reset gives a new one, which ends all earlier sessions.
+    /// </summary>
+    public string? SessionStamp { get; private set; }
+
+    /// <summary>
+    /// Replaces the password by its new <paramref name="passwordHash"/> (ADR-0036). With <paramref name="endSessions"/>
+    /// (a reset by a code from a letter) every earlier provider session of the account ends.
+    /// </summary>
+    public void SetPassword(string passwordHash, bool endSessions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        PasswordHash = passwordHash;
+        if (endSessions)
+        {
+            SessionStamp = Guid.NewGuid().ToString("N");
+        }
+    }
+
     /// <summary>A new account registered with <paramref name="email"/> (not confirmed) and a password hash.</summary>
     public static Account Register(TimeProvider time, string email, string normalizedEmail, string passwordHash)
     {

@@ -29,7 +29,7 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
                 "identity.__ef_migrations_history", "identity.accounts", "identity.email_confirmations",
                 "identity.inbox_state", "identity.oidc_applications", "identity.oidc_authorizations",
                 "identity.oidc_scopes", "identity.oidc_tokens", "identity.outbox_message", "identity.outbox_state",
-                "identity.sign_in_codes",
+                "identity.password_resets", "identity.sign_in_codes",
             ],
             await Strings(db, """
                 SELECT table_schema || '.' || table_name FROM information_schema.tables
@@ -39,7 +39,7 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
             [
                 "created_at timestamp with time zone NO", "email character varying YES",
                 "email_confirmed_at timestamp with time zone YES", "id uuid NO", "normalized_email character varying YES",
-                "password_hash character varying YES",
+                "password_hash character varying YES", "session_stamp character varying YES",
             ],
             await Strings(db, """
                 SELECT column_name || ' ' || data_type || ' ' || is_nullable FROM information_schema.columns

@@ -131,13 +131,13 @@ public sealed class SignInEndpoints : IApiEndpoints
 
     // The email address as a counter partition: hashed, so the counters do not keep addresses, and normalised when it
     // is one, so case and Gmail dots do not give more tries.
-    private static string AddressPartition(string? email)
+    internal static string AddressPartition(string? email)
     {
         var key = EmailAddresses.Normalize(email) ?? email?.Trim().ToUpperInvariant() ?? string.Empty;
         return "e:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..32];
     }
 
-    private static IResult TooManyRequests(HttpContext context, TimeSpan retryAfter)
+    internal static IResult TooManyRequests(HttpContext context, TimeSpan retryAfter)
     {
         var seconds = Seconds(retryAfter);
         context.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
@@ -145,7 +145,7 @@ public sealed class SignInEndpoints : IApiEndpoints
             "Too many requests", $"Rate limit exceeded; retry in {seconds} s.");
     }
 
-    private static IResult CodeTooSoon(HttpContext context, TimeSpan retryAfter)
+    internal static IResult CodeTooSoon(HttpContext context, TimeSpan retryAfter)
     {
         var seconds = Seconds(retryAfter);
         context.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
@@ -153,5 +153,5 @@ public sealed class SignInEndpoints : IApiEndpoints
             "Too soon", $"A new code can be sent in {seconds} s.");
     }
 
-    private static int Seconds(TimeSpan span) => Math.Max(1, (int)Math.Ceiling(span.TotalSeconds));
+    internal static int Seconds(TimeSpan span) => Math.Max(1, (int)Math.Ceiling(span.TotalSeconds));
 }

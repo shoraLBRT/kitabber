@@ -26,9 +26,9 @@ internal static class AuthorizationEndpoint
             ?? throw new InvalidOperationException("The OpenID Connect request is missing.");
         var session = await context.AuthenticateAsync(IdentityModule.SessionScheme);
         var accountId = session.Succeeded ? AccountOf(session.Principal) : null;
-        if (accountId is { } id && !await db.Accounts.AnyAsync(a => a.Id == id, context.RequestAborted))
+        if (accountId is { } id && !await ProviderSession.IsCurrentAsync(db, id, session.Principal, context.RequestAborted))
         {
-            // The account is gone: its session means nothing any more.
+            // The account is gone, or its password was reset since (ADR-0036): the session means nothing any more.
             await context.SignOutAsync(IdentityModule.SessionScheme);
             accountId = null;
         }

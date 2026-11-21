@@ -4,19 +4,22 @@
 // gives the heading and the link to the registration, so the form leaves out its own.
 // The calls come in as `api` (api/sign-in.ts), so the form is tested without a server. Once the provider has signed
 // the person in the form emits `signed-in`; the page then finishes the sign-in. No message tells whether an address
-// is registered: the API does not say it either.
+// is registered: the API does not say it either. With `resetApi` the password mode offers «Забыли пароль?», which
+// turns the form into the password reset (PasswordResetForm, E03-05); the reset signs in too.
 import { computed, onBeforeUnmount, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
 import { formatCountdown } from '../../api/registration'
+import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
+import PasswordResetForm from './PasswordResetForm.vue'
 
-const props = defineProps<{ api: SignInApi; embedded?: boolean }>()
+const props = defineProps<{ api: SignInApi; resetApi?: PasswordResetApi; embedded?: boolean }>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
 
-const mode = ref<'password' | 'code'>('password')
+const mode = ref<'password' | 'code' | 'reset'>('password')
 const step = ref<'email' | 'code'>('email')
 const email = ref('')
 const password = ref('')
@@ -60,7 +63,7 @@ function clearMessages() {
   emailError.value = passwordError.value = codeError.value = formError.value = notice.value = undefined
 }
 
-function switchMode(next: 'password' | 'code') {
+function switchMode(next: 'password' | 'code' | 'reset') {
   clearMessages()
   stopTimer()
   mode.value = next
@@ -134,7 +137,9 @@ async function signInWithCode() {
     data-testid="sign-in"
     :aria-labelledby="embedded ? undefined : 'sign-in-title'"
   >
-    <h1 v-if="!embedded" id="sign-in-title" class="sign-in__title">Вход</h1>
+    <h1 v-if="!embedded" id="sign-in-title" class="sign-in__title">
+      {{ mode === 'reset' ? 'Восстановление пароля' : 'Вход' }}
+    </h1>
 
     <form v-if="mode === 'password'" class="sign-in__form" novalidate @submit.prevent="signInWithPassword">
       <UiField
@@ -158,7 +163,16 @@ async function signInWithCode() {
       <p v-if="formError" class="sign-in__error" role="alert">{{ formError }}</p>
       <UiButton type="submit" block :loading="loading" :disabled="!canSignIn">Войти</UiButton>
       <UiButton variant="ghost" block @click="switchMode('code')">Войти по коду из письма</UiButton>
+      <UiButton v-if="resetApi" variant="ghost" block @click="switchMode('reset')">Забыли пароль?</UiButton>
     </form>
+
+    <PasswordResetForm
+      v-else-if="mode === 'reset' && resetApi"
+      :api="resetApi"
+      :email="email.trim()"
+      @signed-in="emit('signed-in')"
+      @back="switchMode('password')"
+    />
 
     <form v-else-if="step === 'email'" class="sign-in__form" novalidate @submit.prevent="requestCode()">
       <p class="sign-in__lead">Пришлём на почту код для входа. Если аккаунта ещё нет, код его создаст.</p>
