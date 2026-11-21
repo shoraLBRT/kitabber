@@ -366,7 +366,7 @@ test('converts text to a heading and a subheading and back keeping its content',
   await convert(page, 12, 'Текст')
   await expect(headers(page)).toHaveCount(0)
   // The text stays; its inline markup does not: the text block of Editor.js 2.31 cleans converted text by its
-  // per-field config read as a list of tags (ADR-0031, follow-up issue).
+  // per-field config read as a list of tags (ADR-0031, #331).
   await expect.poll(() => html(page)).toBe('Глава первая')
 })
 
