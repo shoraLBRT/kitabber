@@ -10,7 +10,7 @@
 // (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
 // in the e2e run; the address taken@example.com is already taken.
 // Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below.
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 
 const port = Number(process.env.FAKE_API_PORT ?? 3102)
@@ -24,7 +24,7 @@ const resendSeconds = Number(process.env.FAKE_RESEND_SECONDS ?? 60)
 
 const cors = {
   'access-control-allow-headers':
-    'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client, traceparent',
+    'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client, x-forwarded-for, traceparent',
   'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
   'access-control-allow-credentials': 'true',
 }
@@ -242,12 +242,81 @@ function subject(request) {
   }
 }
 
+// Editing the own profile (E04-03): PUT /api/v1/profiles/me and POST /api/v1/media. Tests run in parallel against
+// this one fake, so an edit is kept per client address (`x-forwarded-for`, which the site passes on to the API) and
+// only requests from that address see it; the stored blogs never change. The name `сбой` fails as an unavailable API
+// would. GET /__uploads?client= lists the files a client uploaded, with whether each one is a JPEG.
+const edits = new Map() // client address -> { name, description, avatarId }
+const uploads = [] // { client, id, jpeg, size }
+
+function clientOf(request) {
+  return String(request.headers['x-forwarded-for'] ?? '')
+}
+
+function edited(blog, request) {
+  const edit = clientOf(request) && edits.get(clientOf(request))
+  return edit && blog.owner === owner ? { ...blog, ...edit } : { avatarId: null, ...blog }
+}
+
+function readBytes(request) {
+  return new Promise((resolve) => {
+    const chunks = []
+    request.on('data', (chunk) => chunks.push(chunk))
+    request.on('end', () => resolve(Buffer.concat(chunks)))
+  })
+}
+
+const graphemes = new Intl.Segmenter('ru', { granularity: 'grapheme' })
+const length = (text) => [...graphemes.segment((text ?? '').trim())].length
+const clean = (text) => (text ?? '').trim() || null
+
+async function editProfile(request, response) {
+  const reader = subject(request)
+  const own = blogs.find((blog) => reader && blog.owner === reader)
+  if (!own) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  if (input.name?.trim() === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  const errors = {}
+  if (length(input.name) > 25) errors.name = ['Название — не длиннее 25 символов.']
+  if (length(input.description) > 160) errors.description = ['Описание — не длиннее 160 символов.']
+  if (input.avatarId && !uploads.some((file) => file.id === input.avatarId))
+    errors.avatarId = ['Такого загруженного файла нет.']
+  if (Object.keys(errors).length > 0)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors })
+  edits.set(clientOf(request), {
+    name: clean(input.name),
+    description: clean(input.description),
+    avatarId: input.avatarId ?? null,
+  })
+  // The owner's own view: `owner` is the fake's, not the API's (undefined drops it from the JSON).
+  return send(response, 200, { ...edited(own, request), owner: undefined })
+}
+
+async function uploadMedia(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const body = await readBytes(request)
+  // The part's content starts after the blank line that ends its headers.
+  const start = body.indexOf('\r\n\r\n') + 4
+  const jpeg = body[start] === 0xff && body[start + 1] === 0xd8 && body[start + 2] === 0xff
+  if (!jpeg) return send(response, 415, { status: 415, code: 'media_type_unsupported' })
+  const file = { client: clientOf(request), id: randomUUID(), jpeg, size: body.length }
+  uploads.push(file)
+  return send(response, 201, {
+    id: file.id,
+    kind: 'image',
+    contentType: 'image/jpeg',
+    size: file.size,
+    fileName: 'avatar.jpg',
+    createdAt: new Date().toISOString(),
+  })
+}
+
 function profile(request, response, url) {
   const reader = subject(request)
-  const view = ({ owner: blogOwner, registeredAt, ...rest }) => ({
-    ...rest,
-    registeredAt: blogOwner === reader ? registeredAt : null,
-  })
+  const view = (blog) => {
+    const { owner: blogOwner, registeredAt, ...rest } = edited(blog, request)
+    return { ...rest, registeredAt: blogOwner === reader ? registeredAt : null }
+  }
   const [, kind, value] = url.pathname.match(/^\/api\/v1\/profiles\/(?:(by-nickname)\/)?([^/]+)$/) ?? []
   if (value === 'me' && !kind) {
     const own = blogs.find((blog) => reader && blog.owner === reader)
@@ -311,8 +380,17 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
     return registration(request, response, url)
 
+  if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
+    return editProfile(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
+  if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
+  if (url.pathname === '/__uploads' && request.method === 'GET')
+    return send(
+      response,
+      200,
+      uploads.filter((file) => file.client === url.searchParams.get('client')),
+    )
 
   if (url.pathname === '/api/v1/realtime/tickets' && request.method === 'POST') {
     const token = bearer(request)

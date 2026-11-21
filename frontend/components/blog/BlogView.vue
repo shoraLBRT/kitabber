@@ -2,8 +2,8 @@
 // The blog page (E04-02, FR-PROFILE, docs/ui/blog.md): the header of the blog and its tabs «Посты» and «Комментарии»,
 // each at its own address, so the tab content is the slot. States: loading (a skeleton of the header and the list),
 // not found, a failure with «Повторить», and the blog itself. The owner also sees the registration date and the
-// management buttons; editing, statistics and settings come with their own issues (E04-03 and later), so the buttons
-// are there but disabled. Visitor actions (subscribe, message, block, report) come with FR-SUB, FR-MSG and FR-MOD.
+// management buttons: «Ред.» and «Настройки» open the blog settings (E04-03, /settings/blog); statistics comes with
+// its own issue, so its button is there but disabled. Visitor actions (subscribe, message, block, report) come with FR-SUB, FR-MSG and FR-MOD.
 import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
@@ -87,14 +87,14 @@ const registered = computed(() => {
         <p v-if="found.profile.description" class="blog__description">{{ found.profile.description }}</p>
         <template v-if="found.owner">
           <p class="blog__muted" data-testid="blog-registered">На сайте с {{ registered }}</p>
-          <div class="blog__actions" role="group" aria-label="Управление блогом" aria-describedby="blog-soon">
-            <UiButton variant="secondary" size="sm" disabled>Ред.</UiButton>
-            <UiButton variant="secondary" size="sm" disabled>Статистика</UiButton>
-            <UiButton variant="secondary" size="sm" disabled>Настройки</UiButton>
+          <div class="blog__actions" role="group" aria-label="Управление блогом">
+            <NuxtLink to="/settings/blog" class="blog__action">Ред.</NuxtLink>
+            <UiButton variant="secondary" size="sm" disabled aria-describedby="blog-soon"
+              >Статистика</UiButton
+            >
+            <NuxtLink to="/settings/blog" class="blog__action">Настройки</NuxtLink>
           </div>
-          <p id="blog-soon" class="blog__muted blog__note">
-            Редактирование, статистика и настройки появятся позже.
-          </p>
+          <p id="blog-soon" class="blog__muted blog__note">Статистика появится позже.</p>
         </template>
       </div>
     </header>
@@ -180,6 +180,24 @@ const registered = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* The look of a small secondary UiButton, for the actions that lead to another page. */
+.blog__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: var(--size-border) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.blog__action:hover {
+  background: var(--color-surface-subtle);
 }
 
 .blog__note {
