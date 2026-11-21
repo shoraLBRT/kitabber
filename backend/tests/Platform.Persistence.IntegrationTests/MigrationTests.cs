@@ -120,18 +120,18 @@ public sealed class MigrationTests(PostgresFixture postgres)
         Assert.Equal(0, await MigratorApp.RunAsync(["migrate", $"--ConnectionStrings:Platform={db}"], output, output));
 
         await Execute(db, """
-            CREATE SCHEMA posts;
-            CREATE TABLE posts.posts (
+            CREATE SCHEMA leaky;
+            CREATE TABLE leaky.notes (
                 id uuid PRIMARY KEY,
-                author_id uuid NOT NULL CONSTRAINT fk_posts_accounts REFERENCES identity.accounts (id),
+                author_id uuid NOT NULL CONSTRAINT fk_notes_accounts REFERENCES identity.accounts (id),
                 author_email text,
                 yandex_external_id text);
             """);
 
         Assert.Equal(
-            ["posts.posts.author_email", "posts.posts.yandex_external_id"],
+            ["leaky.notes.author_email", "leaky.notes.yandex_external_id"],
             await Strings(db, _credentialColumnsOutsideIdentity));
-        Assert.Equal(["posts.posts -> identity.accounts"], await Strings(db, _foreignKeysBetweenSchemas));
+        Assert.Equal(["leaky.notes -> identity.accounts"], await Strings(db, _foreignKeysBetweenSchemas));
     }
 
     private const string _allTables = "SELECT table_schema || '.' || table_name FROM information_schema.tables";
