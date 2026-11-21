@@ -1,6 +1,6 @@
 import * as oidc from 'openid-client'
 import { createStorage } from 'unstorage'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   endSessionUrl,
   finishSignIn,
@@ -23,6 +23,16 @@ const settings: OidcSettings = {
 }
 const account = '0195f3a0-0000-7000-8000-000000000001'
 const now = Date.UTC(2026, 10, 21, 12)
+
+// openid-client checks the token's `iat` and `exp` against the system clock, so the clock is pinned to `now`:
+// otherwise the fixed tokens below expire in real time and the tests start failing 15 minutes after `now`.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(now)
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function jwt(claims: Record<string, unknown>): string {
   const b64 = (value: string) => Buffer.from(value).toString('base64url')
