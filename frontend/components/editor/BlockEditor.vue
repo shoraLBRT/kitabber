@@ -203,6 +203,27 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
   white-space: nowrap;
 }
 
+/* The floating panel of the text block (E05-02): placed above the selection by the engine (data-placement); its link
+   field opens upwards when it fits there (data-actions), so it does not cover the selected line. */
+.block-editor
+  :deep(.ce-inline-toolbar[data-actions='top'] .ce-popover--nested-level-1 .ce-popover__container) {
+  top: auto;
+  bottom: var(--space-1);
+}
+
+.block-editor :deep(.ce-block mark) {
+  background: color-mix(in srgb, var(--color-warning) 30%, transparent);
+  color: inherit;
+}
+
+.block-editor :deep(.link-tool__error) {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+  white-space: normal;
+}
+
 .block-editor__error {
   display: flex;
   flex-wrap: wrap;
