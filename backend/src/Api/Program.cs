@@ -6,6 +6,7 @@ using Platform.Messaging;
 using Platform.Modules.Blogs;
 using Platform.Modules.Editor;
 using Platform.Modules.Identity.SignIn;
+using Platform.Modules.Posts;
 using Platform.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,7 @@ builder.Services.AddPlatformRateLimiting(builder.Configuration);
 builder.AddIdentityModule();
 builder.Services.AddEditorModule();
 builder.AddBlogsModule();
+builder.AddPostsModule();
 builder.Services.AddPlatformMessaging(builder.Configuration, bus => bus.AddIdentityOutbox());
 builder.Services.AddPlatformRealtime(builder.Configuration);
 

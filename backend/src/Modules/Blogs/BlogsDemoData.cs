@@ -1,3 +1,4 @@
+using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Identity.Contracts;
 using Platform.Seeding;
 
@@ -24,7 +25,7 @@ public sealed class PersonalBlogFactory(SeedData data) : ObjectFactory<Subsite>(
         "Разбираю, как устроены привычные вещи.",
     ];
 
-    public override string Kind => "blog";
+    public override string Kind => BlogsDemo.BlogKind;
 
     protected override Subsite Create(int number)
     {

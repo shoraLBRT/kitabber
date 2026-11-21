@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Configuration;
 using Platform.Http;
+using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Profiles;
 using Platform.Persistence;
 
@@ -68,5 +69,6 @@ public static class BlogsModule
     {
         services.AddModuleDbContext<BlogsDbContext>(configuration.GetConnectionString(ConnectionStringName)!);
         services.AddScoped<PersonalBlogs>();
+        services.AddScoped<IBlogDirectory, BlogDirectory>();
     }
 }

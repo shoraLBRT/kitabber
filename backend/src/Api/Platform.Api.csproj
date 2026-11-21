@@ -23,6 +23,7 @@
         <ProjectReference Include="../Modules/Blogs/Platform.Modules.Blogs.csproj" />
         <ProjectReference Include="../Modules/Editor/Platform.Modules.Editor.csproj" />
         <ProjectReference Include="../Modules/Identity/Platform.Modules.Identity.csproj" />
+        <ProjectReference Include="../Modules/Posts/Platform.Modules.Posts.csproj" />
         <ProjectReference Include="../Observability/Platform.Observability.csproj" />
         <ProjectReference Include="../Realtime/Platform.Realtime.csproj" />
     </ItemGroup>

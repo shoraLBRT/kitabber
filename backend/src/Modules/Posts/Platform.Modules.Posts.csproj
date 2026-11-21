@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The Posts module (FR-POST, ADR-0029): the post — a document of typed blocks by one author in one blog — and the
+      post API. Its tables live in the schema `posts`; it knows the author only by the account_id (FR-ID-1), asks the
+      Blogs module about a blog through Blogs.Contracts and checks the body through Editor.Contracts.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Posts</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Http/Platform.Http.csproj" />
+        <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../Seeding/Platform.Seeding.csproj" />
+        <ProjectReference Include="../Blogs.Contracts/Platform.Modules.Blogs.Contracts.csproj" />
+        <ProjectReference Include="../Editor.Contracts/Platform.Modules.Editor.Contracts.csproj" />
+        <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>

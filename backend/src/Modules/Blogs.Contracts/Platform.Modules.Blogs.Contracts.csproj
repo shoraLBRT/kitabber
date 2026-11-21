@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Blogs module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such as
+      Posts, ask about a blog without reading the schema `blogs` (ADR-0025, ADR-0029).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Blogs.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>
