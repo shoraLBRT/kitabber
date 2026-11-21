@@ -152,6 +152,7 @@ describe('SignInForm with the password reset', () => {
     withPassword: vi.fn(async () => ({ status: 400 })),
     requestCode: vi.fn(async () => ({ status: 202 })),
     withCode: vi.fn(async () => ({ status: 204 })),
+    captcha: vi.fn(async () => 'solution'),
   }
   const stubs = { NuxtLink: { template: '<a><slot /></a>' } }
 

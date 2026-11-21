@@ -318,6 +318,7 @@
           "SignIn"
         ],
         "summary": "Signs the person in at the provider with the email and the password",
+        "description": "After a series of failed attempts the answer is 400 captcha_required until the request carries a solved captcha from GET /api/v1/sign-in/captcha.",
         "operationId": "SignInWithPassword",
         "requestBody": {
           "content": {
@@ -407,12 +408,44 @@
         }
       }
     },
+    "/api/v1/sign-in/captcha": {
+      "get": {
+        "tags": [
+          "SignIn"
+        ],
+        "summary": "Issues a captcha challenge for a sign-in that answered captcha_required",
+        "operationId": "GetSignInCaptcha",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaChallenge"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sign-in/code/{challengeId}/confirmation": {
       "post": {
         "tags": [
           "SignIn"
         ],
         "summary": "Signs the person in at the provider with the code from the letter, creating the account if need be",
+        "description": "After a series of failed attempts from the network address the answer is 400 captcha_required until the request carries a solved captcha.",
         "operationId": "SignInWithCode",
         "parameters": [
           {
@@ -1220,6 +1253,53 @@
           }
         }
       },
+      "CaptchaChallenge": {
+        "required": [
+          "provider",
+          "algorithm",
+          "challenge",
+          "salt",
+          "signature",
+          "maxNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "challenge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "salt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "signature": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxNumber": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "ChangeEmailRequest": {
         "required": [
           "email"
@@ -1402,6 +1482,12 @@
             ]
           },
           "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "captcha": {
             "type": [
               "null",
               "string"
@@ -1707,6 +1793,12 @@
         "type": "object",
         "properties": {
           "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "captcha": {
             "type": [
               "null",
               "string"

@@ -59,6 +59,37 @@ test.describe('вход', () => {
     await expectSignedIn(page)
   })
 
+  test('после неудачных попыток вход требует капчу', async ({ page }) => {
+    await page.goto('/login')
+    await waitForHydration(page)
+    const form = page.getByTestId('sign-in')
+    const submit = form.getByRole('button', { name: 'Войти', exact: true })
+    const password = form.getByLabel('Пароль')
+    await form.getByLabel('Почта').fill(newAddress())
+    await password.fill('wrong-password')
+    const attempt = async () => {
+      const answered = page.waitForResponse((response) => response.url().endsWith('/api/v1/sign-in/password'))
+      await press(submit)
+      await answered
+    }
+    for (let i = 0; i < 3; i++) {
+      await attempt()
+      await expect(password).toHaveAccessibleDescription('Неверная почта или пароль.')
+      await password.fill('wrong-password-' + i)
+    }
+
+    await attempt()
+    const captcha = form.getByTestId('captcha')
+    await expect(captcha).toContainText('Подтвердите, что вы не робот')
+    await expect(submit).toBeDisabled()
+    await expectNoHorizontalScroll(page)
+
+    await press(captcha.getByRole('button', { name: 'Я не робот' }))
+    await expect(captcha.getByRole('status')).toHaveText('Проверка пройдена')
+    await attempt()
+    await expect(password).toHaveAccessibleDescription('Неверная почта или пароль.')
+    await expect(submit).toBeDisabled()
+  })
   test('вход по коду из письма с таймером повторной отправки', async ({ page, request }) => {
     await page.goto('/login')
     await waitForHydration(page)

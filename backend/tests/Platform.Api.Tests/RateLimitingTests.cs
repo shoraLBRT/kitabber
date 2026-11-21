@@ -269,6 +269,9 @@ public sealed class RateLimitingTests
     {
         public Task<long> IncrementAsync(string key, TimeSpan lifetime, CancellationToken cancellationToken = default) =>
             throw new TimeoutException("Redis does not answer");
+
+        public Task<long> GetAsync(string key, CancellationToken cancellationToken = default) =>
+            throw new TimeoutException("Redis does not answer");
     }
 }
 

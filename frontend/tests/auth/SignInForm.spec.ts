@@ -10,6 +10,7 @@ function fakeApi(overrides: Partial<SignInApi> = {}): SignInApi {
     withPassword: vi.fn(async () => ({ status: 204 })),
     requestCode: vi.fn(async () => ({ status: 202, body: { challengeId: id, resendAfterSeconds: 60 } })),
     withCode: vi.fn(async () => ({ status: 204 })),
+    captcha: vi.fn(async () => 'solution'),
     ...overrides,
   }
 }
@@ -119,6 +120,76 @@ describe('SignInForm', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(withCode).toHaveBeenLastCalledWith(id, '654321')
+    expect(wrapper.emitted('signed-in')).toHaveLength(1)
+  })
+
+  it('asks for the captcha after failed attempts and sends its solution once', async () => {
+    const withPassword = vi
+      .fn<SignInApi['withPassword']>()
+      .mockResolvedValueOnce({ status: 400, body: { code: 'captcha_required' } })
+      .mockResolvedValueOnce({ status: 400, body: { code: 'invalid_credentials' } })
+      .mockResolvedValueOnce({ status: 204 })
+    let solved: (solution: string | undefined) => void = () => {}
+    const captcha = vi
+      .fn<SignInApi['captcha']>()
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => new Promise((resolve) => (solved = resolve)))
+      .mockResolvedValueOnce('second')
+    const wrapper = mountForm(fakeApi({ withPassword, captcha }))
+    expect(wrapper.find('[data-testid="captcha"]').exists()).toBe(false)
+    await wrapper.get('input[name="email"]').setValue('anna@example.com')
+    await wrapper.get('input[name="password"]').setValue('secret-1')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    // Asked: the captcha appears, the submit waits for it; not a wrong password.
+    expect(wrapper.get('[data-testid="captcha"]').text()).toContain('Подтвердите, что вы не робот')
+    expect(wrapper.get('input[name="password"]').attributes('aria-invalid')).not.toBe('true')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+
+    // A failed check says so and may be tried again; the check shows its loading state.
+    await button(wrapper, 'Я не робот').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="captcha"] [role="alert"]').text()).toContain(
+      'Не удалось пройти проверку',
+    )
+    await button(wrapper, 'Я не робот').trigger('click')
+    expect(wrapper.get('[data-testid="captcha"] button').attributes('aria-busy')).toBe('true')
+    solved('first')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="captcha"]').text()).toContain('Проверка пройдена')
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(withPassword).toHaveBeenLastCalledWith('anna@example.com', 'secret-1', 'first')
+    expect(wrapper.get('input[name="password"]').attributes('aria-invalid')).toBe('true')
+
+    // The solution is spent: the next attempt needs a new one.
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    await button(wrapper, 'Я не робот').trigger('click')
+    await flushPromises()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(withPassword).toHaveBeenLastCalledWith('anna@example.com', 'secret-1', 'second')
+    expect(wrapper.emitted('signed-in')).toHaveLength(1)
+  })
+
+  it('asks for the captcha on the code step too', async () => {
+    const withCode = vi
+      .fn<SignInApi['withCode']>()
+      .mockResolvedValueOnce({ status: 400, body: { code: 'captcha_required' } })
+      .mockResolvedValueOnce({ status: 204 })
+    const wrapper = mountForm(fakeApi({ withCode }))
+    await toCodeStep(wrapper)
+    await wrapper.get('input[name="code"]').setValue('123456')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Неверный или просроченный код')
+    await button(wrapper, 'Я не робот').trigger('click')
+    await flushPromises()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(withCode).toHaveBeenLastCalledWith(id, '123456', 'solution')
     expect(wrapper.emitted('signed-in')).toHaveLength(1)
   })
 

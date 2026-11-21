@@ -43,11 +43,49 @@ public sealed partial class RateLimitCounter(
 #pragma warning restore CA1031
     }
 
+    /// <summary>
+    /// Whether <paramref name="partition"/> has already used up <paramref name="policy"/> in the current window, without
+    /// counting a request: for thresholds counted only on some outcomes, such as the failed sign-ins after which a
+    /// captcha is required (E03-12). Rate limiting switched off, or a failing counter store, answer <c>false</c>.
+    /// </summary>
+    public async Task<bool> IsSpentAsync(string policy, string partition, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(policy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(partition);
+        if (!policies.Enabled)
+        {
+            return false;
+        }
+
+        try
+        {
+            var limits = policies.Get(policy);
+            var (key, _, _) = Window(time, policy, limits, partition);
+            return await counter.GetAsync(key, cancellationToken) >= limits.PermitLimit;
+        }
+#pragma warning disable CA1031 // Any failure of the counter store lets the request through.
+        catch (Exception exception) when (exception is not InvalidOperationException
+                                          && !cancellationToken.IsCancellationRequested)
+        {
+            LogCounterFailed(logger, exception);
+            return false;
+        }
+#pragma warning restore CA1031
+    }
+
     // Fixed windows aligned to the Unix epoch: window n covers [n * length, (n + 1) * length). Returns the time to
     // the next window when the request is over the limit.
     internal static async Task<TimeSpan?> CountAsync(
         IRateCounter counter, TimeProvider time, string name, RateLimitPolicy policy, string partition,
         CancellationToken cancellationToken)
+    {
+        var (key, next, now) = Window(time, name, policy, partition);
+        var count = await counter.IncrementAsync(key, policy.Window, cancellationToken);
+        return count > policy.PermitLimit ? TimeSpan.FromMilliseconds(next - now) : null;
+    }
+
+    // The counter key of the current window, the start of the next window and now, in Unix milliseconds.
+    private static (string Key, long Next, long Now) Window(TimeProvider time, string name, RateLimitPolicy policy, string partition)
     {
         var length = (long)policy.Window.TotalMilliseconds;
         var now = time.GetUtcNow().ToUnixTimeMilliseconds();
@@ -55,8 +93,7 @@ public sealed partial class RateLimitCounter(
         var key = string.Create(
             CultureInfo.InvariantCulture,
             $"{RateLimitingMiddleware.KeyPrefix}{name.ToLowerInvariant()}:{partition}:{window}");
-        var count = await counter.IncrementAsync(key, policy.Window, cancellationToken);
-        return count > policy.PermitLimit ? TimeSpan.FromMilliseconds(((window + 1) * length) - now) : null;
+        return (key, (window + 1) * length, now);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rate limit counters are unavailable; the request is let through")]

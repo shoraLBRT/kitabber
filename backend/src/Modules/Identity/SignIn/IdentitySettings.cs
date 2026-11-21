@@ -21,6 +21,7 @@ public static class IdentitySettings
     public const string SyncClientsKey = "Identity:SyncClients";
     public const string AuthorityKey = "Auth:Authority";
     public const string AudienceKey = "Auth:Audience";
+    public const string CaptchaProviderKey = "Identity:Captcha:Provider";
 
     /// <summary>The audience of the platform's access tokens when <see cref="AudienceKey"/> is not set.</summary>
     public const string DefaultAudience = "platform-api";
@@ -61,6 +62,18 @@ public static class IdentitySettings
     /// </summary>
     public static RateLimitPolicy SignInCodeAddressPolicy { get; } = new(5, TimeSpan.FromHours(1), RateLimitPartition.Ip);
 
+    /// <summary>
+    /// Failed password sign-ins and code entries from one network address (E03-12) after which every further attempt
+    /// from it needs a captcha: 10 in 15 minutes. Overridden under <c>RateLimiting:Policies:identity.sign-in.failures</c>.
+    /// </summary>
+    public static RateLimitPolicy SignInFailurePolicy { get; } = new(10, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
+
+    /// <summary>
+    /// Failed password sign-ins to one email address (E03-12), from any network, after which every further attempt
+    /// needs a captcha: 5 in 15 minutes. The partition is the email; <c>Partition</c> has no effect.
+    /// </summary>
+    public static RateLimitPolicy SignInAddressFailurePolicy { get; } = new(5, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
+
     public static IReadOnlyList<Setting> All { get; } =
     [
         new(DatabaseKey, "PostgreSQL of the platform: Host=...;Database=...;Username=...;Password=...")
@@ -100,10 +113,18 @@ public static class IdentitySettings
         {
             Default = DefaultAudience,
         },
+        new(CaptchaProviderKey, "captcha after a series of failed sign-ins (ADR-0038): ProofOfWork, the platform's own, " +
+            "or Fake, which accepts a fixed solution and is refused outside Development and Test")
+        {
+            Default = nameof(Captcha.CaptchaProvider.ProofOfWork),
+            AllowedValues = Enum.GetNames<Captcha.CaptchaProvider>(),
+        },
         .. RateLimitingSettings.Policy(Email.AccountEmailEndpoints.CodePolicy, EmailCodePolicy, "letters with an email confirmation code"),
         .. RateLimitingSettings.Policy(Registration.RegistrationEndpoints.Policy, RegistrationPolicy, "registrations and their new codes"),
         .. RateLimitingSettings.Policy(SignInEndpoints.AttemptPolicy, SignInPolicy, "password attempts and sign-in code entries"),
         .. RateLimitingSettings.Policy(SignInEndpoints.AddressAttemptPolicy, SignInAddressPolicy, "password attempts for one email address"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.FailurePolicy, SignInFailurePolicy, "failed sign-ins from one network address before a captcha is required"),
+        .. RateLimitingSettings.Policy(SignInEndpoints.AddressFailurePolicy, SignInAddressFailurePolicy, "failed sign-ins to one email address before a captcha is required"),
         .. RateLimitingSettings.Policy(SignInEndpoints.CodePolicy, SignInCodePolicy, "sign-in code requests"),
         .. RateLimitingSettings.Policy(SignInEndpoints.AddressCodePolicy, SignInCodeAddressPolicy, "sign-in code letters to one email address"),
     ];

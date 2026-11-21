@@ -25,6 +25,13 @@ internal sealed class RedisRateCounter(IConnectionMultiplexer redis) : IRateCoun
             [milliseconds.ToString(CultureInfo.InvariantCulture)]);
         return (long)result;
     }
+
+    public async Task<long> GetAsync(string key, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var value = await redis.GetDatabase().StringGetAsync(new RedisKey(CacheServiceCollectionExtensions.InstanceName + key));
+        return value.TryParse(out long count) ? count : 0;
+    }
 }
 
 /// <summary>Counters in process memory, on the host's <see cref="TimeProvider"/>: the fake for tests.</summary>
@@ -52,6 +59,16 @@ internal sealed class InMemoryRateCounter(TimeProvider time) : IRateCounter
                 : (1L, now + lifetime);
             _counters[key] = (count, expires);
             return Task.FromResult(count);
+        }
+    }
+
+    public Task<long> GetAsync(string key, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        lock (_lock)
+        {
+            return Task.FromResult(
+                _counters.TryGetValue(key, out var current) && current.Expires > time.GetUtcNow() ? current.Count : 0L);
         }
     }
 }

@@ -12,6 +12,7 @@ using Platform.Http;
 using Platform.Http.RateLimiting;
 using Platform.Mail;
 using Platform.Messaging;
+using Platform.Modules.Identity.Captcha;
 using Platform.Modules.Identity.Email;
 using Platform.Persistence;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -168,6 +169,7 @@ public static class IdentityModule
         }
 
         services.AddSingleton(new AccessTokenAudience(audience));
+        services.AddCaptcha(configuration, environment, encryptionKey);
         AddEmail(services);
         return builder;
     }
@@ -202,6 +204,8 @@ public static class IdentityModule
         services.AddScoped<SignIns>();
         services.AddRateLimitPolicy(SignInEndpoints.AttemptPolicy, IdentitySettings.SignInPolicy);
         services.AddRateLimitPolicy(SignInEndpoints.AddressAttemptPolicy, IdentitySettings.SignInAddressPolicy);
+        services.AddRateLimitPolicy(SignInEndpoints.FailurePolicy, IdentitySettings.SignInFailurePolicy);
+        services.AddRateLimitPolicy(SignInEndpoints.AddressFailurePolicy, IdentitySettings.SignInAddressFailurePolicy);
         services.AddRateLimitPolicy(SignInEndpoints.CodePolicy, IdentitySettings.SignInCodePolicy);
         services.AddRateLimitPolicy(SignInEndpoints.AddressCodePolicy, IdentitySettings.SignInCodeAddressPolicy);
         services.AddApiEndpoints<SignInEndpoints>();
