@@ -44,7 +44,13 @@ async function signIn(page: Page): Promise<void> {
 test.describe('пароль', () => {
   // Refused codes and passwords are answers of the API, which the browser still logs as failed loads.
   test.use({
-    missingResources: ['/api/v1/password-reset', '/confirmation', '/bff/password', '/missing-avatar.png'],
+    missingResources: [
+      '/api/v1/password-reset',
+      '/confirmation',
+      '/bff/password',
+      '/missing-avatar.png',
+      '/missing-image.svg',
+    ],
   })
 
   test('восстановление по коду из письма: ошибки, затем вход с новым паролем', async ({ page, request }) => {

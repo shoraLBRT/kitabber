@@ -31,7 +31,14 @@ async function openFromLike(page: Page) {
 test.describe('окно входа', () => {
   // Refused sign-ins and registrations are answers of the API, which the browser still logs as failed loads; the
   // broken avatar is part of the /ui showcase.
-  test.use({ missingResources: ['/api/v1/sign-in/password', '/api/v1/registration', '/missing-avatar.png'] })
+  test.use({
+    missingResources: [
+      '/api/v1/sign-in/password',
+      '/api/v1/registration',
+      '/missing-avatar.png',
+      '/missing-image.svg',
+    ],
+  })
 
   test('гость нажимает «Нравится», входит и возвращается к действию', async ({ page }) => {
     const { dialog } = await openFromLike(page)
