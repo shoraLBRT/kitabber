@@ -691,6 +691,7 @@ test('removes a selected delimiter with one key and leaves no empty block', asyn
   await addBlock(page, 'Разделитель')
   await expect(delimiters(page)).toHaveCount(1)
   await expect(paragraphs(page).nth(1)).toBeFocused()
+  await settled(page)
   await page.keyboard.press('ArrowLeft')
   await expect(selectedDelimiter(page)).toHaveCount(1)
   await page.keyboard.press('Delete')
