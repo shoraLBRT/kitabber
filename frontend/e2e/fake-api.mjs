@@ -301,7 +301,45 @@ const blogs = [
     description: null,
     registeredAt: '2026-06-01T08:30:00Z',
   },
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b4',
+    owner: null,
+    type: 'topic',
+    name: 'Книги',
+    nickname: 'books',
+    description: null,
+    registeredAt: null,
+  },
 ]
+
+// Posts (E07-01, E07-02): GET /api/v1/posts/{id}. The slug is what the API gives (PostSlug); a post without a title has
+// none. Two posts of anna (with a title and a short one) and one in the topic `books`.
+const posts = [
+  ['0195f3a0-0000-7000-8000-0000000000c1', 0, 'Привет, мир', 'privet-mir', 'Первый абзац поста.'],
+  ['0195f3a0-0000-7000-8000-0000000000c2', 0, null, null, 'Короткий пост без заголовка.'],
+  ['0195f3a0-0000-7000-8000-0000000000c3', 3, 'Книги осени', 'knigi-oseni', 'Что почитать в ноябре.'],
+].map(([id, blog, title, slug, text]) => ({
+  id,
+  blogId: blogs[blog].id,
+  authorAccountId: blogs[blog].owner ?? owner,
+  title,
+  slug,
+  body: { version: 1, blocks: [{ id: 'b1', type: 'paragraph', data: { text } }] },
+  status: 'published',
+  origin: 'native',
+  source: null,
+  createdAt: '2026-11-20T10:00:00Z',
+  updatedAt: '2026-11-20T10:00:00Z',
+  publishedAt: '2026-11-20T10:00:00Z',
+}))
+
+function post(response, url) {
+  const [, id] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)$/) ?? []
+  const found = posts.find((item) => item.id === id)
+  return found
+    ? send(response, 200, found)
+    : send(response, 404, { status: 404, code: 'posts.post_not_found' })
+}
 
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
 function subject(request) {
@@ -479,6 +517,7 @@ createServer(async (request, response) => {
     return editProfile(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
+  if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.
   if (url.pathname.startsWith('/__images/') && request.method === 'GET') {
