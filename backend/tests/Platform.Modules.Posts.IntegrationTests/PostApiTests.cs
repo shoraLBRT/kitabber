@@ -29,7 +29,7 @@ public sealed class PostsApi : IntegrationApiFactory
 /// </summary>
 public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsyncLifetime
 {
-    private const string ValidBody = """
+    private const string _validBody = """
         {"version": 1, "blocks": [
           {"id": "p1", "type": "paragraph", "data": {"text": "<a href=\"javascript:alert(1)\">Привет</a>"}}
         ]}
@@ -308,7 +308,7 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
         Assert.All(bodies, body => Assert.True(validator.Validate(JsonDocument.Parse(body).RootElement).IsValid));
     }
 
-    private static string Input(Guid? blogId = null, string? title = "Заголовок", string body = ValidBody) =>
+    private static string Input(Guid? blogId = null, string? title = "Заголовок", string body = _validBody) =>
         $$"""{"blogId": {{(blogId is { } id ? $"\"{id}\"" : "null")}}, "title": {{JsonSerializer.Serialize(title)}}, "body": {{body}}}""";
 
     private async Task<Post> SavePostAsync(bool publish)
