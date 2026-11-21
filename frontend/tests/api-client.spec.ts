@@ -53,9 +53,9 @@ describe('API client', () => {
 
   it('has no API calls or API types outside the generated client', () => {
     const offenders = sources(app).filter((file) => {
-      // The site's own server routes under /auth/ (sign-in, the hub ticket, E01-11) are not the API: $fetch may
-      // call them.
-      const text = readFileSync(file, 'utf8').replace(/\$fetch(?:<[^>]*>)?\(\s*['"`]\/auth\//g, '')
+      // The site's own server routes under /auth/ (sign-in, the hub ticket, E01-11) and /bff/ (the blog page's
+      // profile, E04-02) are not the API: $fetch may call them.
+      const text = readFileSync(file, 'utf8').replace(/\$fetch(?:<[^>]*>)?\(\s*['"`]\/(?:auth|bff)\//g, '')
       return /['"`]\/api\/|\$fetch\s*[(<]|useFetch\s*[(<]|useLazyFetch\s*[(<]|\bfetch\s*\(/.test(text)
     })
     expect(offenders.map((file) => relative(app, file))).toEqual([])
