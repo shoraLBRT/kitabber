@@ -1,7 +1,9 @@
 using System.Globalization;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Platform.Mail;
+using Platform.Modules.Identity.Contracts;
 
 namespace Platform.Modules.Identity.Email;
 
@@ -42,7 +44,7 @@ public enum EmailConfirmResult
 /// address waits in the confirmation and replaces the confirmed one only when its code is entered, so the account never
 /// loses its confirmed email (and the right to publish) halfway.
 /// </summary>
-public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProvider time)
+public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, IPublishEndpoint publish, TimeProvider time)
 {
     public const string Template = "email-confirmation";
 
@@ -216,6 +218,7 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
     // False when the unique index on the normalised email refused the change: another account got there first.
     internal async Task<bool> SaveAsync(CancellationToken cancellationToken)
     {
+        await PublishActivationsAsync(cancellationToken);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -227,6 +230,22 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, TimeProv
         })
         {
             return false;
+        }
+    }
+
+    // An account whose email is confirmed for the first time in this save is activated (ADR-0023): the event goes into
+    // the module's outbox and is saved, or dropped, together with the confirmation.
+    private async Task PublishActivationsAsync(CancellationToken cancellationToken)
+    {
+        var activated = db.ChangeTracker.Entries<Account>()
+            .Where(e => e.Entity.EmailConfirmedAt is not null
+                && (e.State == EntityState.Added
+                    || (e.State == EntityState.Modified && e.Property(a => a.EmailConfirmedAt).OriginalValue is null)))
+            .Select(e => new AccountActivated(e.Entity.Id, e.Entity.EmailConfirmedAt!.Value))
+            .ToList();
+        foreach (var message in activated)
+        {
+            await publish.Publish(message, cancellationToken);
         }
     }
 }

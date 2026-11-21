@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Modules.Blogs;
 using Platform.Modules.Identity;
 using Platform.Persistence;
 using Platform.Seeding;
@@ -17,5 +18,6 @@ public static class SeedCatalog
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddModuleDbContext<IdentityDbContext>(connectionString).AddDemoSeeder<IdentityDemoSeeder>();
+        services.AddModuleDbContext<BlogsDbContext>(connectionString).AddDemoSeeder<BlogsDemoSeeder>();
     }
 }

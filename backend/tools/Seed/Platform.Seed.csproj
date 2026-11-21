@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="../../src/Modules/Blogs/Platform.Modules.Blogs.csproj" />
         <ProjectReference Include="../../src/Modules/Identity/Platform.Modules.Identity.csproj" />
         <ProjectReference Include="../../src/Persistence/Platform.Persistence.csproj" />
         <ProjectReference Include="../../src/Seeding/Platform.Seeding.csproj" />
