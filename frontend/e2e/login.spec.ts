@@ -52,7 +52,7 @@ test.describe('вход', () => {
     await form.getByLabel('Почта').fill('reader@example.com')
     await form.getByLabel('Пароль').fill('wrong-password')
     await press(submit)
-    await expect(form.getByRole('alert')).toHaveText('Неверная почта или пароль.')
+    await expect(form.getByLabel('Пароль')).toHaveAccessibleDescription('Неверная почта или пароль.')
 
     await form.getByLabel('Пароль').fill('secret-1')
     await press(submit)

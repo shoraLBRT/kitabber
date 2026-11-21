@@ -3,6 +3,7 @@
     <NuxtPage />
   </NuxtLayout>
   <UiToaster />
+  <AuthWindowHost />
 </template>
 
 <style>

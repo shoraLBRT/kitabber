@@ -3,7 +3,8 @@
 // ([data-autofocus], else the first focusable element of the content, else the close button); Tab and Shift+Tab
 // stay inside; Escape, the close button and a click on the backdrop close it; on close focus returns to where it
 // was. The page behind does not scroll. On a phone (narrower than 640 px, docs/spec.md section 5) the same
-// dialog is shown as a bottom sheet; presentation="sheet" (UiSheet) shows it as a sheet at every width.
+// dialog is shown as a bottom sheet; presentation="sheet" (UiSheet) shows it as a sheet at every width. `fullscreen`
+// makes that sheet fill the screen (the sign-in window on a phone, E03-04); the modal keeps its size.
 import { X } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
@@ -14,6 +15,7 @@ const props = withDefaults(
     title: string
     presentation?: 'auto' | 'modal' | 'sheet'
     closeLabel?: string
+    fullscreen?: boolean
   }>(),
   { presentation: 'auto', closeLabel: 'Закрыть' },
 )
@@ -85,7 +87,12 @@ let lockCount = 0
 
 <template>
   <Teleport to="#teleports">
-    <div v-if="open" class="ui-dialog" :class="`ui-dialog--${mode}`" :data-presentation="mode">
+    <div
+      v-if="open"
+      class="ui-dialog"
+      :class="[`ui-dialog--${mode}`, { 'ui-dialog--fullscreen': fullscreen && mode === 'sheet' }]"
+      :data-presentation="mode"
+    >
       <div class="ui-dialog__backdrop" data-testid="dialog-backdrop" @click="close" />
       <div
         ref="panel"
@@ -96,7 +103,7 @@ let lockCount = 0
         tabindex="-1"
         @keydown="onKeydown"
       >
-        <span v-if="mode === 'sheet'" class="ui-dialog__handle" aria-hidden="true" />
+        <span v-if="mode === 'sheet' && !fullscreen" class="ui-dialog__handle" aria-hidden="true" />
         <header class="ui-dialog__header">
           <h2 :id="titleId" class="ui-dialog__title">{{ title }}</h2>
           <button
@@ -161,6 +168,14 @@ let lockCount = 0
   max-height: 90vh;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   animation-name: ui-sheet-in;
+}
+
+.ui-dialog--fullscreen .ui-dialog__panel {
+  height: 100%;
+  max-height: none;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  border-radius: 0;
 }
 
 .ui-dialog__handle {

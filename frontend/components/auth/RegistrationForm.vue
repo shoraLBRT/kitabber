@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Registration (E03-01, FR-AUTH): email and password, then the code from the letter with a resend timer. The minimal
-// screen this task needs; the finished sign-in and registration window for the desktop and the phone is E03-04 (#30).
+// Registration (E03-01, FR-AUTH): email and password, then the code from the letter with a resend timer. Shown on the
+// /register page and, `embedded`, inside the sign-in window (AuthWindow, E03-04), which gives the heading instead.
 // The calls come in as `api` (api/registration.ts), so the form is tested without a server. When the code is
 // accepted the provider has signed the person in and the form emits `confirmed`; the page then finishes the sign-in.
 import { computed, onBeforeUnmount, ref } from 'vue'
@@ -8,7 +8,7 @@ import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
 import { formatCountdown, passwordMinLength, type RegistrationApi } from '../../api/registration'
 
-const props = defineProps<{ api: RegistrationApi }>()
+const props = defineProps<{ api: RegistrationApi; embedded?: boolean }>()
 const emit = defineEmits<{ confirmed: [] }>()
 
 const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
@@ -138,8 +138,13 @@ function backToForm(message?: string) {
 </script>
 
 <template>
-  <section class="registration" data-testid="registration" aria-labelledby="registration-title">
-    <h1 id="registration-title" class="registration__title">Регистрация</h1>
+  <section
+    class="registration"
+    :class="{ 'registration--embedded': embedded }"
+    data-testid="registration"
+    :aria-labelledby="embedded ? undefined : 'registration-title'"
+  >
+    <h1 v-if="!embedded" id="registration-title" class="registration__title">Регистрация</h1>
 
     <form v-if="step === 'form'" class="registration__form" novalidate @submit.prevent="register">
       <p class="registration__lead">Почта нужна для входа и подтверждения: на неё придёт код.</p>
@@ -202,6 +207,10 @@ function backToForm(message?: string) {
   margin: 0 auto;
   padding: var(--space-8) var(--space-4);
   box-sizing: border-box;
+}
+
+.registration--embedded {
+  padding: 0;
 }
 
 .registration__title {
