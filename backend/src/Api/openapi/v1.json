@@ -462,6 +462,57 @@
         }
       }
     },
+    "/api/v1/editor/documents/validation": {
+      "post": {
+        "tags": [
+          "Editor"
+        ],
+        "summary": "Checks a post document against the block schemas and returns it cleaned",
+        "operationId": "ValidateEditorDocument",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realtime/tickets": {
       "post": {
         "tags": [
@@ -610,6 +661,10 @@
             }
           }
         }
+      },
+      "JsonElement": { },
+      "JsonObject": {
+        "type": "object"
       },
       "PasswordSignInRequest": {
         "required": [
@@ -778,6 +833,9 @@
     },
     {
       "name": "SignIn"
+    },
+    {
+      "name": "Editor"
     },
     {
       "name": "Realtime"

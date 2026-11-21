@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The contract of the Editor module: what other modules (Posts, drafts) call to check a post document of typed
+      blocks and get it back cleaned (FR-EDITOR, ADR-0023). No dependencies beyond the base library.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Editor.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>
