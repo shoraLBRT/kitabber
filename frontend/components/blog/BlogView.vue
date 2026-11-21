@@ -1,0 +1,247 @@
+<script setup lang="ts">
+// The blog page (E04-02, FR-PROFILE, docs/ui/blog.md): the header of the blog and its tabs «Посты» and «Комментарии»,
+// each at its own address, so the tab content is the slot. States: loading (a skeleton of the header and the list),
+// not found, a failure with «Повторить», and the blog itself. The owner also sees the registration date and the
+// management buttons; editing, statistics and settings come with their own issues (E04-03 and later), so the buttons
+// are there but disabled. Visitor actions (subscribe, message, block, report) come with FR-SUB, FR-MSG and FR-MOD.
+import { computed } from 'vue'
+import UiAvatar from '../ui/UiAvatar.vue'
+import UiButton from '../ui/UiButton.vue'
+import { blogTitle, type ProfileLookup } from '../../api/profiles'
+
+export type BlogTab = 'posts' | 'comments'
+
+const props = defineProps<{
+  state: ProfileLookup | { status: 'loading' }
+  /** The blog's address, e.g. /u/anna; the tabs live under it. */
+  base: string
+  tab: BlogTab
+}>()
+
+defineEmits<{ retry: [] }>()
+
+const tabs = computed(() => [
+  { id: 'posts' as const, label: 'Посты', to: props.base },
+  { id: 'comments' as const, label: 'Комментарии', to: `${props.base}/comments` },
+])
+
+const found = computed(() => (props.state.status === 'found' ? props.state : null))
+const title = computed(() => (found.value ? blogTitle(found.value.profile) : ''))
+
+// A fixed time zone keeps the server and the browser on the same day, so hydration does not differ.
+const registered = computed(() => {
+  const at = found.value?.profile.registeredAt
+  if (!at) return null
+  return new Intl.DateTimeFormat('ru', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(at))
+})
+</script>
+
+<template>
+  <section v-if="state.status === 'loading'" class="blog" aria-busy="true" data-testid="blog-loading">
+    <span class="visually-hidden" role="status">Загрузка блога</span>
+    <div class="blog__card">
+      <div class="blog__cover" />
+      <div class="blog__head">
+        <div class="blog__skeleton blog__skeleton--avatar" />
+        <div class="blog__skeleton blog__skeleton--line" />
+        <div class="blog__skeleton blog__skeleton--short" />
+      </div>
+    </div>
+    <div v-for="n in 3" :key="n" class="blog__skeleton blog__skeleton--card" />
+  </section>
+
+  <section
+    v-else-if="state.status === 'not-found'"
+    class="blog blog__card blog__message"
+    data-testid="blog-not-found"
+  >
+    <h1 class="blog__title">Блог не найден</h1>
+    <p class="blog__muted">Возможно, адрес набран с ошибкой или блог переехал на другой никнейм.</p>
+    <NuxtLink to="/">На главную</NuxtLink>
+  </section>
+
+  <section
+    v-else-if="state.status === 'error'"
+    class="blog blog__card blog__message"
+    data-testid="blog-error"
+  >
+    <h1 class="blog__title">Не удалось загрузить блог</h1>
+    <p class="blog__muted" role="alert">Проверьте соединение и попробуйте ещё раз.</p>
+    <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
+  </section>
+
+  <div v-else-if="found" class="blog" data-testid="blog">
+    <header class="blog__card">
+      <div class="blog__cover" />
+      <div class="blog__head">
+        <UiAvatar class="blog__avatar" :name="title" size="lg" decorative />
+        <h1 class="blog__title">{{ title }}</h1>
+        <p v-if="found.profile.nickname" class="blog__muted" data-testid="blog-nickname">
+          @{{ found.profile.nickname }}
+        </p>
+        <p v-if="found.profile.description" class="blog__description">{{ found.profile.description }}</p>
+        <template v-if="found.owner">
+          <p class="blog__muted" data-testid="blog-registered">На сайте с {{ registered }}</p>
+          <div class="blog__actions" role="group" aria-label="Управление блогом" aria-describedby="blog-soon">
+            <UiButton variant="secondary" size="sm" disabled>Ред.</UiButton>
+            <UiButton variant="secondary" size="sm" disabled>Статистика</UiButton>
+            <UiButton variant="secondary" size="sm" disabled>Настройки</UiButton>
+          </div>
+          <p id="blog-soon" class="blog__muted blog__note">
+            Редактирование, статистика и настройки появятся позже.
+          </p>
+        </template>
+      </div>
+    </header>
+
+    <nav class="blog__tabs" aria-label="Разделы блога">
+      <NuxtLink
+        v-for="item in tabs"
+        :key="item.id"
+        :to="item.to"
+        class="blog__tab"
+        :aria-current="item.id === tab ? 'page' : undefined"
+      >
+        {{ item.label }}
+      </NuxtLink>
+    </nav>
+
+    <section class="blog__panel" :aria-label="tabs.find((item) => item.id === tab)!.label">
+      <slot :profile="found.profile" :owner="found.owner" />
+    </section>
+  </div>
+</template>
+
+<style scoped>
+.blog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.blog__card {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.blog__message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-5);
+}
+
+.blog__cover {
+  height: calc(var(--space-16) * 3);
+  background: var(--color-surface-subtle);
+}
+
+.blog__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.blog__avatar {
+  margin-top: calc(-1 * var(--space-8));
+  border: var(--size-focus-ring) solid var(--color-surface);
+  border-radius: var(--radius-full);
+}
+
+.blog__title {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.blog__muted {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.blog__description {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.blog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.blog__note {
+  font-size: var(--font-size-xs);
+}
+
+.blog__tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.blog__tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border-bottom: var(--size-focus-ring) solid transparent;
+  color: var(--color-muted);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.blog__tab:hover {
+  color: var(--color-text);
+}
+
+.blog__tab[aria-current='page'] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.blog__tab:focus-visible {
+  outline-offset: calc(-1 * var(--size-focus-ring));
+}
+
+.blog__skeleton {
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.blog__skeleton--avatar {
+  width: var(--space-16);
+  height: var(--space-16);
+  margin-top: calc(-1 * var(--space-8));
+  border-radius: var(--radius-full);
+}
+
+.blog__skeleton--line {
+  width: 50%;
+  height: var(--space-6);
+}
+
+.blog__skeleton--short {
+  width: 30%;
+  height: var(--space-4);
+}
+
+.blog__skeleton--card {
+  height: calc(var(--space-16) * 2);
+  border-radius: var(--radius-lg);
+}
+</style>

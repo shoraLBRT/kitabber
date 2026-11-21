@@ -190,6 +190,70 @@ function handleMessages(connection, body) {
   }
 }
 
+// Blogs (E04-02, ADR-0025): GET /api/v1/profiles/{id}, /by-nickname/{nickname} and /me. `anna` belongs to the account
+// of the fake provider (FAKE_ACCOUNT there), so a signed-in test is her owner and sees `registeredAt`; `boris` is
+// someone else's; one blog has no nickname yet; the nickname `broken` fails as an unavailable API would.
+const owner = '0195f3a0-0000-7000-8000-000000000001'
+const blogs = [
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b1',
+    owner,
+    type: 'personal',
+    name: 'Анна',
+    nickname: 'anna',
+    description: 'Пишу о книгах и городах.',
+    registeredAt: '2026-03-14T10:00:00Z',
+  },
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b2',
+    owner: '0195f3a0-0000-7000-8000-000000000002',
+    type: 'personal',
+    name: 'Борис',
+    nickname: 'boris',
+    description: null,
+    registeredAt: '2026-05-01T08:30:00Z',
+  },
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b3',
+    owner: '0195f3a0-0000-7000-8000-000000000003',
+    type: 'personal',
+    name: null,
+    nickname: null,
+    description: null,
+    registeredAt: '2026-06-01T08:30:00Z',
+  },
+]
+
+/** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
+function subject(request) {
+  try {
+    return JSON.parse(Buffer.from(bearer(request).split('.')[1], 'base64url').toString()).sub
+  } catch {
+    return null
+  }
+}
+
+function profile(request, response, url) {
+  const reader = subject(request)
+  const view = ({ owner: blogOwner, registeredAt, ...rest }) => ({
+    ...rest,
+    registeredAt: blogOwner === reader ? registeredAt : null,
+  })
+  const [, kind, value] = url.pathname.match(/^\/api\/v1\/profiles\/(?:(by-nickname)\/)?([^/]+)$/) ?? []
+  if (value === 'me' && !kind) {
+    const own = blogs.find((blog) => reader && blog.owner === reader)
+    return own ? send(response, 200, view(own)) : send(response, 401, { status: 401, code: 'unauthorized' })
+  }
+  const nickname = decodeURIComponent(value ?? '')
+    .replace(/^@/, '')
+    .toLowerCase()
+  if (kind && nickname === 'broken') return send(response, 500, { status: 500, code: 'internal' })
+  const found = blogs.find((blog) => (kind ? blog.nickname === nickname : blog.id === value))
+  return found
+    ? send(response, 200, view(found))
+    : send(response, 404, { status: 404, code: 'profile_not_found' })
+}
+
 function state(client) {
   return {
     connections: [...connections.values()]
@@ -237,6 +301,9 @@ createServer(async (request, response) => {
     return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
     return registration(request, response, url)
+
+  if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
+    return profile(request, response, url)
 
   if (url.pathname === '/api/v1/realtime/tickets' && request.method === 'POST') {
     const token = bearer(request)
