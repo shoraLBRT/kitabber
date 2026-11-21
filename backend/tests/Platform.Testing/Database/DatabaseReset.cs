@@ -62,9 +62,22 @@ public sealed class DatabaseReset
             return;
         }
 
-        await using var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync();
-        await _respawner.ResetAsync(connection);
+        // The host keeps working between tests (the outbox delivers the last test's messages and marks them sent), so a
+        // delete can meet its row locks in the other order: PostgreSQL then aborts one side, and the reset tries again.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await _respawner.ResetAsync(connection);
+                return;
+            }
+            catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.DeadlockDetected && attempt < 5)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt));
+            }
+        }
     }
 
     private static Table Parse(string table)
