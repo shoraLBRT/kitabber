@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Platform.Configuration;
+using Platform.Modules.Media.Images;
 using Platform.Modules.Media.Storage;
 using Platform.Modules.Media.Uploads;
 
@@ -29,6 +30,9 @@ public static class MediaSettings
     public const string VideoMaxBytesKey = "Media:MaxBytes:Video";
     public const string AudioMaxBytesKey = "Media:MaxBytes:Audio";
     public const string FileMaxBytesKey = "Media:MaxBytes:File";
+    public const string ImagesBaseUrlKey = "Media:Images:BaseUrl";
+    public const string ImagesKeyKey = "Media:Images:Key";
+    public const string ImagesSaltKey = "Media:Images:Salt";
     public const string DefaultRegion = "us-east-1";
 
     /// <summary>
@@ -56,6 +60,12 @@ public static class MediaSettings
         new(VideoMaxBytesKey, "largest video upload in bytes") { Default = Bytes(MediaLimits.Default.Video) },
         new(AudioMaxBytesKey, "largest audio upload in bytes") { Default = Bytes(MediaLimits.Default.Audio) },
         new(FileMaxBytesKey, "largest upload of another file (PDF) in bytes") { Default = Bytes(MediaLimits.Default.File) },
+        new(ImagesBaseUrlKey, "public address of imgproxy or of the CDN in front of it, for example http://localhost:8081")
+        {
+            RequiredWhen = Setting.Always,
+        },
+        new(ImagesKeyKey, "imgproxy signing key in hex: the value of IMGPROXY_KEY") { Secret = true, RequiredWhen = Setting.Always },
+        new(ImagesSaltKey, "imgproxy signing salt in hex: the value of IMGPROXY_SALT") { Secret = true, RequiredWhen = Setting.Always },
     ];
 
     public static StorageProvider ReadProvider(IConfiguration configuration) =>
@@ -92,6 +102,36 @@ public static class MediaSettings
             configuration[AccessKeyKey]!,
             configuration[SecretKeyKey]!,
             string.Equals(configuration[CreateBucketKey], "true", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The address and the signing key and salt of imgproxy (ADR-0037); an address that is not absolute, or a key or
+    /// salt that is not hex, stops the host.
+    /// </summary>
+    public static ImgproxyOptions ReadImages(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var url = configuration[ImagesBaseUrlKey];
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var baseUrl) || (baseUrl.Scheme != Uri.UriSchemeHttp && baseUrl.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException($"{ImagesBaseUrlKey}: '{url}' is not an absolute http(s) URL.");
+        }
+
+        return new ImgproxyOptions(baseUrl, ReadHex(configuration, ImagesKeyKey), ReadHex(configuration, ImagesSaltKey));
+    }
+
+    private static byte[] ReadHex(IConfiguration configuration, string key)
+    {
+        try
+        {
+            var bytes = Convert.FromHexString(configuration[key] ?? string.Empty);
+            return bytes.Length > 0 ? bytes : throw new FormatException("empty");
+        }
+        catch (FormatException)
+        {
+            // The value is a secret: it is not repeated in the message.
+            throw new InvalidOperationException($"{key}: the value is not a non-empty hex string.");
+        }
     }
 
     private static bool IsS3(IConfiguration configuration) => ReadProvider(configuration) == StorageProvider.S3;

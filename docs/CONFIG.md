@@ -156,9 +156,17 @@ openssl rand -base64 32                                                         
 | `Media:MaxBytes:Video` | `Media__MaxBytes__Video` | нет | нет | `524288000` (500 МБ) | предел размера видео в байтах |
 | `Media:MaxBytes:Audio` | `Media__MaxBytes__Audio` | нет | нет | `104857600` (100 МБ) | предел размера аудио в байтах |
 | `Media:MaxBytes:File` | `Media__MaxBytes__File` | нет | нет | `52428800` (50 МБ) | предел размера другого файла (PDF) в байтах |
+| `Media:Images:BaseUrl` | `Media__Images__BaseUrl` | нет | да | — | публичный адрес imgproxy или CDN перед ним, с префиксом пути imgproxy (`IMGPROXY_PATH_PREFIX`): локально `http://localhost:8081`, на стенде `${SITE_URL}/img` |
+| `Media:Images:Key` | `Media__Images__Key` | да | да | — | ключ подписи ссылок imgproxy в hex — то же значение, что `IMGPROXY_KEY` |
+| `Media:Images:Salt` | `Media__Images__Salt` | да | да | — | соль подписи ссылок imgproxy в hex — то же значение, что `IMGPROXY_SALT` |
 
 Предел — целое положительное число байт; иное значение останавливает API при старте. Самый большой из пределов
 задаёт и предел тела запроса `POST /api/v1/media`.
+
+Изображения отдаёт imgproxy по подписанным ссылкам, которые строит API ([ADR-0037](adr/0037-image-delivery-imgproxy.md)).
+Адрес не `http(s)` или ключ и соль не в hex останавливают API при старте. Ключ и соль API и imgproxy должны
+совпадать: иначе imgproxy отвечает `403` на каждую ссылку. Смена ключа делает недействительными все выданные
+ссылки (страницы получат новые при следующей загрузке, но закэшированные CDN ответы останутся до срока).
 
 ## Воркеры (`backend/src/Workers`)
 

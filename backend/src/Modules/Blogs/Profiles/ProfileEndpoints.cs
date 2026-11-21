@@ -17,8 +17,11 @@ namespace Platform.Modules.Blogs.Profiles;
 /// <param name="Description">At most 160 characters.</param>
 /// <param name="RegisteredAt">When the owner registered; only the owner sees it.</param>
 /// <param name="AvatarId">
-/// The avatar: an image uploaded through <c>POST /api/v1/media</c>; <c>null</c> when there is none. How it is shown is
-/// the media delivery's (E06-02, ADR-0034).
+/// The avatar: an image uploaded through <c>POST /api/v1/media</c>; <c>null</c> when there is none.
+/// </param>
+/// <param name="AvatarUrl">
+/// The avatar to show: a signed imgproxy link to a WebP square of <see cref="ProfileEndpoints.AvatarSide"/> pixels
+/// (ADR-0037); <c>null</c> when there is no avatar.
 /// </param>
 public sealed record Profile(
     Guid Id,
@@ -27,7 +30,8 @@ public sealed record Profile(
     string? Nickname,
     string? Description,
     DateTimeOffset? RegisteredAt,
-    Guid? AvatarId);
+    Guid? AvatarId,
+    Uri? AvatarUrl);
 
 /// <summary>What the owner edits in the profile (E04-03). Every field is replaced: missing or empty clears it.</summary>
 /// <param name="Name">The name, at most 25 characters.</param>
@@ -43,6 +47,11 @@ public sealed record ProfileInput(string? Name = null, string? Description = nul
 public sealed class ProfileEndpoints : IApiEndpoints
 {
     public const string ProfileNotFoundCode = "profile_not_found";
+
+    /// <summary>The side of the delivered avatar: twice the largest avatar on the site (64 px), for dense screens.</summary>
+    public const int AvatarSide = 128;
+
+    private static readonly ImageVariant _avatar = ImageVariant.Square(AvatarSide, ImageFormat.WebP);
 
     public void MapV1(IEndpointRouteBuilder v1)
     {
@@ -73,14 +82,15 @@ public sealed class ProfileEndpoints : IApiEndpoints
             .WithSummary("A blog's profile by its nickname (with or without @, any case)");
     }
 
-    private static async Task<IResult> GetOwnAsync(ClaimsPrincipal user, PersonalBlogs blogs, CancellationToken ct)
+    private static async Task<IResult> GetOwnAsync(
+        ClaimsPrincipal user, PersonalBlogs blogs, IMediaLibrary media, CancellationToken ct)
     {
         if (AccountOf(user) is not { } accountId)
         {
             return TypedResults.Unauthorized();
         }
 
-        return TypedResults.Ok(View(await blogs.EnsureAsync(accountId, ct), accountId));
+        return TypedResults.Ok(await ViewAsync(await blogs.EnsureAsync(accountId, ct), accountId, media, ct));
     }
 
     private static async Task<IResult> UpdateOwnAsync(
@@ -122,7 +132,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         blog.Describe(input.Description);
         blog.SetAvatar(input.AvatarId);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(View(blog, accountId));
+        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
     }
 
     // Someone else's file is answered as a missing one, so the owner of a file is not given away (ADR-0034).
@@ -136,13 +146,14 @@ public sealed class ProfileEndpoints : IApiEndpoints
             _ => null,
         };
 
-    private static async Task<IResult> GetByIdAsync(Guid id, ClaimsPrincipal user, BlogsDbContext db, CancellationToken ct) =>
+    private static async Task<IResult> GetByIdAsync(
+        Guid id, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
         await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct) is { } blog
-            ? TypedResults.Ok(View(blog, AccountOf(user)))
+            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 
     private static async Task<IResult> GetByNicknameAsync(
-        string nickname, ClaimsPrincipal user, BlogsDbContext db, CancellationToken ct)
+        string nickname, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
     {
         if (SubsiteRules.NormalizeNickname(nickname) is not { } normalized)
         {
@@ -153,18 +164,23 @@ public sealed class ProfileEndpoints : IApiEndpoints
         }
 
         return await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Nickname == normalized, ct) is { } blog
-            ? TypedResults.Ok(View(blog, AccountOf(user)))
+            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
     }
 
-    private static Profile View(Subsite blog, Guid? viewer) => new(
+    private static async Task<Profile> ViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct) => new(
         blog.Id,
         blog.Type == SubsiteType.Personal ? "personal" : "topic",
         blog.Name,
         blog.Nickname,
         blog.Description,
         viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null,
-        blog.AvatarMediaId);
+        blog.AvatarMediaId,
+        await AvatarUrlAsync(blog.AvatarMediaId, media, ct));
+
+    // A file that is no longer an image of the media library shows no avatar rather than a broken picture.
+    private static async Task<Uri?> AvatarUrlAsync(Guid? avatarId, IMediaLibrary media, CancellationToken ct) =>
+        avatarId is { } id && (await media.ImageUrlsAsync([id], _avatar, ct)).TryGetValue(id, out var url) ? url : null;
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

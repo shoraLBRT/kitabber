@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Http;
 using Platform.Modules.Media.Contracts;
+using Platform.Modules.Media.Images;
 using Platform.Modules.Media.Storage;
 using Platform.Modules.Media.Uploads;
 using Platform.Persistence;
@@ -33,6 +34,8 @@ public static class MediaModule
             services.TryAddSingleton<IObjectStorage, S3ObjectStorage>();
         }
 
+        // Read when first needed, like the storage: the host has already checked the settings at start.
+        services.TryAddSingleton(_ => new ImgproxyUrls(MediaSettings.ReadImages(configuration)));
         services.AddScoped<MediaUploads>();
         services.AddScoped<IMediaLibrary, MediaLibrary>();
         services.AddApiEndpoints<UploadEndpoints>();

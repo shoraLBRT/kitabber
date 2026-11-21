@@ -1569,7 +1569,8 @@
           "nickname",
           "description",
           "registeredAt",
-          "avatarId"
+          "avatarId",
+          "avatarUrl"
         ],
         "type": "object",
         "properties": {
@@ -1611,6 +1612,13 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "avatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uri"
           }
         }
       },

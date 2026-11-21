@@ -61,7 +61,8 @@ public abstract class ContainerFixture<TContainer> : IAsyncLifetime
 
     protected abstract TContainer Build(string image);
 
-    private static string ComposeImage(string name)
+    /// <summary>The image <paramref name="name"/> with the tag compose.yaml gives it, for a fixture that starts more than one container.</summary>
+    protected static string ComposeImage(string name)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "compose.yaml")))

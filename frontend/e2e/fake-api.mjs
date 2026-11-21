@@ -305,8 +305,9 @@ function subject(request) {
 // this one fake, so an edit is kept per client address (`x-forwarded-for`, which the site passes on to the API) and
 // only requests from that address see it; the stored blogs never change. The name `сбой` fails as an unavailable API
 // would. GET /__uploads?client= lists the files a client uploaded, with whether each one is a JPEG.
-const edits = new Map() // client address -> { name, description, avatarId }
+const edits = new Map() // client address -> { name, description, avatarId, avatarUrl }
 const uploads = [] // { client, id, jpeg, size }
+const pixel = Buffer.from('UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==', 'base64')
 
 function clientOf(request) {
   return String(request.headers['x-forwarded-for'] ?? '')
@@ -314,7 +315,7 @@ function clientOf(request) {
 
 function edited(blog, request) {
   const edit = clientOf(request) && edits.get(clientOf(request))
-  return edit && blog.owner === owner ? { ...blog, ...edit } : { avatarId: null, ...blog }
+  return edit && blog.owner === owner ? { ...blog, ...edit } : { avatarId: null, avatarUrl: null, ...blog }
 }
 
 function readBytes(request) {
@@ -346,6 +347,8 @@ async function editProfile(request, response) {
     name: clean(input.name),
     description: clean(input.description),
     avatarId: input.avatarId ?? null,
+    // The delivery link (ADR-0037): here the fake itself stands in for imgproxy.
+    avatarUrl: input.avatarId ? `http://127.0.0.1:${port}/__images/${input.avatarId}.webp` : null,
   })
   // The owner's own view: `owner` is the fake's, not the API's (undefined drops it from the JSON).
   return send(response, 200, { ...edited(own, request), owner: undefined })
@@ -448,6 +451,11 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
+  // imgproxy stands in: any delivered image is the same 1×1 WebP.
+  if (url.pathname.startsWith('/__images/') && request.method === 'GET') {
+    response.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'public, max-age=31536000' })
+    return response.end(pixel)
+  }
   if (url.pathname === '/__uploads' && request.method === 'GET')
     return send(
       response,

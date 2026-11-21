@@ -79,7 +79,13 @@ const registered = computed(() => {
     <header class="blog__card">
       <div class="blog__cover" />
       <div class="blog__head">
-        <UiAvatar class="blog__avatar" :name="title" size="lg" decorative />
+        <UiAvatar
+          class="blog__avatar"
+          :name="title"
+          :src="found.profile.avatarUrl ?? undefined"
+          size="lg"
+          decorative
+        />
         <h1 class="blog__title">{{ title }}</h1>
         <p v-if="found.profile.nickname" class="blog__muted" data-testid="blog-nickname">
           @{{ found.profile.nickname }}

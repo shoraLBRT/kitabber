@@ -26,6 +26,15 @@ namespace Platform.Testing.Api;
 /// </summary>
 public class PlatformApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>The address of imgproxy in test hosts: nothing answers there, the links are only checked.</summary>
+    public const string ImgproxyBaseUrl = "http://img.test/";
+
+    /// <summary>The imgproxy signing key of test hosts, in hex (ADR-0037).</summary>
+    public const string ImgproxyKey = "6b6579";
+
+    /// <summary>The imgproxy signing salt of test hosts, in hex (ADR-0037).</summary>
+    public const string ImgproxySalt = "73616c74";
+
     private readonly Dictionary<string, string?> _settings = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Action<IServiceCollection, IConfiguration>> _modules = [];
 
@@ -74,6 +83,10 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(MessagingServiceCollectionExtensions.TransportKey, nameof(MessagingTransport.InMemory));
         // The object storage is the in-memory fake; a test of the S3 storage starts MinIO itself (MinioFixture).
         builder.UseSetting(MediaSettings.ProviderKey, nameof(StorageProvider.InMemory));
+        // Images are delivered by imgproxy (ADR-0037); in process there is none, and the links are only built.
+        builder.UseSetting(MediaSettings.ImagesBaseUrlKey, ImgproxyBaseUrl);
+        builder.UseSetting(MediaSettings.ImagesKeyKey, ImgproxyKey);
+        builder.UseSetting(MediaSettings.ImagesSaltKey, ImgproxySalt);
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);

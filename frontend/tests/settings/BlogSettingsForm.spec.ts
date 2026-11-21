@@ -18,6 +18,7 @@ const anna: Profile = {
   description: null,
   registeredAt: '2026-03-14T10:00:00Z',
   avatarId: null,
+  avatarUrl: null,
 }
 
 const cropped = new Blob(['jpeg'], { type: 'image/jpeg' })
