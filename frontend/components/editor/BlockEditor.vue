@@ -333,8 +333,8 @@ defineExpose({ undo, redo, canUndo, canRedo, state })
 }
 
 /* The block menu with its search (E05-07): on a phone Editor.js shows it fixed at the bottom; here it is a bottom
-   sheet like UiSheet (the menu «+» only; the other menus stay as Editor.js draws them) — the full width, rounded top corners, the overlay of the app, above the home indicator. Its
-   650 px breakpoint is Editor.js's own. */
+   sheet like UiSheet — the full width, rounded top corners, the overlay of the app, above the home indicator. Only
+   the menu «+»: the other menus stay as Editor.js draws them. Its 650 px breakpoint is Editor.js's own. */
 @media (max-width: 650px) {
   .block-editor :deep(.ce-toolbox .ce-popover .ce-popover__container) {
     inset: auto 0 0;
