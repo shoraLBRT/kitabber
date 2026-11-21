@@ -6,6 +6,7 @@ using Platform.Messaging;
 using Platform.Modules.Blogs;
 using Platform.Modules.Editor;
 using Platform.Modules.Identity.SignIn;
+using Platform.Modules.Media;
 using Platform.Modules.Posts;
 using Platform.Realtime;
 
@@ -19,6 +20,7 @@ builder.AddIdentityModule();
 builder.Services.AddEditorModule();
 builder.AddBlogsModule();
 builder.AddPostsModule();
+builder.AddMediaModule();
 builder.Services.AddPlatformMessaging(builder.Configuration, bus => bus.AddIdentityOutbox());
 builder.Services.AddPlatformRealtime(builder.Configuration);
 

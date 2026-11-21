@@ -5,6 +5,7 @@ using Platform.Configuration;
 using Platform.Http.RateLimiting;
 using Platform.Messaging;
 using Platform.Modules.Identity.SignIn;
+using Platform.Modules.Media;
 using Platform.Observability;
 
 namespace Platform.Api;
@@ -18,7 +19,7 @@ public static class ApiSettings
     public static IReadOnlyList<Setting> All { get; } =
     [
         .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
-        .. MessagingSettings.All,
+        .. MessagingSettings.All, .. MediaSettings.All,
     ];
 
     /// <summary>
@@ -33,6 +34,7 @@ public static class ApiSettings
         {
             builder.Configuration[CacheServiceCollectionExtensions.ProviderKey] = nameof(CacheProvider.InMemory);
             builder.Configuration[MessagingServiceCollectionExtensions.TransportKey] = nameof(MessagingTransport.InMemory);
+            builder.Configuration[MediaSettings.ProviderKey] = nameof(StorageProvider.InMemory);
             // No database is contacted and no token is issued: the host is built to describe its endpoints, never
             // started (yet its hosted services run), so keys of its own are enough.
             builder.Configuration[IdentitySettings.DatabaseKey] ??= "Host=localhost;Database=openapi_build";
