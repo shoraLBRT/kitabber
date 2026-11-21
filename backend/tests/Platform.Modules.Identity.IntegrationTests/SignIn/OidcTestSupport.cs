@@ -32,6 +32,7 @@ public class IdentityApi : IntegrationApiFactory
     {
         WithSetting(IdentitySettings.WebRedirectUrisKey, WebRedirect);
         WithSetting(IdentitySettings.AdminRedirectUrisKey, AdminRedirect);
+        WithSetting(IdentitySettings.CaptchaProviderKey, "Fake");
         WithModule(services => services.AddApiEndpoints<SignInTestEndpoints>());
     }
 

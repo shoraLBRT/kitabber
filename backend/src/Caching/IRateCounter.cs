@@ -12,4 +12,7 @@ public interface IRateCounter
     /// at one and is removed after <paramref name="lifetime"/>; later increments do not extend it.
     /// </summary>
     Task<long> IncrementAsync(string key, TimeSpan lifetime, CancellationToken cancellationToken = default);
+
+    /// <summary>The current value of the counter <paramref name="key"/> without changing it; zero when it is gone.</summary>
+    Task<long> GetAsync(string key, CancellationToken cancellationToken = default);
 }

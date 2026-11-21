@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Modules.Identity.Captcha;
 using Platform.Modules.Identity.Email;
 using Platform.Modules.Identity.IntegrationTests.Registration;
 using Platform.Modules.Identity.Registration;
@@ -294,14 +295,94 @@ public sealed class SignInTests(RegistrationApi api) : IClassFixture<Registratio
         Assert.Equal("too_many_requests", await ProblemCodeAsync(limited));
     }
 
-    private static Task<HttpResponseMessage> PasswordAsync(HttpClient client, string? email, string? password) =>
-        client.PostAsJsonAsync("/api/v1/sign-in/password", new { email, password }, Ct);
+    [Fact]
+    public async Task AfterFailedPasswordsToOneAddressEveryAttemptNeedsACaptchaAlikeForAnyAddress()
+    {
+        var (email, account) = await RegisteredAsync();
+        var unknown = NewAddress("nobody");
+        var answers = new List<string>();
+        foreach (var address in new[] { email, unknown })
+        {
+            for (var i = 0; i < IdentitySettings.SignInAddressFailurePolicy.PermitLimit; i++)
+            {
+                using var refused = await PasswordAsync(api.CreateClient(), address, "wrong-password");
+                Assert.Equal(SignInEndpoints.InvalidCredentialsCode, await ProblemCodeAsync(refused));
+            }
+
+            // Even the right password needs the captcha now, and a wrong solution is no solution.
+            foreach (var captcha in new[] { null, "wrong-solution" })
+            {
+                using var needed = await PasswordAsync(api.CreateBrowser(), address, _password, captcha);
+                Assert.Equal(HttpStatusCode.BadRequest, needed.StatusCode);
+                Assert.False(needed.Headers.Contains("Set-Cookie"));
+                var problem = await needed.Content.ReadFromJsonAsync<JsonElement>(Ct);
+                answers.Add(string.Join('|', problem.GetProperty("code"), problem.GetProperty("detail")));
+            }
+        }
+
+        Assert.Equal(SignInEndpoints.CaptchaRequiredCode, answers[0].Split('|')[0]);
+        Assert.Single(answers.Distinct());
+
+        using var browser = api.CreateBrowser();
+        using var captchaChallenge = await browser.GetAsync("/api/v1/sign-in/captcha", Ct);
+        Assert.Equal(HttpStatusCode.OK, captchaChallenge.StatusCode);
+        Assert.Equal(FakeCaptcha.Name,
+            (await captchaChallenge.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("provider").GetString());
+        using (var signedIn = await PasswordAsync(browser, email, _password, FakeCaptcha.Solution))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, signedIn.StatusCode);
+        }
+
+        Assert.Equal(account, await WhoAmIAfterTheCodeFlowAsync(browser));
+
+        // The network address has failed 10 times by now: another address needs the captcha too, until the window passes.
+        using (var other = await PasswordAsync(api.CreateClient(), NewAddress(), _password))
+        {
+            Assert.Equal(SignInEndpoints.CaptchaRequiredCode, await ProblemCodeAsync(other));
+        }
+
+        api.Time.Advance(IdentitySettings.SignInFailurePolicy.Window);
+        using var later = await PasswordAsync(api.CreateBrowser(), email, _password);
+        Assert.Equal(HttpStatusCode.NoContent, later.StatusCode);
+    }
+
+    [Fact]
+    public async Task AfterFailuresFromOneNetworkAddressCodeEntriesNeedACaptcha()
+    {
+        var (email, _) = await RegisteredAsync();
+        for (var i = 0; i < IdentitySettings.SignInFailurePolicy.PermitLimit; i++)
+        {
+            // Each address fails once: below its own threshold, so only the network address counts.
+            using var refused = await ConfirmCodeAsync(api.CreateClient(), Guid.NewGuid(), "000000");
+            Assert.Equal(AccountEmailEndpoints.ConfirmationInvalidCode, await ProblemCodeAsync(refused));
+        }
+
+        using var browser = api.CreateBrowser();
+        var (challenge, code) = await RequestAndReadCodeAsync(browser, email, letter: 2);
+        using (var needed = await ConfirmCodeAsync(browser, challenge, code))
+        {
+            Assert.Equal(SignInEndpoints.CaptchaRequiredCode, await ProblemCodeAsync(needed));
+        }
+
+        using (var password = await PasswordAsync(api.CreateClient(), email, _password))
+        {
+            Assert.Equal(SignInEndpoints.CaptchaRequiredCode, await ProblemCodeAsync(password));
+        }
+
+        using var signedIn = await ConfirmCodeAsync(browser, challenge, code, FakeCaptcha.Solution);
+        Assert.Equal(HttpStatusCode.NoContent, signedIn.StatusCode);
+    }
+
+    private static Task<HttpResponseMessage> PasswordAsync(
+        HttpClient client, string? email, string? password, string? captcha = null) =>
+        client.PostAsJsonAsync("/api/v1/sign-in/password", new { email, password, captcha }, Ct);
 
     private static Task<HttpResponseMessage> RequestCodeAsync(HttpClient client, string? email) =>
         client.PostAsJsonAsync("/api/v1/sign-in/code", new { email }, Ct);
 
-    private static Task<HttpResponseMessage> ConfirmCodeAsync(HttpClient client, Guid challengeId, string code) =>
-        client.PostAsJsonAsync($"/api/v1/sign-in/code/{challengeId}/confirmation", new { code }, Ct);
+    private static Task<HttpResponseMessage> ConfirmCodeAsync(
+        HttpClient client, Guid challengeId, string code, string? captcha = null) =>
+        client.PostAsJsonAsync($"/api/v1/sign-in/code/{challengeId}/confirmation", new { code, captcha }, Ct);
 
     private async Task<(Guid ChallengeId, string Code)> RequestAndReadCodeAsync(HttpClient client, string email, int letter = 1)
     {

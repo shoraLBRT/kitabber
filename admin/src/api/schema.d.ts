@@ -98,7 +98,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Signs the person in at the provider with the email and the password */
+        /**
+         * Signs the person in at the provider with the email and the password
+         * @description After a series of failed attempts the answer is 400 captcha_required until the request carries a solved captcha from GET /api/v1/sign-in/captcha.
+         */
         post: operations["SignInWithPassword"];
         delete?: never;
         options?: never;
@@ -123,6 +126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign-in/captcha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issues a captcha challenge for a sign-in that answered captcha_required */
+        get: operations["GetSignInCaptcha"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sign-in/code/{challengeId}/confirmation": {
         parameters: {
             query?: never;
@@ -132,7 +152,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Signs the person in at the provider with the code from the letter, creating the account if need be */
+        /**
+         * Signs the person in at the provider with the code from the letter, creating the account if need be
+         * @description After a series of failed attempts from the network address the answer is 400 captcha_required until the request carries a solved captcha.
+         */
         post: operations["SignInWithCode"];
         delete?: never;
         options?: never;
@@ -339,6 +362,15 @@ export interface components {
             confirmedAt: null | string;
             pendingEmail: null | string;
         };
+        CaptchaChallenge: {
+            provider: string;
+            algorithm: null | string;
+            challenge: null | string;
+            salt: null | string;
+            signature: null | string;
+            /** Format: int64 */
+            maxNumber: null | number;
+        };
         ChangeEmailRequest: {
             email: null | string;
         };
@@ -383,6 +415,7 @@ export interface components {
         PasswordSignInRequest: {
             email: null | string;
             password: null | string;
+            captcha?: null | string;
         };
         PostInput: {
             body: components["schemas"]["JsonElement"];
@@ -459,6 +492,7 @@ export interface components {
         };
         SignInCodeConfirmation: {
             code: null | string;
+            captcha?: null | string;
         };
         SignInCodeRequest: {
             email: null | string;
@@ -825,6 +859,35 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSignInCaptcha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptchaChallenge"];
                 };
             };
             /** @description Too Many Requests */

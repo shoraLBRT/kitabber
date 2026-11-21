@@ -94,10 +94,13 @@ public sealed class CacheTests(RedisFixture redis)
         var key = $"test:{Guid.NewGuid():N}";
         var lifetime = TimeSpan.FromMilliseconds(1500);
 
+        Assert.Equal(0, await counter.GetAsync(key, ct));
         Assert.Equal(1, await counter.IncrementAsync(key, lifetime, ct));
         Assert.Equal(2, await counter.IncrementAsync(key, lifetime, ct));
         Assert.Equal(3, await counter.IncrementAsync(key, lifetime, ct));
+        Assert.Equal(3, await counter.GetAsync(key, ct));
         await waitPastLifetime();
+        Assert.Equal(0, await counter.GetAsync(key, ct));
         Assert.Equal(1, await counter.IncrementAsync(key, lifetime, ct));
     }
 }
