@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The Editor module (FR-EDITOR, ADR-0023): the versioned schemas of post blocks, their validation and the cleaning
+      of inline HTML by an allow list. It keeps no data, so it has no database schema; other modules reach it through
+      Platform.Modules.Editor.Contracts.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Editor</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="HtmlSanitizer" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Http/Platform.Http.csproj" />
+        <ProjectReference Include="../Editor.Contracts/Platform.Modules.Editor.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>
