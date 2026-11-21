@@ -4,12 +4,14 @@
 // page and the site signs in through /auth/sign-in, the usual authorization code flow, back to this same page.
 import AuthWindow from './AuthWindow.vue'
 import { registrationApi } from '../../api/registration'
+import { passwordResetApi } from '../../api/password'
 import { signInApi } from '../../api/sign-in'
 import type { AuthWindowMode } from '../../composables/useAuthWindow'
 
 const { $api } = useNuxtApp()
 const signIn = signInApi($api)
 const registration = registrationApi($api)
+const passwordReset = passwordResetApi($api)
 const state = useAuthWindow()
 const route = useRoute()
 
@@ -52,6 +54,7 @@ async function signedIn() {
     v-model:mode="mode"
     :sign-in-api="signIn"
     :registration-api="registration"
+    :password-reset-api="passwordReset"
     @signed-in="signedIn"
   />
 </template>

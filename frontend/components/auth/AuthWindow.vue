@@ -8,10 +8,11 @@ import UiModal from '../ui/UiModal.vue'
 import RegistrationForm from './RegistrationForm.vue'
 import SignInForm from './SignInForm.vue'
 import type { RegistrationApi } from '../../api/registration'
+import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
 import type { AuthWindowMode } from '../../composables/useAuthWindow'
 
-defineProps<{ signInApi: SignInApi; registrationApi: RegistrationApi }>()
+defineProps<{ signInApi: SignInApi; registrationApi: RegistrationApi; passwordResetApi?: PasswordResetApi }>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -24,7 +25,7 @@ const title = computed(() => (mode.value === 'sign-in' ? 'Вход' : 'Реги�
   <UiModal v-model:open="open" :title="title" fullscreen>
     <div class="auth-window" data-testid="auth-window">
       <template v-if="mode === 'sign-in'">
-        <SignInForm :api="signInApi" embedded @signed-in="emit('signed-in')" />
+        <SignInForm :api="signInApi" :reset-api="passwordResetApi" embedded @signed-in="emit('signed-in')" />
         <p class="auth-window__switch">
           Нет аккаунта?
           <button type="button" class="auth-window__link" @click="mode = 'registration'">

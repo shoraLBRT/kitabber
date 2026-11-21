@@ -10,6 +10,7 @@
 // (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
 // in the e2e run; the address taken@example.com is already taken.
 // Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below.
+// Password (E03-05): POST /api/v1/password-reset and /{id}/confirmation, PUT /api/v1/account/password.
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 
@@ -127,6 +128,64 @@ async function signIn(request, response, url) {
     return send(response, 400, { status: 400, code: 'confirmation_invalid' })
   signInCodes.delete(found[0])
   response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+  return send(response, 204)
+}
+
+// Password reset (E03-05): a letter only to an address with a password (see `passwords` above), the same answer for
+// every address; the new password replaces the old one and the answer sets the provider's session cookie.
+const passwordResets = new Map() // email -> { id, code, sentAt }
+
+async function passwordReset(request, response, url) {
+  const body = JSON.parse((await readBody(request)) || '{}')
+  if (url.pathname === '/api/v1/password-reset') {
+    const email = String(body.email ?? '').toLowerCase()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+      return send(response, 400, {
+        status: 400,
+        code: 'validation_failed',
+        errors: { email: ['Not an email address.'] },
+      })
+    const last = passwordResets.get(email)
+    if (last && resendLeft(last) > 0) return tooSoon(response, resendLeft(last))
+    const entry = {
+      id: randomBytes(16)
+        .toString('hex')
+        .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5'),
+      code: newCode(),
+      sentAt: Date.now(),
+    }
+    passwordResets.set(email, entry)
+    if (passwords.has(email)) letters.push({ to: email, code: entry.code })
+    return send(response, 202, { resetId: entry.id, resendAfterSeconds: resendSeconds })
+  }
+  const [, id] = url.pathname.match(/^\/api\/v1\/password-reset\/([\w-]+)\/confirmation$/) ?? []
+  if (String(body.password ?? '').trim().length < 6)
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { password: ['From 6 to 128 characters.'] },
+    })
+  const found = [...passwordResets.entries()].find(([, entry]) => entry.id === id)
+  if (!found || !passwords.has(found[0]) || found[1].code !== body.code)
+    return send(response, 400, { status: 400, code: 'confirmation_invalid' })
+  passwordResets.delete(found[0])
+  passwords.set(found[0], body.password)
+  response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+  return send(response, 204)
+}
+
+// Changing the password (E03-05) of the fake provider's account: "wrong-password" is never its current one.
+async function changePassword(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const body = JSON.parse((await readBody(request)) || '{}')
+  if (String(body.newPassword ?? '').trim().length < 6)
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { newPassword: ['From 6 to 128 characters.'] },
+    })
+  if (!body.currentPassword || body.currentPassword === 'wrong-password')
+    return send(response, 400, { status: 400, code: 'current_password_invalid' })
   return send(response, 204)
 }
 
@@ -379,6 +438,10 @@ createServer(async (request, response) => {
     return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
     return registration(request, response, url)
+  if (url.pathname.startsWith('/api/v1/password-reset') && request.method === 'POST')
+    return passwordReset(request, response, url)
+  if (url.pathname === '/api/v1/account/password' && request.method === 'PUT')
+    return changePassword(request, response)
 
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
