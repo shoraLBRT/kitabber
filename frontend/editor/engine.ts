@@ -3,6 +3,7 @@
 import type { OutputData, ToolConstructable } from '@editorjs/editorjs'
 import { caretOffsetIn, placeCaret } from './caret'
 import type { Caret } from './history'
+import { HeaderTool } from './header'
 import { cleanPastedHtml } from './inline'
 import { LinkTool, MarkerTool } from './tools'
 
@@ -33,7 +34,15 @@ const messages = {
     toolbar: { toolbox: { Add: 'Добавить блок' } },
     popover: { Filter: 'Поиск', 'Nothing found': 'Ничего не найдено', 'Convert to': 'Превратить в' },
   },
-  toolNames: { Text: 'Текст', Bold: 'Жирный', Italic: 'Курсив', Marker: 'Маркер', Link: 'Ссылка' },
+  toolNames: {
+    Text: 'Текст',
+    Heading: 'Заголовок',
+    Subheading: 'Подзаголовок',
+    Bold: 'Жирный',
+    Italic: 'Курсив',
+    Marker: 'Маркер',
+    Link: 'Ссылка',
+  },
   blockTunes: {
     delete: { Delete: 'Удалить', 'Click to delete': 'Нажмите, чтобы удалить' },
     moveUp: { 'Move up': 'Выше' },
@@ -54,6 +63,12 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
     tools: {
       // An empty paragraph is kept, so block indexes of the saved document match the editor's (undo, caret).
       paragraph: { inlineToolbar: ['bold', 'italic', 'marker', 'link'], config: { preserveBlank: true } },
+      // «Заголовок» (H2) and «Подзаголовок» (H3), E05-03: one tool with two entries in the block menu. The same inline
+      // tools as the text block: Editor.js cleans converted text by the target's tools, so text↔heading keeps markup.
+      header: {
+        class: HeaderTool as unknown as ToolConstructable,
+        inlineToolbar: ['bold', 'italic', 'marker', 'link'],
+      },
       marker: { class: MarkerTool as unknown as ToolConstructable, shortcut: 'CMD+SHIFT+M' },
       // The same name as the built-in link tool, so it takes its place.
       link: { class: LinkTool as unknown as ToolConstructable },
