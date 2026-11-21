@@ -68,12 +68,18 @@ jobs:
           IDENTITY_ENCRYPTION_KEY: ${{ secrets.IDENTITY_ENCRYPTION_KEY }}
           SESSION_PASSWORD: ${{ secrets.SESSION_PASSWORD }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
+          MEDIA_S3_URL: ${{ vars.MEDIA_S3_URL }}
+          MEDIA_S3_REGION: ${{ vars.MEDIA_S3_REGION }}
+          MEDIA_S3_BUCKET: ${{ vars.MEDIA_S3_BUCKET }}
+          MEDIA_S3_ACCESS_KEY: ${{ vars.MEDIA_S3_ACCESS_KEY }}
+          MEDIA_S3_SECRET_KEY: ${{ secrets.MEDIA_S3_SECRET_KEY }}
         run: |
           missing=""
           for name in DEPLOY_HOST DEPLOY_USER SITE_ADDRESS ADMIN_ADDRESS DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS \
                       POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD \
                       SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM \
-                      IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD; do
+                      IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD \
+                      MEDIA_S3_URL MEDIA_S3_REGION MEDIA_S3_BUCKET MEDIA_S3_ACCESS_KEY MEDIA_S3_SECRET_KEY; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
@@ -106,6 +112,11 @@ jobs:
           IDENTITY_ENCRYPTION_KEY: ${{ secrets.IDENTITY_ENCRYPTION_KEY }}
           SESSION_PASSWORD: ${{ secrets.SESSION_PASSWORD }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
+          MEDIA_S3_URL: ${{ vars.MEDIA_S3_URL }}
+          MEDIA_S3_REGION: ${{ vars.MEDIA_S3_REGION }}
+          MEDIA_S3_BUCKET: ${{ vars.MEDIA_S3_BUCKET }}
+          MEDIA_S3_ACCESS_KEY: ${{ vars.MEDIA_S3_ACCESS_KEY }}
+          MEDIA_S3_SECRET_KEY: ${{ secrets.MEDIA_S3_SECRET_KEY }}
         run: |
           umask 077
           {
@@ -115,7 +126,8 @@ jobs:
             echo "SITE_URL=https://$SITE_ADDRESS"
             for name in SITE_ADDRESS ADMIN_ADDRESS POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD \
                         SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_USERNAME SMTP_PASSWORD MAIL_FROM \
-                        IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD; do
+                        IDENTITY_SIGNING_KEY IDENTITY_ENCRYPTION_KEY SESSION_PASSWORD \
+                        MEDIA_S3_URL MEDIA_S3_REGION MEDIA_S3_BUCKET MEDIA_S3_ACCESS_KEY MEDIA_S3_SECRET_KEY; do
               echo "$name=${!name}"
             done
           } > "$RUNNER_TEMP/stand.env"

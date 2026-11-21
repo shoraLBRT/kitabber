@@ -157,6 +157,11 @@ pwsh scripts/deploy.ps1 -EnvFile stage.env -Tag <предыдущий тег>
    | `IDENTITY_SIGNING_KEY` | секрет | ключ подписи токенов провайдера входа (ADR-0018): `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -outform DER \| base64 -w0`; свой на каждый стенд, менять — только вместе с выходом всех из системы |
    | `IDENTITY_ENCRYPTION_KEY` | секрет | ключ шифрования кодов авторизации: `openssl rand -base64 32` |
    | `SESSION_PASSWORD` | секрет | ключ cookie сессий сайта, не короче 32 символов: `openssl rand -base64 32` |
+   | `MEDIA_S3_URL` | переменная | адрес S3 API хранилища медиа (ADR-0030), например `https://s3.example.org` |
+   | `MEDIA_S3_REGION` | переменная | регион S3, например `us-east-1` |
+   | `MEDIA_S3_BUCKET` | переменная | бакет медиа; создаёте его вы, приложение бакет на стенде не создаёт |
+   | `MEDIA_S3_ACCESS_KEY` | переменная | идентификатор ключа доступа к бакету (чтение, запись и удаление объектов) |
+   | `MEDIA_S3_SECRET_KEY` | секрет | секретный ключ доступа к бакету |
 
    Адрес провайдера входа — адрес сайта: выкладка сама пишет `SITE_URL=https://<SITE_ADDRESS>`. Сервер Nuxt
    читает `https://<SITE_ADDRESS>/.well-known/openid-configuration` по публичному адресу, поэтому сервер стенда

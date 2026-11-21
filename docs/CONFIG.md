@@ -138,6 +138,28 @@ openssl rand -base64 32                                                         
 Смена ключа подписи выводит из строя выданные токены доступа (живут 15 минут); ротация без перерыва — отдельная
 задача.
 
+### Медиа: модуль Media в API
+
+Загрузка файлов и хранилище оригиналов — [ADR-0030](adr/0030-media-upload-and-object-storage.md). Хранилище —
+любое S3-совместимое; локально — MinIO из `compose.yaml` (значения — в `appsettings.Development.json`).
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
+| --- | --- | --- | --- | --- | --- |
+| `Media:Storage:Provider` | `Media__Storage__Provider` | нет | нет | `S3` | хранилище медиа: `S3` или `InMemory` (фейк для тестов; файлы живут до перезапуска) |
+| `Media:Storage:ServiceUrl` | `Media__Storage__ServiceUrl` | нет | при `S3` | — | адрес S3 API, например `http://localhost:9000` для MinIO |
+| `Media:Storage:Region` | `Media__Storage__Region` | нет | нет | `us-east-1` | регион подписи запросов; MinIO принимает любой |
+| `Media:Storage:Bucket` | `Media__Storage__Bucket` | нет | при `S3` | — | бакет медиа |
+| `Media:Storage:AccessKey` | `Media__Storage__AccessKey` | нет | при `S3` | — | идентификатор ключа доступа S3 |
+| `Media:Storage:SecretKey` | `Media__Storage__SecretKey` | да | при `S3` | — | секретный ключ доступа S3 |
+| `Media:Storage:CreateBucket` | `Media__Storage__CreateBucket` | нет | нет | `false` | создать бакет, если его нет: `true` для MinIO на машине разработчика; на стенде бакет создаёт владелец |
+| `Media:MaxBytes:Image` | `Media__MaxBytes__Image` | нет | нет | `20971520` (20 МБ) | предел размера изображения в байтах |
+| `Media:MaxBytes:Video` | `Media__MaxBytes__Video` | нет | нет | `524288000` (500 МБ) | предел размера видео в байтах |
+| `Media:MaxBytes:Audio` | `Media__MaxBytes__Audio` | нет | нет | `104857600` (100 МБ) | предел размера аудио в байтах |
+| `Media:MaxBytes:File` | `Media__MaxBytes__File` | нет | нет | `52428800` (50 МБ) | предел размера другого файла (PDF) в байтах |
+
+Предел — целое положительное число байт; иное значение останавливает API при старте. Самый большой из пределов
+задаёт и предел тела запроса `POST /api/v1/media`.
+
 ## Воркеры (`backend/src/Workers`)
 
 Плюс настройки наблюдаемости (выше).
