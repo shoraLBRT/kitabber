@@ -49,6 +49,15 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
         Assert.Equal("demo0", seen.GetProperty("nickname").GetString());
         AssertAvatarLink(seen.GetProperty("avatarUrl").GetString());
         Assert.Equal(seen.GetProperty("avatarUrl").GetString(), saved.GetProperty("avatarUrl").GetString());
+        // One source per screen density, narrowest first, each a signed square of its own width (ADR-0040).
+        var sources = seen.GetProperty("avatarSources").EnumerateArray().ToList();
+        Assert.Equal([64, 128, 192], sources.Select(s => s.GetProperty("width").GetInt32()));
+        foreach (var source in sources)
+        {
+            AssertAvatarLink(source.GetProperty("url").GetString(), source.GetProperty("width").GetInt32());
+        }
+
+        Assert.Equal(seen.GetProperty("avatarUrl").GetString(), sources[1].GetProperty("url").GetString());
     }
 
     [Fact]
@@ -59,6 +68,7 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
         var seen = await GetAsync($"/api/v1/profiles/{blog.Id}");
 
         Assert.Equal(JsonValueKind.Null, seen.GetProperty("avatarUrl").ValueKind);
+        Assert.Equal(0, seen.GetProperty("avatarSources").GetArrayLength());
     }
 
     [Fact]
@@ -152,14 +162,14 @@ public sealed class ProfileEditApiTests(ProfilesApi api) : IClassFixture<Profile
     }
 
     // A WebP square of 128 px from imgproxy of the test host, signed with its key and salt (ADR-0037).
-    private static void AssertAvatarLink(string? link)
+    private static void AssertAvatarLink(string? link, int side = 128)
     {
         Assert.NotNull(link);
         Assert.StartsWith(PlatformApiFactory.ImgproxyBaseUrl, link, StringComparison.Ordinal);
         var rest = link[PlatformApiFactory.ImgproxyBaseUrl.Length..];
         var signature = rest[..rest.IndexOf('/', StringComparison.Ordinal)];
         var path = rest[signature.Length..];
-        Assert.StartsWith("/rs:fill:128:128:0/g:ce/", path, StringComparison.Ordinal);
+        Assert.StartsWith($"/rs:fill:{side}:{side}:0/g:ce/", path, StringComparison.Ordinal);
         Assert.EndsWith(".webp", path, StringComparison.Ordinal);
         var urls = new ImgproxyUrls(new ImgproxyOptions(
             new Uri(PlatformApiFactory.ImgproxyBaseUrl),

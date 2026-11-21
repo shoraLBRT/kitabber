@@ -397,6 +397,12 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        ImageSource: {
+            /** Format: uri */
+            url: string;
+            /** Format: int32 */
+            width: number;
+        };
         JsonElement: unknown;
         JsonObject: Record<string, never>;
         PasswordResetConfirmation: {
@@ -468,6 +474,7 @@ export interface components {
             avatarId: null | string;
             /** Format: uri */
             avatarUrl: null | string;
+            avatarSources: components["schemas"]["ImageSource"][];
         };
         ProfileInput: {
             name?: null | string;

@@ -1412,6 +1412,23 @@
         "type": "string",
         "format": "binary"
       },
+      "ImageSource": {
+        "required": [
+          "url",
+          "width"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "JsonElement": { },
       "JsonObject": {
         "type": "object"
@@ -1656,7 +1673,8 @@
           "description",
           "registeredAt",
           "avatarId",
-          "avatarUrl"
+          "avatarUrl",
+          "avatarSources"
         ],
         "type": "object",
         "properties": {
@@ -1705,6 +1723,12 @@
               "string"
             ],
             "format": "uri"
+          },
+          "avatarSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageSource"
+            }
           }
         }
       },

@@ -34,7 +34,23 @@ public interface IMediaLibrary
     /// </summary>
     Task<IReadOnlyDictionary<Guid, Uri>> ImageUrlsAsync(
         IReadOnlyCollection<Guid> mediaIds, ImageVariant variant, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The sources of a responsive picture (ADR-0040): for each image among <paramref name="mediaIds"/>, a signed link
+    /// in every one of <paramref name="variants"/>, in their order, with the width each asks for, so the page offers
+    /// them to the browser as a <c>srcset</c>. An identifier that is not an uploaded image has no entry.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>>> ImageSourcesAsync(
+        IReadOnlyCollection<Guid> mediaIds, IReadOnlyList<ImageVariant> variants, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// One candidate of a responsive picture (ADR-0040): a signed link and the width in pixels it asks for, the <c>w</c>
+/// descriptor of a <c>srcset</c>. A smaller original is never enlarged, so the delivered file may be narrower.
+/// </summary>
+/// <param name="Url">The signed delivery link (ADR-0037).</param>
+/// <param name="Width">The width the link asks for, in pixels.</param>
+public sealed record ImageSource(Uri Url, int Width);
 
 /// <summary>The format an image is delivered in (ADR-0037): always a modern one, whatever the original was.</summary>
 public enum ImageFormat
