@@ -192,7 +192,10 @@ openssl rand -base64 32                                                         
   | `NUXT_OIDC_CLIENT_ID` | нет | `web` | клиент сайта у провайдера |
   | `NUXT_OIDC_REDIRECT_URI` | нет | в `nuxt dev` — `http://localhost:3000/auth/callback` | адрес `/auth/callback` сайта, ровно как в `Identity:Clients:Web:RedirectUris` |
   | `NUXT_SESSION_PASSWORD` | да | в `nuxt dev` создаётся при старте | ключ шифрования cookie сессии и входа, не короче 32 символов; без него собранный сайт не впускает |
+  | `NUXT_SESSION_REDIS_URL` | нет | — (память процесса) | Redis сессий сайта (ADR-0024), на стенде `redis://redis:6379`; без него сессии в памяти и кончаются с процессом, собранный сайт пишет об этом предупреждение |
+  | `NUXT_SESSION_REDIS_PASSWORD` | да | — | пароль этого Redis, отдельно от адреса — экранировать не нужно |
 
-  Токены хранит только сервер Nuxt (в памяти процесса, пока нет #29); браузер получает cookie `auth.session`
-  (HttpOnly, SameSite=Lax, Secure на HTTPS) с одним случайным идентификатором сессии.
+  Токены хранит только сервер Nuxt — в Redis под ключами `site:auth-sessions:*` со сроком жизни сессии (ADR-0024);
+  браузер получает cookie `auth.session` (HttpOnly, SameSite=Lax, Secure на HTTPS) с одним случайным идентификатором
+  сессии.
 - `admin/` настроек пока не читает. Когда появятся — через `VITE_*` на этапе сборки; секретов в админке нет.

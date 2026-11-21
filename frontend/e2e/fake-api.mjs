@@ -135,6 +135,15 @@ function send(response, status, body, type = 'application/json') {
   response.end(body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body))
 }
 
+function expired(jwt) {
+  try {
+    const { exp } = JSON.parse(Buffer.from(jwt.split('.')[1] ?? '', 'base64url').toString())
+    return typeof exp === 'number' && exp * 1000 <= Date.now()
+  } catch {
+    return false
+  }
+}
+
 function bearer(request) {
   const header = request.headers.authorization ?? ''
   return header.startsWith('Bearer ') ? header.slice(7) : ''
@@ -307,7 +316,8 @@ createServer(async (request, response) => {
 
   if (url.pathname === '/api/v1/realtime/tickets' && request.method === 'POST') {
     const token = bearer(request)
-    if (!token) return send(response, 401, { status: 401, code: 'unauthorized' })
+    // An expired access token is refused, as the real API does: the site must renew it first (E03-03).
+    if (!token || expired(token)) return send(response, 401, { status: 401, code: 'unauthorized' })
     const ticket = randomBytes(32).toString('base64url')
     tickets.set(ticket, token)
     return send(response, 200, { ticket, expiresAt: new Date(Date.now() + 60_000).toISOString() })

@@ -48,8 +48,11 @@ public sealed class OidcProviderTests(IdentityApi api) : IClassFixture<IdentityA
         Assert.Equal("http://localhost/.well-known/jwks", discovery.GetProperty("jwks_uri").GetString());
         Assert.Equal(["S256"], Strings(discovery, "code_challenge_methods_supported"));
         Assert.Equal(["code"], Strings(discovery, "response_types_supported"));
-        Assert.Equal(["authorization_code"], Strings(discovery, "grant_types_supported"));
+        Assert.Equal(["authorization_code", "refresh_token"], Strings(discovery, "grant_types_supported").Order());
         Assert.Contains("openid", Strings(discovery, "scopes_supported"));
+        Assert.Contains("offline_access", Strings(discovery, "scopes_supported"));
+        Assert.Equal("http://localhost/connect/revoke", discovery.GetProperty("revocation_endpoint").GetString());
+        Assert.Equal("http://localhost/connect/endsession", discovery.GetProperty("end_session_endpoint").GetString());
     }
 
     [Fact]

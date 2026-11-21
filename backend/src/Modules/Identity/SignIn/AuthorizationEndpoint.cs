@@ -52,21 +52,26 @@ internal static class AuthorizationEndpoint
         // sub is the account_id (FR-ID-2): the only thing about the person a token says.
         identity.SetClaim(Claims.Subject, accountId.Value.ToString("D"));
         var principal = new ClaimsPrincipal(identity);
-        principal.SetScopes(request.GetScopes().Intersect([Scopes.OpenId]));
+        // offline_access asks for a refresh token (ADR-0024); nothing else is granted.
+        principal.SetScopes(request.GetScopes().Intersect([Scopes.OpenId, Scopes.OfflineAccess]));
         principal.SetResources(audience.Value);
         principal.SetDestinations(static _ => [Destinations.AccessToken, Destinations.IdentityToken]);
         return Results.SignIn(principal, authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    /// <summary>Exchanges a code for tokens, unless the account was deleted after the code was issued.</summary>
+    /// <summary>
+    /// Exchanges a code or a refresh token for tokens, unless the account was deleted after it was issued. OpenIddict has
+    /// already redeemed the refresh token, issued for this client, and, when the token had been redeemed before (a
+    /// stolen copy used after the leeway), revoked the whole authorization instead of running this (ADR-0024).
+    /// </summary>
     public static async Task<IResult> Exchange(HttpContext context, IdentityDbContext db)
     {
         var request = context.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request is missing.");
-        if (!request.IsAuthorizationCodeGrantType())
+        if (!request.IsAuthorizationCodeGrantType() && !request.IsRefreshTokenGrantType())
         {
             return Results.Forbid(
-                Error(Errors.UnsupportedGrantType, "Only the authorization code flow is supported."),
+                Error(Errors.UnsupportedGrantType, "Only the authorization code flow and refresh tokens are supported."),
                 [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
         }
 
@@ -81,6 +86,19 @@ internal static class AuthorizationEndpoint
         }
 
         return Results.SignIn(principal, authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    /// <summary>
+    /// Ends the person's session at the provider (RP-initiated logout, ADR-0024): the <see cref="IdentityModule.SessionScheme"/>
+    /// cookie is removed, so the next sign-in asks who they are again. OpenIddict has already checked that
+    /// <c>post_logout_redirect_uri</c> is one the client registered; without it the person lands on the home page.
+    /// </summary>
+    public static async Task<IResult> EndSession(HttpContext context)
+    {
+        await context.SignOutAsync(IdentityModule.SessionScheme);
+        return Results.SignOut(
+            new AuthenticationProperties { RedirectUri = "/" },
+            [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
     }
 
     private static Guid? AccountOf(ClaimsPrincipal? principal) =>

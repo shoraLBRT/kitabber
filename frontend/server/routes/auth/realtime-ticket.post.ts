@@ -1,18 +1,28 @@
 // A ticket for the realtime hub (E01-11, ADR-0019): the browser asks here, the server asks the API with the
-// person's access token, which never leaves the server (ADR-0018). 401 without a session or when the API refuses
-// the token: the page stops reconnecting until the person signs in again.
+// person's access token, which never leaves the server (ADR-0018). The token is renewed before it expires
+// (server/middleware/auth.ts); when the API refuses it all the same, it is renewed once more and asked again
+// (ADR-0024). 401 without a session or when the API still refuses: the page stops reconnecting until the person
+// signs in again.
 import { createApiClient } from '~/api/client'
 import { requestRealtimeTicket } from '~/api/realtime'
+
+async function ticketFor(accessToken: string) {
+  const client = createApiClient({
+    baseUrl: useRuntimeConfig().apiBase,
+    headers: { authorization: `Bearer ${accessToken}` },
+  })
+  return requestRealtimeTicket(client)
+}
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   const session = event.context.auth
   if (!session) throw createError({ statusCode: 401, message: 'Not signed in' })
-  const client = createApiClient({
-    baseUrl: useRuntimeConfig().apiBase,
-    headers: { authorization: `Bearer ${session.accessToken}` },
-  })
-  const ticket = await requestRealtimeTicket(client)
+  let ticket = await ticketFor(session.accessToken)
+  if (!ticket) {
+    const renewed = await renewSession(event)
+    if (renewed) ticket = await ticketFor(renewed.accessToken)
+  }
   if (!ticket) throw createError({ statusCode: 401, message: 'Not signed in' })
   return ticket
 })

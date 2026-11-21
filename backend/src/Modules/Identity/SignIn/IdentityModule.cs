@@ -21,7 +21,8 @@ namespace Platform.Modules.Identity.SignIn;
 /// <summary>
 /// The Identity module in the API host (ADR-0002, ADR-0018): the OpenID Connect provider and the validation of the
 /// access tokens every API request may carry. The provider answers at the standard addresses
-/// (<see cref="DiscoveryPath"/>, <see cref="JwksPath"/>, <see cref="AuthorizationPath"/>, <see cref="TokenPath"/>); the
+/// (<see cref="DiscoveryPath"/>, <see cref="JwksPath"/>, <see cref="AuthorizationPath"/>, <see cref="TokenPath"/>,
+/// <see cref="RevocationPath"/>, <see cref="EndSessionPath"/>); the
 /// API accepts the tokens of the provider named by <see cref="IdentitySettings.AuthorityKey"/>, this one by default, so
 /// switching to a shared account service is a change of settings.
 /// </summary>
@@ -31,6 +32,20 @@ public static class IdentityModule
     public const string JwksPath = "/.well-known/jwks";
     public const string AuthorizationPath = "/connect/authorize";
     public const string TokenPath = "/connect/token";
+    public const string RevocationPath = "/connect/revoke";
+    public const string EndSessionPath = "/connect/endsession";
+
+    /// <summary>
+    /// How long a refresh token lives (ADR-0024). Every refresh rotates it and starts the period again, so a person who
+    /// visits the site at least once a month stays signed in.
+    /// </summary>
+    public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// How long a rotated refresh token still works (ADR-0024): two requests of one browser that refresh at once, on
+    /// two instances of the site, both get tokens. Used later, it is a stolen copy: the whole chain is revoked.
+    /// </summary>
+    public static readonly TimeSpan RefreshTokenReuseLeeway = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// The person's session at the provider: a cookie set by the sign-in window (E03) and read by the authorization
@@ -81,19 +96,26 @@ public static class IdentityModule
 
                 server.SetAuthorizationEndpointUris(AuthorizationPath.TrimStart('/'))
                     .SetTokenEndpointUris(TokenPath.TrimStart('/'))
+                    .SetRevocationEndpointUris(RevocationPath.TrimStart('/'))
+                    .SetEndSessionEndpointUris(EndSessionPath.TrimStart('/'))
                     .SetJsonWebKeySetEndpointUris(JwksPath.TrimStart('/'));
 
                 // Only the authorization code flow, only with PKCE, only with S256 (plain is no protection).
                 server.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange();
                 server.Configure(options => options.CodeChallengeMethods.Remove(CodeChallengeMethods.Plain));
-                server.RegisterScopes(Scopes.OpenId);
+                // Refresh tokens (ADR-0024) for the scope offline_access: rolling (every refresh redeems the old one
+                // and issues a new one), and a redeemed one used after the leeway revokes the whole authorization.
+                server.AllowRefreshTokenFlow();
+                server.RegisterScopes(Scopes.OpenId, Scopes.OfflineAccess);
 
                 // Access tokens are plain signed JWTs (at+jwt) so any resource server, or a future shared account
                 // service, can validate them by the provider's public keys alone.
                 server.DisableAccessTokenEncryption();
                 server.SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
                     .SetIdentityTokenLifetime(TimeSpan.FromMinutes(15))
-                    .SetAuthorizationCodeLifetime(TimeSpan.FromMinutes(2));
+                    .SetAuthorizationCodeLifetime(TimeSpan.FromMinutes(2))
+                    .SetRefreshTokenLifetime(RefreshTokenLifetime)
+                    .SetRefreshTokenReuseLeeway(RefreshTokenReuseLeeway);
 
                 if (signingKey is not null)
                 {
@@ -115,7 +137,8 @@ public static class IdentityModule
 
                 var aspNetCore = server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
-                    .EnableTokenEndpointPassthrough();
+                    .EnableTokenEndpointPassthrough()
+                    .EnableEndSessionEndpointPassthrough();
                 if (mayGenerateKeys)
                 {
                     // Development and Test talk plain HTTP; the stands are HTTPS behind the proxy (X-Forwarded-Proto).
@@ -191,6 +214,8 @@ public static class IdentityModule
         app.MapMethods(AuthorizationPath, [HttpMethods.Get, HttpMethods.Post], AuthorizationEndpoint.Authorize)
             .ExcludeFromDescription();
         app.MapPost(TokenPath, AuthorizationEndpoint.Exchange).ExcludeFromDescription();
+        app.MapMethods(EndSessionPath, [HttpMethods.Get, HttpMethods.Post], (Delegate)AuthorizationEndpoint.EndSession)
+            .ExcludeFromDescription();
         return app;
     }
 

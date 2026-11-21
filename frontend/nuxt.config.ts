@@ -26,11 +26,14 @@ export default defineNuxtConfig({
   // The API origin for plugins/api.ts: apiBase (NUXT_API_BASE) for server rendering, which reaches the API inside
   // the network; public.apiBase (NUXT_PUBLIC_API_BASE) for the browser, '' for the same origin behind the proxy.
   // Sign-in (E18-02, ADR-0018): the provider and this client (NUXT_OIDC_ISSUER, NUXT_OIDC_CLIENT_ID,
-  // NUXT_OIDC_REDIRECT_URI) and the key of the session cookies (NUXT_SESSION_PASSWORD); server-side only.
+  // NUXT_OIDC_REDIRECT_URI), the key of the session cookies (NUXT_SESSION_PASSWORD) and the Redis of the sessions
+  // (NUXT_SESSION_REDIS_URL and NUXT_SESSION_REDIS_PASSWORD, ADR-0024; memory without it); server-side only.
   runtimeConfig: {
     apiBase: '',
     oidc: { issuer: '', clientId: 'web', redirectUri: '' },
     sessionPassword: '',
+    sessionRedisUrl: '',
+    sessionRedisPassword: '',
     public: { apiBase: '' },
   },
   // `nuxt dev` signs in at the API of `dotnet run` (backend/src/Api, launchSettings.json); its key is made at start.

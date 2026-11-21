@@ -61,7 +61,7 @@ describe('sign-in of the site', () => {
     expect(first.url.origin + first.url.pathname).toBe('https://id.example.test/connect/authorize')
     expect(query.get('client_id')).toBe('web')
     expect(query.get('response_type')).toBe('code')
-    expect(query.get('scope')).toBe('openid')
+    expect(query.get('scope')).toBe('openid offline_access')
     expect(query.get('redirect_uri')).toBe(settings.redirectUri)
     expect(query.get('code_challenge_method')).toBe('S256')
     expect(query.get('code_challenge')).toBe(
@@ -99,7 +99,13 @@ describe('sign-in of the site', () => {
 
     const session = await finishSignIn(configuration, settings, flow, '?code=code-1&state=state-1', 1_000)
 
-    expect(session).toEqual({ accountId: 'account-1', accessToken: 'access-1', expiresAt: 1_000 + 900_000 })
+    // Without a refresh token the session ends with the access token.
+    expect(session).toMatchObject({
+      accountId: 'account-1',
+      accessToken: 'access-1',
+      accessExpiresAt: 1_000 + 900_000,
+      expiresAt: 1_000 + 900_000,
+    })
     const sent = requests[0]!
     expect(sent.get('grant_type')).toBe('authorization_code')
     expect(sent.get('code')).toBe('code-1')

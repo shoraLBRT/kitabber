@@ -54,7 +54,10 @@ public static class OidcClients
             {
                 Permissions.Endpoints.Authorization,
                 Permissions.Endpoints.Token,
+                Permissions.Endpoints.Revocation,
+                Permissions.Endpoints.EndSession,
                 Permissions.GrantTypes.AuthorizationCode,
+                Permissions.GrantTypes.RefreshToken,
                 Permissions.ResponseTypes.Code,
             },
             Requirements = { Requirements.Features.ProofKeyForCodeExchange },
@@ -62,6 +65,9 @@ public static class OidcClients
         foreach (var uri in redirectUris)
         {
             descriptor.RedirectUris.Add(uri);
+            // After signing out the person comes back to the home page of the same site (ADR-0024): the origin of
+            // each redirect address, so there is no second list to keep in step.
+            descriptor.PostLogoutRedirectUris.Add(new Uri(uri.GetLeftPart(UriPartial.Authority) + "/"));
         }
 
         return descriptor;

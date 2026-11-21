@@ -13,3 +13,16 @@ export function useShellUser() {
   const account = useAccount()
   return computed(() => (account.value.signedIn ? { name: 'Аккаунт' } : null))
 }
+
+/**
+ * Signs the person out (E03-03): a form POST to the site's server, which revokes the session and sends the browser
+ * through the provider's sign-out back to the home page. A full page load, so the realtime connection of the page
+ * closes with it.
+ */
+export function signOut(): void {
+  const form = document.createElement('form')
+  form.method = 'post'
+  form.action = '/auth/sign-out'
+  document.body.append(form)
+  form.submit()
+}

@@ -6,5 +6,5 @@ const user = useShellUser()
 </script>
 
 <template>
-  <ShellMenuScreen :current-path="route.path" :user="user" />
+  <ShellMenuScreen :current-path="route.path" :user="user" @logout="signOut" />
 </template>
