@@ -172,6 +172,11 @@ function placeToolbarAbove(holder: HTMLElement): () => void {
   }
   // Editor.js sets the toolbar's style when it opens and moves it; the observer runs before the next paint.
   const observer = new MutationObserver(place)
-  observer.observe(holder, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'hidden'] })
+  observer.observe(holder, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['style', 'hidden'],
+  })
   return () => observer.disconnect()
 }

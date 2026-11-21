@@ -247,7 +247,7 @@ function parse(html: string): HTMLElement {
 
 function isBlank(paragraph: HTMLElement): boolean {
   // Only spaces or line breaks (Word's `<o:p>&nbsp;</o:p>`, a `<br>` between blocks): nothing to paste.
-  return (paragraph.textContent ?? '').replace(/ /g, ' ').trim() === ''
+  return (paragraph.textContent ?? '').replace(/\u00a0/g, ' ').trim() === ''
 }
 
 /**

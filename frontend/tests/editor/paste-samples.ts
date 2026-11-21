@@ -25,4 +25,4 @@ export const webHtml = `<div class="article"><script>alert('x')</script><style>.
 <h2 id="t">Заголовок <em>статьи</em></h2>
 <p onclick="steal()">Текст с <strong>важным</strong> и <a href="https://example.test/" target="_blank" title="t" onclick="x()">ссылкой</a>,
 <a href="/relative">относительной</a> и <span style="color:red">цветом</span>.</p>
-<ul><li>Пункт один</li><li>Пункт <mark>два</mark></li></ul><iframe src="https://evil.test"></iframe></div>`
+<ul><li>Пункт один</li><li>Пункт <mark>два</mark></li></ul><iframe srcdoc="x"></iframe></div>`
