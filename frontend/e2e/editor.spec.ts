@@ -399,9 +399,41 @@ test('converts text to a heading and a subheading and back keeping its content',
 
   await convert(page, 12, 'Текст')
   await expect(headers(page)).toHaveCount(0)
-  // The text stays; its inline markup does not: the text block of Editor.js 2.31 cleans converted text by its
-  // per-field config read as a list of tags (ADR-0031, #331).
-  await expect.poll(() => html(page)).toBe('Глава первая')
+  // The text and its inline markup stay: the text block cleans converted text by the tags of its tools (ADR-0044).
+  await expect.poll(() => html(page)).toBe('Глава <b>первая</b>')
+})
+
+test('keeps italic, the marker and a link through text → heading → text', async ({ page }) => {
+  await open(page)
+  await typeAndSelect(page, 'здесь сейчас', 12)
+  await page.keyboard.press('Home')
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight')
+  await press(tool(page, 'italic'))
+  await expect.poll(() => html(page, 1)).toContain('<i>')
+  await press(tool(page, 'marker'))
+  await expect.poll(() => html(page, 1)).toContain('<mark>')
+  await press(tool(page, 'link'))
+  const input = page.getByTestId('link-input')
+  await expect(input).toBeVisible()
+  await input.fill('example.test/page')
+  await input.press('Enter')
+  await expect.poll(() => html(page, 1)).toContain(`rel="${linkRel}"`)
+  await expect.poll(() => step(page)).toBeGreaterThan(3)
+  // The browser decides how the tags nest and may leave a `style` on the marker; conversion cleans it off.
+  const formatted = (await html(page, 1)).replace(/ style="[^"]*"/g, '')
+  for (const tag of ['<i>', '<mark>', `<a href="https://example.test/page" rel="${linkRel}">`, '> сейчас'])
+    expect(formatted).toContain(tag)
+
+  // The plain word at the end is selected: a selection in a link opens the link field instead of the menu.
+  await press(paragraphs(page).nth(1))
+  await page.keyboard.press('End')
+  await convert(page, 6, 'Заголовок')
+  await expect(page.locator('h2.ce-header')).toHaveJSProperty('innerHTML', formatted)
+  await press(headers(page).first())
+  await page.keyboard.press('End')
+  await convert(page, 6, 'Текст')
+  await expect(headers(page)).toHaveCount(0)
+  await expect.poll(() => html(page, 1)).toBe(formatted)
 })
 
 test('gives a heading an anchor that stays while its text changes and after undo and redo', async ({
