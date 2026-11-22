@@ -358,11 +358,75 @@ const posts = [
 
 function post(response, url) {
   const [, id] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)$/) ?? []
-  const found = posts.find((item) => item.id === id)
+  const found = posts.find((item) => item.id === id) ?? written.get(id)
   return found
     ? send(response, 200, found)
     : send(response, 404, { status: 404, code: 'posts.post_not_found' })
 }
+
+// Publishing (E05-09, ADR-0046): GET /api/v1/topics, POST /api/v1/posts (a draft), PUT /api/v1/posts/{id} and
+// POST /api/v1/posts/{id}/publish with the checks of PostChecks: a post with no text is refused, as is a title longer
+// than 120 characters. A post whose text is «сбой» fails as an unavailable API would. Written posts stay out of the
+// feed (tests run in parallel against this one fake), are found by GET /api/v1/posts/{id} and have no slug.
+const written = new Map() // id -> post
+const titleMaxLength = 120
+const hasText = (body) =>
+  (body?.blocks ?? []).some((block) =>
+    String(block?.data?.text ?? block?.data?.code ?? '')
+      .replace(/<[^>]*>|&nbsp;/g, '')
+      .trim(),
+  )
+
+async function writePost(request, response, url) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const [, id, action] = url.pathname.match(/^\/api\/v1\/posts(?:\/([^/]+))?(?:\/(publish))?$/) ?? []
+  const existing = id ? written.get(id) : undefined
+  if (id && (!existing || existing.authorAccountId !== account))
+    return send(response, 404, { status: 404, code: 'posts.post_not_found' })
+
+  if (action === 'publish') {
+    const errors = {}
+    if ((existing.title ?? '').length > titleMaxLength)
+      errors.title = [`Заголовок длиннее ${titleMaxLength} символов.`]
+    if (!hasText(existing.body)) errors.body = ['Пустой пост опубликовать нельзя.']
+    if (Object.keys(errors).length > 0)
+      return send(response, 400, { status: 400, code: 'validation', errors })
+    if (existing.status !== 'published')
+      Object.assign(existing, { status: 'published', publishedAt: new Date().toISOString() })
+    return send(response, 200, existing)
+  }
+
+  const input = JSON.parse((await readBody(request)) || '{}')
+  if ((input.body?.blocks ?? []).some((block) => block?.data?.text === 'сбой'))
+    return send(response, 500, { status: 500, code: 'internal' })
+  const own = blogs.find((blog) => blog.owner === account)
+  const now = new Date().toISOString()
+  const fields = {
+    blogId: input.blogId ?? existing?.blogId ?? own?.id ?? blogs[0].id,
+    title: (input.title ?? '').trim() || null,
+    slug: null,
+    body: input.body ?? { version: 1, blocks: [] },
+    updatedAt: now,
+  }
+  const saved = existing
+    ? Object.assign(existing, fields)
+    : {
+        id: randomUUID(),
+        authorAccountId: account,
+        status: 'draft',
+        origin: 'native',
+        source: null,
+        createdAt: now,
+        publishedAt: null,
+        ...fields,
+      }
+  written.set(saved.id, saved)
+  return send(response, existing ? 200 : 201, saved)
+}
+
+const topics = () =>
+  blogs.filter((blog) => blog.type === 'topic').map(({ id, name, nickname }) => ({ id, name, nickname }))
 
 // The fresh feed (E08-01): GET /api/v1/feeds/fresh, the posts above newest first (by publishedAt, then id), two per
 // page so the e2e test reaches a second page. The cursor is opaque to the client, as the API's (ADR-0006).
@@ -558,6 +622,9 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
+  if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
+    return writePost(request, response, url)
+  if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.

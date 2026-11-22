@@ -44,12 +44,17 @@ public sealed class PersonalBlogFactory(SeedData data) : ObjectFactory<Subsite>(
     }
 }
 
-/// <summary>The personal blogs of the demo accounts, added only where they are missing.</summary>
+/// <summary>The personal blogs of the demo accounts and the demo topics, added only where they are missing.</summary>
 public sealed class BlogsDemoSeeder(BlogsDbContext db) : IDemoSeeder
 {
     public string Name => BlogsDbContext.Schema;
 
     public Task<int> SeedAsync(SeedData data, CancellationToken cancellationToken) =>
         db.AddMissingAsync(
-            new PersonalBlogFactory(data).BuildMany(IdentityDemo.AccountCount).ToList(), s => s.Id, cancellationToken);
+            [
+                .. new PersonalBlogFactory(data).BuildMany(IdentityDemo.AccountCount),
+                .. new TopicFactory(data).BuildMany(TopicFactory.Topics.Count),
+            ],
+            s => s.Id,
+            cancellationToken);
 }

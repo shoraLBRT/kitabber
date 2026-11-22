@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/Modules/Blogs/Platform.Modules.Blogs.csproj" />
+        <ProjectReference Include="../../src/Modules/Identity/Platform.Modules.Identity.csproj" />
         <ProjectReference Include="../../src/Modules/Posts/Platform.Modules.Posts.csproj" />
         <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>

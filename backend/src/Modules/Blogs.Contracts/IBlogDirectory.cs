@@ -37,4 +37,7 @@ public static class BlogsDemo
     /// of the <c>n</c>-th demo account.
     /// </summary>
     public const string BlogKind = "blog";
+
+    /// <summary>The kind of the demo topics' identifiers in <c>SeedData.Id</c> (ADR-0046).</summary>
+    public const string TopicKind = "topic";
 }

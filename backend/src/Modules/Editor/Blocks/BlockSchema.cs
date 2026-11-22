@@ -70,6 +70,13 @@ public sealed class BlockSchema
 
         return errors.Count == before ? result : null;
     }
+
+    /// <summary>Whether the canonical <paramref name="data"/> of this block shows the reader anything (ADR-0046).</summary>
+    public bool HasContent(JsonObject data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return Fields.Any(field => field.HasContent(data[field.Name]));
+    }
 }
 
 /// <summary>

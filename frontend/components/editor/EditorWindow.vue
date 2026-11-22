@@ -77,6 +77,7 @@ onBeforeUnmount(() => {
         <div class="editor-window__body">
           <div class="editor-window__column"><slot /></div>
         </div>
+        <footer v-if="$slots.footer" class="editor-window__footer"><slot name="footer" /></footer>
       </div>
     </div>
   </Teleport>
@@ -170,6 +171,15 @@ onBeforeUnmount(() => {
   padding: var(--space-5);
 }
 
+.editor-window__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: var(--size-border) solid var(--color-border);
+}
+
 .editor-window__column {
   max-width: var(--size-measure);
   margin: 0 auto;
@@ -191,6 +201,10 @@ onBeforeUnmount(() => {
 
   .editor-window__body {
     padding: var(--space-4);
+  }
+
+  .editor-window__footer {
+    padding: var(--space-2) var(--space-4);
   }
 }
 </style>

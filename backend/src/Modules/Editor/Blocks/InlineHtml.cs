@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using Ganss.Xss;
 
@@ -9,7 +11,7 @@ namespace Platform.Modules.Editor.Blocks;
 /// with their content. Links keep only <c>href</c> with an <c>http</c>, <c>https</c> or <c>mailto</c> address and
 /// get <c>rel="nofollow ugc noopener noreferrer"</c>. Safe to share between threads.
 /// </summary>
-public sealed class InlineHtml
+public sealed partial class InlineHtml
 {
     /// <summary>The <c>rel</c> every link gets: user content is not endorsed and does not reach the opener.</summary>
     public const string LinkRel = "nofollow ugc noopener noreferrer";
@@ -69,4 +71,18 @@ public sealed class InlineHtml
         ArgumentNullException.ThrowIfNull(html);
         return _sanitizer.Sanitize(html);
     }
+
+    /// <summary>
+    /// Whether cleaned inline HTML shows any text: without the tags and with entities decoded, something other than
+    /// white space, no-break and zero-width spaces is left (the "empty post" check of publishing, ADR-0046).
+    /// </summary>
+    public static bool HasText(string cleanedHtml)
+    {
+        ArgumentNullException.ThrowIfNull(cleanedHtml);
+        var text = WebUtility.HtmlDecode(Tag().Replace(cleanedHtml, " "));
+        return text.Any(c => !char.IsWhiteSpace(c) && c != ' ' && c != '​' && c != '﻿');
+    }
+
+    [GeneratedRegex("<[^>]*>", RegexOptions.CultureInvariant)]
+    private static partial Regex Tag();
 }

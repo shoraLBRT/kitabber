@@ -196,6 +196,39 @@ public sealed class BlockDocumentValidatorTests
         Assert.Equal([1], _validator.SupportedVersions);
     }
 
+    [Theory]
+    [InlineData("""{"id": "p1", "type": "paragraph", "data": {"text": "Слово"}}""")]
+    [InlineData("""{"id": "p1", "type": "paragraph", "data": {"text": "<b>&nbsp;x</b>"}}""")]
+    [InlineData("""{"id": "h1", "type": "header", "data": {"text": "Заголовок", "level": 2}}""")]
+    [InlineData("""{"id": "l1", "type": "list", "data": {"style": "unordered", "items": ["", "пункт"]}}""")]
+    [InlineData("""{"id": "q1", "type": "quote", "data": {"text": " ", "caption": "Автор"}}""")]
+    public void BlockWithTextIsContent(string block)
+    {
+        var result = Validate($$$"""{"version": 1, "blocks": [{"id": "d1", "type": "delimiter", "data": {}}, {{{block}}}]}""");
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.True(_validator.HasContent(result.Document!));
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("""[{"id": "d1", "type": "delimiter", "data": {}}]""")]
+    [InlineData("""[{"id": "p1", "type": "paragraph", "data": {"text": "  <b> </b><br>&nbsp;​"}}]""")]
+    [InlineData("""[{"id": "h1", "type": "header", "data": {"text": "", "level": 3}}]""")]
+    [InlineData("""[{"id": "l1", "type": "list", "data": {"style": "ordered", "items": ["", " "]}}]""")]
+    [InlineData("""[{"id": "q1", "type": "quote", "data": {"text": "", "caption": ""}}]""")]
+    public void DocumentWithoutTextIsEmpty(string blocks)
+    {
+        var result = Validate($$"""{"version": 1, "blocks": {{blocks}}}""");
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.False(_validator.HasContent(result.Document!));
+    }
+
+    [Fact]
+    public void DocumentOfAnUnknownVersionHasNoContent() =>
+        Assert.False(_validator.HasContent(new System.Text.Json.Nodes.JsonObject { ["version"] = 99, ["blocks"] = new System.Text.Json.Nodes.JsonArray() }));
+
     private BlockDocumentResult Validate(string json) => Validate(_validator, json);
 
     private static BlockDocumentResult Validate(BlockDocumentValidator validator, string json)

@@ -43,6 +43,18 @@ public sealed class Subsite
     /// </summary>
     public Guid? AvatarMediaId { get; private set; }
 
+    /// <summary>
+    /// A topic named <paramref name="name"/> at the address <paramref name="nickname"/>. Topics are made by the
+    /// administration (FR-TOPIC); until its tools come (E11-01, #76), only the demo data and the tests make them.
+    /// </summary>
+    public static Subsite CreateTopic(string name, string nickname, DateTimeOffset createdAt)
+    {
+        var topic = new Subsite { Id = Guid.CreateVersion7(createdAt), Type = SubsiteType.Topic, CreatedAt = createdAt };
+        topic.Rename(name);
+        topic.SetNickname(nickname);
+        return topic;
+    }
+
     /// <summary>The personal blog of <paramref name="ownerAccountId"/>, created at <paramref name="createdAt"/>, with an empty profile.</summary>
     public static Subsite CreatePersonal(Guid ownerAccountId, DateTimeOffset createdAt)
     {
