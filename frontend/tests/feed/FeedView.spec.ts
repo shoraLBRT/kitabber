@@ -2,14 +2,18 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import FeedView from '../../components/feed/FeedView.vue'
-import type { FeedState } from '../../api/feeds'
+import type { FeedPost, FeedState } from '../../api/feeds'
 import type { Post } from '../../api/posts'
 
 // The states of a feed (E08-01, docs/ui/feed.md); the server render and the pages against the fake API are in
 // e2e/feed.spec.ts.
 const stubs = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 
-function post(id: string, title: string | null, text: string): Post {
+function post(id: string, title: string | null, text: string): FeedPost {
+  return { post: postView(id, title, text), author: null, topic: null }
+}
+
+function postView(id: string, title: string | null, text: string): Post {
   return {
     id,
     blogId: '0195f3a0-0000-7000-8000-0000000000b1',
@@ -79,12 +83,15 @@ describe('FeedView', () => {
     expect(items).toHaveLength(2)
     expect(items[0]!.get('h2').text()).toBe('Заголовок')
     expect(items[0]!.text()).toContain('Первый абзац.')
-    expect(items[0]!.get('a').attributes('href')).toBe(`/u/${titled.blogId}/${titled.id}-zagolovok`)
-    expect(items[0]!.get('time').attributes('datetime')).toBe('2026-11-20T10:05:00Z')
-    expect(items[0]!.get('time').text()).toMatch(/^20 ноября\D+10:05$/)
-    // A short post without a title is headed by its first line and opens by its id.
-    expect(items[1]!.get('h2').text()).toBe('Короткий пост.')
-    expect(items[1]!.get('a').attributes('href')).toBe(`/u/${short.blogId}/${short.id}`)
+    expect(items[0]!.get('[data-testid="feed-card-title"]').attributes('href')).toBe(
+      `/u/${titled.post.blogId}/${titled.post.id}-zagolovok`,
+    )
+    // A short post without a title has no heading; its date opens it by its id.
+    expect(items[1]!.find('h2').exists()).toBe(false)
+    expect(items[1]!.text()).toContain('Короткий пост.')
+    expect(items[1]!.get('[data-testid="feed-card-date"]').attributes('href')).toBe(
+      `/u/${short.post.blogId}/${short.post.id}`,
+    )
     expect(wrapper.find('[data-testid="feed-more"]').exists()).toBe(false)
   })
 

@@ -7,10 +7,10 @@ import {
   feedEntryKey,
   rememberFeed,
   type FeedLookup,
+  type FeedPost,
   type FeedSnapshot,
   type FeedState,
 } from '~/api/feeds'
-import type { Post } from '~/api/posts'
 
 export async function useFeed(name: string, load: (cursor?: string | null) => Promise<FeedLookup>) {
   const snapshots = useState<Record<string, FeedSnapshot>>('feed:snapshots', () => ({}))
@@ -22,7 +22,7 @@ export async function useFeed(name: string, load: (cursor?: string | null) => Pr
     immediate: !saved,
   })
 
-  const posts = ref<Post[] | null>(saved?.posts ?? null)
+  const posts = ref<FeedPost[] | null>(saved?.posts ?? null)
   const cursor = ref<string | null>(saved?.cursor ?? null)
   const loadingMore = ref(false)
   const moreFailed = ref(false)

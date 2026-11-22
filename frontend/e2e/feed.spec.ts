@@ -13,13 +13,19 @@ const secondPage = '/api/v1/feeds/fresh?cursor=Mg'
 async function longSecondPage(page: Page, count: number): Promise<void> {
   await page.route(`**${secondPage}`, async (route) => {
     const response = await route.fetch()
-    const body = (await response.json()) as { items: Record<string, unknown>[]; nextCursor: string | null }
+    const body = (await response.json()) as {
+      items: { post: Record<string, unknown> }[]
+      nextCursor: string | null
+    }
     const real = body.items[0]!
     const fillers = Array.from({ length: count }, (_, n) => ({
       ...real,
-      id: `0195f3a0-0000-7000-8000-00000000f${String(n).padStart(3, '0')}`,
-      title: `Пост для прокрутки ${n + 1}`,
-      slug: null,
+      post: {
+        ...real.post,
+        id: `0195f3a0-0000-7000-8000-00000000f${String(n).padStart(3, '0')}`,
+        title: `Пост для прокрутки ${n + 1}`,
+        slug: null,
+      },
     }))
     await route.fulfill({ response, json: { ...body, items: [...fillers, ...body.items] } })
   })
@@ -77,6 +83,45 @@ test.describe('лента «Свежее»', () => {
       await expect(items.nth(2)).toContainText('Привет, мир')
       await expect(page.getByTestId('feed').getByRole('alert')).toHaveCount(0)
     })
+  })
+
+  // The card (E08-02, ADR-0052): «Привет, мир» has eight blocks and is cut, the other two are short and shown whole.
+  test('карточка: автор, тема, короткий пост целиком, лонгрид с «Показать полностью»', async ({ page }) => {
+    await page.goto('/new')
+    await waitForHydration(page)
+    const items = page.getByTestId('feed-item')
+    await expect(items).toHaveCount(3)
+
+    const inTopic = items.nth(0)
+    await expect(inTopic.getByTestId('feed-card-author')).toHaveText(/Анна/)
+    await expect(inTopic.getByTestId('feed-card-topic')).toHaveText('Книги')
+    await expect(inTopic.getByTestId('feed-card-more')).toHaveCount(0)
+
+    const short = items.nth(1)
+    await expect(short.getByRole('heading', { level: 2 })).toHaveCount(0)
+    await expect(short).toContainText('Короткий пост без заголовка.')
+    await expect(short.getByTestId('feed-card-topic')).toHaveCount(0)
+    await expect(short.getByTestId('feed-card-more')).toHaveCount(0)
+
+    const long = items.nth(2)
+    await expect(long).toContainText('Первый абзац поста.')
+    await expect(long).toContainText('Глава первая')
+    await expect(long).not.toContainText('Краткость — сестра таланта.')
+    const more = long.getByTestId('feed-card-more')
+    await expect(more).toHaveText('Показать полностью')
+
+    // The card fits the column in both profiles: nothing sticks out of it, the page does not scroll sideways.
+    for (const card of [inTopic, short, long]) {
+      const box = (await card.boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+    }
+    await expectNoHorizontalScroll(page)
+
+    await more.click()
+    await expect(long).toContainText('Краткость — сестра таланта.')
+    await expect(more).toHaveCount(0)
+    await expectNoHorizontalScroll(page)
   })
 
   test('пост открывается из ленты по своему адресу', async ({ page }) => {

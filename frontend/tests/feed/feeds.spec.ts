@@ -7,9 +7,11 @@ import {
   feedSnapshotLimit,
   loadFreshFeed,
   rememberFeed,
+  feedItemPath,
+  feedPreview,
+  type FeedPost,
   type FeedSnapshot,
 } from '../../api/feeds'
-import type { Post } from '../../api/posts'
 
 // Reading the fresh feed page by page (E08-01, ADR-0043).
 function clientAnswering(status: number, body: unknown) {
@@ -20,7 +22,8 @@ function clientAnswering(status: number, body: unknown) {
   return { client: createApiClient({ baseUrl: 'http://api.test', fetch }), fetch }
 }
 
-const post = (id: string) => ({ id, blogId: 'b1', slug: null }) as unknown as Post
+const post = (id: string) =>
+  ({ post: { id, blogId: 'b1', slug: null }, author: null, topic: null }) as unknown as FeedPost
 
 describe('loadFreshFeed', () => {
   it('reads the first page without a cursor', async () => {
@@ -55,9 +58,9 @@ describe('loadFreshFeed', () => {
 describe('appendPage', () => {
   it('adds the next page after the posts shown and never shows a post twice', () => {
     const shown = [post('p1'), post('p2')]
-    expect(appendPage(shown, { items: [post('p2'), post('p3')], nextCursor: null }).map((p) => p.id)).toEqual(
-      ['p1', 'p2', 'p3'],
-    )
+    expect(
+      appendPage(shown, { items: [post('p2'), post('p3')], nextCursor: null }).map((p) => p.post.id),
+    ).toEqual(['p1', 'p2', 'p3'])
   })
 })
 
@@ -65,6 +68,57 @@ describe('feedPostPath', () => {
   it('leads through the blog id to the post, which redirects to its canonical address', () => {
     expect(feedPostPath({ id: 'p1', slug: 'privet', blogId: 'b1' })).toBe('/u/b1/p1-privet')
     expect(feedPostPath({ id: 'p1', slug: null, blogId: 'b1' })).toBe('/u/b1/p1')
+  })
+})
+
+describe('feedItemPath', () => {
+  const author = { id: 'b1', type: 'personal', name: null, nickname: 'anna', avatarSources: [] }
+  const topic = { id: 't1', type: 'topic', name: 'Книги', nickname: 'books', avatarSources: [] }
+  const post = { id: 'p1', slug: 'privet', blogId: 'b1' } as unknown as FeedPost['post']
+
+  it('leads to the post in its topic, else in the author blog it is in, else by the blog id', () => {
+    expect(feedItemPath({ post: { ...post, blogId: 't1' }, author, topic })).toBe('/books/p1-privet')
+    expect(feedItemPath({ post, author, topic: null })).toBe('/u/anna/p1-privet')
+    expect(feedItemPath({ post: { ...post, blogId: 'b9' }, author, topic: null })).toBe('/u/b9/p1-privet')
+    expect(feedItemPath({ post, author: null, topic: null })).toBe('/u/b1/p1-privet')
+  })
+})
+
+// The cut of a longread on its card (E08-02, ADR-0052).
+describe('feedPreview', () => {
+  const paragraph = (text: string) => ({ type: 'paragraph', data: { text } })
+  const document = (blocks: unknown[]) => ({ version: 1, blocks })
+
+  it('gives a post of up to three short blocks whole', () => {
+    const short = document([paragraph('Раз'), paragraph('Два'), paragraph('Три')])
+    expect(feedPreview(short)).toEqual({ document: short, cut: false })
+  })
+
+  it('cuts a post after its third block', () => {
+    const long = document([paragraph('1'), paragraph('2'), paragraph('3'), paragraph('4')])
+    expect(feedPreview(long)).toEqual({ document: document(long.blocks.slice(0, 3)), cut: true })
+  })
+
+  it('cuts after the block whose text reaches 600 characters, but shows the first block always', () => {
+    const big = 'а'.repeat(400)
+    const long = document([paragraph(big), paragraph(big), paragraph('хвост')])
+    expect(feedPreview(long).document).toEqual(document(long.blocks.slice(0, 2)))
+    const huge = document([paragraph('б'.repeat(2000)), paragraph('хвост')])
+    expect(feedPreview(huge)).toEqual({ document: document(huge.blocks.slice(0, 1)), cut: true })
+  })
+
+  it('counts the text people read, not the markup, file ids or addresses', () => {
+    const marked = `<b>${'в'.repeat(250)}</b>`
+    const image = {
+      type: 'image',
+      data: { file: { id: 'x'.repeat(900), url: 'y'.repeat(900) }, caption: '' },
+    }
+    const blocks = [paragraph(marked), image, paragraph(marked)]
+    expect(feedPreview(document(blocks)).cut).toBe(false)
+  })
+
+  it('gives anything that is not a document as it is', () => {
+    expect(feedPreview(null)).toEqual({ document: null, cut: false })
   })
 })
 
