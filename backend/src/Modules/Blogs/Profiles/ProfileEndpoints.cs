@@ -45,8 +45,8 @@ public sealed record Profile(
 public sealed record ProfileInput(string? Name = null, string? Description = null, Guid? AvatarId = null);
 
 /// <summary>
-/// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0025): a blog's profile by its identifier or by its nickname, open to
-/// everyone, and the signed-in account's own profile, which its owner edits (E04-03: name, description, avatar). The
+/// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0025): a blog's profile by its identifier or by its nickname, and the
+/// personal blog of an account (the author of a post, ADR-0050), open to everyone, and the signed-in account's own profile, which its owner edits (E04-03: name, description, avatar). The
 /// nickname rules are E04-05.
 /// </summary>
 public sealed class ProfileEndpoints : IApiEndpoints
@@ -94,6 +94,11 @@ public sealed class ProfileEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithName("GetProfileByNickname")
             .WithSummary("A blog's profile by its nickname (with or without @, any case)");
+        profiles.MapGet("/by-account/{accountId:guid}", GetByAccountAsync)
+            .Produces<Profile>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithName("GetProfileByAccount")
+            .WithSummary("The personal blog of an account, such as the author of a post (ADR-0050)");
     }
 
     private static async Task<IResult> GetOwnAsync(
@@ -163,6 +168,14 @@ public sealed class ProfileEndpoints : IApiEndpoints
     private static async Task<IResult> GetByIdAsync(
         Guid id, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
         await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct) is { } blog
+            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
+            : ApiProblems.NotFound(ProfileNotFoundCode);
+
+    // Only finds the blog: a reader's request never creates a personal blog for someone else's account.
+    private static async Task<IResult> GetByAccountAsync(
+        Guid accountId, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
+        await db.Subsites.AsNoTracking()
+            .SingleOrDefaultAsync(s => s.Type == SubsiteType.Personal && s.OwnerAccountId == accountId, ct) is { } blog
             ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 

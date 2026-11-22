@@ -879,6 +879,48 @@
         }
       }
     },
+    "/api/v1/profiles/by-account/{accountId}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "The personal blog of an account, such as the author of a post (ADR-0050)",
+        "operationId": "GetProfileByAccount",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics": {
       "get": {
         "tags": [
