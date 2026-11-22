@@ -16,7 +16,7 @@ test.describe('адрес поста', () => {
     const post = page.getByTestId('post')
     await expect(post.getByRole('heading', { level: 1, name: 'Привет, мир' })).toBeVisible()
     await expect(post).toContainText('Первый абзац поста.')
-    await expect(post.getByTestId('post-blog')).toHaveAttribute('href', '/u/anna')
+    await expect(post.getByTestId('post-author')).toHaveAttribute('href', '/u/anna')
     await expect(page).toHaveURL(new RegExp(`/u/anna/${titled}-privet-mir$`))
     await expect(page).toHaveTitle(/Привет, мир/)
     await expectNoHorizontalScroll(page)
@@ -90,6 +90,9 @@ test.describe('адрес поста', () => {
     await waitForHydration(page)
     await expect(page.getByTestId('post-title')).toHaveText('Книги осени')
     await expect(page.getByTestId('post-blog')).toHaveText('Книги')
+    // E07-04: the author of a post in a topic is their own blog, not the topic.
+    await expect(page.getByTestId('post-author')).toContainText('Борис')
+    await expect(page.getByTestId('post-author')).toHaveAttribute('href', '/u/boris')
     await expect(page).toHaveURL(new RegExp(`${canonical}$`))
     await expectNoHorizontalScroll(page)
   })
@@ -97,6 +100,72 @@ test.describe('адрес поста', () => {
   test('адреса других страниц блога постом не считаются', async ({ page }) => {
     await page.goto('/u/anna/comments')
     await expect(page.getByTestId('blog-empty-comments')).toHaveText('Пока нет комментариев')
+  })
+})
+
+// E07-04 (#52, ADR-0050): the header with the author and the floating action panel, in both profiles.
+test.describe('страница поста: шапка и панель действий', () => {
+  const address = `/u/anna/${titled}-privet-mir`
+
+  test('шапка и панель приходят с сервера', async ({ request }) => {
+    const html = await (await request.get(address)).text()
+    expect(html).toContain('data-testid="post-author"')
+    expect(html).toContain('Анна')
+    expect(html).toContain('<time datetime="2026-11-20T10:00:00Z"')
+    expect(html).toMatch(/role="toolbar"[^>]*aria-label="Действия с постом"/)
+  })
+
+  test('панель действий закреплена при прокрутке', async ({ page }) => {
+    await page.goto(address)
+    await waitForHydration(page)
+    const panel = page.getByRole('toolbar', { name: 'Действия с постом' })
+    await expect(panel.getByRole('button', { name: 'Нравится' })).toBeDisabled()
+    await expect(panel.getByRole('link', { name: 'Комментарии' })).toHaveAttribute('href', '#comments')
+    await expect(panel.getByRole('button', { name: 'Поделиться' })).toBeVisible()
+
+    const viewport = page.viewportSize()!
+    const tabBar = page.getByTestId('tab-bar')
+    // The bottom edge the panel keeps to: the window's, or on a phone the top of the bottom bar.
+    const floor = async () => ((await tabBar.isVisible()) ? (await tabBar.boundingBox())!.y : viewport.height)
+    for (const scroll of [0, 500, 1000]) {
+      await page.evaluate((y) => window.scrollTo(0, y), scroll)
+      await expect
+        .poll(async () => {
+          const box = (await panel.boundingBox())!
+          const bottom = await floor()
+          return box.y >= 0 && box.y + box.height <= bottom && box.y + box.height >= bottom - 64
+        }, `прокрутка ${scroll}`)
+        .toBe(true)
+    }
+    // The post is long enough that the last scroll really happened, so the panel stayed while the text moved.
+    expect(await page.evaluate(() => window.scrollY)).toBe(1000)
+    await expectNoHorizontalScroll(page)
+  })
+
+  test('«Поделиться» копирует ссылку на пост', async ({ page, context, baseURL }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await page.goto(address)
+    await waitForHydration(page)
+    await page
+      .getByRole('toolbar', { name: 'Действия с постом' })
+      .getByRole('button', { name: 'Поделиться' })
+      .click()
+    await expect(page.getByText('Ссылка скопирована')).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(new URL(address, baseURL).href)
+  })
+})
+
+test.describe('страница поста: телефон', () => {
+  test('на телефоне панель внизу экрана над нижней панелью, «Написать» скрыта', async ({ page }) => {
+    await page.goto(`/u/anna/${titled}-privet-mir`)
+    await waitForHydration(page)
+    const tabBar = page.getByTestId('tab-bar')
+    test.skip(!(await tabBar.isVisible()), 'нижняя панель есть только на телефоне')
+    const panel = (await page.getByRole('toolbar', { name: 'Действия с постом' }).boundingBox())!
+    const bar = (await tabBar.boundingBox())!
+    expect(panel.y + panel.height).toBeLessThanOrEqual(bar.y)
+    expect(panel.y + panel.height).toBeGreaterThan(bar.y - 32)
+    await expect(page.getByTestId('write-button')).toHaveCount(0)
   })
 })
 

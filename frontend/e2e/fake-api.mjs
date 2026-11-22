@@ -332,11 +332,20 @@ const extraBlocks = {
     { id: 'b6', type: 'quote', data: { text: 'Краткость — сестра таланта.', caption: 'А. П. Чехов' } },
     { id: 'b7', type: 'delimiter', data: {} },
     { id: 'b8', type: 'gallery', data: {} },
+    // A longread's length, so the action panel has a page to stay fixed over (E07-04).
+    ...Array.from({ length: 30 }, (_, n) => ({
+      id: `p${n}`,
+      type: 'paragraph',
+      data: {
+        text: `Абзац ${n + 1} длинного поста: текст, который читают, прокручивая страницу вниз. ${'Ещё одна фраза абзаца. '.repeat(4)}`,
+      },
+    })),
   ],
 }
 
 // Posts (E07-01, E07-02): GET /api/v1/posts/{id}. The slug is what the API gives (PostSlug); a post without a title has
-// none. Two posts of anna (with a title and a short one) and one in the topic `books`.
+// none. Two posts of anna (with a title and a short one) and one by boris in the topic `books` (E07-04: its author is
+// not the blog).
 const posts = [
   ['0195f3a0-0000-7000-8000-0000000000c1', 0, 'Привет, мир', 'privet-mir', 'Первый абзац поста.'],
   ['0195f3a0-0000-7000-8000-0000000000c2', 0, null, null, 'Короткий пост без заголовка.'],
@@ -344,7 +353,7 @@ const posts = [
 ].map(([id, blog, title, slug, text]) => ({
   id,
   blogId: blogs[blog].id,
-  authorAccountId: blogs[blog].owner ?? owner,
+  authorAccountId: blogs[blog].owner ?? blogs[1].owner,
   title,
   slug,
   body: { version: 1, blocks: [{ id: 'b1', type: 'paragraph', data: { text } }, ...(extraBlocks[id] ?? [])] },
@@ -558,7 +567,14 @@ function profile(request, response, url) {
     const { owner: blogOwner, registeredAt, ...rest } = edited(blog, request)
     return { ...rest, registeredAt: blogOwner === reader ? registeredAt : null }
   }
-  const [, kind, value] = url.pathname.match(/^\/api\/v1\/profiles\/(?:(by-nickname)\/)?([^/]+)$/) ?? []
+  const [, kind, value] =
+    url.pathname.match(/^\/api\/v1\/profiles\/(?:(by-nickname|by-account)\/)?([^/]+)$/) ?? []
+  if (kind === 'by-account') {
+    const personal = blogs.find((blog) => blog.type === 'personal' && blog.owner === value)
+    return personal
+      ? send(response, 200, view(personal))
+      : send(response, 404, { status: 404, code: 'profile_not_found' })
+  }
   if (value === 'me' && !kind) {
     const own = blogs.find((blog) => reader && blog.owner === reader)
     return own ? send(response, 200, view(own)) : send(response, 401, { status: 401, code: 'unauthorized' })

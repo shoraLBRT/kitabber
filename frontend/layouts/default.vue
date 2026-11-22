@@ -11,7 +11,12 @@ function onAccount(id: string) {
 </script>
 
 <template>
-  <ShellLayout :current-path="route.path" :user="user" @account="onAccount">
+  <ShellLayout
+    :current-path="route.path"
+    :user="user"
+    :write-button="route.meta.writeButton !== false"
+    @account="onAccount"
+  >
     <slot />
   </ShellLayout>
 </template>

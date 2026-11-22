@@ -54,6 +54,34 @@ public sealed class ProfileApiTests(ProfilesApi api) : IClassFixture<ProfilesApi
         }
     }
 
+    // The author of a post (E07-04, ADR-0050): the post knows only the account, the header shows its personal blog.
+    [Fact]
+    public async Task PersonalBlogIsFoundByItsOwnersAccount()
+    {
+        var blog = await SaveDemoBlogAsync();
+
+        var profile = await GetAsync($"/api/v1/profiles/by-account/{blog.OwnerAccountId}");
+
+        Assert.Equal(blog.Id, profile.GetProperty("id").GetGuid());
+        Assert.Equal("personal", profile.GetProperty("type").GetString());
+        Assert.Equal(blog.Name, profile.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task AccountWithoutABlogIsNotFoundAndGetsNone()
+    {
+        await SaveDemoBlogAsync();
+        var stranger = Guid.CreateVersion7(api.Time.GetUtcNow());
+
+        using var response = await _client.GetAsync($"/api/v1/profiles/by-account/{stranger}", Ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("profile_not_found", await CodeOf(response));
+        await using var scope = api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BlogsDbContext>();
+        Assert.False(await db.Subsites.AnyAsync(s => s.OwnerAccountId == stranger, Ct));
+    }
+
     [Fact]
     public async Task OwnerSeesTheRegistrationDateAndOthersDoNot()
     {
