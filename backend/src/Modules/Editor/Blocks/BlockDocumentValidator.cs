@@ -47,6 +47,23 @@ public sealed partial class BlockDocumentValidator : IBlockDocumentValidator
             : BlockDocumentResult.Invalid(errors.Count == 0 ? [new(string.Empty, "Invalid document.")] : [.. errors.Take(MaxErrors)]);
     }
 
+    public bool HasContent(JsonObject document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (document["version"] is not JsonValue versionValue || !versionValue.TryGetValue<int>(out var version)
+            || !_versions.TryGetValue(version, out var schemas) || document["blocks"] is not JsonArray blocks)
+        {
+            return false;
+        }
+
+        return blocks.Any(block =>
+            block is JsonObject read
+            && read["type"] is JsonValue type && type.TryGetValue<string>(out var name)
+            && schemas.Blocks.TryGetValue(name, out var schema)
+            && read["data"] is JsonObject data
+            && schema.HasContent(data));
+    }
+
     private JsonObject? Read(JsonElement document, List<BlockDocumentError> errors)
     {
         if (document.ValueKind != JsonValueKind.Object)

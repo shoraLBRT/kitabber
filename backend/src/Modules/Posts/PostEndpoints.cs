@@ -59,7 +59,8 @@ public sealed record PostView(
 
 /// <summary>
 /// <c>/api/v1/posts</c> (FR-POST, ADR-0029): create a draft, read, edit and softly delete a post. A draft is seen only
-/// by its author; only the author edits and deletes. Publishing with its checks is E05-09 (#49).
+/// by its author; only the author edits, publishes and deletes. Publishing needs a confirmed email and passes the
+/// checks of <see cref="PostChecks"/> (E05-09, ADR-0046).
 /// </summary>
 public sealed class PostEndpoints : IApiEndpoints
 {
@@ -100,6 +101,15 @@ public sealed class PostEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithName("DeletePost")
             .WithSummary("Deletes the author's post softly");
+        posts.MapPost("/{id:guid}/publish", PublishAsync)
+            .RequireAuthorization(AccountPolicies.ConfirmedEmail)
+            .Produces<PostView>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithName("PublishPost")
+            .WithSummary("Publishes the author's draft once it passes the checks; a published post stays as it is");
     }
 
     private static async Task<IResult> CreateAsync(
@@ -173,7 +183,48 @@ public sealed class PostEndpoints : IApiEndpoints
             return problem;
         }
 
-        post!.Edit(input.BlogId ?? post.BlogId, input.Title, body, time.GetUtcNow());
+        // A published post stays publishable: an edit is held to the same checks as publishing.
+        if (post!.Status == PostStatus.Published
+            && PostChecks.Problems(PostRules.CleanTitle(input.Title), body, validator) is { Count: > 0 } unpublishable)
+        {
+            return ApiProblems.Validation(unpublishable, "The post does not pass the checks of publishing.");
+        }
+
+        post.Edit(input.BlogId ?? post.BlogId, input.Title, body, time.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(View(post));
+    }
+
+    private static async Task<IResult> PublishAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        PostsDbContext db,
+        IBlockDocumentValidator validator,
+        TimeProvider time,
+        CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } account)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var post = await db.Posts.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (ChangeProblem(post, account) is { } refused)
+        {
+            return refused;
+        }
+
+        if (post!.Status == PostStatus.Published)
+        {
+            return TypedResults.Ok(View(post));
+        }
+
+        if (PostChecks.Problems(post.Title, post.Body, validator) is { Count: > 0 } problems)
+        {
+            return ApiProblems.Validation(problems, "The post does not pass the checks of publishing.");
+        }
+
+        post.Publish(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(View(post));
     }

@@ -6,6 +6,7 @@ using Platform.Configuration;
 using Platform.Http;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Profiles;
+using Platform.Modules.Blogs.Topics;
 using Platform.Persistence;
 
 namespace Platform.Modules.Blogs;
@@ -37,6 +38,7 @@ public static class BlogsModule
         ArgumentNullException.ThrowIfNull(builder);
         AddServices(builder.Services, builder.Configuration);
         builder.Services.AddApiEndpoints<ProfileEndpoints>();
+        builder.Services.AddApiEndpoints<TopicEndpoints>();
         return builder;
     }
 

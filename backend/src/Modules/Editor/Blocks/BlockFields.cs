@@ -23,6 +23,12 @@ public abstract class BlockField
 
     /// <summary>The value in canonical form, or <c>null</c> after adding an error at <paramref name="path"/>.</summary>
     public abstract JsonNode? Read(JsonElement value, string path, ICollection<BlockDocumentError> errors);
+
+    /// <summary>
+    /// Whether the canonical <paramref name="value"/> is something a reader sees: text for a text field; never for a
+    /// setting such as a level or a style (ADR-0046).
+    /// </summary>
+    public virtual bool HasContent(JsonNode? value) => false;
 }
 
 /// <summary>A string of inline HTML, cleaned by <see cref="InlineHtml"/>.</summary>
@@ -40,6 +46,9 @@ public sealed class InlineHtmlField(string name, InlineHtml html, string? defaul
 
         return JsonValue.Create(html.Clean(value.GetString()!));
     }
+
+    public override bool HasContent(JsonNode? value) =>
+        value is JsonValue text && text.TryGetValue<string>(out var html) && InlineHtml.HasText(html);
 }
 
 /// <summary>A string from a fixed set.</summary>
@@ -112,6 +121,10 @@ public sealed class InlineHtmlListField(string name, InlineHtml html) : BlockFie
 
         return valid ? items : null;
     }
+
+    public override bool HasContent(JsonNode? value) =>
+        value is JsonArray items
+        && items.Any(item => item is JsonValue text && text.TryGetValue<string>(out var html) && InlineHtml.HasText(html));
 }
 
 /// <summary>An array of integers from 0 to a maximum, empty when absent: the nesting levels of list items.</summary>

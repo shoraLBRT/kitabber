@@ -18,6 +18,13 @@ public interface IBlockDocumentValidator
 
     /// <summary>Validates <paramref name="document"/>; never throws for bad input, every problem is an error.</summary>
     BlockDocumentResult Validate(JsonElement document);
+
+    /// <summary>
+    /// Whether a cleaned <paramref name="document"/> (one <see cref="Validate"/> returned) has at least one block a
+    /// reader sees: text with something other than white space. A post without one is empty and is not published
+    /// (FR-EDITOR, ADR-0046); a delimiter alone or an empty paragraph is empty.
+    /// </summary>
+    bool HasContent(JsonObject document);
 }
 
 /// <summary>A problem in a document.</summary>

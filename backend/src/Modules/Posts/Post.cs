@@ -108,8 +108,8 @@ public sealed class Post
     }
 
     /// <summary>
-    /// Makes the post visible to everyone. The checks before publishing (an empty post, the size limits) and the
-    /// endpoint that calls this are E05-09 (#49).
+    /// Makes the post visible to everyone; publishing again changes nothing. The checks before publishing (an empty
+    /// post, the size limits) are <see cref="PostChecks"/>, run by the endpoint (ADR-0046).
     /// </summary>
     public void Publish(DateTimeOffset now)
     {

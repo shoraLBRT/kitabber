@@ -879,6 +879,30 @@
         }
       }
     },
+    "/api/v1/topics": {
+      "get": {
+        "tags": [
+          "Topics"
+        ],
+        "summary": "Every topic a post may be published in, by name",
+        "operationId": "ListTopics",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts": {
       "post": {
         "tags": [
@@ -1081,6 +1105,78 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/publish": {
+      "post": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Publishes the author's draft once it passes the checks; a published post stays as it is",
+        "operationId": "PublishPost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized",
@@ -1937,6 +2033,26 @@
           }
         }
       },
+      "TopicSummary": {
+        "required": [
+          "id",
+          "name",
+          "nickname"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          }
+        }
+      },
       "UploadedMedia": {
         "required": [
           "id",
@@ -1991,6 +2107,9 @@
     },
     {
       "name": "Profiles"
+    },
+    {
+      "name": "Topics"
     },
     {
       "name": "Posts"
