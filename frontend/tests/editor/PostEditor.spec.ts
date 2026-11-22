@@ -33,6 +33,10 @@ class FakeEngine {
   format = (mark: string) => {
     this.formats.push(mark)
   }
+  images: File[] = []
+  addImage = (file: File) => {
+    this.images.push(file)
+  }
   destroy = () => undefined
 }
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Pagination;
+using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Posts;
 
@@ -34,7 +35,7 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
     }
 
     private static async Task<Ok<CursorPage<PostView>>> GetAsync(
-        [AsParameters] PageQuery query, PostsDbContext db, CancellationToken ct)
+        [AsParameters] PageQuery query, PostsDbContext db, IMediaLibrary media, CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
         var posts = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null);
@@ -50,6 +51,7 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
             .Take(page.FetchCount)
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
-        return TypedResults.Ok(new CursorPage<PostView>([.. result.Items.Select(PostEndpoints.View)], result.NextCursor));
+        return TypedResults.Ok(new CursorPage<PostView>(
+            await PostEndpoints.ViewsAsync(result.Items, media, ct), result.NextCursor));
     }
 }

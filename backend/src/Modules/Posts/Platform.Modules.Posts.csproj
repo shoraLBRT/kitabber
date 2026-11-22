@@ -21,6 +21,7 @@
         <ProjectReference Include="../Editor.Contracts/Platform.Modules.Editor.Contracts.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
+        <ProjectReference Include="../Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

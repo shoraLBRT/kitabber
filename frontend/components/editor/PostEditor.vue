@@ -17,12 +17,15 @@ import type { CreateEngine } from '../../editor/engine'
 import { postTitleMaxLength, titleLength } from '../../editor/publish'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
 import type { Topic } from '../../api/topics'
+import type { ImageUpload } from '../../editor/image'
 import { useToast } from '../../composables/useToast'
 
 const props = defineProps<{
   topics: Topic[]
   publish: (input: PublishInput) => Promise<PublishOutcome>
   createEngine?: CreateEngine
+  /** Uploads a picture of the «Фото» block (E05-06, ADR-0049). */
+  uploadImage?: (file: File) => Promise<ImageUpload>
 }>()
 
 const emit = defineEmits<{ close: []; published: [path: string]; unauthorized: [] }>()
@@ -190,7 +193,12 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
     >
       {{ blockErrors.join(' ') }}
     </p>
-    <BlockEditor ref="editor" v-model:document="document" :create-engine="createEngine" />
+    <BlockEditor
+      ref="editor"
+      v-model:document="document"
+      :create-engine="createEngine"
+      :upload-image="uploadImage"
+    />
 
     <template #toolbar>
       <EditorKeyboardBar :editor="editor" />

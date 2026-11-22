@@ -43,7 +43,7 @@ const found = computed(() => (props.state.status === 'found' ? props.state : nul
       <span v-if="found.post.status === 'draft'" data-testid="post-draft"> · черновик</span>
     </p>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
-    <PostBlocks :document="found.post.body" />
+    <PostBlocks :document="found.post.body" :images="found.post.images" />
   </article>
 </template>
 

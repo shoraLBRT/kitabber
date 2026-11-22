@@ -311,6 +311,71 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
         Assert.All(bodies, body => Assert.True(validator.Validate(JsonDocument.Parse(body).RootElement).IsValid));
     }
 
+    [Fact]
+    public async Task PostWithTheAuthorsImageGivesItsSources()
+    {
+        var image = await UploadAsync(_author, "photo.png");
+
+        using var created = await SendAsync(HttpMethod.Post, "/api/v1/posts", Input(body: ImageBody(image)), _author);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var view = await created.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        using var read = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{view.GetProperty("id").GetGuid()}", null, _author);
+        var readView = await read.Content.ReadFromJsonAsync<JsonElement>(Ct);
+
+        foreach (var post in new[] { view, readView })
+        {
+            var data = post.GetProperty("body").GetProperty("blocks")[0].GetProperty("data");
+            Assert.Equal(image.ToString("D"), data.GetProperty("media").GetString());
+            Assert.Equal("Подпись", data.GetProperty("caption").GetString());
+            var sources = post.GetProperty("images").GetProperty(image.ToString("D"));
+            Assert.Equal(
+                PostImages.Variants.Select(v => v.Width),
+                sources.EnumerateArray().Select(s => s.GetProperty("width").GetInt32()));
+            Assert.All(sources.EnumerateArray(), s => Assert.StartsWith(
+                PlatformApiFactory.ImgproxyBaseUrl, s.GetProperty("url").GetString(), StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task PostWithAnotherAccountsOrAMissingImageIsAValidationError()
+    {
+        var theirs = await UploadAsync(_stranger, "theirs.png");
+
+        using var stranger = await SendAsync(HttpMethod.Post, "/api/v1/posts", Input(body: ImageBody(theirs)), _author);
+        using var missing = await SendAsync(
+            HttpMethod.Post, "/api/v1/posts", Input(body: ImageBody(Guid.CreateVersion7())), _author);
+
+        foreach (var response in new[] { stranger, missing })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("errors");
+            Assert.True(errors.TryGetProperty("body.blocks[0].data.media", out _));
+        }
+
+        Assert.Equal(0, await CountAsync());
+    }
+
+    private static string ImageBody(Guid media) => $$"""
+        {"version": 1, "blocks": [{"id": "i1", "type": "image",
+          "data": {"media": "{{media}}", "width": 800, "height": 600, "caption": "Подпись"} }]}
+        """;
+
+    private async Task<Guid> UploadAsync(Guid account, string fileName)
+    {
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, .. "IHDR"u8, .. new byte[240]];
+        var file = new ByteArrayContent(png);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/media")
+        {
+            Content = new MultipartFormDataContent { { file, "file", fileName } },
+        };
+        request.As(account.ToString("D"));
+
+        using var response = await _client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
+    }
+
     private static string Input(Guid? blogId = null, string? title = "Заголовок", string body = _validBody) =>
         $$"""{"blogId": {{(blogId is { } id ? $"\"{id}\"" : "null")}}, "title": {{JsonSerializer.Serialize(title)}}, "body": {{body}}}""";
 

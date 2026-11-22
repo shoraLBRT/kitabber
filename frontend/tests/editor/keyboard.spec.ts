@@ -59,7 +59,7 @@ function mountWindow() {
 const editorWindow = () => windowWrapper!.get('[data-testid="editor-window"]')
 
 function target(state: KeyboardBarTarget['state'] = 'ready') {
-  return { state, keepSelection: vi.fn(), openBlockMenu: vi.fn(), format: vi.fn() }
+  return { state, keepSelection: vi.fn(), openBlockMenu: vi.fn(), format: vi.fn(), addImage: vi.fn() }
 }
 
 function mountBar(editor: KeyboardBarTarget) {
@@ -167,9 +167,33 @@ describe('EditorKeyboardBar', () => {
     expect(editor.format.mock.calls).toEqual([['bold'], ['italic']])
     expect(bar.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
       'Добавить блок',
+      'Фото из галереи',
+      'Снять на камеру',
       'Жирный',
       'Курсив',
     ])
+  })
+
+  it('adds a picture from the gallery or the camera as a photo block (E05-06)', async () => {
+    phone(true)
+    const editor = target()
+    mountBar(editor)
+    await nextTick()
+
+    const gallery = barWrapper!.get<HTMLInputElement>('[data-testid="keyboard-bar-gallery-input"]').element
+    const camera = barWrapper!.get<HTMLInputElement>('[data-testid="keyboard-bar-camera-input"]').element
+    expect(gallery.accept).toBe('image/*')
+    expect(gallery.getAttribute('capture')).toBeNull()
+    expect(camera.accept).toBe('image/*')
+    expect(camera.getAttribute('capture')).toBe('environment')
+    const opened = vi.spyOn(camera, 'click').mockImplementation(() => undefined)
+    await barWrapper!.get('[data-testid="keyboard-bar-camera"]').trigger('click')
+    expect(opened).toHaveBeenCalledOnce()
+
+    const photo = new File(['x'], 'photo.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(gallery, 'files', { configurable: true, value: [photo] })
+    gallery.dispatchEvent(new Event('change'))
+    expect(editor.addImage).toHaveBeenCalledWith(photo)
   })
 
   it('keeps the focus and the caret in the text while a tool is pressed', async () => {

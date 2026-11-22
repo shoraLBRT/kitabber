@@ -354,6 +354,7 @@ const posts = [
   createdAt: '2026-11-20T10:00:00Z',
   updatedAt: '2026-11-20T10:00:00Z',
   publishedAt: '2026-11-20T10:00:00Z',
+  images: {},
 }))
 
 function post(response, url) {
@@ -371,10 +372,25 @@ function post(response, url) {
 const written = new Map() // id -> post
 const titleMaxLength = 120
 const hasText = (body) =>
-  (body?.blocks ?? []).some((block) =>
-    String(block?.data?.text ?? block?.data?.code ?? '')
-      .replace(/<[^>]*>|&nbsp;/g, '')
-      .trim(),
+  (body?.blocks ?? []).some(
+    (block) =>
+      block?.type === 'image' ||
+      String(block?.data?.text ?? block?.data?.code ?? '')
+        .replace(/<[^>]*>|&nbsp;/g, '')
+        .trim(),
+  )
+// The sources of the pictures of image blocks (E05-06, PostView.images): the widths of PostImages.Variants.
+const imagesOf = (body) =>
+  Object.fromEntries(
+    (body?.blocks ?? [])
+      .filter((block) => block?.type === 'image' && block.data?.media)
+      .map(({ data: { media } }) => [
+        media,
+        [320, 640, 960, 1280, 1920].map((width) => ({
+          url: `http://127.0.0.1:${port}/__images/${media}-${width}.webp`,
+          width,
+        })),
+      ]),
   )
 
 async function writePost(request, response, url) {
@@ -407,6 +423,7 @@ async function writePost(request, response, url) {
     title: (input.title ?? '').trim() || null,
     slug: null,
     body: input.body ?? { version: 1, blocks: [] },
+    images: imagesOf(input.body),
     updatedAt: now,
   }
   const saved = existing

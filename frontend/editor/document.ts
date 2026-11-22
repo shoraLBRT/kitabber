@@ -48,7 +48,17 @@ export interface DelimiterBlock {
   data: Record<string, never>
 }
 
-export type PostBlock = ParagraphBlock | HeaderBlock | ListBlock | QuoteBlock | DelimiterBlock
+/**
+ * One uploaded image and its caption (E05-06, ADR-0049): the file id the media service gave, the picture's size in
+ * pixels (its proportions hold the place on the page) and the caption in inline HTML.
+ */
+export interface ImageBlock {
+  id: string
+  type: 'image'
+  data: { media: string; width: number; height: number; caption: string }
+}
+
+export type PostBlock = ParagraphBlock | HeaderBlock | ListBlock | QuoteBlock | DelimiterBlock | ImageBlock
 
 export type BlockType = PostBlock['type']
 
@@ -74,7 +84,7 @@ export function emptyDocument(): PostDocument {
 
 /** True when the document has no block with any text (the "empty post" check of docs/ui/editor.md). */
 export function isEmptyDocument(document: PostDocument): boolean {
-  return document.blocks.every((block) => blockText(block).trim() === '')
+  return document.blocks.every((block) => block.type !== 'image' && blockText(block).trim() === '')
 }
 
 /**
@@ -102,6 +112,8 @@ export function blockText(block: PostBlock): string {
       return stripTags(block.data.items.join(' '))
     case 'delimiter':
       return ''
+    case 'image':
+      return stripTags(block.data.caption)
   }
 }
 
@@ -114,10 +126,11 @@ function stripTags(html: string): string {
 
 /** Editor.js output to the schema format, fields in schema order, nothing else; text fields cleaned (cleanInline). */
 export function toPostDocument(output: OutputData): PostDocument {
-  return { version: documentVersion, blocks: output.blocks.map(toPostBlock) }
+  return { version: documentVersion, blocks: output.blocks.flatMap(toPostBlock) }
 }
 
-function toPostBlock(block: OutputBlockData): PostBlock {
+// An image block without an uploaded file (on its way, or its upload failed) is left out: the document stays valid.
+function toPostBlock(block: OutputBlockData): PostBlock | PostBlock[] {
   const id = block.id ?? ''
   const data = (block.data ?? {}) as Record<string, unknown>
   switch (block.type) {
@@ -138,9 +151,22 @@ function toPostBlock(block: OutputBlockData): PostBlock {
       return { id, type: 'quote', data: { text: text(data.text), caption: text(data.caption) } }
     case 'delimiter':
       return { id, type: 'delimiter', data: {} }
+    case 'image':
+      return typeof data.media === 'string' && data.media !== '' && pixels(data.width) && pixels(data.height)
+        ? {
+            id,
+            type: 'image',
+            data: { media: data.media, width: data.width, height: data.height, caption: text(data.caption) },
+          }
+        : []
     default:
       throw new UnsupportedBlockError(block.type, id)
   }
+}
+
+/** A side of a picture: a whole number of pixels from 1 to the schema's maximum (BlockSchemas.ImageMaxSide). */
+function pixels(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 20_000
 }
 
 // Text fields hold inline HTML; whatever Editor.js kept outside the allow list of ADR-0023 is cleaned here, so the

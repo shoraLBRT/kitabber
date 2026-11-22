@@ -83,6 +83,19 @@ public sealed partial class InlineHtml
         return text.Any(c => !char.IsWhiteSpace(c) && c != ' ' && c != '​' && c != '﻿');
     }
 
+    /// <summary>
+    /// The number of characters a reader sees in cleaned inline HTML: without the tags, with entities decoded and a
+    /// line break as one character (the caption limit of an image, ADR-0049).
+    /// </summary>
+    public static int TextLength(string cleanedHtml)
+    {
+        ArgumentNullException.ThrowIfNull(cleanedHtml);
+        return WebUtility.HtmlDecode(Tag().Replace(Break().Replace(cleanedHtml, "\n"), string.Empty)).Length;
+    }
+
+    [GeneratedRegex(@"<br\s*/?>", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex Break();
+
     [GeneratedRegex("<[^>]*>", RegexOptions.CultureInvariant)]
     private static partial Regex Tag();
 }

@@ -3,11 +3,25 @@
 // the feed and the preview, drawn on the server. Semantic markup: a paragraph is `p`, a heading `h2` or `h3` with its
 // anchor (ADR-0031; the post's title is the page's `h1`), a list `ul` or `ol` with nested lists, a quote a `figure`
 // with `blockquote` and `figcaption`, a delimiter `hr`. A block the renderer does not know is a placeholder.
+// An image (E05-06, ADR-0049) is a `figure` with the picture (UiImage: its place held by the block's size, the
+// sources from PostView.images) and its caption.
 import { computed } from 'vue'
 import PostList from './PostList.vue'
+import UiImage from '../ui/UiImage.vue'
+import type { ImageSource } from '../../types/ui'
 import { viewBlocks } from '../../utils/post-blocks'
 
-const props = defineProps<{ document: unknown }>()
+const props = withDefaults(
+  defineProps<{
+    document: unknown
+    /** The sources of the post's pictures by file id (PostView.images). */
+    images?: Readonly<Record<string, readonly ImageSource[]>>
+  }>(),
+  { images: () => ({}) },
+)
+
+/** The text column is at most --size-measure (680 px) wide; on a phone the picture takes the screen's width. */
+const imageSizes = '(max-width: 720px) 100vw, 680px'
 
 const blocks = computed(() => viewBlocks(props.document))
 </script>
@@ -38,6 +52,18 @@ const blocks = computed(() => viewBlocks(props.document))
         <figcaption v-if="block.caption" class="post-blocks__quote-caption" v-html="block.caption" />
       </figure>
       <hr v-else-if="block.kind === 'delimiter'" class="post-blocks__delimiter" />
+      <figure v-else-if="block.kind === 'image'" class="post-blocks__image" data-testid="post-block-image">
+        <UiImage
+          class="post-blocks__picture"
+          :sources="images[block.media] ?? []"
+          :sizes="imageSizes"
+          :width="block.width"
+          :height="block.height"
+          :alt="block.caption ? '' : 'Фото'"
+          fit="contain"
+        />
+        <figcaption v-if="block.caption" class="post-blocks__image-caption" v-html="block.caption" />
+      </figure>
       <p
         v-else
         class="post-blocks__unknown"
@@ -106,6 +132,26 @@ const blocks = computed(() => viewBlocks(props.document))
   padding-block-start: var(--space-1);
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.post-blocks__image {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.post-blocks__picture {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.post-blocks__image-caption {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
   overflow-wrap: anywhere;
 }
 

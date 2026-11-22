@@ -16,6 +16,7 @@ export type ViewBlock =
   | { kind: 'list'; key: string; ordered: boolean; items: ListNode[] }
   | { kind: 'quote'; key: string; html: string; caption: string }
   | { kind: 'delimiter'; key: string }
+  | { kind: 'image'; key: string; media: string; width: number; height: number; caption: string }
   | { kind: 'unknown'; key: string; type: string }
 
 type Data = Record<string, unknown>
@@ -67,9 +68,26 @@ function readBlock(type: string, data: Data, key: string): ViewBlock | null {
       }
     case 'delimiter':
       return { kind: 'delimiter', key }
+    case 'image': {
+      const { media, width, height, caption } = data
+      if (!isString(media) || !isSide(width) || !isSide(height)) return null
+      return {
+        kind: 'image',
+        key,
+        media,
+        width,
+        height,
+        caption: isString(caption) ? cleanInlineHtml(caption) : '',
+      }
+    }
     default:
       return null
   }
+}
+
+/** A side of a picture in pixels: a positive whole number. */
+function isSide(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
 /** The blocks of a stored document in order; anything that is not a document gives no blocks. */

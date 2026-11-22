@@ -5,8 +5,8 @@
 // cancelled, and BlockEditor puts back the selection kept when it began), so the caret and the keyboard stay in the
 // text while a tool is used. Wider than a phone
 // the panel is not shown: there the block toolbar of Editor.js and the floating panel do the same.
-// The photo from the gallery and the camera come with the photo block (E05-06, #45); publish settings with E05-24.
-import { Bold, Italic, Plus } from 'lucide-vue-next'
+// The photo from the gallery and the camera add a «Фото» block (E05-06); publish settings come with E05-24.
+import { Bold, Camera, Image as ImageIcon, Italic, Plus } from 'lucide-vue-next'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import type { InlineMark } from '../../editor/engine'
@@ -17,6 +17,7 @@ export interface KeyboardBarTarget {
   keepSelection(): void
   openBlockMenu(): void
   format(mark: InlineMark): void
+  addImage(file: File): void
 }
 
 const props = defineProps<{ editor: KeyboardBarTarget | undefined }>()
@@ -38,6 +39,26 @@ function readPressed() {
 function onPress(event: PointerEvent) {
   props.editor?.keepSelection()
   event.preventDefault()
+}
+
+// The gallery and the camera (ADR-0047 point 5): the same file input, the camera's with capture. The picked picture
+// becomes a «Фото» block after the caret's block (E05-06).
+const sources = [
+  { id: 'gallery', label: 'Фото из галереи', icon: ImageIcon },
+  { id: 'camera', label: 'Снять на камеру', icon: Camera },
+] as const
+const gallery = ref<HTMLInputElement>()
+const camera = ref<HTMLInputElement>()
+
+function pick(source: 'gallery' | 'camera') {
+  ;(source === 'gallery' ? gallery : camera).value?.click()
+}
+
+function onPicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (file) props.editor?.addImage(file)
 }
 
 function format(mark: InlineMark) {
@@ -69,6 +90,35 @@ onBeforeUnmount(() => document.removeEventListener('selectionchange', readPresse
     >
       <Plus aria-hidden="true" />
     </button>
+    <button
+      v-for="source in sources"
+      :key="source.id"
+      type="button"
+      class="keyboard-bar__button"
+      :aria-label="source.label"
+      :data-testid="`keyboard-bar-${source.id}`"
+      :disabled="editor?.state !== 'ready'"
+      @click="pick(source.id)"
+    >
+      <component :is="source.icon" aria-hidden="true" />
+    </button>
+    <input
+      ref="gallery"
+      type="file"
+      accept="image/*"
+      hidden
+      data-testid="keyboard-bar-gallery-input"
+      @change="onPicked"
+    />
+    <input
+      ref="camera"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+      data-testid="keyboard-bar-camera-input"
+      @change="onPicked"
+    />
     <span class="keyboard-bar__divider" aria-hidden="true" />
     <button
       v-for="item in marks"
