@@ -121,7 +121,10 @@ describe('PostView', () => {
     const wrapper = mountView({ status: 'found', post, blog: anna, path: postPath(anna, post) })
     expect(wrapper.get('h1').text()).toBe('Привет, мир')
     expect(wrapper.get('[data-testid="post-blog"]').attributes('href')).toBe('/u/anna')
-    expect(wrapper.findAll('.post__text').map((p) => p.text())).toEqual(['Первый абзац и&', 'Подзаголовок'])
+    const body = wrapper.get('[data-testid="post-blocks"]')
+    expect(body.get('p').html()).toContain('Первый <b>абзац</b>')
+    expect(body.find('hr').exists()).toBe(true)
+    expect(body.get('h2#h-c').text()).toBe('Подзаголовок')
     expect(wrapper.find('[data-testid="post-draft"]').exists()).toBe(false)
   })
 

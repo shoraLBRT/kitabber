@@ -1,19 +1,18 @@
 <script setup lang="ts">
 // The post page (FR-POST, docs/ui/post.md) as far as E07-02 needs it: the post found by the id of its address, with
-// its blog, its title (a short post has none) and the text of its blocks. The blocks are drawn properly in E07-03
-// (#51), the header with the author and the action panel come with E07-04 (#52). States: loading, not found, a
-// failure with «Повторить», and the post.
+// its blog, its title (a short post has none) and its blocks drawn by PostBlocks (E07-03). The header with the author
+// and the action panel come with E07-04 (#52). States: loading, not found, a failure with «Повторить», and the post.
 import { computed } from 'vue'
 import UiButton from '../ui/UiButton.vue'
+import PostBlocks from './PostBlocks.vue'
 import { blogTitle } from '../../api/profiles'
-import { postText, subsitePath, type PostLookup } from '../../api/posts'
+import { subsitePath, type PostLookup } from '../../api/posts'
 
 const props = defineProps<{ state: PostLookup | { status: 'loading' } }>()
 
 defineEmits<{ retry: [] }>()
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
-const paragraphs = computed(() => (found.value ? postText(found.value.post) : []))
 </script>
 
 <template>
@@ -44,9 +43,7 @@ const paragraphs = computed(() => (found.value ? postText(found.value.post) : []
       <span v-if="found.post.status === 'draft'" data-testid="post-draft"> · черновик</span>
     </p>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
-    <div class="post__body">
-      <p v-for="(text, index) in paragraphs" :key="index" class="post__text">{{ text }}</p>
-    </div>
+    <PostBlocks :document="found.post.body" />
   </article>
 </template>
 
@@ -86,20 +83,6 @@ const paragraphs = computed(() => (found.value ? postText(found.value.post) : []
 
 .post__blog:hover {
   text-decoration: underline;
-}
-
-.post__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--size-measure);
-}
-
-.post__text {
-  margin: 0;
-  font-size: var(--font-size-reading);
-  line-height: var(--line-height-reading);
-  overflow-wrap: anywhere;
 }
 
 .post__skeleton {

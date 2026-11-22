@@ -56,7 +56,7 @@ export async function lookUpPost(client: ApiClient, segment: string): Promise<Po
   }
 }
 
-/** The plain text of the text blocks, until the blocks are drawn on the post page (E07-03, #51). */
+/** The plain text of the text blocks, for the feed card until it draws the blocks with PostBlocks (E08-02, #55). */
 export function postText(post: Pick<Post, 'body'>): string[] {
   const blocks = (post.body as { blocks?: { type?: string; data?: { text?: unknown } }[] }).blocks ?? []
   return blocks

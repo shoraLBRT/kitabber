@@ -1,0 +1,78 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PostBlocks: a snapshot of each block type > bulleted and numbered lists with nesting 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<ul class="post-list">
+<li class="post-list__item">
+<span>Раз</span>
+</li>
+<li class="post-list__item">
+<span>Два</span>
+</li>
+</ul>
+<ol class="post-list">
+<li class="post-list__item">
+<span>Первый</span>
+<ol class="post-list post-list--nested">
+<li class="post-list__item">
+<span>
+<b>Вложенный</b>
+</span>
+</li>
+</ol>
+</li>
+<li class="post-list__item">
+<span>Второй</span>
+</li>
+</ol>
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > delimiter 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<hr class="post-blocks__delimiter">
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > header of level 2 and 3 with anchors 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<h2 id="h-h2" class="post-blocks__heading post-blocks__heading--h2">Глава</h2>
+<h3 id="h-h3" class="post-blocks__heading post-blocks__heading--h3">Раздел <i>главы</i>
+</h3>
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > paragraph 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<p class="post-blocks__text">Текст с <b>жирным</b>, <i>курсивом</i>, <mark>маркером</mark> и <a href="https://example.org/?a=1&amp;b=2" rel="nofollow ugc noopener noreferrer">ссылкой</a>.<br>Вторая строка</p>
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > quote with and without a caption 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<figure class="post-blocks__quote">
+<blockquote class="post-blocks__quote-text">
+<p>Краткость — сестра таланта.</p>
+</blockquote>
+<figcaption class="post-blocks__quote-caption">А. П. Чехов</figcaption>
+</figure>
+<figure class="post-blocks__quote">
+<blockquote class="post-blocks__quote-text">
+<p>Без подписи</p>
+</blockquote>
+</figure>
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > unknown block and an empty document 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="gallery"> Этот блок пока не умеем показывать. </p>
+<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="header"> Этот блок пока не умеем показывать. </p>
+</div>"
+`;
+
+exports[`PostBlocks: a snapshot of each block type > unknown block and an empty document 2`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<p class="post-blocks__empty" data-testid="post-blocks-empty"> В посте пока ничего нет. </p>
+</div>"
+`;
