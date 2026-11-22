@@ -1564,6 +1564,7 @@
           "blogId",
           "authorAccountId",
           "title",
+          "slug",
           "body",
           "status",
           "origin",
@@ -1587,6 +1588,12 @@
             "format": "uuid"
           },
           "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slug": {
             "type": [
               "null",
               "string"

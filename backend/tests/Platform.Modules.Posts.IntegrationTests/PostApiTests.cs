@@ -162,6 +162,8 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
         Assert.Equal("published", view.GetProperty("status").GetString());
         Assert.Equal(post.PublishedAt, view.GetProperty("publishedAt").GetDateTimeOffset());
         Assert.Equal(post.Title, view.GetProperty("title").GetString());
+        Assert.Equal(PostSlug.From(post.Title), view.GetProperty("slug").GetString());
+        Assert.NotNull(view.GetProperty("slug").GetString());
     }
 
     [Fact]
@@ -177,6 +179,7 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
             .Content.ReadFromJsonAsync<JsonElement>(Ct);
 
         Assert.Equal("telegram", view.GetProperty("origin").GetString());
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("slug").ValueKind); // no title: the address is the id alone
         var source = view.GetProperty("source");
         Assert.Equal("-1001234567890", source.GetProperty("channel").GetString());
         Assert.Equal("42", source.GetProperty("message").GetString());
