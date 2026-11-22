@@ -8,4 +8,9 @@
         <RootNamespace>Platform.Modules.Blogs.Contracts</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+        <!-- A blog's card carries the sources of its avatar (ADR-0052). -->
+        <ProjectReference Include="../Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
+    </ItemGroup>
+
 </Project>

@@ -1283,7 +1283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfPostView"
+                  "$ref": "#/components/schemas/CursorPageOfFeedPostView"
                 }
               }
             }
@@ -1820,7 +1820,7 @@
           }
         }
       },
-      "CursorPageOfPostView": {
+      "CursorPageOfFeedPostView": {
         "required": [
           "items",
           "nextCursor"
@@ -1830,13 +1830,83 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PostView"
+              "$ref": "#/components/schemas/FeedPostView"
             }
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "FeedBlogView": {
+        "required": [
+          "id",
+          "type",
+          "name",
+          "nickname",
+          "avatarSources"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatarSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageSource"
+            }
+          }
+        }
+      },
+      "FeedPostView": {
+        "required": [
+          "post",
+          "author",
+          "topic"
+        ],
+        "type": "object",
+        "properties": {
+          "post": {
+            "$ref": "#/components/schemas/PostView"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeedBlogView"
+              }
+            ]
+          },
+          "topic": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeedBlogView"
+              }
             ]
           }
         }
