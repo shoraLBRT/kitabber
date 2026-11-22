@@ -25,6 +25,7 @@ public static class PostsDemo
     /// <summary>The kind of the demo posts' identifiers in <c>SeedData.Id</c>; every demo post is published.</summary>
     public const string PostKind = "post";
 
-    /// <summary>How many demo posts there are: <c>SeedData.Id(PostKind, 0 .. Count - 1)</c>, two per demo account.</summary>
+    /// <summary>How many demo posts there are: <c>SeedData.Id(PostKind, 0 .. Count - 1)</c>, two per demo account,
+    /// the even one in the author's personal blog and the odd one in a demo topic.</summary>
     public const int Count = 40;
 }

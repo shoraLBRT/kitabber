@@ -53,7 +53,7 @@ public sealed class BlogsDemoSeeder(BlogsDbContext db) : IDemoSeeder
         db.AddMissingAsync(
             [
                 .. new PersonalBlogFactory(data).BuildMany(IdentityDemo.AccountCount),
-                .. new TopicFactory(data).BuildMany(TopicFactory.Topics.Count),
+                .. new TopicFactory(data).BuildMany(BlogsDemo.TopicCount),
             ],
             s => s.Id,
             cancellationToken);
