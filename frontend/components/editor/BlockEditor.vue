@@ -8,14 +8,17 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toEditorData, toPostDocument, type PostDocument } from '../../editor/document'
 import { createEditorJs, type CreateEngine, type EditorEngine, type InlineMark } from '../../editor/engine'
 import { EditorHistory, type Snapshot } from '../../editor/history'
+import type { ImageUpload } from '../../editor/image'
 
 const props = withDefaults(
   defineProps<{
     createEngine?: CreateEngine
     /** Milliseconds now, for the history's typing merge; tests pass their clock. */
     now?: () => number
+    /** Uploads a picture of the «Фото» block (E05-06). */
+    uploadImage?: (file: File) => Promise<ImageUpload>
   }>(),
-  { createEngine: createEditorJs, now: undefined },
+  { createEngine: createEditorJs, now: undefined, uploadImage: undefined },
 )
 
 const document = defineModel<PostDocument>('document', { required: true })
@@ -58,6 +61,7 @@ async function start() {
       data: toEditorData(document.value),
       placeholder: 'Начните писать…',
       onChange: () => void enqueue(capture),
+      uploadImage: props.uploadImage,
     })
     if (disposed) {
       started.destroy()
@@ -188,7 +192,12 @@ function format(mark: InlineMark) {
   engine?.format(mark)
 }
 
-defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, canUndo, canRedo, state })
+function addImage(file: File) {
+  restoreSelection()
+  engine?.addImage(file)
+}
+
+defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, addImage, canUndo, canRedo, state })
 </script>
 
 <template>
@@ -354,6 +363,97 @@ defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, canUndo,
   content: '* * *';
   letter-spacing: var(--space-2);
   color: var(--color-muted);
+}
+
+/* Image block (E05-06, editor/image.ts): the picture at the column's width, the state under it, the caption below. */
+.block-editor :deep(.ce-image) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block: var(--space-2);
+}
+
+.block-editor :deep(.ce-image__picture) {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.block-editor :deep(.ce-image[data-state='uploading'] .ce-image__picture) {
+  opacity: 0.5;
+}
+
+.block-editor :deep(.ce-image[data-state='empty']) {
+  align-items: center;
+  padding: var(--space-6);
+  border: var(--size-border) dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.block-editor :deep(.ce-image__status) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.block-editor :deep(.ce-image[data-state='error'] .ce-image__status) {
+  color: var(--color-danger);
+}
+
+.block-editor :deep(.ce-image__spinner) {
+  width: var(--space-4);
+  height: var(--space-4);
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: ce-image-spin 0.8s linear infinite;
+}
+
+@keyframes ce-image-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-editor :deep(.ce-image__spinner) {
+    animation: none;
+  }
+}
+
+.block-editor :deep(.ce-image__actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.block-editor :deep(.ce-image__button) {
+  min-height: var(--size-touch);
+  padding-inline: var(--space-3);
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.block-editor :deep(.ce-image__caption) {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  outline: none;
+}
+
+.block-editor :deep(.ce-image__caption:empty::before) {
+  content: attr(data-placeholder);
+  color: var(--color-muted);
+  opacity: 0.6;
 }
 
 /* Moving blocks (E05-07, editor/move.ts): «⋮⋮» is the drag handle, so a finger on it drags instead of scrolling; the

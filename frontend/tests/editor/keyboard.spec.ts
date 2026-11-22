@@ -59,7 +59,7 @@ function mountWindow() {
 const editorWindow = () => windowWrapper!.get('[data-testid="editor-window"]')
 
 function target(state: KeyboardBarTarget['state'] = 'ready') {
-  return { state, keepSelection: vi.fn(), openBlockMenu: vi.fn(), format: vi.fn() }
+  return { state, keepSelection: vi.fn(), openBlockMenu: vi.fn(), format: vi.fn(), addImage: vi.fn() }
 }
 
 function mountBar(editor: KeyboardBarTarget) {

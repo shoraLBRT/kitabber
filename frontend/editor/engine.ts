@@ -9,6 +9,7 @@ import { cleanPastedHtml } from './inline'
 import { ListTool } from './list'
 import { searchOnPhone } from './menu'
 import { moveBlocks } from './move'
+import { ImageTool, type ImageToolConfig, type ImageUpload } from './image'
 import { QuoteTool } from './quote'
 import { TextTool } from './text'
 import { LinkTool, MarkerTool } from './tools'
@@ -19,6 +20,8 @@ export interface EngineOptions {
   placeholder: string
   /** Called after the content changed (typing, a block added or removed). */
   onChange: () => void
+  /** Uploads a picked picture for the «Фото» block (E05-06); without it the block reports every upload failed. */
+  uploadImage?: (file: File) => Promise<ImageUpload>
 }
 
 export interface EditorEngine {
@@ -31,6 +34,8 @@ export interface EditorEngine {
   openBlockMenu(): void
   /** Makes the selection bold or italic, or takes it off, as the floating panel does: the phone's «Ж» and «К». */
   format(mark: InlineMark): void
+  /** Adds a «Фото» block after the caret's block (at the end when the caret is outside) and uploads `file` into it. */
+  addImage(file: File): void
   destroy(): void
 }
 
@@ -54,6 +59,7 @@ const messages = {
     'Numbered list': 'Нумерованный список',
     Quote: 'Цитата',
     Delimiter: 'Разделитель',
+    Image: 'Фото',
     Bold: 'Жирный',
     Italic: 'Курсив',
     Marker: 'Маркер',
@@ -67,7 +73,7 @@ const messages = {
 }
 
 /** Editor.js, loaded on demand: it touches the DOM, so it never runs on the server. */
-export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, onChange }) => {
+export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, onChange, uploadImage }) => {
   const { default: EditorJS } = await import('@editorjs/editorjs')
   const editor = new EditorJS({
     holder,
@@ -102,6 +108,12 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       },
       // «Разделитель», E05-05: no content; removed by one key (delimiter.ts).
       delimiter: { class: DelimiterTool as unknown as ToolConstructable },
+      // «Фото», E05-06: one uploaded image with a caption (image.ts).
+      image: {
+        class: ImageTool as unknown as ToolConstructable,
+        inlineToolbar: ['bold', 'italic', 'marker', 'link'],
+        config: { upload: uploadImage ?? (async () => ({ status: 'error' })) } satisfies ImageToolConfig,
+      },
       marker: { class: MarkerTool as unknown as ToolConstructable, shortcut: 'CMD+SHIFT+M' },
       // The same name as the built-in link tool, so it takes its place.
       link: { class: LinkTool as unknown as ToolConstructable },
@@ -154,6 +166,12 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       const selection = window.getSelection()
       const node = selection && selection.rangeCount > 0 ? selection.anchorNode : null
       if (node && holder.contains(node)) window.document.execCommand(mark)
+    },
+    addImage(file) {
+      const current = editor.blocks.getCurrentBlockIndex()
+      const index = current < 0 ? editor.blocks.getBlocksCount() : current + 1
+      const block = editor.blocks.insert('image', {}, undefined, index, false)
+      block.call('uploadFile', file as unknown as object)
     },
     destroy() {
       stopCleaning()

@@ -7,6 +7,8 @@
 import PostEditor from '~/components/editor/PostEditor.vue'
 import type { PublishInput, PublishOutcome } from '~/api/publish'
 import type { Topic } from '~/api/topics'
+import type { MediaUpload } from '~/api/media'
+import type { ImageUpload } from '~/editor/image'
 
 useHead({ title: 'Новый пост' })
 
@@ -25,6 +27,17 @@ const publish = async (input: PublishInput): Promise<PublishOutcome> =>
         (error: { statusCode?: number }): PublishOutcome =>
           error.statusCode === 401 ? { status: 'unauthorized' } : { status: 'error', draftId: input.draftId },
       )
+
+// A picture of the «Фото» block goes through the site's server to the media service (server/routes/bff/media.post.ts).
+const uploadImage = async (file: File): Promise<ImageUpload> => {
+  if (!account.value.signedIn) return { status: 'unauthorized' }
+  const form = new FormData()
+  form.append('file', file, file.name)
+  const outcome = await $fetch<MediaUpload>('/bff/media', { method: 'POST', body: form }).catch(
+    (): MediaUpload => ({ status: 'error' }),
+  )
+  return outcome.status === 'uploaded' ? { status: 'uploaded', media: outcome.media.id } : outcome
+}
 
 function close() {
   if (window.history.state?.back) router.back()
@@ -46,6 +59,7 @@ function onUnauthorized() {
   <PostEditor
     :topics="topics"
     :publish="publish"
+    :upload-image="uploadImage"
     @close="close"
     @published="onPublished"
     @unauthorized="onUnauthorized"

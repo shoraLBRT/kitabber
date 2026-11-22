@@ -38,6 +38,10 @@ class FakeEngine {
   format = (mark: string) => {
     this.formats.push({ mark, focused: document.activeElement, selected: String(window.getSelection()) })
   }
+  images: File[] = []
+  addImage = (file: File) => {
+    this.images.push(file)
+  }
   destroy = () => {
     this.destroyed = true
   }
