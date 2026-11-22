@@ -8,6 +8,8 @@ import type {
   BlockTool,
   BlockToolConstructorOptions,
   ConversionConfig,
+  HTMLPasteEvent,
+  PasteConfig,
   ToolboxConfig,
 } from '@editorjs/editorjs'
 import { caretOffsetIn, placeCaret } from './caret'
@@ -85,6 +87,22 @@ export function listStyle(value: unknown): ListStyle {
   return value === 'ordered' ? 'ordered' : 'unordered'
 }
 
+/** The data of a pasted list: `ol` is numbered, `ul` and a lone `li` are bulleted; levels from data-level. */
+export function listFromHtml(element: HTMLElement): ListData {
+  const tag = element.localName
+  const nodes = tag === 'li' ? [element] : Array.from(element.querySelectorAll('li'))
+  const items = nodes.map((node) => cleanInline(node.innerHTML))
+  const levels = normalizeLevels(
+    nodes.map((node) => Number(node.getAttribute('data-level') ?? 0)),
+    items.length,
+  )
+  return {
+    style: tag === 'ol' ? 'ordered' : 'unordered',
+    items: items.length > 0 ? items : [''],
+    levels,
+  }
+}
+
 export class ListTool implements BlockTool {
   static get toolbox(): ToolboxConfig {
     return [
@@ -111,6 +129,12 @@ export class ListTool implements BlockTool {
         return { style: 'unordered', items: linesOf(text), levels: [] }
       },
     }
+  }
+
+  // Pasted lists (E05-02, ADR-0042): cleanPastedHtml turns lists of Word, Google Docs and web pages into `ul` and `ol`
+  // of `li`, a nested item with data-level; Editor.js gives each such list to this tool (onPaste).
+  static get pasteConfig(): PasteConfig {
+    return { tags: ['UL', 'OL', { LI: { 'data-level': true } }] }
   }
 
   // Enter and Tab are the list's own (new item, nesting), so Editor.js does not split the block on Enter.
@@ -177,6 +201,16 @@ export class ListTool implements BlockTool {
       else this.element.append(this.createItem(html, (levels[index] ?? 0) as ListLevel))
     })
     this.fixLevels()
+  }
+
+  /** A pasted `ul` or `ol` (or a lone `li`) becomes the items of this list, with their levels and the list's kind. */
+  onPaste(event: HTMLPasteEvent) {
+    const { style, items, levels } = listFromHtml(event.detail.data)
+    this.style = style
+    const next = this.createList(style)
+    items.forEach((html, index) => next.append(this.createItem(html, levels[index] ?? 0)))
+    this.element.replaceWith(next)
+    this.element = next
   }
 
   renderSettings(): StyleTune[] {

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { webHtml, wordHtml } from '../tests/editor/paste-samples'
+import { googleDocsListHtml, webHtml, wordHtml, wordListHtml } from '../tests/editor/paste-samples'
 import { box, expect, isTouch, press, test, waitForHydration } from './fixtures'
 
 // Block editor core (E05-01, #35): the window on a desktop and the full screen on a phone (docs/spec.md section 5),
@@ -309,18 +309,52 @@ test('cleans text pasted from a web page to the allowed markup', async ({ page }
   await open(page)
   await paste(page, webHtml)
 
-  await expect(paragraphs(page)).toHaveCount(4)
+  await expect(paragraphs(page)).toHaveCount(2)
   await expect
     .poll(() => htmls(page))
     .toEqual([
       'Заголовок <i>статьи</i>',
       `Текст с <b>важным</b> и <a href="https://example.test/" rel="${linkRel}">ссылкой</a>, относительной и цветом.`,
-      'Пункт один',
-      'Пункт <mark>два</mark>',
     ])
+  await expect(page.locator('.cdx-list__item')).toHaveCount(2)
+  await expect
+    .poll(() => page.locator('.cdx-list__item').evaluateAll((items) => items.map((item) => item.innerHTML)))
+    .toEqual(['Пункт один', 'Пункт <mark>два</mark>'])
   await expect(
     page.locator('.codex-editor script, .codex-editor iframe, .codex-editor [onclick]'),
   ).toHaveCount(0)
+})
+
+/** The blocks of the editor in order: a text block by its HTML, a list by its kind and its items with their levels. */
+async function blocks(page: Page) {
+  return page.locator('.ce-block').evaluateAll((elements) =>
+    elements.map((element) => {
+      const list = element.querySelector<HTMLElement>('.cdx-list')
+      if (!list) return element.querySelector('.ce-paragraph')?.innerHTML ?? ''
+      const items = [...list.querySelectorAll<HTMLElement>('.cdx-list__item')]
+      return `${list.dataset.style}: ${items.map((item) => `${item.dataset.level}:${item.innerHTML}`).join(' | ')}`
+    }),
+  )
+}
+
+test('turns lists pasted from Word into list blocks', async ({ page }) => {
+  await open(page)
+  await paste(page, wordListHtml)
+
+  await expect
+    .poll(() => blocks(page))
+    .toEqual([
+      'unordered: 0:Первый <b>пункт</b> | 1:Вложенный | 0:Второй',
+      'Между списками',
+      'ordered: 0:Шаг один | 0:Шаг <i>два</i>',
+    ])
+})
+
+test('turns a list pasted from Google Docs into a list block', async ({ page }) => {
+  await open(page)
+  await paste(page, googleDocsListHtml)
+
+  await expect.poll(() => blocks(page)).toEqual(['ordered: 0:Раз | 1:<b>Вложенный</b> | 0:Два'])
 })
 
 // Heading blocks (E05-03, #38): «Заголовок» (H2) and «Подзаголовок» (H3), converted from and to text by the

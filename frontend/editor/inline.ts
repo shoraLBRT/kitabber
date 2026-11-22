@@ -150,12 +150,27 @@ function marksOf(element: Element, outer: Marks): Marks {
   return { href, b, i, mark: outer.mark || tag === 'mark' || (highlight !== '' && highlight !== 'none') }
 }
 
+/** A list item being pasted: the kind of its list and its depth (0 at the top). */
+interface Item {
+  style: 'unordered' | 'ordered'
+  level: number
+}
+
 class Writer {
   readonly doc = document.implementation.createHTMLDocument('')
   readonly paragraphs: HTMLElement[] = []
+  /** The list item each paragraph written inside a list item is. */
+  readonly items = new Map<HTMLElement, Item>()
+  /** The list item the next paragraph belongs to, or null outside lists. */
+  item: Item | null = null
   private current: HTMLElement | null = null
 
   constructor(private readonly collapse: boolean) {}
+
+  /** True when the paragraph being written already has content. */
+  get started(): boolean {
+    return this.current !== null && this.current.hasChildNodes()
+  }
 
   /** Ends the paragraph being written; the next content starts a new one. */
   break() {
@@ -166,6 +181,7 @@ class Writer {
     if (!this.current) {
       this.current = this.doc.createElement('p')
       this.paragraphs.push(this.current)
+      if (this.item) this.items.set(this.current, this.item)
     }
     return this.current
   }
@@ -197,7 +213,28 @@ class Writer {
   }
 }
 
-function walk(node: Node, marks: Marks, writer: Writer, split: boolean) {
+// Word writes a list item as a paragraph with `mso-list: l0 level2 lfo1` and its marker («·», «1.», «a)») in a span
+// with `mso-list: Ignore` between conditional comments; the marker tells the kind of the list.
+function wordItem(element: Element): Item | null {
+  const value = styleOf(element, 'mso-list')
+  if (!value || value === 'ignore') return null
+  const level = /\blevel(\d+)/.exec(value)
+  const marker = Array.from(element.querySelectorAll('[style*="mso-list"]')).find(
+    (span) => styleOf(span, 'mso-list') === 'ignore',
+  )
+  const text = marker?.textContent ?? '' // `\s` takes the no-break spaces after the marker too
+  const ordered = /^\s*(\d+|[a-zа-я]|[ivxlcdm]+)[.)]/i.test(text)
+  return { style: ordered ? 'ordered' : 'unordered', level: level ? Math.max(0, Number(level[1]) - 1) : 0 }
+}
+
+/** Where the walk is: splitting into paragraphs or not, the list it is in, and whether it is inside an item. */
+interface Place {
+  split: boolean
+  list: Item | null
+  inItem: boolean
+}
+
+function walk(node: Node, marks: Marks, writer: Writer, place: Place) {
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === Node.TEXT_NODE) {
       writer.text((child as Text).data, marks)
@@ -207,15 +244,51 @@ function walk(node: Node, marks: Marks, writer: Writer, split: boolean) {
     const element = child as Element
     const tag = element.localName
     if (dropped.has(tag)) continue
+    if (styleOf(element, 'mso-list') === 'ignore') continue // the marker of a Word list item
     if (tag === 'br') {
       writer.lineBreak()
       continue
     }
-    const isBlock = split && blocks.has(tag)
+    const inner = marksOf(element, marks)
+    if (place.split && (tag === 'ul' || tag === 'ol')) {
+      // A list in a list (`li > ul`, or `ul > ul` as Google Docs writes it) is a level deeper; the kind is the top
+      // list's, as the list block has one kind for all its items.
+      const list: Item = place.list
+        ? { style: place.list.style, level: place.list.level + 1 }
+        : { style: tag === 'ol' ? 'ordered' : 'unordered', level: 0 }
+      within(writer, writer.item, () => walk(element, inner, writer, { split: true, list, inItem: false }))
+      continue
+    }
+    const item = !place.split
+      ? null
+      : tag === 'li'
+        ? (place.list ?? { style: 'unordered', level: 0 })
+        : wordItem(element)
+    if (item) {
+      within(writer, item, () => walk(element, inner, writer, { split: true, list: item, inItem: true }))
+      continue
+    }
+    const isBlock = place.split && blocks.has(tag)
+    if (isBlock && place.inItem) {
+      // Blocks inside an item (Google Docs puts a paragraph in each) stay in the item, each on a line of its own.
+      if (writer.started && (element.textContent ?? '').trim()) writer.lineBreak()
+      walk(element, inner, writer, place)
+      continue
+    }
     if (isBlock) writer.break()
-    walk(element, marksOf(element, marks), writer, split)
+    walk(element, inner, writer, place)
     if (isBlock) writer.break()
   }
+}
+
+/** Writes the content of `write` as paragraphs of their own, belonging to `item`; the item around it stays after. */
+function within(writer: Writer, item: Item | null, write: () => void) {
+  const outer = writer.item
+  writer.break()
+  writer.item = item
+  write()
+  writer.break()
+  writer.item = outer
 }
 
 // Joins neighbouring elements of the same kind (`<b>a</b><b>b</b>` → `<b>ab</b>`), inside out.
@@ -258,7 +331,7 @@ function isBlank(paragraph: HTMLElement): boolean {
 export function cleanInline(html: string): string {
   if (!/[<&]/.test(html)) return html
   const writer = new Writer(false)
-  walk(parse(html), plain, writer, false)
+  walk(parse(html), plain, writer, { split: false, list: null, inItem: false })
   return writer.paragraphs
     .map((paragraph) => {
       merge(paragraph)
@@ -267,24 +340,46 @@ export function cleanInline(html: string): string {
     .join('')
 }
 
+/** The deepest level a pasted item keeps, as in the list block (ADR-0033). */
+const deepestLevel = 1
+
 /**
- * HTML from the clipboard (Word, Google Docs, a web page) as paragraphs of clean inline markup, `<p>…</p><p>…</p>`:
- * block elements end a paragraph, the formatting of styles becomes tags, spaces collapse as the browser shows them,
- * and empty paragraphs go.
+ * HTML from the clipboard (Word, Google Docs, a web page) as blocks of clean inline markup (ADR-0028, ADR-0042):
+ * paragraphs `<p>…</p>` and lists `<ul>` or `<ol>` of `<li>` items, a nested item marked `data-level="1"`. Block
+ * elements end a paragraph, lists of HTML and Word's list paragraphs (`mso-list`) become lists, neighbouring items of
+ * one kind make one list, the formatting of styles becomes tags, spaces collapse as the browser shows them, and empty
+ * paragraphs go.
  */
 export function cleanPastedHtml(html: string): string {
   const writer = new Writer(true)
-  walk(parse(html), plain, writer, true)
-  return writer.paragraphs
-    .filter((paragraph) => !isBlank(paragraph))
-    .map((paragraph) => {
-      merge(paragraph)
-      // A space left at the edges of a paragraph by the source's line breaks is not text.
-      const first = paragraph.firstChild
-      if (first instanceof Text) first.data = first.data.replace(/^ /, '')
-      const last = paragraph.lastChild
-      if (last instanceof Text) last.data = last.data.replace(/ $/, '')
-      return paragraph.outerHTML
-    })
-    .join('')
+  walk(parse(html), plain, writer, { split: true, list: null, inItem: false })
+  const output: HTMLElement[] = []
+  for (const paragraph of writer.paragraphs) {
+    if (isBlank(paragraph)) continue
+    merge(paragraph)
+    // A space left at the edges of a paragraph by the source's line breaks is not text.
+    const first = paragraph.firstChild
+    if (first instanceof Text) first.data = first.data.replace(/^ /, '')
+    const last = paragraph.lastChild
+    if (last instanceof Text) last.data = last.data.replace(/ $/, '')
+    const item = writer.items.get(paragraph)
+    if (!item) {
+      output.push(paragraph)
+      continue
+    }
+    const tag = item.style === 'ordered' ? 'ol' : 'ul'
+    // A nested item stays in the list above it; an item at the top of the other kind starts a list of its own.
+    let list = output.at(-1)
+    const joins = list !== undefined && list.localName !== 'p' && (item.level > 0 || list.localName === tag)
+    if (!list || !joins) {
+      list = writer.doc.createElement(tag)
+      output.push(list)
+    }
+    const element = writer.doc.createElement('li')
+    const level = Math.min(item.level, deepestLevel)
+    if (level > 0) element.setAttribute('data-level', String(level))
+    element.append(...Array.from(paragraph.childNodes))
+    list.append(element)
+  }
+  return output.map((block) => block.outerHTML).join('')
 }
