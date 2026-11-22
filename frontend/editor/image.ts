@@ -20,8 +20,7 @@ export const imageCaptionMaxLength = 300
 
 /** What uploading a file gave: the file's id or why it failed (api/media.ts MediaUpload, by status). */
 export type ImageUpload =
-  | { status: 'uploaded'; media: string }
-  | { status: 'unsupported' | 'too-large' | 'unauthorized' | 'error' }
+  { status: 'uploaded'; media: string } | { status: 'unsupported' | 'too-large' | 'unauthorized' | 'error' }
 
 export interface ImageToolConfig {
   upload: (file: File) => Promise<ImageUpload>
@@ -108,7 +107,13 @@ export class ImageTool implements BlockTool {
   private file: File | null = null
   private started = false
 
-  constructor({ data, api, block, config, readOnly }: BlockToolConstructorOptions<Partial<ImageData>, ImageToolConfig>) {
+  constructor({
+    data,
+    api,
+    block,
+    config,
+    readOnly,
+  }: BlockToolConstructorOptions<Partial<ImageData>, ImageToolConfig>) {
     this.api = api
     this.block = block
     this.config = config ?? { upload: async () => ({ status: 'error' }) }
@@ -221,7 +226,8 @@ export class ImageTool implements BlockTool {
     }
     this.status.hidden = state === 'ready' || state === 'empty'
     this.actions.replaceChildren()
-    if (state === 'empty') this.actions.append(this.button(imageMessages.choose, 'image-choose', () => this.pick()))
+    if (state === 'empty')
+      this.actions.append(this.button(imageMessages.choose, 'image-choose', () => this.pick()))
     if (state === 'error') {
       const file = this.file
       if (file && message !== imageMessages.unreadable)
@@ -249,7 +255,12 @@ export class ImageTool implements BlockTool {
 
   private captionHtml(): string {
     const html = this.caption.innerHTML
-    return html.replace(/<br\s*\/?>/gi, '').replace(/&nbsp;/g, ' ').trim() === '' ? '' : html
+    return html
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim() === ''
+      ? ''
+      : html
   }
 
   // Typing or pasting past the limit is refused; what is left over (a drop, an engine's paste) is cut by trimCaption.
@@ -257,7 +268,8 @@ export class ImageTool implements BlockTool {
     if (!event.inputType.startsWith('insert')) return
     const added = event.data ?? event.dataTransfer?.getData('text/plain') ?? ''
     const selection = window.getSelection()
-    const selected = selection && this.caption.contains(selection.anchorNode) ? selection.toString().length : 0
+    const selected =
+      selection && this.caption.contains(selection.anchorNode) ? selection.toString().length : 0
     if (captionLength(this.captionHtml()) - selected + Math.max(added.length, 1) > imageCaptionMaxLength)
       event.preventDefault()
   }
@@ -272,7 +284,9 @@ export class ImageTool implements BlockTool {
     if (event.key !== 'Enter' || event.isComposing) return
     event.preventDefault()
     event.stopPropagation()
-    const index = this.block ? this.api.blocks.getBlockIndex(this.block.id) : this.api.blocks.getCurrentBlockIndex()
+    const index = this.block
+      ? this.api.blocks.getBlockIndex(this.block.id)
+      : this.api.blocks.getCurrentBlockIndex()
     if (index < 0) return
     this.api.blocks.insert('paragraph', { text: '' }, undefined, index + 1, true)
     this.api.caret.setToBlock(index + 1, 'start')

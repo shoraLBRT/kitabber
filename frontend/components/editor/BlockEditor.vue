@@ -408,7 +408,7 @@ defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, addImage
 .block-editor :deep(.ce-image__spinner) {
   width: var(--space-4);
   height: var(--space-4);
-  border: 2px solid var(--color-border);
+  border: calc(var(--size-border) * 2) solid var(--color-border);
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: ce-image-spin 0.8s linear infinite;

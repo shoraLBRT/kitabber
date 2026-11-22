@@ -131,6 +131,46 @@ describe('PostBlocks: semantic markup', () => {
   })
 })
 
+describe('PostBlocks: an image (E05-06)', () => {
+  const image = (data: Record<string, unknown>) => doc({ id: 'i1', type: 'image', data })
+  const sources = [
+    { url: 'http://img.test/320.webp', width: 320 },
+    { url: 'http://img.test/1280.webp', width: 1280 },
+  ]
+
+  it('is a figure with the picture in its place, its sources and its cleaned caption', () => {
+    const wrapper = mount(PostBlocks, {
+      props: {
+        document: image({
+          media: 'm-1',
+          width: 800,
+          height: 600,
+          caption: 'Закат <span class="x"><b>над</b></span> морем',
+        }),
+        images: { 'm-1': sources },
+      },
+    })
+
+    const picture = wrapper.get('figure[data-testid="post-block-image"] > img')
+    expect(picture.attributes('width')).toBe('800')
+    expect(picture.attributes('height')).toBe('600')
+    expect(picture.attributes('srcset')).toBe(
+      'http://img.test/320.webp 320w, http://img.test/1280.webp 1280w',
+    )
+    expect(picture.attributes('sizes')).toBe('(max-width: 720px) 100vw, 680px')
+    expect(wrapper.get('figure > figcaption').html()).toContain('Закат <b>над</b> морем')
+  })
+
+  it('without sources holds its place with a placeholder; without a size it is unknown', () => {
+    const missing = mount(PostBlocks, { props: { document: image({ media: 'm-2', width: 4, height: 3 }) } })
+    expect(missing.get('[data-testid="post-block-image"] > [data-state="empty"]').exists()).toBe(true)
+    expect(missing.find('figcaption').exists()).toBe(false)
+
+    const broken = mount(PostBlocks, { props: { document: image({ media: 'm-2', width: 0, height: 3 }) } })
+    expect(broken.find('[data-testid="post-block-unknown"]').exists()).toBe(true)
+  })
+})
+
 describe('viewBlocks', () => {
   it('reads anything that is not a document as no blocks', () => {
     for (const value of [null, undefined, 'text', {}, { blocks: 'x' }]) expect(viewBlocks(value)).toEqual([])

@@ -71,7 +71,14 @@ function readBlock(type: string, data: Data, key: string): ViewBlock | null {
     case 'image': {
       const { media, width, height, caption } = data
       if (!isString(media) || !isSide(width) || !isSide(height)) return null
-      return { kind: 'image', key, media, width, height, caption: isString(caption) ? cleanInlineHtml(caption) : '' }
+      return {
+        kind: 'image',
+        key,
+        media,
+        width,
+        height,
+        caption: isString(caption) ? cleanInlineHtml(caption) : '',
+      }
     }
     default:
       return null

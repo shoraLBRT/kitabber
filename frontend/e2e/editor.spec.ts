@@ -802,7 +802,7 @@ test('filters the block menu by typing and adds the block picked with the keyboa
     await press(menuSearch(page))
   }
   await expect(menuSearch(page)).toBeFocused()
-  await expect(menuItems(page)).toHaveCount(7)
+  await expect(menuItems(page)).toHaveCount(8)
 
   await page.keyboard.type('спис')
   await expect(menuItems(page)).toHaveText(['Маркированный список', 'Нумерованный список'])
@@ -834,7 +834,7 @@ test('filters the block menu by typing and adds the block picked with the keyboa
   await expect(paragraphs(page)).toHaveCount(1)
   await press(paragraphs(page).first())
   await press(page.locator('.ce-toolbar__plus'))
-  await expect(menuItems(page)).toHaveCount(7)
+  await expect(menuItems(page)).toHaveCount(8)
 })
 
 test('opens the block menu by "/" in an empty block and closes it on Escape', async ({ page }) => {
