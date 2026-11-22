@@ -96,7 +96,15 @@ test.describe('настройки блога', () => {
     // The avatar is shown through its delivery link (ADR-0037), not the letter placeholder.
     const avatar = blog.locator('img.blog__avatar')
     await expect(avatar).toHaveAttribute('src', saved.avatarUrl)
-    await expect.poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    // Loaded, not broken. Not by naturalWidth: the fake's one-pixel picture taken as the 192w source of a 64 px
+    // avatar has a natural width of a third of a pixel, rounded down to 0.
+    await expect(avatar).toHaveAttribute('data-state', 'loaded')
+    // The 64 px avatar in the width for the screen's density (ADR-0040): 64 at one device pixel per CSS pixel
+    // (desktop), 192 at three (the phone profile).
+    const density = await page.evaluate(() => window.devicePixelRatio)
+    await expect
+      .poll(() => avatar.evaluate((img: HTMLImageElement) => img.currentSrc))
+      .toMatch(new RegExp(`-${64 * density}\\.webp$`))
 
     // And after a reload, rendered by the server.
     await page.reload()

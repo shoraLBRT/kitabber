@@ -23,6 +23,10 @@ namespace Platform.Modules.Blogs.Profiles;
 /// The avatar to show: a signed imgproxy link to a WebP square of <see cref="ProfileEndpoints.AvatarSide"/> pixels
 /// (ADR-0037); <c>null</c> when there is no avatar.
 /// </param>
+/// <param name="AvatarSources">
+/// The same avatar for every screen density (ADR-0040): WebP squares of <see cref="ProfileEndpoints.AvatarSides"/>
+/// pixels, narrowest first, for the <c>srcset</c> of the picture; empty when there is no avatar.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -31,7 +35,8 @@ public sealed record Profile(
     string? Description,
     DateTimeOffset? RegisteredAt,
     Guid? AvatarId,
-    Uri? AvatarUrl);
+    Uri? AvatarUrl,
+    IReadOnlyList<ImageSource> AvatarSources);
 
 /// <summary>What the owner edits in the profile (E04-03). Every field is replaced: missing or empty clears it.</summary>
 /// <param name="Name">The name, at most 25 characters.</param>
@@ -51,7 +56,16 @@ public sealed class ProfileEndpoints : IApiEndpoints
     /// <summary>The side of the delivered avatar: twice the largest avatar on the site (64 px), for dense screens.</summary>
     public const int AvatarSide = 128;
 
+    /// <summary>
+    /// The sides of the avatar sources (ADR-0040): the largest avatar on the site (64 px) at one, two and three device
+    /// pixels per CSS pixel.
+    /// </summary>
+    public static readonly IReadOnlyList<int> AvatarSides = [64, AvatarSide, 192];
+
     private static readonly ImageVariant _avatar = ImageVariant.Square(AvatarSide, ImageFormat.WebP);
+
+    private static readonly IReadOnlyList<ImageVariant> _avatarSources =
+        [.. AvatarSides.Select(side => ImageVariant.Square(side, ImageFormat.WebP))];
 
     public void MapV1(IEndpointRouteBuilder v1)
     {
@@ -176,11 +190,18 @@ public sealed class ProfileEndpoints : IApiEndpoints
         blog.Description,
         viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null,
         blog.AvatarMediaId,
-        await AvatarUrlAsync(blog.AvatarMediaId, media, ct));
+        await AvatarUrlAsync(blog.AvatarMediaId, media, ct),
+        await AvatarSourcesAsync(blog.AvatarMediaId, media, ct));
 
     // A file that is no longer an image of the media library shows no avatar rather than a broken picture.
     private static async Task<Uri?> AvatarUrlAsync(Guid? avatarId, IMediaLibrary media, CancellationToken ct) =>
         avatarId is { } id && (await media.ImageUrlsAsync([id], _avatar, ct)).TryGetValue(id, out var url) ? url : null;
+
+    private static async Task<IReadOnlyList<ImageSource>> AvatarSourcesAsync(
+        Guid? avatarId, IMediaLibrary media, CancellationToken ct) =>
+        avatarId is { } id && (await media.ImageSourcesAsync([id], _avatarSources, ct)).TryGetValue(id, out var sources)
+            ? sources
+            : [];
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

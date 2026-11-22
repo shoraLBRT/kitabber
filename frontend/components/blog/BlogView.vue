@@ -83,6 +83,7 @@ const registered = computed(() => {
           class="blog__avatar"
           :name="title"
           :src="found.profile.avatarUrl ?? undefined"
+          :sources="found.profile.avatarSources"
           size="lg"
           decorative
         />

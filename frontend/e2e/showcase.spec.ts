@@ -10,8 +10,8 @@ const pages = [
 ] as const
 const themes = ['light', 'dark'] as const
 
-// The /ui showcase shows the fallback of UiAvatar with an image that does not exist.
-test.use({ missingResources: ['/missing-avatar.png'] })
+// The /ui showcase shows the fallbacks of UiAvatar and UiImage with images that do not exist.
+test.use({ missingResources: ['/missing-avatar.png', '/missing-image.svg'] })
 
 function rgb(hex: string): string {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
