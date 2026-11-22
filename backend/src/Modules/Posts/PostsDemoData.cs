@@ -8,8 +8,9 @@ namespace Platform.Modules.Posts;
 
 /// <summary>
 /// The factory of posts (ADR-0009): the <c>number</c>-th post is a published native post of the demo account
-/// <c>number % 20</c> in that account's personal blog, with a title and a body of paragraphs in the current block
-/// schema (ADR-0023).
+/// <c>number % 20</c>, with a title and a body of paragraphs in the current block schema (ADR-0023). An even post is
+/// in its author's personal blog, an odd one in the demo topic <c>(number / 2) % BlogsDemo.TopicCount</c>, so the demo
+/// stand has posts both with and without a topic.
 /// </summary>
 public sealed class PostFactory(SeedData data) : ObjectFactory<Post>(data)
 {
@@ -54,10 +55,13 @@ public sealed class PostFactory(SeedData data) : ObjectFactory<Post>(data)
     {
         var owner = number % IdentityDemo.AccountCount;
         var createdAt = Data.Now - TimeSpan.FromHours(number + 1);
+        var blog = number % 2 == 0
+            ? Data.Id(BlogsDemo.BlogKind, owner)
+            : Data.Id(BlogsDemo.TopicKind, number / 2 % BlogsDemo.TopicCount);
         var post = Post.CreateDraft(
             IdOf(number),
             Data.Id(IdentityDemo.AccountKind, owner),
-            Data.Id(BlogsDemo.BlogKind, owner),
+            blog,
             _titles[Random.Next(_titles.Length)],
             Body(_paragraphs[Random.Next(_paragraphs.Length)], _paragraphs[Random.Next(_paragraphs.Length)]),
             createdAt);

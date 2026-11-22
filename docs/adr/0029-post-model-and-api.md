@@ -45,7 +45,8 @@
    `EnsurePersonalBlogAsync(accountId)` возвращают `BlogSummary(Id, Kind, OwnerAccountId)`; реализация — в модуле
    Blogs над его таблицами. Пост без `blogId` при создании идёт в личный блог автора (если блога ещё нет, он
    создаётся, как в `/profiles/me`); при правке отсутствие `blogId` оставляет пост в его блоге. Там же
-   `BlogsDemo.BlogKind` — вид идентификаторов демо-блогов для демо-постов.
+   `BlogsDemo.BlogKind` — вид идентификаторов демо-блогов для демо-постов; `BlogsDemo.TopicKind` и
+   `BlogsDemo.TopicCount` — для демо-постов в темах (E01-19: нечётный демо-пост — в теме).
 8. **API** (`/api/v1/posts`): `POST /` (201, `Location`), `GET /{id}` (открыт всем), `PUT /{id}` (заменяет блог,
    заголовок и тело), `DELETE /{id}` (204). Тело запроса — `{body, blogId?, title?}`; ответ — пост с `status`
    (`draft`, `published`), `origin` (`native`, `telegram`) и `source` (`{channel, message, url}` или `null`).

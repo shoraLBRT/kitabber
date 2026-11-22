@@ -40,4 +40,7 @@ public static class BlogsDemo
 
     /// <summary>The kind of the demo topics' identifiers in <c>SeedData.Id</c> (ADR-0046).</summary>
     public const string TopicKind = "topic";
+
+    /// <summary>How many demo topics there are: <c>SeedData.Id(TopicKind, 0 .. TopicCount - 1)</c>.</summary>
+    public const int TopicCount = 6;
 }
