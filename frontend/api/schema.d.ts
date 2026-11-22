@@ -576,6 +576,9 @@ export interface components {
             updatedAt: string;
             /** Format: date-time */
             publishedAt: null | string;
+            images: {
+                [key: string]: components["schemas"]["ImageSource"][];
+            };
         };
         ProblemDetails: {
             type?: null | string;

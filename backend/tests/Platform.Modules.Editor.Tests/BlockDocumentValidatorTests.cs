@@ -226,6 +226,56 @@ public sealed class BlockDocumentValidatorTests
     }
 
     [Fact]
+    public void ImageKeepsTheFileItsSizeAndACleanCaption()
+    {
+        var result = Validate("""
+            {"version": 1, "blocks": [{"id": "i1", "type": "image", "data": {
+              "caption": "Закат <b>над</b> морем<script>x</script>", "height": 600, "width": 800,
+              "media": "0192F0A1-2B3C-7D4E-8F90-A1B2C3D4E5F6"}}]}
+            """);
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.Equal(
+            """{"version":1,"blocks":[{"id":"i1","type":"image","data":{"media":"0192f0a1-2b3c-7d4e-8f90-a1b2c3d4e5f6","""
+            + "\"width\":800,\"height\":600,\"caption\":\"Закат <b>над</b> морем\"}}]}",
+            result.Document!.ToJsonString(_readable));
+        Assert.True(_validator.HasContent(result.Document!));
+    }
+
+    [Theory]
+    [InlineData("""{"width": 1, "height": 1}""", "blocks[0].data.media")]
+    [InlineData("""{"media": "not-a-uuid", "width": 1, "height": 1}""", "blocks[0].data.media")]
+    [InlineData("""{"media": "00000000-0000-0000-0000-000000000000", "width": 1, "height": 1}""", "blocks[0].data.media")]
+    [InlineData("""{"media": "0192f0a1-2b3c-7d4e-8f90-a1b2c3d4e5f6", "width": 0, "height": 1}""", "blocks[0].data.width")]
+    [InlineData("""{"media": "0192f0a1-2b3c-7d4e-8f90-a1b2c3d4e5f6", "width": 1, "height": 20001}""", "blocks[0].data.height")]
+    [InlineData("""{"media": "0192f0a1-2b3c-7d4e-8f90-a1b2c3d4e5f6", "width": 1, "height": 1, "url": "x"}""", "blocks[0].data.url")]
+    public void ImageWithoutAValidFileOrSizeIsRejected(string data, string path)
+    {
+        var result = Validate($$$"""{"version": 1, "blocks": [{"id": "i1", "type": "image", "data": {{{data}}}}]}""");
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Path == path);
+    }
+
+    [Fact]
+    public void ImageCaptionIsLimitedByTheTextAReaderSees()
+    {
+        // Markup does not count, an entity and a line break count as one character each.
+        var atLimit = "<b>" + new string('а', BlockSchemas.ImageCaptionMaxLength - 2) + "</b>&amp;<br>";
+        var overLimit = new string('а', BlockSchemas.ImageCaptionMaxLength + 1);
+
+        Assert.True(Validate(ImageWithCaption(atLimit)).IsValid);
+        var result = Validate(ImageWithCaption(overLimit));
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Path == "blocks[0].data.caption");
+    }
+
+    private static string ImageWithCaption(string caption) => $$$"""
+        {"version": 1, "blocks": [{"id": "i1", "type": "image", "data": {
+          "media": "0192f0a1-2b3c-7d4e-8f90-a1b2c3d4e5f6", "width": 4, "height": 3, "caption": "{{{caption}}}"}}]}
+        """;
+
+    [Fact]
     public void DocumentOfAnUnknownVersionHasNoContent() =>
         Assert.False(_validator.HasContent(new System.Text.Json.Nodes.JsonObject { ["version"] = 99, ["blocks"] = new System.Text.Json.Nodes.JsonArray() }));
 

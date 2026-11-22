@@ -31,10 +31,15 @@ public abstract class BlockField
     public virtual bool HasContent(JsonNode? value) => false;
 }
 
-/// <summary>A string of inline HTML, cleaned by <see cref="InlineHtml"/>.</summary>
-public sealed class InlineHtmlField(string name, InlineHtml html, string? defaultValue = null)
+/// <summary>
+/// A string of inline HTML, cleaned by <see cref="InlineHtml"/>; with <paramref name="maxTextLength"/>, the text a
+/// reader sees (<see cref="InlineHtml.TextLength"/>) is at most that long.
+/// </summary>
+public sealed class InlineHtmlField(string name, InlineHtml html, string? defaultValue = null, int? maxTextLength = null)
     : BlockField(name, defaultValue is null ? null : JsonValue.Create(defaultValue))
 {
+    public int? MaxTextLength { get; } = maxTextLength;
+
     public override JsonNode? Read(JsonElement value, string path, ICollection<BlockDocumentError> errors)
     {
         ArgumentNullException.ThrowIfNull(errors);
@@ -44,7 +49,14 @@ public sealed class InlineHtmlField(string name, InlineHtml html, string? defaul
             return null;
         }
 
-        return JsonValue.Create(html.Clean(value.GetString()!));
+        var cleaned = html.Clean(value.GetString()!);
+        if (MaxTextLength is { } max && InlineHtml.TextLength(cleaned) > max)
+        {
+            errors.Add(new(path, $"Must be at most {max} characters long."));
+            return null;
+        }
+
+        return JsonValue.Create(cleaned);
     }
 
     public override bool HasContent(JsonNode? value) =>
@@ -160,5 +172,46 @@ public sealed class LevelListField(string name, int maxLevel) : BlockField(name,
         }
 
         return valid ? levels : null;
+    }
+}
+
+/// <summary>
+/// The identifier of an uploaded file (ADR-0030), a UUID written in canonical lowercase form. Whether the file exists
+/// and whose it is, the module that stores the document checks (ADR-0049): the Editor module has no data of its own.
+/// A file is something a reader sees, so it is content (ADR-0046).
+/// </summary>
+public sealed class MediaIdField(string name) : BlockField(name, null)
+{
+    public override JsonNode? Read(JsonElement value, string path, ICollection<BlockDocumentError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (value.ValueKind == JsonValueKind.String && Guid.TryParseExact(value.GetString(), "D", out var id)
+            && id != Guid.Empty)
+        {
+            return JsonValue.Create(id.ToString("D"));
+        }
+
+        errors.Add(new(path, "Must be the identifier of an uploaded file."));
+        return null;
+    }
+
+    public override bool HasContent(JsonNode? value) => value is JsonValue;
+}
+
+/// <summary>An integer from 1 to a maximum: a side of a picture in pixels.</summary>
+public sealed class PixelSizeField(string name, int max) : BlockField(name, null)
+{
+    public int Max { get; } = max;
+
+    public override JsonNode? Read(JsonElement value, string path, ICollection<BlockDocumentError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var size) && size >= 1 && size <= Max)
+        {
+            return JsonValue.Create(size);
+        }
+
+        errors.Add(new(path, $"Must be an integer from 1 to {Max}."));
+        return null;
     }
 }

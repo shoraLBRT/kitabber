@@ -2025,7 +2025,8 @@
           "source",
           "createdAt",
           "updatedAt",
-          "publishedAt"
+          "publishedAt",
+          "images"
         ],
         "type": "object",
         "properties": {
@@ -2086,6 +2087,15 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "images": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ImageSource"
+              }
+            }
           }
         }
       },

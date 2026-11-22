@@ -15,13 +15,20 @@ public static class BlockSchemas
     public const string List = "list";
     public const string Quote = "quote";
     public const string Delimiter = "delimiter";
+    public const string Image = "image";
+
+    /// <summary>The longest caption of an image, in characters a reader sees (E05-06, ADR-0049).</summary>
+    public const int ImageCaptionMaxLength = 300;
+
+    /// <summary>The longest side of an image the block may describe, in pixels.</summary>
+    public const int ImageMaxSide = 20_000;
 
     /// <summary>The deepest nesting of a list item: one level under the top (E05-04, ADR-0033).</summary>
     public const int MaxListLevel = 1;
 
     /// <summary>
-    /// Version 1, the blocks of milestone M1 without media: text, H2 and H3 headings, list, quote and delimiter
-    /// (E05-02…E05-05). Media and the rest come with their tasks.
+    /// Version 1, the blocks of milestone M1: text, H2 and H3 headings, list, quote and delimiter (E05-02…E05-05) and
+    /// one image with a caption (E05-06, ADR-0049). Video, galleries and the rest come with their tasks.
     /// </summary>
     public static BlockSchemaSet V1(InlineHtml html) => new(1,
     [
@@ -34,6 +41,12 @@ public static class BlockSchemas
             new LevelListField("levels", MaxListLevel)) { Check = CheckListLevels },
         new BlockSchema(Quote, new InlineHtmlField("text", html), new InlineHtmlField("caption", html, defaultValue: string.Empty)),
         new BlockSchema(Delimiter),
+        new BlockSchema(
+            Image,
+            new MediaIdField("media"),
+            new PixelSizeField("width", ImageMaxSide),
+            new PixelSizeField("height", ImageMaxSide),
+            new InlineHtmlField("caption", html, defaultValue: string.Empty, maxTextLength: ImageCaptionMaxLength)),
     ]);
 
     // A list's levels are empty (every item at the top, as in documents saved before E05-04) or one per item; the first

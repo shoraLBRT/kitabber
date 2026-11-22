@@ -9,6 +9,7 @@ using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Editor.Contracts;
+using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Posts;
 
@@ -43,6 +44,10 @@ public sealed record PostSourceView(string Channel, string Message, string? Url)
 /// <param name="CreatedAt">When it was created.</param>
 /// <param name="UpdatedAt">When it last changed.</param>
 /// <param name="PublishedAt">When it was published; <c>null</c> for a draft.</param>
+/// <param name="Images">
+/// The pictures of the image blocks (ADR-0049), keyed by the file id the block names: signed sources of a responsive
+/// picture (ADR-0040), widest last. A file that is no longer an uploaded image has no entry.
+/// </param>
 public sealed record PostView(
     Guid Id,
     Guid BlogId,
@@ -55,7 +60,8 @@ public sealed record PostView(
     PostSourceView? Source,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    DateTimeOffset? PublishedAt);
+    DateTimeOffset? PublishedAt,
+    IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> Images);
 
 /// <summary>
 /// <c>/api/v1/posts</c> (FR-POST, ADR-0029): create a draft, read, edit and softly delete a post. A draft is seen only
@@ -118,6 +124,7 @@ public sealed class PostEndpoints : IApiEndpoints
         PostsDbContext db,
         IBlogDirectory blogs,
         IBlockDocumentValidator validator,
+        IMediaLibrary media,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -126,7 +133,8 @@ public sealed class PostEndpoints : IApiEndpoints
             return TypedResults.Unauthorized();
         }
 
-        if (CleanBody(input.Body, validator, out var body) is { } invalid)
+        if ((CleanBody(input.Body, validator, out var body) ?? await ImageProblemAsync(body, account, media, ct))
+            is { } invalid)
         {
             return invalid;
         }
@@ -142,13 +150,14 @@ public sealed class PostEndpoints : IApiEndpoints
         var post = Post.CreateDraft(account, blog!.Id, input.Title, body, time.GetUtcNow());
         db.Posts.Add(post);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Created($"/api/v1/posts/{post.Id}", View(post));
+        return TypedResults.Created($"/api/v1/posts/{post.Id}", await ViewAsync(post, media, ct));
     }
 
-    private static async Task<IResult> GetAsync(Guid id, ClaimsPrincipal user, PostsDbContext db, CancellationToken ct) =>
+    private static async Task<IResult> GetAsync(
+        Guid id, ClaimsPrincipal user, PostsDbContext db, IMediaLibrary media, CancellationToken ct) =>
         await db.Posts.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct) is { } post
         && PostRules.MaySee(post, AccountOf(user))
-            ? TypedResults.Ok(View(post))
+            ? TypedResults.Ok(await ViewAsync(post, media, ct))
             : ApiProblems.NotFound(PostNotFoundCode);
 
     private static async Task<IResult> UpdateAsync(
@@ -158,6 +167,7 @@ public sealed class PostEndpoints : IApiEndpoints
         PostsDbContext db,
         IBlogDirectory blogs,
         IBlockDocumentValidator validator,
+        IMediaLibrary media,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -172,7 +182,8 @@ public sealed class PostEndpoints : IApiEndpoints
             return refused;
         }
 
-        if (CleanBody(input.Body, validator, out var body) is { } invalid)
+        if ((CleanBody(input.Body, validator, out var body) ?? await ImageProblemAsync(body, account, media, ct))
+            is { } invalid)
         {
             return invalid;
         }
@@ -192,7 +203,7 @@ public sealed class PostEndpoints : IApiEndpoints
 
         post.Edit(input.BlogId ?? post.BlogId, input.Title, body, time.GetUtcNow());
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(View(post));
+        return TypedResults.Ok(await ViewAsync(post, media, ct));
     }
 
     private static async Task<IResult> PublishAsync(
@@ -200,6 +211,7 @@ public sealed class PostEndpoints : IApiEndpoints
         ClaimsPrincipal user,
         PostsDbContext db,
         IBlockDocumentValidator validator,
+        IMediaLibrary media,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -216,7 +228,7 @@ public sealed class PostEndpoints : IApiEndpoints
 
         if (post!.Status == PostStatus.Published)
         {
-            return TypedResults.Ok(View(post));
+            return TypedResults.Ok(await ViewAsync(post, media, ct));
         }
 
         if (PostChecks.Problems(post.Title, post.Body, validator) is { Count: > 0 } problems)
@@ -226,7 +238,7 @@ public sealed class PostEndpoints : IApiEndpoints
 
         post.Publish(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(View(post));
+        return TypedResults.Ok(await ViewAsync(post, media, ct));
     }
 
     private static async Task<IResult> DeleteAsync(
@@ -285,19 +297,44 @@ public sealed class PostEndpoints : IApiEndpoints
         return ApiProblems.Validation(errors, "The body does not match the block schemas.");
     }
 
-    internal static PostView View(Post post) => new(
+    // A picture only its author uploaded may be in a post (ADR-0049).
+    private static async Task<IResult?> ImageProblemAsync(
+        string body, Guid account, IMediaLibrary media, CancellationToken ct) =>
+        await PostImages.ProblemsAsync(JsonNode.Parse(body)!.AsObject(), account, media, ct) is { Count: > 0 } problems
+            ? ApiProblems.Validation(problems, "The body names pictures the author did not upload.")
+            : null;
+
+    private static async Task<PostView> ViewAsync(Post post, IMediaLibrary media, CancellationToken ct) =>
+        (await ViewsAsync([post], media, ct))[0];
+
+    /// <summary>The views of <paramref name="posts"/>, with the sources of all their pictures fetched at once.</summary>
+    internal static async Task<IReadOnlyList<PostView>> ViewsAsync(
+        IReadOnlyList<Post> posts, IMediaLibrary media, CancellationToken ct)
+    {
+        var bodies = posts.Select(p => JsonNode.Parse(p.Body)!.AsObject()).ToList();
+        var sources = await PostImages.SourcesAsync(bodies, media, ct);
+        return [.. posts.Select((post, i) => View(post, bodies[i], sources))];
+    }
+
+    private static PostView View(
+        Post post, JsonObject body, IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> sources) => new(
         post.Id,
         post.BlogId,
         post.AuthorAccountId,
         post.Title,
         PostSlug.From(post.Title),
-        JsonNode.Parse(post.Body)!.AsObject(),
+        body,
         post.Status == PostStatus.Published ? "published" : "draft",
         post.Origin == PostOrigin.Telegram ? "telegram" : "native",
         post.Source is { } source ? new PostSourceView(source.Channel, source.Message, source.Url?.AbsoluteUri) : null,
         post.CreatedAt,
         post.UpdatedAt,
-        post.PublishedAt);
+        post.PublishedAt,
+        PostImages.MediaIds(body)
+            .Select(m => m.MediaId)
+            .Distinct()
+            .Where(sources.ContainsKey)
+            .ToDictionary(id => id, id => sources[id]));
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>
