@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import FeedView from '../../components/feed/FeedView.vue'
 import type { FeedState } from '../../api/feeds'
 import type { Post } from '../../api/posts'
@@ -36,6 +37,40 @@ function mountView(state: FeedState, extra: { loadingMore?: boolean; moreFailed?
   return mount(FeedView, { props: { title: 'Свежее', state, ...extra }, global: { stubs } })
 }
 
+// A stand-in for IntersectionObserver: the test says when the mark at the end of the list comes into view.
+class FakeObserver {
+  observed: Element[] = []
+  disconnected = false
+  constructor(
+    private readonly callback: IntersectionObserverCallback,
+    readonly options?: IntersectionObserverInit,
+  ) {
+    observers.push(this)
+  }
+  observe(element: Element) {
+    this.observed.push(element)
+  }
+  unobserve(element: Element) {
+    this.observed = this.observed.filter((observed) => observed !== element)
+  }
+  disconnect() {
+    this.disconnected = true
+    this.observed = []
+  }
+  fire(isIntersecting: boolean) {
+    const entries = this.observed.map((target) => ({ target, isIntersecting }) as IntersectionObserverEntry)
+    this.callback(entries, this as unknown as IntersectionObserver)
+  }
+}
+let observers: FakeObserver[] = []
+
+beforeEach(() => {
+  observers = []
+  vi.stubGlobal('IntersectionObserver', FakeObserver)
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
 describe('FeedView', () => {
   it('shows the posts in the given order, each leading to its post', () => {
     const wrapper = mountView({ status: 'found', posts: [titled, short], hasMore: false })
@@ -53,22 +88,65 @@ describe('FeedView', () => {
     expect(wrapper.find('[data-testid="feed-more"]').exists()).toBe(false)
   })
 
-  it('asks for the next page while there is one', async () => {
+  it('asks for the next page when the end of the list comes near, and again for a list still too short', async () => {
     const wrapper = mountView({ status: 'found', posts: [titled], hasMore: true })
-    await wrapper.get('[data-testid="feed-more"]').trigger('click')
+    const observer = observers.at(-1)!
+    expect(observer.options?.rootMargin).toBe('0px 0px 800px 0px')
+    const mark = wrapper.get('[data-testid="feed-sentinel"]').element
+    expect(observer.observed).toEqual([mark])
+    observer.fire(false)
+    expect(wrapper.emitted('more')).toBeUndefined()
+    observer.fire(true)
     expect(wrapper.emitted('more')).toHaveLength(1)
+
+    // While the page loads the mark is gone; after it a new mark is watched, so a short list asks once more.
+    await wrapper.setProps({ loadingMore: true })
+    expect(wrapper.find('[data-testid="feed-sentinel"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="feed-loading-more"]').attributes('role')).toBe('status')
+    expect(observer.observed).toEqual([])
+    await wrapper.setProps({
+      loadingMore: false,
+      state: { status: 'found', posts: [titled, short], hasMore: true },
+    })
+    expect(observer.observed).toEqual([wrapper.get('[data-testid="feed-sentinel"]').element])
   })
 
-  it('keeps the posts when the next page fails and offers to try again', () => {
+  it('stops watching at the end of the feed and when it leaves the page', async () => {
+    const wrapper = mountView({ status: 'found', posts: [titled], hasMore: true })
+    const observer = observers.at(-1)!
+    await wrapper.setProps({ state: { status: 'found', posts: [titled, short], hasMore: false } })
+    expect(wrapper.find('[data-testid="feed-sentinel"]').exists()).toBe(false)
+    expect(observer.observed).toEqual([])
+    wrapper.unmount()
+    expect(observer.disconnected).toBe(true)
+  })
+
+  it('keeps the posts when the next page fails and offers to try again instead of trying on its own', async () => {
     const wrapper = mountView({ status: 'found', posts: [titled], hasMore: true }, { moreFailed: true })
     expect(wrapper.findAll('[data-testid="feed-item"]')).toHaveLength(1)
     expect(wrapper.get('[role="alert"]').text()).toContain('Не удалось загрузить следующие посты')
-    expect(wrapper.get('[data-testid="feed-more"]').text()).toBe('Повторить')
+    expect(wrapper.find('[data-testid="feed-sentinel"]').exists()).toBe(false)
+    const retry = wrapper.get('[data-testid="feed-more"]')
+    expect(retry.text()).toBe('Повторить')
+    await retry.trigger('click')
+    expect(wrapper.emitted('more')).toHaveLength(1)
   })
 
-  it('disables the button while the next page loads', () => {
-    const wrapper = mountView({ status: 'found', posts: [titled], hasMore: true }, { loadingMore: true })
+  it('disables the retry while the next page loads', () => {
+    const wrapper = mountView(
+      { status: 'found', posts: [titled], hasMore: true },
+      { loadingMore: true, moreFailed: true },
+    )
     expect(wrapper.get('[data-testid="feed-more"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('asks for the next page by a button where the browser cannot watch the list', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+    const wrapper = mountView({ status: 'found', posts: [titled], hasMore: true })
+    await nextTick()
+    expect(wrapper.find('[data-testid="feed-sentinel"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="feed-more"]').trigger('click')
+    expect(wrapper.emitted('more')).toHaveLength(1)
   })
 
   it('shows the loading state', () => {

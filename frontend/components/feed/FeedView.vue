@@ -1,16 +1,46 @@
 <script setup lang="ts">
-// A feed (FR-FEED, docs/ui/feed.md) as far as E08-01 needs it: the posts in the feed's order, each with its title (or
-// the first line of a short post) and its date, leading to the post. The full card is E08-02 (#55) and infinite
-// loading with «Показать новые» is E08-03 (#56); until then «Показать ещё» asks for the next page. States: loading,
-// empty, a failure with «Повторить», and the posts; a failure of a later page keeps the posts shown.
-import { computed } from 'vue'
+// A feed (FR-FEED, docs/ui/feed.md): the posts in the feed's order, each with its title (or the first line of a short
+// post) and its date, leading to the post. The full card is E08-02 (#55), «Показать новые» is E08-08 (#100).
+// States: loading, empty, a failure with «Повторить», and the posts. The next page loads by itself when the end of the
+// list comes near (E08-03, ADR-0051); a failure of a later page keeps the posts shown and offers «Повторить» instead
+// of trying again on its own. Without IntersectionObserver «Показать ещё» asks for the next page.
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import { feedPostPath, type FeedState } from '../../api/feeds'
 import { postText } from '../../api/posts'
 
 const props = defineProps<{ title: string; state: FeedState; loadingMore?: boolean; moreFailed?: boolean }>()
 
-defineEmits<{ retry: []; more: [] }>()
+const emit = defineEmits<{ retry: []; more: [] }>()
+
+// The next page is asked for while the end of the list is still this far below the screen.
+const preloadMargin = '0px 0px 800px 0px'
+
+const sentinel = ref<HTMLElement | null>(null)
+const unobservable = ref(false)
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') {
+    unobservable.value = true
+    return
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) emit('more')
+    },
+    { rootMargin: preloadMargin },
+  )
+  if (sentinel.value) observer.observe(sentinel.value)
+})
+
+// The mark is drawn anew after every page, so a list still too short for the screen asks for the page after.
+watch(sentinel, (element, previous) => {
+  if (previous) observer?.unobserve(previous)
+  if (element) observer?.observe(element)
+})
+
+onBeforeUnmount(() => observer?.disconnect())
 
 // A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
 const dateFormat = new Intl.DateTimeFormat('ru', {
@@ -72,10 +102,30 @@ const items = computed(() =>
         </li>
       </ol>
       <div v-if="state.status === 'found' && state.hasMore" class="feed__more">
-        <p v-if="moreFailed" class="feed__muted" role="alert">Не удалось загрузить следующие посты.</p>
-        <UiButton variant="secondary" :disabled="loadingMore" data-testid="feed-more" @click="$emit('more')">
-          {{ loadingMore ? 'Загрузка…' : moreFailed ? 'Повторить' : 'Показать ещё' }}
-        </UiButton>
+        <template v-if="moreFailed">
+          <p class="feed__muted" role="alert">Не удалось загрузить следующие посты.</p>
+          <UiButton
+            variant="secondary"
+            :disabled="loadingMore"
+            data-testid="feed-more"
+            @click="$emit('more')"
+          >
+            {{ loadingMore ? 'Загрузка…' : 'Повторить' }}
+          </UiButton>
+        </template>
+        <p v-else-if="loadingMore" class="feed__muted" role="status" data-testid="feed-loading-more">
+          Загрузка следующих постов…
+        </p>
+        <div
+          v-else-if="!unobservable"
+          ref="sentinel"
+          class="feed__sentinel"
+          aria-hidden="true"
+          data-testid="feed-sentinel"
+        />
+        <UiButton v-else variant="secondary" data-testid="feed-more" @click="$emit('more')"
+          >Показать ещё</UiButton
+        >
       </div>
     </template>
   </section>
@@ -167,6 +217,12 @@ const items = computed(() =>
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* The mark at the end of the list that asks for the next page; it takes almost no room. */
+.feed__sentinel {
+  width: 100%;
+  height: var(--size-border);
 }
 
 @media (max-width: 639px) {
