@@ -128,6 +128,8 @@ function onKeydown(event: KeyboardEvent) {
   const scope = root.value.closest('[role="dialog"]') ?? root.value
   const target = event.target instanceof Node ? event.target : null
   if (target !== window.document.body && !(target && scope.contains(target))) return
+  // A field of the dialog outside the blocks (the post's title) keeps its own undo.
+  if (target instanceof Element && target.closest('input, textarea') && !root.value.contains(target)) return
   event.preventDefault()
   event.stopPropagation()
   void (isUndo ? undo() : redo())
@@ -145,7 +147,12 @@ onBeforeUnmount(() => {
   engine = null
 })
 
-defineExpose({ undo, redo, canUndo, canRedo, state })
+/** Reads the editor into the document now, not when Editor.js next reports a change: before publishing. */
+function flush(): Promise<void> {
+  return enqueue(capture)
+}
+
+defineExpose({ undo, redo, flush, canUndo, canRedo, state })
 </script>
 
 <template>

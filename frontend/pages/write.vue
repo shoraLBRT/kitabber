@@ -1,49 +1,53 @@
 <script setup lang="ts">
-// New post (E05-01, docs/ui/editor.md): the editor window over the shell. Only the editing core so far: block types,
-// the block menu, drafts and publishing come with their own tasks (E05-02…E05-10, #48, #49). Closing goes back.
-import { Redo2, Undo2 } from 'lucide-vue-next'
-import BlockEditor from '~/components/editor/BlockEditor.vue'
-import EditorWindow from '~/components/editor/EditorWindow.vue'
-import { emptyDocument } from '~/editor/document'
+// New post (E05-01, E05-09, docs/ui/editor.md): the editor window over the shell with the title, the topic and
+// «Опубликовать» (components/editor/PostEditor.vue). The topics and publishing go through the site's server
+// (server/routes/bff/topics.get.ts, publish.post.ts, ADR-0018). A published post opens on its page; a guest who
+// publishes gets the sign-in window (ADR-0032) — until drafts with autosave come (their own task), the text is not
+// kept across the sign-in. Closing goes back.
+import PostEditor from '~/components/editor/PostEditor.vue'
+import type { PublishInput, PublishOutcome } from '~/api/publish'
+import type { Topic } from '~/api/topics'
 
 useHead({ title: 'Новый пост' })
 
-const document = ref(emptyDocument())
-const editor = ref<InstanceType<typeof BlockEditor>>()
 const router = useRouter()
+const account = useAccount()
+const authWindow = useAuthWindow()
+const { data: topics } = await useAsyncData('topics', () => $fetch<Topic[]>('/bff/topics').catch(() => []), {
+  lazy: true,
+  default: () => [],
+})
+
+const publish = async (input: PublishInput): Promise<PublishOutcome> =>
+  !account.value.signedIn
+    ? { status: 'unauthorized' }
+    : $fetch<PublishOutcome>('/bff/publish', { method: 'POST', body: input }).catch(
+        (error: { statusCode?: number }): PublishOutcome =>
+          error.statusCode === 401 ? { status: 'unauthorized' } : { status: 'error', draftId: input.draftId },
+      )
 
 function close() {
   if (window.history.state?.back) router.back()
   else void navigateTo('/')
 }
+
+function onPublished(path: string) {
+  // The feeds ask again when they open next, so the new post is there.
+  clearNuxtData((key) => key.startsWith('feed'))
+  void navigateTo(path, { replace: true })
+}
+
+function onUnauthorized() {
+  authWindow.value = { open: true, mode: 'sign-in' }
+}
 </script>
 
 <template>
-  <EditorWindow title="Новый пост" @close="close">
-    <template #actions>
-      <button
-        type="button"
-        class="editor-window__button"
-        aria-label="Отменить"
-        title="Отменить (Ctrl+Z)"
-        data-testid="editor-undo"
-        :disabled="!editor?.canUndo"
-        @click="editor?.undo()"
-      >
-        <Undo2 aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="editor-window__button"
-        aria-label="Повторить"
-        title="Повторить (Ctrl+Shift+Z)"
-        data-testid="editor-redo"
-        :disabled="!editor?.canRedo"
-        @click="editor?.redo()"
-      >
-        <Redo2 aria-hidden="true" />
-      </button>
-    </template>
-    <BlockEditor ref="editor" v-model:document="document" />
-  </EditorWindow>
+  <PostEditor
+    :topics="topics"
+    :publish="publish"
+    @close="close"
+    @published="onPublished"
+    @unauthorized="onUnauthorized"
+  />
 </template>
