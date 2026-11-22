@@ -85,7 +85,8 @@ test.describe('лента «Свежее»', () => {
     })
   })
 
-  // The card (E08-02, ADR-0052): «Привет, мир» has eight blocks and is cut, the other two are short and shown whole.
+  // The card (E08-02, ADR-0052): «Книги осени» is boris's post in the topic «Книги»; «Привет, мир» has eight blocks
+  // and is cut, the other two are short and shown whole.
   test('карточка: автор, тема, короткий пост целиком, лонгрид с «Показать полностью»', async ({ page }) => {
     await page.goto('/new')
     await waitForHydration(page)
@@ -93,7 +94,7 @@ test.describe('лента «Свежее»', () => {
     await expect(items).toHaveCount(3)
 
     const inTopic = items.nth(0)
-    await expect(inTopic.getByTestId('feed-card-author')).toHaveText(/Анна/)
+    await expect(inTopic.getByTestId('feed-card-author')).toHaveText(/Борис/)
     await expect(inTopic.getByTestId('feed-card-topic')).toHaveText('Книги')
     await expect(inTopic.getByTestId('feed-card-more')).toHaveCount(0)
 
