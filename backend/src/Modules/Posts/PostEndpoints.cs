@@ -234,7 +234,7 @@ public sealed class PostEndpoints : IApiEndpoints
         return ApiProblems.Validation(errors, "The body does not match the block schemas.");
     }
 
-    private static PostView View(Post post) => new(
+    internal static PostView View(Post post) => new(
         post.Id,
         post.BlogId,
         post.AuthorAccountId,
