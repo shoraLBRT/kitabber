@@ -52,12 +52,10 @@ public sealed class FreshFeedApiTests(PostsApi api) : IClassFixture<PostsApi>, I
         var (first, cursor) = await PageAsync(limit: 2);
 
         var newer = await PublishAsync(3);
-        var (second, next) = await PageAsync(limit: 2, cursor);
-        var (rest, end) = await PageAsync(limit: 2, next);
+        var (second, end) = await PageAsync(limit: 2, cursor);
 
         Assert.Equal([older[3], older[2]], first);
         Assert.Equal([older[1], older[0]], second);
-        Assert.Empty(rest);
         Assert.Null(end);
         // The new posts are at the top of a fresh first page.
         var (top, _) = await PageAsync(limit: 3);

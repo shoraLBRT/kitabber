@@ -341,6 +341,23 @@ function post(response, url) {
     : send(response, 404, { status: 404, code: 'posts.post_not_found' })
 }
 
+// The fresh feed (E08-01): GET /api/v1/feeds/fresh, the posts above newest first (by publishedAt, then id), two per
+// page so the e2e test reaches a second page. The cursor is opaque to the client, as the API's (ADR-0006).
+const feedPageSize = 2
+
+function freshFeed(response, url) {
+  const sorted = [...posts].sort(
+    (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id),
+  )
+  const cursor = url.searchParams.get('cursor')
+  const start = cursor ? Number(Buffer.from(cursor, 'base64url').toString()) : 0
+  if (!Number.isInteger(start) || start < 0)
+    return send(response, 400, { status: 400, code: 'invalid_cursor' })
+  const end = start + feedPageSize
+  const nextCursor = end < sorted.length ? Buffer.from(String(end)).toString('base64url') : null
+  return send(response, 200, { items: sorted.slice(start, end), nextCursor })
+}
+
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
 function subject(request) {
   try {
@@ -518,6 +535,7 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
+  if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.
   if (url.pathname.startsWith('/__images/') && request.method === 'GET') {
