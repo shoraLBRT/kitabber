@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cleanInline, cleanPastedHtml, isSafeHref, linkRel, normalizeLink } from '../../editor/inline'
-import { googleDocsHtml, webHtml, wordHtml } from './paste-samples'
+import { googleDocsHtml, googleDocsListHtml, webHtml, wordHtml, wordListHtml } from './paste-samples'
 
 // Inline markup of text fields (E05-02, #37): the allow list of the server (ADR-0023), checked links, and HTML
 // pasted from Word and web pages cleaned to it.
@@ -93,11 +93,11 @@ describe('cleanPastedHtml', () => {
     )
   })
 
-  it('cleans a web page to paragraphs of allowed markup', () => {
+  it('cleans a web page to paragraphs and lists of allowed markup', () => {
     expect(cleanPastedHtml(webHtml)).toBe(
       '<p>Заголовок <i>статьи</i></p>' +
         `<p>Текст с <b>важным</b> и <a href="https://example.test/" rel="${linkRel}">ссылкой</a>, относительной и цветом.</p>` +
-        '<p>Пункт один</p><p>Пункт <mark>два</mark></p>',
+        '<ul><li>Пункт один</li><li>Пункт <mark>два</mark></li></ul>',
     )
   })
 
@@ -107,5 +107,42 @@ describe('cleanPastedHtml', () => {
 
   it('gives nothing for HTML without text', () => {
     expect(cleanPastedHtml('<p>&nbsp;</p><img src="x"><script>1</script>')).toBe('')
+  })
+
+  it('turns the list paragraphs of Word into lists without their markers, a nested item marked by its level', () => {
+    expect(cleanPastedHtml(wordListHtml)).toBe(
+      '<ul><li>Первый <b>пункт</b></li><li data-level="1">Вложенный</li><li>Второй</li></ul>' +
+        '<p>Между списками</p>' +
+        '<ol><li>Шаг один</li><li>Шаг <i>два</i></li></ol>',
+    )
+  })
+
+  it('turns a list of Google Docs into one list, the nested list in it one level down', () => {
+    expect(cleanPastedHtml(googleDocsListHtml)).toBe(
+      '<ol><li>Раз</li><li data-level="1"><b>Вложенный</b></li><li>Два</li></ol>',
+    )
+  })
+
+  it('keeps nested lists of a web page one level down, deeper ones too, in the kind of the top list', () => {
+    expect(
+      cleanPastedHtml(
+        '<ul><li>a<ol><li>b<ul><li>c</li></ul></li></ol></li><li>d</li></ul><ol><li>e</li></ol>',
+      ),
+    ).toBe(
+      '<ul><li>a</li><li data-level="1">b</li><li data-level="1">c</li><li>d</li></ul><ol><li>e</li></ol>',
+    )
+  })
+
+  it('keeps the paragraphs of one item in the item on lines of their own', () => {
+    expect(cleanPastedHtml('<ul><li><p>a</p><p>b</p></li></ul>')).toBe('<ul><li>a<br>b</li></ul>')
+  })
+
+  it('takes an item of Word without a number for a bullet, and one with a letter or a roman number for a number', () => {
+    const item = (marker: string) =>
+      `<p style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">${marker}&nbsp;</span>x</p>`
+    expect(cleanPastedHtml(item('§'))).toBe('<ul><li>x</li></ul>')
+    expect(cleanPastedHtml(item('-'))).toBe('<ul><li>x</li></ul>')
+    expect(cleanPastedHtml(item('b)'))).toBe('<ol><li>x</li></ol>')
+    expect(cleanPastedHtml(item('iv.'))).toBe('<ol><li>x</li></ol>')
   })
 })

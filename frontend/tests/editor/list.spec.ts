@@ -1,8 +1,8 @@
-import type { BlockToolConstructorOptions } from '@editorjs/editorjs'
+import type { BlockToolConstructorOptions, HTMLPasteEvent } from '@editorjs/editorjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { caretOffsetIn, placeCaret } from '../../editor/caret'
 import { normalizeLevels } from '../../editor/document'
-import { itemPlaceholder, ListTool, styleTitles, type ListData } from '../../editor/list'
+import { itemPlaceholder, listFromHtml, ListTool, styleTitles, type ListData } from '../../editor/list'
 
 // The list block (E05-04, #39, ADR-0033): bulleted and numbered, one level of nesting, Enter and Tab, an empty item
 // ends the list, the style switches without losing text.
@@ -190,6 +190,31 @@ describe('ListTool', () => {
     expect(save()).toEqual({ style: 'ordered', items: ['a', '<i>b</i>'], levels: [0, 1] })
     expect(menu.map((entry) => entry.isActive())).toEqual([false, true])
     expect(block.dispatchChange).toHaveBeenCalled()
+  })
+
+  it('takes a pasted list with its kind, items and levels (E05-02, ADR-0042)', () => {
+    const { list, holder, save } = setup({})
+    const pasted = document.createElement('div')
+    pasted.innerHTML =
+      '<ol><li>a <b>b</b></li><li data-level="1">c</li><li data-level="1">d</li><li>e</li></ol>'
+
+    list.onPaste({ detail: { data: pasted.firstElementChild } } as unknown as HTMLPasteEvent)
+
+    expect(holder.querySelector('ul, ol')!.tagName).toBe('OL')
+    expect(save()).toEqual({ style: 'ordered', items: ['a <b>b</b>', 'c', 'd', 'e'], levels: [0, 1, 1, 0] })
+  })
+
+  it('takes a pasted lone item as a bulleted list and keeps a pasted first item at the top', () => {
+    const pasted = document.createElement('ul')
+    pasted.innerHTML = '<li data-level="1">a</li><li data-level="1">b</li>'
+    expect(listFromHtml(pasted)).toEqual({ style: 'unordered', items: ['a', 'b'], levels: [0, 1] })
+    const item = document.createElement('li')
+    item.innerHTML = 'x <script>1</script>'
+    expect(listFromHtml(item)).toEqual({ style: 'unordered', items: ['x '], levels: [] })
+  })
+
+  it('declares the tags it takes from pasted HTML, keeping only the level of an item', () => {
+    expect(ListTool.pasteConfig).toEqual({ tags: ['UL', 'OL', { LI: { 'data-level': true } }] })
   })
 
   it('keeps items and levels when converted to the other list style through Editor.js conversion', () => {
