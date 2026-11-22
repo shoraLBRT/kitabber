@@ -163,7 +163,7 @@ describe('PostBlocks: an image (E05-06)', () => {
 
   it('without sources holds its place with a placeholder; without a size it is unknown', () => {
     const missing = mount(PostBlocks, { props: { document: image({ media: 'm-2', width: 4, height: 3 }) } })
-    expect(missing.get('[data-testid="post-block-image"] > [data-state="empty"]').exists()).toBe(true)
+    expect(missing.find('[data-testid="post-block-image"] > [data-state="empty"]').exists()).toBe(true)
     expect(missing.find('figcaption').exists()).toBe(false)
 
     const broken = mount(PostBlocks, { props: { document: image({ media: 'm-2', width: 0, height: 3 }) } })
