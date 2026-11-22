@@ -15,6 +15,9 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
     /// <summary>One post per message of an external channel: it makes the import idempotent (ADR-0003).</summary>
     public const string SourceIndex = "ux_posts_source";
 
+    /// <summary>The fresh feed: published posts by publication time and id, newest first (ADR-0043).</summary>
+    public const string FreshFeedIndex = "ix_posts_fresh_feed";
+
     /// <summary>The longest channel and message identifiers of an external source.</summary>
     public const int SourceKeyMaxLength = 128;
 
@@ -45,6 +48,9 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
                 .HasFilter("source_channel IS NOT NULL");
             post.HasIndex(p => new { p.BlogId, p.PublishedAt });
             post.HasIndex(p => new { p.AuthorAccountId, p.CreatedAt });
+            post.HasIndex(p => new { p.PublishedAt, p.Id }).IsDescending()
+                .HasDatabaseName(FreshFeedIndex)
+                .HasFilter("status = 'Published' AND deleted_at IS NULL");
         });
     }
 }
