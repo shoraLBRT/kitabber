@@ -25,6 +25,14 @@ class FakeEngine {
   }
   caret = () => null
   setCaret = () => undefined
+  menus = 0
+  formats: string[] = []
+  openBlockMenu = () => {
+    this.menus++
+  }
+  format = (mark: string) => {
+    this.formats.push(mark)
+  }
   destroy = () => undefined
 }
 
@@ -76,6 +84,29 @@ afterEach(() => {
 })
 
 describe('PostEditor', () => {
+  it('gives a phone the panel above the keyboard, wired to the blocks (E05-10)', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) =>
+        ({
+          matches: true,
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    )
+    await mountEditor(vi.fn(async () => published()))
+
+    const bar = page().get('[data-testid="editor-keyboard-bar"]')
+    // The bar is the row between the text and «Опубликовать», the row the window keeps above the keyboard.
+    expect(bar.element.nextElementSibling?.tagName).toBe('FOOTER')
+    await page().get('[data-testid="keyboard-bar-add"]').trigger('click')
+    await page().get('[data-testid="keyboard-bar-bold"]').trigger('click')
+    await page().get('[data-testid="keyboard-bar-italic"]').trigger('click')
+    expect(engine.menus).toBe(1)
+    expect(engine.formats).toEqual(['bold', 'italic'])
+    vi.restoreAllMocks()
+  })
+
   it('cannot publish an empty post: the button waits for a block with text', async () => {
     const publish = vi.fn(async () => published())
     await mountEditor(publish)

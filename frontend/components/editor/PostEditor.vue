@@ -8,6 +8,7 @@
 import { ChevronDown, Redo2, Undo2 } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import BlockEditor from './BlockEditor.vue'
+import EditorKeyboardBar from './EditorKeyboardBar.vue'
 import EditorWindow from './EditorWindow.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
@@ -191,6 +192,9 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
     </p>
     <BlockEditor ref="editor" v-model:document="document" :create-engine="createEngine" />
 
+    <template #toolbar>
+      <EditorKeyboardBar :editor="editor" />
+    </template>
     <template #footer>
       <UiButton
         :disabled="empty"

@@ -6,7 +6,7 @@
 // (the engine failed to start: a message and "Повторить").
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toEditorData, toPostDocument, type PostDocument } from '../../editor/document'
-import { createEditorJs, type CreateEngine, type EditorEngine } from '../../editor/engine'
+import { createEditorJs, type CreateEngine, type EditorEngine, type InlineMark } from '../../editor/engine'
 import { EditorHistory, type Snapshot } from '../../editor/history'
 
 const props = withDefaults(
@@ -152,7 +152,43 @@ function flush(): Promise<void> {
   return enqueue(capture)
 }
 
-defineExpose({ undo, redo, flush, canUndo, canRedo, state })
+// The phone's panel above the keyboard (E05-10, ADR-0047): the block menu and bold or italic on the selection. The
+// panel cancels the press so its buttons do not take the focus; should a browser move the focus anyway, the selection
+// kept when the press began is put back into the text before the tool runs, and the keyboard stays.
+let kept: Range | null = null
+
+/** Keeps the selection in the blocks as it is when a button of the panel is pressed. */
+function keepSelection() {
+  const selection = window.getSelection()
+  const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+  kept = range && holder.value?.contains(range.startContainer) ? range.cloneRange() : null
+}
+
+function restoreSelection() {
+  const active = window.document.activeElement
+  if (!kept || (active && holder.value?.contains(active))) return
+  const start = kept.startContainer
+  const input = (start instanceof Element ? start : start.parentElement)?.closest<HTMLElement>(
+    '[contenteditable="true"]',
+  )
+  if (!input?.isConnected) return
+  input.focus({ preventScroll: true })
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(kept)
+}
+
+function openBlockMenu() {
+  restoreSelection()
+  engine?.openBlockMenu()
+}
+
+function format(mark: InlineMark) {
+  restoreSelection()
+  engine?.format(mark)
+}
+
+defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, canUndo, canRedo, state })
 </script>
 
 <template>

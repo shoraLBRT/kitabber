@@ -27,8 +27,14 @@ export interface EditorEngine {
   /** The block with the caret and the text offset in it, or null when the caret is outside the editor. */
   caret(): Caret | null
   setCaret(caret: Caret): void
+  /** Opens the block menu at the caret's block (at the last block when the caret is outside): the phone's «+». */
+  openBlockMenu(): void
+  /** Makes the selection bold or italic, or takes it off, as the floating panel does: the phone's «Ж» and «К». */
+  format(mark: InlineMark): void
   destroy(): void
 }
+
+export type InlineMark = 'bold' | 'italic'
 
 export type CreateEngine = (options: EngineOptions) => Promise<EditorEngine>
 
@@ -137,6 +143,17 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       editor.caret.setToBlock(index, 'start')
       const input = inputOf(index)
       if (input) placeCaret(input, offset)
+    },
+    openBlockMenu() {
+      if (editor.blocks.getBlocksCount() === 0) return
+      if (editor.blocks.getCurrentBlockIndex() < 0) editor.caret.setToLastBlock('end')
+      editor.toolbar.toggleToolbox(true)
+    },
+    format(mark) {
+      // The bold and italic tools built into Editor.js do the same; only a selection inside the blocks is changed.
+      const selection = window.getSelection()
+      const node = selection && selection.rangeCount > 0 ? selection.anchorNode : null
+      if (node && holder.contains(node)) window.document.execCommand(mark)
     },
     destroy() {
       stopCleaning()
