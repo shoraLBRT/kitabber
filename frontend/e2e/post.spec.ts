@@ -22,6 +22,32 @@ test.describe('адрес поста', () => {
     await expectNoHorizontalScroll(page)
   })
 
+  // E07-03 (#51): the blocks come drawn from the server, with semantic markup, an unknown block as a placeholder.
+  test('блоки поста отрисованы семантической разметкой', async ({ page, request }) => {
+    const address = `/u/anna/${titled}-privet-mir`
+    const html = await (await request.get(address)).text()
+    expect(html).toContain('<h2 id="h-b2"')
+    expect(html).toContain('data-testid="post-block-unknown"')
+
+    await page.goto(address)
+    await waitForHydration(page)
+    const body = page.getByTestId('post-blocks')
+    await expect(body.getByRole('heading', { level: 2, name: 'Глава первая' })).toHaveAttribute('id', 'h-b2')
+    await expect(body.getByRole('heading', { level: 3, name: 'Раздел' })).toBeVisible()
+    await expect(body.locator('p b')).toHaveText('жирным')
+    await expect(body.getByRole('link', { name: 'ссылкой' })).toHaveAttribute(
+      'rel',
+      'nofollow ugc noopener noreferrer',
+    )
+    await expect(body.locator(':scope > ol > li')).toHaveCount(2)
+    await expect(body.locator(':scope > ol > li').first().locator('ol > li')).toHaveText('Вложенный')
+    await expect(body.locator('figure blockquote')).toHaveText('Краткость — сестра таланта.')
+    await expect(body.locator('figure figcaption')).toHaveText('А. П. Чехов')
+    await expect(body.getByRole('separator')).toHaveCount(1)
+    await expect(body.getByRole('note')).toContainText('не умеем показывать')
+    await expectNoHorizontalScroll(page)
+  })
+
   test('неверный слаг и чужой адрес блога ведут на канонический адрес', async ({ page, request }) => {
     const canonical = `/u/anna/${titled}-privet-mir`
     for (const wrong of [

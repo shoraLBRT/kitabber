@@ -312,6 +312,29 @@ const blogs = [
   },
 ]
 
+// The first post carries every block type of schema version 1 and a block of an unknown type (E07-03, ADR-0045).
+const extraBlocks = {
+  '0195f3a0-0000-7000-8000-0000000000c1': [
+    { id: 'b2', type: 'header', data: { text: 'Глава первая', level: 2 } },
+    {
+      id: 'b3',
+      type: 'paragraph',
+      data: {
+        text: 'Текст с <b>жирным</b> и <a href="https://example.org" rel="nofollow ugc noopener noreferrer">ссылкой</a>.',
+      },
+    },
+    { id: 'b4', type: 'header', data: { text: 'Раздел', level: 3 } },
+    {
+      id: 'b5',
+      type: 'list',
+      data: { style: 'ordered', items: ['Раз', 'Вложенный', 'Два'], levels: [0, 1, 0] },
+    },
+    { id: 'b6', type: 'quote', data: { text: 'Краткость — сестра таланта.', caption: 'А. П. Чехов' } },
+    { id: 'b7', type: 'delimiter', data: {} },
+    { id: 'b8', type: 'gallery', data: {} },
+  ],
+}
+
 // Posts (E07-01, E07-02): GET /api/v1/posts/{id}. The slug is what the API gives (PostSlug); a post without a title has
 // none. Two posts of anna (with a title and a short one) and one in the topic `books`.
 const posts = [
@@ -324,7 +347,7 @@ const posts = [
   authorAccountId: blogs[blog].owner ?? owner,
   title,
   slug,
-  body: { version: 1, blocks: [{ id: 'b1', type: 'paragraph', data: { text } }] },
+  body: { version: 1, blocks: [{ id: 'b1', type: 'paragraph', data: { text } }, ...(extraBlocks[id] ?? [])] },
   status: 'published',
   origin: 'native',
   source: null,
