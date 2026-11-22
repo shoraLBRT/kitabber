@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
+using Platform.Modules.Posts.Contracts;
 using Platform.Persistence;
 
 namespace Platform.Modules.Posts;
 
 /// <summary>
 /// The Posts module in the API host (ADR-0029): the post API, the fresh feed (ADR-0043) and its database. It needs the Editor module
-/// (<c>IBlockDocumentValidator</c>) and the Blogs module (<c>IBlogDirectory</c>) registered in the same host.
+/// (<c>IBlockDocumentValidator</c>) and the Blogs module (<c>IBlogDirectory</c>) registered in the same host, and
+/// offers other modules <see cref="IPostDirectory"/> (ADR-0048).
 /// </summary>
 public static class PostsModule
 {
@@ -20,6 +22,7 @@ public static class PostsModule
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddModuleDbContext<PostsDbContext>(
             builder.Configuration.GetConnectionString(ConnectionStringName)!);
+        builder.Services.AddScoped<IPostDirectory, PostDirectory>();
         builder.Services.AddApiEndpoints<PostEndpoints>();
         builder.Services.AddApiEndpoints<FreshFeedEndpoints>();
         return builder;

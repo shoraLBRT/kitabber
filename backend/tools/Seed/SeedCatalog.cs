@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Modules.Blogs;
+using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
 using Platform.Persistence;
@@ -21,5 +22,6 @@ public static class SeedCatalog
         services.AddModuleDbContext<IdentityDbContext>(connectionString).AddDemoSeeder<IdentityDemoSeeder>();
         services.AddModuleDbContext<BlogsDbContext>(connectionString).AddDemoSeeder<BlogsDemoSeeder>();
         services.AddModuleDbContext<PostsDbContext>(connectionString).AddDemoSeeder<PostsDemoSeeder>();
+        services.AddModuleDbContext<CommentsDbContext>(connectionString).AddDemoSeeder<CommentsDemoSeeder>();
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Identity.Contracts;
+using Platform.Modules.Posts.Contracts;
 using Platform.Seeding;
 
 namespace Platform.Modules.Posts;
@@ -29,7 +30,7 @@ public sealed class PostFactory(SeedData data) : ObjectFactory<Post>(data)
         "Если у вас был похожий опыт, расскажите в комментариях.",
     ];
 
-    public override string Kind => "post";
+    public override string Kind => PostsDemo.PostKind;
 
     /// <summary>A body of <paramref name="paragraphs"/> paragraph blocks, as JSON.</summary>
     public static string Body(params string[] paragraphs)
@@ -68,7 +69,7 @@ public sealed class PostFactory(SeedData data) : ObjectFactory<Post>(data)
 /// <summary>The demo posts: two per demo account, added only where they are missing.</summary>
 public sealed class PostsDemoSeeder(PostsDbContext db) : IDemoSeeder
 {
-    public const int Count = IdentityDemo.AccountCount * 2;
+    public const int Count = PostsDemo.Count;
 
     public string Name => PostsDbContext.Schema;
 

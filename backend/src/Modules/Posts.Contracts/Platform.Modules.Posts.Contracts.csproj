@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Posts module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such as
+      Comments, ask about a post without reading the schema `posts` (ADR-0048).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Posts.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>
