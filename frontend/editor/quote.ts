@@ -40,8 +40,8 @@ export class QuoteTool implements BlockTool {
   }
 
   /**
-   * Text becomes the quote's text; a quote becomes text with its caption after a dash, so nothing is lost. Not a line
-   * break: Editor.js 2.31 drops `<br>` when it converts to the built-in paragraph (#331).
+   * Text becomes the quote's text; a quote becomes text with its caption after a dash, so nothing is lost and the
+   * text stays one line.
    */
   static get conversionConfig(): ConversionConfig {
     return {

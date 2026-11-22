@@ -10,6 +10,7 @@ import { ListTool } from './list'
 import { searchOnPhone } from './menu'
 import { moveBlocks } from './move'
 import { QuoteTool } from './quote'
+import { TextTool } from './text'
 import { LinkTool, MarkerTool } from './tools'
 
 export interface EngineOptions {
@@ -70,8 +71,13 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
     minHeight: 0,
     i18n: { messages },
     tools: {
+      // The text block in place of the built-in paragraph, whose sanitize drops markup converted into it (ADR-0044).
       // An empty paragraph is kept, so block indexes of the saved document match the editor's (undo, caret).
-      paragraph: { inlineToolbar: ['bold', 'italic', 'marker', 'link'], config: { preserveBlank: true } },
+      paragraph: {
+        class: TextTool as unknown as ToolConstructable,
+        inlineToolbar: ['bold', 'italic', 'marker', 'link'],
+        config: { preserveBlank: true },
+      },
       // «Заголовок» (H2) and «Подзаголовок» (H3), E05-03: one tool with two entries in the block menu. The same inline
       // tools as the text block: Editor.js cleans converted text by the target's tools, so text↔heading keeps markup.
       header: {
