@@ -4,7 +4,7 @@
 - Требования: [spec.md](../spec.md#fr-post-пост) (FR-POST: страница поста, плавающая панель действий),
   [ui/post.md](../ui/post.md) (раскладка на 1440 и 390 px, доступность)
 - Связанные решения: [ADR-0025](0025-blogs-subsite-and-profile.md) (блог и профиль, личный блог аккаунта),
-  [ADR-0029](0029-posting-rights.md) (в личный блог пишет только владелец), [ADR-0041](0041-post-address-and-slug.md)
+  [ADR-0029](0029-post-model-and-api.md) (в личный блог пишет только владелец), [ADR-0041](0041-post-address-and-slug.md)
   (адрес поста), [ADR-0045](0045-post-block-rendering.md) (отрисовка блоков)
 
 ## Контекст
