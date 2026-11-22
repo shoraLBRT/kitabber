@@ -30,6 +30,14 @@ class FakeEngine {
   setCaret = (caret: Caret) => {
     this.caretAt = caret
   }
+  menus = 0
+  formats: { mark: string; focused: Element | null; selected: string }[] = []
+  openBlockMenu = () => {
+    this.menus++
+  }
+  format = (mark: string) => {
+    this.formats.push({ mark, focused: document.activeElement, selected: String(window.getSelection()) })
+  }
   destroy = () => {
     this.destroyed = true
   }
@@ -261,5 +269,54 @@ describe('BlockEditor', () => {
     wrapper.unmount()
 
     expect(engine.destroyed).toBe(true)
+  })
+})
+
+describe('BlockEditor and the panel above the keyboard (E05-10)', () => {
+  function textBlock() {
+    const input = document.createElement('div')
+    input.contentEditable = 'true'
+    input.textContent = 'Первое слово'
+    wrapper.get('[data-testid="block-editor-holder"]').element.append(input)
+    return input
+  }
+
+  function select(input: HTMLElement, start: number, end: number) {
+    input.focus()
+    const range = document.createRange()
+    range.setStart(input.firstChild!, start)
+    range.setEnd(input.firstChild!, end)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+  }
+
+  it('puts the kept selection back into the text when the focus left it, then formats', async () => {
+    await mountEditor()
+    const input = textBlock()
+    select(input, 7, 12)
+    wrapper.vm.keepSelection()
+    // A browser that moves the focus to the pressed button anyway.
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+
+    wrapper.vm.format('bold')
+
+    expect(engine.formats).toEqual([{ mark: 'bold', focused: input, selected: 'слово' }])
+    outside.remove()
+  })
+
+  it('leaves the selection alone while the focus is still in the text', async () => {
+    await mountEditor()
+    const input = textBlock()
+    select(input, 0, 6)
+    wrapper.vm.keepSelection()
+    select(input, 7, 12)
+
+    wrapper.vm.format('italic')
+    wrapper.vm.openBlockMenu()
+
+    expect(engine.formats).toEqual([{ mark: 'italic', focused: input, selected: 'слово' }])
+    expect(engine.menus).toBe(1)
   })
 })

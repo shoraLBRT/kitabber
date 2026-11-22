@@ -3,8 +3,12 @@
 // middle, over the dimmed and blurred feed, with "развернуть на весь экран" and "закрыть"; on a phone (narrower than
 // 640 px) a full-screen screen over the bottom bar and the floating "Написать", inside the safe areas. A modal
 // dialog with a focus trap; Escape, "✕" and a click on the backdrop close it (the page decides what closing does).
+// On a phone the screen takes the box of the visual viewport, so the keyboard does not cover its bottom: the panel of
+// the toolbar slot stays right above the keyboard and the footer hides while the keyboard is open (E05-10, ADR-0047).
 import { Maximize2, Minimize2, X } from 'lucide-vue-next'
-import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
+import { useVisualViewport } from '../../composables/useVisualViewport'
 import { trapTab } from '../../utils/focus'
 
 defineProps<{ title: string }>()
@@ -13,6 +17,14 @@ const emit = defineEmits<{ close: [] }>()
 const expanded = ref(false)
 const panel = ref<HTMLElement>()
 const titleId = useId()
+const isPhone = useMediaQuery(phoneQuery)
+const viewport = useVisualViewport()
+const keyboard = computed(() => isPhone.value && !!viewport.value?.keyboard)
+const box = computed(() =>
+  isPhone.value && viewport.value
+    ? { top: `${viewport.value.top}px`, height: `${viewport.value.height}px`, bottom: 'auto' }
+    : undefined,
+)
 
 function onKeydown(event: KeyboardEvent) {
   if (panel.value) trapTab(event, panel.value)
@@ -39,7 +51,13 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="#teleports">
-    <div class="editor-window" :class="{ 'editor-window--expanded': expanded }" data-testid="editor-window">
+    <div
+      class="editor-window"
+      :class="{ 'editor-window--expanded': expanded, 'editor-window--keyboard': keyboard }"
+      :style="box"
+      :data-keyboard="keyboard ? 'open' : 'closed'"
+      data-testid="editor-window"
+    >
       <div class="editor-window__backdrop" data-testid="editor-backdrop" @click="emit('close')" />
       <div
         ref="panel"
@@ -77,6 +95,7 @@ onBeforeUnmount(() => {
         <div class="editor-window__body">
           <div class="editor-window__column"><slot /></div>
         </div>
+        <slot name="toolbar" />
         <footer v-if="$slots.footer" class="editor-window__footer"><slot name="footer" /></footer>
       </div>
     </div>
@@ -205,6 +224,16 @@ onBeforeUnmount(() => {
 
   .editor-window__footer {
     padding: var(--space-2) var(--space-4);
+  }
+
+  /* The keyboard is under the screen: the toolbar slot is the bottom row, right above it, and the bottom safe area
+     is the keyboard's. */
+  .editor-window--keyboard .editor-window__footer {
+    display: none;
+  }
+
+  .editor-window--keyboard .editor-window__panel {
+    padding-bottom: 0;
   }
 }
 </style>
