@@ -1,5 +1,5 @@
 import type { OutputData } from '@editorjs/editorjs'
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PostEditor from '../../components/editor/PostEditor.vue'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
@@ -41,16 +41,18 @@ const createEngine: CreateEngine = async (options) => {
   return engine
 }
 
+// The window teleports to #teleports, as on the site; the stub of Teleport re-renders the window without end.
 async function mountEditor(publish: (input: PublishInput) => Promise<PublishOutcome>) {
+  document.body.innerHTML = '<div id="teleports"></div><div id="app"></div>'
   wrapper = mount(PostEditor, {
     props: { topics, publish, createEngine },
-    attachTo: document.body,
-    global: { stubs: { teleport: true } },
+    attachTo: '#app',
   })
   await flushPromises()
 }
 
-const button = () => wrapper.get('[data-testid="editor-publish"]')
+const page = () => new DOMWrapper(document.body)
+const button = () => page().get('[data-testid="editor-publish"]')
 
 async function type(...texts: string[]) {
   engine.type(...texts)
@@ -105,15 +107,15 @@ describe('PostEditor', () => {
   it('sends the trimmed title and the chosen topic', async () => {
     const publish = vi.fn(async () => published())
     await mountEditor(publish)
-    expect(wrapper.get('[data-testid="editor-topic"] button').attributes('aria-label')).toBe('Тема: Без темы')
+    expect(page().get('[data-testid="editor-topic"] button').attributes('aria-label')).toBe('Тема: Без темы')
 
-    await wrapper.get('[data-testid="editor-topic"] button').trigger('click')
-    await wrapper.get('[role="menuitem"][data-id="0195f3a0-0000-7000-8000-0000000000t2"]').trigger('click')
-    await wrapper.get('[data-testid="editor-title"]').setValue('  Книги осени  ')
+    await page().get('[data-testid="editor-topic"] button').trigger('click')
+    await page().get('[role="menuitem"][data-id="0195f3a0-0000-7000-8000-0000000000t2"]').trigger('click')
+    await page().get('[data-testid="editor-title"]').setValue('  Книги осени  ')
     await type('Что почитать')
     await clickPublish()
 
-    expect(wrapper.get('[data-testid="editor-topic"] button').attributes('aria-label')).toBe('Тема: Книги')
+    expect(page().get('[data-testid="editor-topic"] button').attributes('aria-label')).toBe('Тема: Книги')
     expect(publish).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Книги осени', blogId: '0195f3a0-0000-7000-8000-0000000000t2' }),
     )
@@ -123,14 +125,16 @@ describe('PostEditor', () => {
     const publish = vi.fn(async () => published())
     await mountEditor(publish)
 
-    await wrapper.get('[data-testid="editor-title"]').setValue('я'.repeat(postTitleMaxLength + 1))
+    await page()
+      .get('[data-testid="editor-title"]')
+      .setValue('я'.repeat(postTitleMaxLength + 1))
     await type('Текст')
     await clickPublish()
 
     expect(publish).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="editor-title-error"]').text()).toBe('Заголовок длиннее 120 символов.')
-    expect(wrapper.get('[data-testid="editor-title"]').attributes('aria-invalid')).toBe('true')
-    expect(document.activeElement).toBe(wrapper.get('[data-testid="editor-title"]').element)
+    expect(page().get('[data-testid="editor-title-error"]').text()).toBe('Заголовок длиннее 120 символов.')
+    expect(page().get('[data-testid="editor-title"]').attributes('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(page().get('[data-testid="editor-title"]').element)
   })
 
   it('shows the loading state while publishing and sends once', async () => {
@@ -160,7 +164,7 @@ describe('PostEditor', () => {
     await type('Текст')
     await clickPublish()
 
-    const error = wrapper.get('[data-testid="editor-body-error"]')
+    const error = page().get('[data-testid="editor-body-error"]')
     expect(error.text()).toBe('Блок больше 64 КБ.')
     expect(document.activeElement).toBe(error.element)
     expect(wrapper.emitted('published')).toBeUndefined()
