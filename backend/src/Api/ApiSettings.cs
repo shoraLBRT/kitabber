@@ -4,6 +4,7 @@ using Platform.Caching;
 using Platform.Configuration;
 using Platform.Http.RateLimiting;
 using Platform.Messaging;
+using Platform.Modules.Comments;
 using Platform.Modules.Identity.SignIn;
 using Platform.Modules.Media;
 using Platform.Observability;
@@ -19,7 +20,7 @@ public static class ApiSettings
     public static IReadOnlyList<Setting> All { get; } =
     [
         .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
-        .. MessagingSettings.All, .. MediaSettings.All,
+        .. MessagingSettings.All, .. MediaSettings.All, .. CommentsSettings.All,
     ];
 
     /// <summary>

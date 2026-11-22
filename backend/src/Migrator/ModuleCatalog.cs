@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Modules.Blogs;
+using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Media;
 using Platform.Modules.Posts;
@@ -20,6 +21,7 @@ public static class ModuleCatalog
         services.AddModuleDbContext<IdentityDbContext>(connectionString);
         services.AddModuleDbContext<BlogsDbContext>(connectionString);
         services.AddModuleDbContext<PostsDbContext>(connectionString);
+        services.AddModuleDbContext<CommentsDbContext>(connectionString);
         services.AddModuleDbContext<MediaDbContext>(connectionString);
     }
 }
