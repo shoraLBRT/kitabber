@@ -21,8 +21,10 @@ withDefaults(
     topics?: NavItem[]
     /** Unread counters of the bottom bar by tab id. */
     counts?: Partial<Record<string, number>>
+    /** `false` hides the floating «Написать», as the post page does for its action panel (E07-04). */
+    writeButton?: boolean
   }>(),
-  { user: null, topics: () => [], counts: () => ({}) },
+  { user: null, topics: () => [], counts: () => ({}), writeButton: true },
 )
 const emit = defineEmits<{ search: []; account: [id: string] }>()
 </script>
@@ -43,7 +45,7 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
       </div>
     </div>
     <slot name="mobile">
-      <ShellWriteButton />
+      <ShellWriteButton v-if="writeButton" />
       <ShellTabBar :current-path="currentPath" :counts="counts" />
     </slot>
   </div>

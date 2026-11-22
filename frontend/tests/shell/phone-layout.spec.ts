@@ -116,8 +116,11 @@ describe('Phone shell layout', () => {
 
   it('puts the bottom bar and the floating button into every page of the default layout', () => {
     const shell = read('components', 'shell', 'ShellLayout.vue')
-    expect(shell).toMatch(/<slot name="mobile">\s*<ShellWriteButton \/>\s*<ShellTabBar/)
+    expect(shell).toMatch(/<slot name="mobile">\s*<ShellWriteButton v-if="writeButton" \/>\s*<ShellTabBar/)
     expect(read('layouts', 'default.vue')).toContain('<ShellLayout')
+    // Only a page that asks hides the floating button: the post page, for its action panel (E07-04).
+    expect(read('layouts', 'default.vue')).toContain(':write-button="route.meta.writeButton !== false"')
+    expect(read('pages', 'post.vue')).toContain('writeButton: false')
   })
 
   it('uses only the breakpoint tokens in media queries', () => {

@@ -7,8 +7,15 @@ import type { ApiClient, components } from './client'
 
 export type Post = components['schemas']['PostView']
 
+/**
+ * A found post comes with its blog and its author (E07-04, ADR-0050): the personal blog of the account that wrote it,
+ * the blog itself for a post in a personal blog; `null` when the author's blog cannot be read, so the header goes
+ * without the author rather than the page failing.
+ */
 export type PostLookup =
-  { status: 'found'; post: Post; blog: Profile; path: string } | { status: 'not-found' } | { status: 'error' }
+  | { status: 'found'; post: Post; blog: Profile; author: Profile | null; path: string }
+  | { status: 'not-found' }
+  | { status: 'error' }
 
 // The id the address begins with, then the end or a hyphen and the slug.
 const segmentPattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:-[^/]*)?$/i
@@ -50,9 +57,28 @@ export async function lookUpPost(client: ApiClient, segment: string): Promise<Po
       params: { path: { id: post.blogId } },
     })
     if (!blog) return blogResponse.status === 404 ? { status: 'not-found' } : { status: 'error' }
-    return { status: 'found', post, blog, path: postPath(blog, post) }
+    return {
+      status: 'found',
+      post,
+      blog,
+      author: await authorOf(client, post, blog),
+      path: postPath(blog, post),
+    }
   } catch {
     return { status: 'error' }
+  }
+}
+
+// Only its owner posts in a personal blog, so its profile is the author's; in a topic the author is looked up.
+async function authorOf(client: ApiClient, post: Post, blog: Profile): Promise<Profile | null> {
+  if (blog.type === 'personal') return blog
+  try {
+    const { data } = await client.GET('/api/v1/profiles/by-account/{accountId}', {
+      params: { path: { accountId: post.authorAccountId } },
+    })
+    return data ?? null
+  } catch {
+    return null
   }
 }
 

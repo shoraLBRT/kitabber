@@ -95,9 +95,33 @@ describe('lookUpPost', () => {
       status: 'found',
       post,
       blog: anna,
+      author: anna,
       path: `/u/anna/${id}-privet-mir`,
     })
     expect(fetch.mock.calls[0]![0].url).toBe(`http://api.test/api/v1/posts/${id}`)
+    // In a personal blog the blog is the author's: no third request.
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  // E07-04 (ADR-0050): in a topic the author is the personal blog of the post's account.
+  it('looks the author of a post in a topic up by the account', async () => {
+    const inTopic = { ...post, blogId: books.id }
+    const { client } = clientAnswering({
+      [`/api/v1/posts/${id}`]: { status: 200, body: inTopic },
+      [`/api/v1/profiles/${books.id}`]: { status: 200, body: books },
+      [`/api/v1/profiles/by-account/${post.authorAccountId}`]: { status: 200, body: anna },
+    })
+    expect(await lookUpPost(client, id)).toMatchObject({ status: 'found', blog: books, author: anna })
+
+    const noAuthor = clientAnswering({
+      [`/api/v1/posts/${id}`]: { status: 200, body: inTopic },
+      [`/api/v1/profiles/${books.id}`]: { status: 200, body: books },
+    })
+    expect(await lookUpPost(noAuthor.client, id)).toMatchObject({
+      status: 'found',
+      blog: books,
+      author: null,
+    })
   })
 
   it('does not ask the API about a segment that is not a post', async () => {
@@ -118,10 +142,17 @@ describe('PostView', () => {
   const mountView = (state: PostLookup | { status: 'loading' }) =>
     mount(PostView, { props: { state }, global: { stubs } })
 
-  it('shows the blog, the title and the text of the post', () => {
-    const wrapper = mountView({ status: 'found', post, blog: anna, path: postPath(anna, post) })
+  it('shows the author, the date, the title and the text of the post', () => {
+    const wrapper = mountView({ status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) })
     expect(wrapper.get('h1').text()).toBe('Привет, мир')
-    expect(wrapper.get('[data-testid="post-blog"]').attributes('href')).toBe('/u/anna')
+    const author = wrapper.get('[data-testid="post-author"]')
+    expect(author.attributes('href')).toBe('/u/anna')
+    expect(author.text()).toContain('Анна')
+    // The blog is the author's own: it is not named twice.
+    expect(wrapper.find('[data-testid="post-blog"]').exists()).toBe(false)
+    const date = wrapper.get('time[data-testid="post-date"]')
+    expect(date.attributes('datetime')).toBe('2026-11-20T10:00:00Z')
+    expect(date.text()).toContain('20 ноября 2026')
     const body = wrapper.get('[data-testid="post-blocks"]')
     expect(body.get('p').html()).toContain('Первый <b>абзац</b>')
     expect(body.find('hr').exists()).toBe(true)
@@ -131,10 +162,60 @@ describe('PostView', () => {
 
   it('shows a post without a title without a heading, and a draft as a draft', () => {
     const draft = { ...post, title: null, slug: null, status: 'draft' }
-    const wrapper = mountView({ status: 'found', post: draft, blog: books, path: postPath(books, draft) })
+    const wrapper = mountView({
+      status: 'found',
+      post: draft,
+      blog: books,
+      author: anna,
+      path: postPath(books, draft),
+    })
     expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="post-author"]').attributes('href')).toBe('/u/anna')
     expect(wrapper.get('[data-testid="post-blog"]').attributes('href')).toBe('/books')
     expect(wrapper.get('[data-testid="post-draft"]').text()).toContain('черновик')
+    expect(wrapper.find('[data-testid="post-date"]').exists()).toBe(false)
+  })
+
+  it('goes without the author when their blog cannot be read', () => {
+    const wrapper = mountView({
+      status: 'found',
+      post,
+      blog: books,
+      author: null,
+      path: postPath(books, post),
+    })
+    expect(wrapper.find('[data-testid="post-author"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="post-blog"]').text()).toBe('Книги')
+  })
+
+  // E07-04: the action panel is a toolbar after the blocks; the like waits for E10-01, sharing copies the link.
+  it('has the action panel with the like, the comments and sharing', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const wrapper = mountView({ status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) })
+    const bar = wrapper.get('[role="toolbar"]')
+    expect(bar.attributes('aria-label')).toBe('Действия с постом')
+    expect(bar.get('[data-testid="post-like"]').attributes('disabled')).toBeDefined()
+    expect(bar.get('[data-testid="post-comments"]').attributes('href')).toBe('#comments')
+    expect(wrapper.find('#comments').exists()).toBe(true)
+    await bar.get('[data-testid="post-share"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/u/anna/${id}-privet-mir`)
+  })
+
+  it('moves between the buttons of the panel with the arrow keys', async () => {
+    const wrapper = mount(PostView, {
+      props: { state: { status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) } },
+      global: { stubs },
+      attachTo: document.body,
+    })
+    const comments = wrapper.get('[data-testid="post-comments"]').element as HTMLElement
+    const share = wrapper.get('[data-testid="post-share"]').element as HTMLElement
+    comments.focus()
+    await wrapper.get('[role="toolbar"]').trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(share)
+    await wrapper.get('[role="toolbar"]').trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(comments)
+    wrapper.unmount()
   })
 
   it('shows loading, not found and a failure with a retry', async () => {

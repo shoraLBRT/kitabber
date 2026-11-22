@@ -11,6 +11,8 @@ import { lookUpPost, type PostLookup } from '~/api/posts'
 definePageMeta({
   path: '/u/:blog/:post([0-9a-fA-F]{8}-[^/]*)',
   alias: ['/:blog/:post([0-9a-fA-F]{8}-[^/]*)'],
+  // The action panel takes the place of the phone's floating «Написать» (E07-04).
+  writeButton: false,
 })
 
 const route = useRoute()

@@ -1,18 +1,36 @@
 <script setup lang="ts">
-// The post page (FR-POST, docs/ui/post.md) as far as E07-02 needs it: the post found by the id of its address, with
-// its blog, its title (a short post has none) and its blocks drawn by PostBlocks (E07-03). The header with the author
-// and the action panel come with E07-04 (#52). States: loading, not found, a failure with «Повторить», and the post.
+// The post page (FR-POST, docs/ui/post.md): the post found by the id of its address, with its header (E07-04,
+// ADR-0050: the author's avatar and name leading to their blog, the topic when the post is in one, the date or
+// «черновик»), its title (a short post has none), its blocks drawn by PostBlocks (E07-03) and the floating action
+// panel PostActions. States: loading, not found, a failure with «Повторить», and the post.
 import { computed } from 'vue'
+import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
+import PostActions from './PostActions.vue'
 import PostBlocks from './PostBlocks.vue'
-import { blogTitle } from '../../api/profiles'
+import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 
 const props = defineProps<{ state: PostLookup | { status: 'loading' } }>()
 
 defineEmits<{ retry: [] }>()
 
+// A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
+const dateFormat = new Intl.DateTimeFormat('ru', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+})
+
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
+
+// The blog is named apart from the author only when it is not the author's own: a topic.
+const inBlog = computed(() =>
+  found.value && found.value.author?.id !== found.value.blog.id ? found.value.blog : null,
+)
 </script>
 
 <template>
@@ -36,14 +54,39 @@ const found = computed(() => (props.state.status === 'found' ? props.state : nul
   </section>
 
   <article v-else-if="found" class="post" data-testid="post">
-    <p class="post__muted">
-      <NuxtLink :to="subsitePath(found.blog)" class="post__blog" data-testid="post-blog">{{
-        blogTitle(found.blog)
-      }}</NuxtLink>
-      <span v-if="found.post.status === 'draft'" data-testid="post-draft"> · черновик</span>
-    </p>
+    <header class="post__header" data-testid="post-header">
+      <NuxtLink
+        v-if="found.author"
+        :to="blogPath(found.author)"
+        class="post__author"
+        data-testid="post-author"
+      >
+        <UiAvatar
+          :name="blogTitle(found.author)"
+          :src="found.author.avatarUrl ?? undefined"
+          :sources="found.author.avatarSources"
+          size="md"
+          decorative
+        />
+        <span class="post__author-name">{{ blogTitle(found.author) }}</span>
+      </NuxtLink>
+      <p class="post__muted post__meta">
+        <template v-if="inBlog">
+          <NuxtLink :to="subsitePath(inBlog)" class="post__blog" data-testid="post-blog">{{
+            blogTitle(inBlog)
+          }}</NuxtLink>
+          <span aria-hidden="true"> · </span>
+        </template>
+        <span v-if="found.post.status === 'draft'" data-testid="post-draft">черновик</span>
+        <time v-else-if="found.post.publishedAt" :datetime="found.post.publishedAt" data-testid="post-date">{{
+          dateFormat.format(new Date(found.post.publishedAt))
+        }}</time>
+      </p>
+    </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
     <PostBlocks :document="found.post.body" :images="found.post.images" />
+    <div id="comments" class="post__comments" />
+    <PostActions :path="found.path" />
   </article>
 </template>
 
@@ -73,6 +116,41 @@ const found = computed(() => (props.state.status === 'found' ? props.state : nul
   margin: 0;
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+}
+
+.post__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.post__author {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.post__author:hover .post__author-name {
+  text-decoration: underline;
+}
+
+.post__author-name {
+  overflow-wrap: anywhere;
+}
+
+.post__meta {
+  overflow-wrap: anywhere;
+}
+
+/* The comments under the post (E09-02) come here; «Комментарии» of the action panel leads to it. */
+.post__comments {
+  scroll-margin-top: calc(var(--space-16) + var(--space-4));
 }
 
 .post__blog {

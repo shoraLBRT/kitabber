@@ -53,7 +53,7 @@ test.describe('публикация', () => {
     const post = page.getByTestId('post')
     await expect(post).toContainText('Короткий пост из редактора.')
     await expect(post.getByRole('heading', { level: 1 })).toHaveCount(0)
-    await expect(post.getByTestId('post-blog')).toHaveAttribute('href', '/u/anna')
+    await expect(post.getByTestId('post-author')).toHaveAttribute('href', '/u/anna')
   })
 
   test('пост с заголовком в выбранной теме открывается на странице темы', async ({ page }) => {
