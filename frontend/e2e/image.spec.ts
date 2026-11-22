@@ -86,7 +86,8 @@ test('пустая и сломанная картинки оставляют з�
   const loaded = page.getByTestId('showcase-image')
   const empty = page.getByTestId('showcase-image-empty')
   const broken = page.getByTestId('showcase-image-error')
-  await broken.scrollIntoViewIfNeeded()
+  // The lazy picture fails once it comes into view and is swapped for the placeholder: scroll its stable figure.
+  await page.locator('figure', { has: broken }).scrollIntoViewIfNeeded()
 
   await expect(empty).toHaveAttribute('data-state', 'empty')
   await expect(empty).toHaveAccessibleName('Нет изображения')
