@@ -79,6 +79,23 @@ describe('Phone shell layout', () => {
     w.unmount()
   })
 
+  it('opens the quick post instead of following the link when the layout asks (E05-29)', async () => {
+    const w = mount(ShellWriteButton, { global, props: { quick: true } })
+    const link = w.get('a')
+    expect(link.attributes('href')).toBe(writePath)
+    expect(link.attributes('aria-haspopup')).toBe('dialog')
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+    link.element.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(w.emitted('write')).toHaveLength(1)
+    // A click that opens a new tab keeps the link.
+    const newTab = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true })
+    link.element.dispatchEvent(newTab)
+    expect(newTab.defaultPrevented).toBe(false)
+    expect(w.emitted('write')).toHaveLength(1)
+    w.unmount()
+  })
+
   it('keeps the bar, the button and the header clear of the safe areas and the notch', () => {
     expect(read('nuxt.config.ts')).toContain('viewport-fit=cover')
     const bar = rule(tabBar, '.tab-bar')
@@ -116,7 +133,9 @@ describe('Phone shell layout', () => {
 
   it('puts the bottom bar and the floating button into every page of the default layout', () => {
     const shell = read('components', 'shell', 'ShellLayout.vue')
-    expect(shell).toMatch(/<slot name="mobile">\s*<ShellWriteButton v-if="writeButton" \/>\s*<ShellTabBar/)
+    expect(shell).toMatch(
+      /<slot name="mobile">\s*<ShellWriteButton v-if="writeButton" :quick="quickPost" @write="emit\('write'\)" \/>\s*<ShellTabBar/,
+    )
     expect(read('layouts', 'default.vue')).toContain('<ShellLayout')
     // Only a page that asks hides the floating button: the post page, for its action panel (E07-04).
     expect(read('layouts', 'default.vue')).toContain(':write-button="route.meta.writeButton !== false"')

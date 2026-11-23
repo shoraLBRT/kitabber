@@ -4,7 +4,8 @@
 // title's length is checked here too, and the server checks everything again (an empty post, the title, the size of
 // the post and of a block). Its field errors are shown under the title or above the blocks with the focus on the
 // first one; any other refusal is a toast and the window stays open. Ctrl+Enter publishes. A published post is the
-// page's to open (`published` with the post's address).
+// page's to open (`published` with the post's address). `initial` starts the post from what the quick post above the
+// feed handed over with «Развернуть» (E05-29, ADR-0055).
 import { ChevronDown, Redo2, Undo2 } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import BlockEditor from './BlockEditor.vue'
@@ -18,6 +19,7 @@ import { postTitleMaxLength, titleLength } from '../../editor/publish'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
 import type { Topic } from '../../api/topics'
 import type { ImageUpload } from '../../editor/image'
+import type { QuickPostHandoff } from '../../editor/quick-post'
 import { useToast } from '../../composables/useToast'
 
 const props = defineProps<{
@@ -26,14 +28,16 @@ const props = defineProps<{
   createEngine?: CreateEngine
   /** Uploads a picture of the «Фото» block (E05-06, ADR-0049). */
   uploadImage?: (file: File) => Promise<ImageUpload>
+  /** What the quick post above the feed hands over with «Развернуть» (E05-29, ADR-0055): the start of the post. */
+  initial?: QuickPostHandoff | null
 }>()
 
 const emit = defineEmits<{ close: []; published: [path: string]; unauthorized: [] }>()
 
 const noTopic = 'none'
-const document = ref(emptyDocument())
+const document = ref(props.initial ? structuredClone(props.initial.document) : emptyDocument())
 const title = ref('')
-const topicId = ref<string | null>(null)
+const topicId = ref<string | null>(props.initial?.topicId ?? null)
 const publishing = ref(false)
 const errors = ref<Record<string, string>>({})
 const editor = ref<InstanceType<typeof BlockEditor>>()

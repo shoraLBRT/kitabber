@@ -1,16 +1,27 @@
 <script setup lang="ts">
 // Main feed (default "Популярное", docs/ui/feed.md). The feed itself comes with FR-FEED; until then the central
-// column shows the empty state of the shared FR-UI states.
+// column shows the empty state of the shared FR-UI states. Above it on a desktop is the quick post (E05-29,
+// ADR-0055); on a phone the floating «Написать» opens it.
+import QuickPost from '~/components/feed/QuickPost.vue'
 </script>
 
 <template>
-  <section class="feed-placeholder" aria-labelledby="feed-title">
-    <h1 id="feed-title" class="feed-placeholder__title">Популярное</h1>
-    <p class="feed-placeholder__text">Здесь появятся посты. Лента ещё не подключена.</p>
-  </section>
+  <div class="feed-page">
+    <QuickPost class="feed-page__quick-post" />
+    <section class="feed-placeholder" aria-labelledby="feed-title">
+      <h1 id="feed-title" class="feed-placeholder__title">Популярное</h1>
+      <p class="feed-placeholder__text">Здесь появятся посты. Лента ещё не подключена.</p>
+    </section>
+  </div>
 </template>
 
 <style scoped>
+.feed-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .feed-placeholder {
   padding: var(--space-5);
   border-radius: var(--radius-lg);
@@ -31,6 +42,10 @@
 @media (max-width: 639px) {
   .feed-placeholder {
     border-radius: 0;
+  }
+
+  .feed-page__quick-post {
+    display: none;
   }
 }
 </style>

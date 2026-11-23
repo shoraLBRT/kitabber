@@ -1,13 +1,34 @@
 <script setup lang="ts">
 // Floating "Написать" button of the phone shell (E02-06, docs/spec.md section 5, docs/ui/README.md): a round
 // --color-accent button above the bottom bar with a --space-4 gap, shown below breakpoint.sm (640 px). From 640 px
-// up "Написать" stays in the header. Keeps clear of the safe areas.
+// up "Написать" stays in the header. Keeps clear of the safe areas. With `quick` it opens the quick post instead
+// (E05-29, ADR-0055: `write`); the link to the full editor stays its address, for a page still without scripts.
 import { PenLine } from 'lucide-vue-next'
 import { writePath } from '../../utils/navigation'
+
+defineProps<{ quick?: boolean }>()
+const emit = defineEmits<{ write: [] }>()
+
+function onQuick(event: MouseEvent) {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return
+  event.preventDefault()
+  emit('write')
+}
 </script>
 
 <template>
-  <NuxtLink :to="writePath" class="write-button" aria-label="Написать" data-testid="write-button">
+  <a
+    v-if="quick"
+    :href="writePath"
+    class="write-button"
+    aria-label="Написать"
+    aria-haspopup="dialog"
+    data-testid="write-button"
+    @click="onQuick"
+  >
+    <PenLine class="write-button__icon" aria-hidden="true" />
+  </a>
+  <NuxtLink v-else :to="writePath" class="write-button" aria-label="Написать" data-testid="write-button">
     <PenLine class="write-button__icon" aria-hidden="true" />
   </NuxtLink>
 </template>

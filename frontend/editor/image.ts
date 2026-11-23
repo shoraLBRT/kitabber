@@ -69,7 +69,8 @@ export function captionLength(html: string): number {
   return decoded.length
 }
 
-const measureInBrowser = (url: string) =>
+/** The picture's size in pixels as the browser reads it, or null when it is not an image. */
+export const measureInBrowser = (url: string) =>
   new Promise<{ width: number; height: number } | null>((resolve) => {
     const image = new Image()
     image.onload = () =>

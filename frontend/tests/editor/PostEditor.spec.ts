@@ -5,6 +5,7 @@ import PostEditor from '../../components/editor/PostEditor.vue'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
 import type { CreateEngine, EngineOptions } from '../../editor/engine'
 import { postTitleMaxLength } from '../../editor/publish'
+import type { QuickPostHandoff } from '../../editor/quick-post'
 import { useToast } from '../../composables/useToast'
 
 // Publishing from the editor (E05-09, docs/ui/editor.md, ADR-0046): «Опубликовать» waits for text, the title is
@@ -54,10 +55,13 @@ const createEngine: CreateEngine = async (options) => {
 }
 
 // The window teleports to #teleports, as on the site; the stub of Teleport re-renders the window without end.
-async function mountEditor(publish: (input: PublishInput) => Promise<PublishOutcome>) {
+async function mountEditor(
+  publish: (input: PublishInput) => Promise<PublishOutcome>,
+  initial: QuickPostHandoff | null = null,
+) {
   document.body.innerHTML = '<div id="teleports"></div><div id="app"></div>'
   wrapper = mount(PostEditor, {
-    props: { topics, publish, createEngine },
+    props: { topics, publish, createEngine, initial },
     attachTo: '#app',
   })
   await flushPromises()
@@ -109,6 +113,21 @@ describe('PostEditor', () => {
     expect(engine.menus).toBe(1)
     expect(engine.formats).toEqual(['bold', 'italic'])
     vi.restoreAllMocks()
+  })
+
+  it('starts from what the quick post handed over: its blocks and its topic (E05-29)', async () => {
+    const blocks = [
+      { id: 'q1', type: 'paragraph' as const, data: { text: 'Из быстрой формы' } },
+      { id: 'q2', type: 'image' as const, data: { media: 'm1', width: 40, height: 30, caption: '' } },
+    ]
+    const publish = vi.fn(async (_: PublishInput) => published())
+    await mountEditor(publish, { document: { version: 1, blocks }, topicId: topics[1]!.id })
+
+    expect(engine.options.data.blocks).toEqual(blocks)
+    expect(page().get('[data-testid="editor-topic"]').text()).toContain('Книги')
+    expect(button().attributes('disabled')).toBeUndefined()
+    await clickPublish()
+    expect(publish.mock.calls[0]![0]).toMatchObject({ blogId: topics[1]!.id, body: { version: 1, blocks } })
   })
 
   it('cannot publish an empty post: the button waits for a block with text', async () => {
