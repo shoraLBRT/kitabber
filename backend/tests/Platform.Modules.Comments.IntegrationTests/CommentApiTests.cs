@@ -119,6 +119,76 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
     }
 
     [Fact]
+    public async Task ReadStopsSomeLevelsDownAndCountsTheHiddenReplies()
+    {
+        var post = await SavePostAsync(publish: true);
+        var first = await CreateAsync(post.Id, "1", parentId: null);
+        var reply = await CreateAsync(post.Id, "1.1", first);
+        var deeper = await CreateAsync(post.Id, "1.1.1", reply);
+        var otherReply = await CreateAsync(post.Id, "1.2", first);
+        var second = await CreateAsync(post.Id, "2", parentId: null);
+
+        using var whole = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, account: null);
+        using var top = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?levels=1", null, null);
+        using var branch = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{reply}/branch?levels=1", null, null);
+        using var rootBranch = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{first}/branch?levels=1", null, null);
+
+        var wholeTree = await whole.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal([first, reply, deeper, otherReply, second], IdsOf(wholeTree));
+        Assert.Equal([3, 1, 0, 0, 0], RepliesOf(wholeTree));
+        var topTree = await top.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal([first, second], IdsOf(topTree));
+        Assert.Equal([3, 0], RepliesOf(topTree));
+        Assert.Equal([reply, deeper], IdsOf(await branch.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        var rootTree = await rootBranch.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal([first, reply, otherReply], IdsOf(rootTree));
+        Assert.Equal([3, 1, 0], RepliesOf(rootTree));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(33)]
+    public async Task LevelsOutsideTheLimitAreValidationErrors(int levels)
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "1", parentId: null);
+
+        using var tree = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?levels={levels}", null, null);
+        using var branch = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{comment}/branch?levels={levels}", null, null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, tree.StatusCode);
+        Assert.Equal(["levels"], await ErrorFieldsOf(tree));
+        Assert.Equal(HttpStatusCode.BadRequest, branch.StatusCode);
+        Assert.Equal(["levels"], await ErrorFieldsOf(branch));
+    }
+
+    [Fact]
+    public async Task PostWithAThousandCommentsComesInOneRead()
+    {
+        var post = await SavePostAsync(publish: true);
+        var now = api.Time.GetUtcNow();
+        var comments = new List<Comment>(1000);
+        for (var n = 0; n < 1000; n++)
+        {
+            // 250 threads of four levels: a reply to the post and three replies, each under the one before.
+            var parent = n % 4 == 0 ? null : comments[^1];
+            comments.Add(Comment.CreateNative(_reader, post.Id, parent, $"комментарий {n}", now.AddMilliseconds(n)));
+        }
+
+        await api.SaveAsync<CommentsDbContext>([.. comments]);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?levels=3", null, null);
+
+        watch.Stop();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var tree = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal(750, IdsOf(tree).Length);
+        Assert.Equal(250, RepliesOf(tree).Count(replies => replies == 1));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"The tree took {watch.Elapsed}.");
+    }
+
+    [Fact]
     public async Task TreeAndBranchAreReadWithOneQueryEach()
     {
         var post = await SavePostAsync(publish: true);
@@ -340,6 +410,9 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
 
     private static Guid[] IdsOf(JsonElement tree) =>
         [.. tree.GetProperty("comments").EnumerateArray().Select(c => c.GetProperty("id").GetGuid())];
+
+    private static int[] RepliesOf(JsonElement tree) =>
+        [.. tree.GetProperty("comments").EnumerateArray().Select(c => c.GetProperty("replies").GetInt32())];
 
     private static async Task<string?> CodeOf(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString();

@@ -394,7 +394,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every comment under a published post, in the order of the tree */
+        /** The comments under a published post in the order of the tree, all or some levels down */
         get: operations["GetCommentTree"];
         put?: never;
         /** Replies to a published post or to one of its comments */
@@ -412,7 +412,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A comment and every reply under it, in the order of the tree */
+        /** A comment and the replies under it in the order of the tree, all or some levels down */
         get: operations["GetCommentBranch"];
         put?: never;
         post?: never;
@@ -509,6 +509,8 @@ export interface components {
             text: string;
             /** Format: date-time */
             createdAt: string;
+            /** Format: int32 */
+            replies: number;
         };
         ConfirmEmailRequest: {
             code: null | string;
@@ -1764,7 +1766,9 @@ export interface operations {
     };
     GetCommentTree: {
         parameters: {
-            query?: never;
+            query?: {
+                levels?: number;
+            };
             header?: never;
             path: {
                 postId: string;
@@ -1780,6 +1784,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentTreeView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Not Found */
@@ -1857,7 +1870,9 @@ export interface operations {
     };
     GetCommentBranch: {
         parameters: {
-            query?: never;
+            query?: {
+                levels?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -1873,6 +1888,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentTreeView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Not Found */
