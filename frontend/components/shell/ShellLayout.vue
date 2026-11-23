@@ -23,10 +23,12 @@ withDefaults(
     counts?: Partial<Record<string, number>>
     /** `false` hides the floating «Написать», as the post page does for its action panel (E07-04). */
     writeButton?: boolean
+    /** The floating «Написать» opens the quick post (`write`) instead of the full editor (E05-29, ADR-0055). */
+    quickPost?: boolean
   }>(),
-  { user: null, topics: () => [], counts: () => ({}), writeButton: true },
+  { user: null, topics: () => [], counts: () => ({}), writeButton: true, quickPost: false },
 )
-const emit = defineEmits<{ search: []; account: [id: string] }>()
+const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
 </script>
 
 <template>
@@ -45,7 +47,7 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
       </div>
     </div>
     <slot name="mobile">
-      <ShellWriteButton v-if="writeButton" />
+      <ShellWriteButton v-if="writeButton" :quick="quickPost" @write="emit('write')" />
       <ShellTabBar :current-path="currentPath" :counts="counts" />
     </slot>
   </div>

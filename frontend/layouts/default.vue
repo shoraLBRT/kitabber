@@ -3,6 +3,8 @@
 // Signed in (E18-02), the shell shows the account menu; the name and avatar come with the profile (#33).
 const route = useRoute()
 const user = useShellUser()
+// The floating «Написать» of a phone opens the quick post (E05-29, ADR-0055); its «Развернуть» leads on to /write.
+const { sheetOpen } = useQuickPost()
 
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
@@ -15,7 +17,9 @@ function onAccount(id: string) {
     :current-path="route.path"
     :user="user"
     :write-button="route.meta.writeButton !== false"
+    quick-post
     @account="onAccount"
+    @write="sheetOpen = true"
   >
     <slot />
   </ShellLayout>

@@ -4,6 +4,7 @@
   </NuxtLayout>
   <UiToaster />
   <AuthWindowHost />
+  <FeedQuickPostSheet />
 </template>
 
 <style>

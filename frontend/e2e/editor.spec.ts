@@ -150,10 +150,18 @@ test('restores formatted text from the saved document without loss', async ({ pa
 })
 
 test('opens from "Написать" and closes with "✕" back to where it was opened from', async ({ page }) => {
-  await page.goto('/')
+  if (isTouch()) {
+    // On a phone «Написать» opens the quick post (E05-29), and its «Развернуть» the editor; a guest is asked to sign in.
+    await page.goto('/menu')
+    await press(page.getByTestId('menu-screen').getByRole('link', { name: 'Войти' }))
+    await page.waitForURL((url) => url.pathname === '/')
+  } else await page.goto('/')
   await waitForHydration(page)
 
-  await press(isTouch() ? page.getByTestId('write-button') : page.locator('[data-nav="write"]'))
+  if (isTouch()) {
+    await press(page.getByTestId('write-button'))
+    await press(page.locator('[data-testid="quick-post-expand"]:visible'))
+  } else await press(page.locator('[data-nav="write"]'))
   await expect(editor(page)).toHaveAttribute('data-state', 'ready')
   await press(page.getByTestId('editor-close'))
 
