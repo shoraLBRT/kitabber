@@ -35,6 +35,19 @@ describe('ShellLayout', () => {
     expect(w.get('aside').attributes('aria-label')).toBe('Боковая колонка')
   })
 
+  // «Нет интернета» (E02-07, ADR-0057): the bar above the content, the shell itself stays as it is.
+  it('shows «Нет подключения» above the content only while offline', () => {
+    expect(mountShell().find('[data-testid="offline-banner"]').exists()).toBe(false)
+    wrapper!.unmount()
+
+    const main = mountShell({ offline: true }).get('main')
+    const banner = main.get('[data-testid="offline-banner"]')
+    expect(banner.attributes('role')).toBe('status')
+    expect(banner.text()).toContain('Нет подключения')
+    expect(main.element.firstElementChild).toBe(banner.element)
+    expect(main.text()).toContain('Экран')
+  })
+
   it('places the columns in the order menu, feed, right column', () => {
     const columns = mountShell()
       .findAll('[data-column]')

@@ -14,6 +14,8 @@ import UiImage from './ui/UiImage.vue'
 import UiMenu from './ui/UiMenu.vue'
 import UiModal from './ui/UiModal.vue'
 import UiSheet from './ui/UiSheet.vue'
+import UiSkeleton from './ui/UiSkeleton.vue'
+import UiState from './ui/UiState.vue'
 import UiTabs from './ui/UiTabs.vue'
 
 // One picture in three widths (server/routes/showcase), as the API gives the sources of an uploaded image (ADR-0040).
@@ -205,6 +207,35 @@ function save() {
         </figure>
       </div>
     </section>
+
+    <section class="showcase__section" data-testid="showcase-UiSkeleton">
+      <h2>Скелетон — UiSkeleton</h2>
+      <div class="showcase__skeleton">
+        <div class="showcase__row">
+          <UiSkeleton shape="avatar" size="sm" />
+          <UiSkeleton size="sm" width="40%" />
+        </div>
+        <UiSkeleton size="xl" width="70%" />
+        <UiSkeleton size="reading" />
+        <UiSkeleton size="reading" width="80%" />
+        <UiSkeleton shape="block" :ratio="16 / 9" />
+      </div>
+    </section>
+
+    <section class="showcase__section" data-testid="showcase-UiState">
+      <h2>Состояния — UiState</h2>
+      <div class="showcase__states">
+        <UiState>Здесь пока нет постов.</UiState>
+        <UiState tone="error">
+          Не удалось загрузить ленту. Проверьте соединение и попробуйте ещё раз.
+          <template #actions><UiButton variant="secondary">Повторить</UiButton></template>
+        </UiState>
+        <UiState tone="not-found" title="Страница не найдена">
+          Возможно, адрес набран с ошибкой или страница удалена.
+          <template #actions><a href="/">На главную</a></template>
+        </UiState>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -226,6 +257,20 @@ function save() {
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+.showcase__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: calc(var(--size-feed) / 2);
+  max-width: 100%;
+}
+
+.showcase__states {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .showcase__images {

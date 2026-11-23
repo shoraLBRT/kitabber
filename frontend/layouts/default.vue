@@ -5,6 +5,8 @@ const route = useRoute()
 const user = useShellUser()
 // The floating «Написать» of a phone opens the quick post (E05-29, ADR-0055); its «Развернуть» leads on to /write.
 const { sheetOpen } = useQuickPost()
+// «Нет подключения» above the content while the browser is offline (E02-07, ADR-0057).
+const online = useOnline()
 
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
@@ -18,6 +20,7 @@ function onAccount(id: string) {
     :user="user"
     :write-button="route.meta.writeButton !== false"
     quick-post
+    :offline="!online"
     @account="onAccount"
     @write="sheetOpen = true"
   >

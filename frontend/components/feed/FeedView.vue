@@ -7,6 +7,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import FeedCard from './FeedCard.vue'
+import FeedCardSkeleton from './FeedCardSkeleton.vue'
+import UiState from '../ui/UiState.vue'
 import type { FeedState } from '../../api/feeds'
 
 const props = defineProps<{ title: string; state: FeedState; loadingMore?: boolean; moreFailed?: boolean }>()
@@ -51,19 +53,17 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
 
     <div v-if="state.status === 'loading'" class="feed__list" aria-busy="true" data-testid="feed-loading">
       <span class="visually-hidden" role="status">Загрузка ленты</span>
-      <div v-for="n in 3" :key="n" class="feed__item feed__skeleton" />
+      <div v-for="n in 3" :key="n" class="feed__item"><FeedCardSkeleton /></div>
     </div>
 
-    <div v-else-if="state.status === 'error'" class="feed__message" data-testid="feed-error">
-      <p class="feed__muted" role="alert">
-        Не удалось загрузить ленту. Проверьте соединение и попробуйте ещё раз.
-      </p>
-      <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
-    </div>
+    <UiState v-else-if="state.status === 'error'" tone="error" data-testid="feed-error">
+      Не удалось загрузить ленту. Проверьте соединение и попробуйте ещё раз.
+      <template #actions>
+        <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
+      </template>
+    </UiState>
 
-    <p v-else-if="items.length === 0" class="feed__message feed__muted" data-testid="feed-empty">
-      Здесь пока нет постов.
-    </p>
+    <UiState v-else-if="items.length === 0" data-testid="feed-empty">Здесь пока нет постов.</UiState>
 
     <template v-else>
       <ol class="feed__list" data-testid="feed-list">
@@ -83,9 +83,15 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
             {{ loadingMore ? 'Загрузка…' : 'Повторить' }}
           </UiButton>
         </template>
-        <p v-else-if="loadingMore" class="feed__muted" role="status" data-testid="feed-loading-more">
-          Загрузка следующих постов…
-        </p>
+        <div
+          v-else-if="loadingMore"
+          class="feed__item feed__next"
+          role="status"
+          data-testid="feed-loading-more"
+        >
+          <span class="visually-hidden">Загрузка следующих постов…</span>
+          <FeedCardSkeleton />
+        </div>
         <div
           v-else-if="!unobservable"
           ref="sentinel"
@@ -125,28 +131,20 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
   list-style: none;
 }
 
-.feed__item,
-.feed__message {
+.feed__item {
   padding: var(--space-5);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
-.feed__message {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: 0;
+/* The skeleton of the next page: a card of the list's width under it. */
+.feed__next {
+  align-self: stretch;
 }
 
 .feed__muted {
   margin: 0;
   color: var(--color-muted);
-}
-
-.feed__skeleton {
-  height: calc(var(--space-5) * 5);
 }
 
 .feed__more {
@@ -163,8 +161,7 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
 }
 
 @media (max-width: 639px) {
-  .feed__item,
-  .feed__message {
+  .feed__item {
     border-radius: 0;
   }
 
