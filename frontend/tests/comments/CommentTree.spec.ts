@@ -23,13 +23,20 @@ function mountTree(
   extra: { branches?: Record<string, BranchStatus>; authors?: Map<string, Profile | null> } = {},
 ) {
   return mount(CommentTree, {
-    props: { state, authors: extra.authors ?? new Map(), branches: extra.branches ?? {} },
+    props: {
+      postId: 'p1',
+      signedIn: false,
+      state,
+      authors: extra.authors ?? new Map(),
+      branches: extra.branches ?? {},
+    },
     global: { stubs },
   })
 }
 
 const tree: CommentsState = {
   status: 'found',
+  maxDepth: 8,
   comments: [
     comment('1', null, 1, 3),
     comment('1.1', '1', 2, 2),
@@ -54,7 +61,7 @@ describe('CommentTree', () => {
   })
 
   it('says there are no comments yet', () => {
-    const view = mountTree({ status: 'found', comments: [] })
+    const view = mountTree({ status: 'found', comments: [], maxDepth: 8 })
     expect(view.get('[data-testid="comments-empty"]').text()).toBe('Комментариев пока нет — будьте первым')
     expect(view.find('[data-testid="comments-count"]').exists()).toBe(false)
   })
@@ -78,7 +85,7 @@ describe('CommentTree', () => {
       authorAccountId: null,
       guest: { name: 'Гость', url: null },
     }
-    const view = mountTree({ status: 'found', comments: [guest, comment('n', null, 1)] })
+    const view = mountTree({ status: 'found', comments: [guest, comment('n', null, 1)], maxDepth: 8 })
     expect(view.findAll('[data-testid="comment-author"]').map((author) => author.text())).toEqual([
       'Гость',
       'Автор',

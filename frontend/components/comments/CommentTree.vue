@@ -1,26 +1,51 @@
 <script setup lang="ts">
 // The comments under a post (E09-02, FR-COMMENT, docs/ui/comments.md): the heading with their number and the tree of
 // nested lists, a level per `aria-level`. States: a skeleton of three comments while the tree loads, a failure with
-// «Повторить» (the post above stays), no comments yet, and the tree. The form to write one comes with E09-03.
+// «Повторить» (the post above stays), no comments yet, and the tree. The form to write a comment (E09-03) stands
+// above the tree once it is read, open when there is none yet.
 import { computed, provide, toRef } from 'vue'
 import UiButton from '../ui/UiButton.vue'
+import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
 import { commentCount, nestComments, type CommentsState } from '../../api/comments'
 import type { Profile } from '../../api/profiles'
-import { commentTreeKey, type BranchStatus } from './context'
+import { commentTreeKey, type BranchStatus, type CommentFailure, type FormTarget } from './context'
 
-const props = defineProps<{
-  state: CommentsState
-  authors: ReadonlyMap<string, Profile | null>
-  branches: Readonly<Record<string, BranchStatus>>
+const props = withDefaults(
+  defineProps<{
+    postId: string
+    signedIn: boolean
+    state: CommentsState
+    authors: ReadonlyMap<string, Profile | null>
+    branches: Readonly<Record<string, BranchStatus>>
+    pending?: Readonly<Record<string, true>>
+    failures?: Readonly<Record<FormTarget, CommentFailure>>
+    resume?: FormTarget | null
+  }>(),
+  { pending: () => ({}), failures: () => ({}), resume: null },
+)
+
+const emit = defineEmits<{
+  retry: []
+  more: [commentId: string]
+  send: [text: string, parentId: string | null]
+  dismiss: [target: FormTarget]
+  'sign-in': [target: FormTarget]
 }>()
 
-const emit = defineEmits<{ retry: []; more: [commentId: string] }>()
-
 provide(commentTreeKey, {
+  postId: toRef(props, 'postId'),
+  signedIn: toRef(props, 'signedIn'),
+  maxDepth: computed(() => (props.state.status === 'found' ? props.state.maxDepth : 0)),
   authors: toRef(props, 'authors'),
   branches: toRef(props, 'branches'),
+  pending: toRef(props, 'pending'),
+  failures: toRef(props, 'failures'),
+  resume: toRef(props, 'resume'),
   more: (commentId) => emit('more', commentId),
+  send: (text, parentId) => emit('send', text, parentId),
+  dismiss: (target) => emit('dismiss', target),
+  signIn: (target) => emit('sign-in', target),
 })
 
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))
@@ -61,13 +86,15 @@ const count = computed(() => commentCount(comments.value))
       <UiButton variant="secondary" size="sm" @click="emit('retry')">Повторить</UiButton>
     </div>
 
-    <p v-else-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
-      Комментариев пока нет — будьте первым
-    </p>
-
-    <ul v-else class="comments__tree" data-testid="comment-tree">
-      <CommentItem v-for="root in roots" :key="root.comment.id" :node="root" />
-    </ul>
+    <template v-else>
+      <CommentForm :inviting="roots.length === 0" />
+      <p v-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
+        Комментариев пока нет — будьте первым
+      </p>
+      <ul v-else class="comments__tree" data-testid="comment-tree">
+        <CommentItem v-for="root in roots" :key="root.comment.id" :node="root" />
+      </ul>
+    </template>
   </section>
 </template>
 

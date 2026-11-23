@@ -2,10 +2,12 @@
 // One comment of the tree (E09-02, docs/ui/comments.md) and, nested under it, the replies that were read. The branch
 // line beside the replies is the button that folds them; a folded branch leaves «Развернуть · N ответов». Replies a
 // read left out come on «Показать ещё N ответов», with a skeleton line while they load and «Повторить» on a failure.
-import { computed, inject, ref } from 'vue'
+// «Ответить» opens the reply form under the comment (E09-03); a reply being sent is dimmed until the server keeps it.
+import { computed, inject, ref, watch } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
+import CommentForm from './CommentForm.vue'
 import { blogPath, blogTitle } from '../../api/profiles'
-import { repliesText, type CommentNode } from '../../api/comments'
+import { canReply, repliesText, type CommentNode } from '../../api/comments'
 import { commentTreeKey } from './context'
 
 const props = defineProps<{ node: CommentNode }>()
@@ -14,12 +16,39 @@ const tree = inject(commentTreeKey)!
 const expanded = ref(true)
 
 const comment = computed(() => props.node.comment)
+const sending = computed(() => tree.pending.value[comment.value.id] === true)
+const replying = ref(tree.resume.value === props.node.comment.id)
+const replyable = computed(() => !sending.value && canReply(comment.value, tree.maxDepth.value))
 const profile = computed(() =>
   comment.value.authorAccountId ? tree.authors.value.get(comment.value.authorAccountId) : undefined,
 )
-// A guest comment names its outside author (FR-TG-6); a native one its blog, once the profile is read.
+// A guest comment names its outside author (FR-TG-6); a native one its blog, once the profile is read; the own comment
+// being sent is «Вы» (the page does not know its own account, FR-ID).
 const name = computed(() =>
-  comment.value.guest ? comment.value.guest.name : profile.value ? blogTitle(profile.value) : 'Автор',
+  comment.value.guest
+    ? comment.value.guest.name
+    : profile.value
+      ? blogTitle(profile.value)
+      : sending.value
+        ? 'Вы'
+        : 'Автор',
+)
+
+function startReply() {
+  if (tree.signedIn.value) replying.value = true
+  else tree.signIn(comment.value.id)
+}
+
+// A reply sent goes into this branch, shown; a reply that failed opens the form again with its text.
+function closeReply() {
+  replying.value = false
+  expanded.value = true
+}
+watch(
+  () => tree.failures.value[comment.value.id],
+  (failure) => {
+    if (failure) replying.value = true
+  },
 )
 const branch = computed(() => tree.branches.value[comment.value.id])
 const titleId = computed(() => `comment-${comment.value.id}`)
@@ -35,8 +64,10 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
 <template>
   <li
     class="comment"
+    :class="{ 'comment--sending': sending }"
     :aria-level="comment.depth"
     :aria-labelledby="titleId"
+    :aria-busy="sending ? 'true' : undefined"
     data-testid="comment"
     :data-comment-id="comment.id"
   >
@@ -67,11 +98,18 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         >{{ name }}</a
       >
       <span v-else :id="titleId" class="comment__author" data-testid="comment-author">{{ name }}</span>
-      <time class="comment__time" :datetime="comment.createdAt">{{
+      <span v-if="sending" class="comment__time" data-testid="comment-sending">Отправляется…</span>
+      <time v-else class="comment__time" :datetime="comment.createdAt">{{
         timeFormat.format(new Date(comment.createdAt))
       }}</time>
     </div>
     <p class="comment__text" data-testid="comment-text">{{ comment.text }}</p>
+    <div v-if="replyable && !replying" class="comment__actions">
+      <button type="button" class="comment__link" data-testid="comment-reply" @click="startReply">
+        Ответить
+      </button>
+    </div>
+    <CommentForm v-if="replying" :parent-id="comment.id" @close="closeReply" />
 
     <div v-if="node.replies.length > 0 && expanded" class="comment__branch">
       <button
@@ -149,6 +187,15 @@ a.comment__author:hover {
   flex: none;
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+}
+
+.comment--sending .comment__text {
+  color: var(--color-muted);
+}
+
+.comment__actions {
+  display: flex;
+  gap: var(--space-3);
 }
 
 .comment__text {
