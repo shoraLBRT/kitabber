@@ -34,6 +34,9 @@ async function openMenu(page: Page) {
 
 const confirmDialog = (page: Page) => page.getByRole('dialog', { name: 'Удалить пост?' })
 
+// A stuck tap fails on its own, with its call log, instead of running into the test's timeout.
+test.use({ actionTimeout: 10_000 })
+
 test.describe('меню поста', () => {
   test('гость видит меню читателя и копирует ссылку', async ({ page, context, baseURL }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])

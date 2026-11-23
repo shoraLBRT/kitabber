@@ -5,7 +5,7 @@
 // bottom sheet on a phone (narrower than 640 px). Deleting asks first in a dialog; `remove` deletes, and the dialog
 // stays open with a toast when it fails. The flagged items are only passed on (`action`) to the tasks that build them.
 import { Ellipsis } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
 import UiModal from '../ui/UiModal.vue'
@@ -41,12 +41,15 @@ const sheetOpen = ref(false)
 const confirmOpen = ref(false)
 const deleting = ref(false)
 
-function choose(id: string) {
-  sheetOpen.value = false
+// The link is copied at once, while the tap still counts as the person's gesture; the confirmation opens only once the
+// sheet is gone, so one dialog closes (and gives focus back) before the next one takes it.
+async function choose(id: string) {
   const action = id as PostMenuAction
   if (action === 'copy-link') void copyPostLink(props.path, toast)
-  else if (action === 'delete') confirmOpen.value = true
-  else emit('action', action)
+  sheetOpen.value = false
+  await nextTick()
+  if (action === 'delete') confirmOpen.value = true
+  else if (action !== 'copy-link') emit('action', action)
 }
 
 async function confirmDelete() {
