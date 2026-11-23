@@ -105,8 +105,8 @@ test.describe('страница блога', () => {
 })
 
 test.describe('страница блога: ошибки', () => {
-  // The 404 answers are page loads the browser logs as failed.
-  test.use({ missingResources: ['/u/nobody', '/u/id123'] })
+  // The 404 and 500 answers are page loads the browser logs as failed.
+  test.use({ missingResources: ['/u/nobody', '/u/id123', '/u/broken'] })
 
   test('неизвестный блог — 404, сбой API — ошибка с «Повторить»', async ({ page }) => {
     for (const path of ['/u/nobody', '/u/id123']) {
@@ -117,7 +117,8 @@ test.describe('страница блога: ошибки', () => {
       ).toBeVisible()
     }
 
-    await page.goto('/u/broken')
+    // A failure of the API answers 500 (E02-07, ADR-0057).
+    expect((await page.goto('/u/broken'))?.status()).toBe(500)
     await waitForHydration(page)
     const failure = page.getByTestId('blog-error')
     await expect(failure.getByRole('heading', { name: 'Не удалось загрузить блог' })).toBeVisible()

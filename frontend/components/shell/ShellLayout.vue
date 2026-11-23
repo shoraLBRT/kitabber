@@ -11,6 +11,7 @@ import type { NavItem } from '../../utils/navigation'
 import ShellAside from './ShellAside.vue'
 import ShellHeader, { type ShellUser } from './ShellHeader.vue'
 import ShellNav from './ShellNav.vue'
+import ShellOfflineBanner from './ShellOfflineBanner.vue'
 import ShellTabBar from './ShellTabBar.vue'
 import ShellWriteButton from './ShellWriteButton.vue'
 
@@ -25,8 +26,10 @@ withDefaults(
     writeButton?: boolean
     /** The floating «Написать» opens the quick post (`write`) instead of the full editor (E05-29, ADR-0055). */
     quickPost?: boolean
+    /** The browser is offline: «Нет подключения» above the content (E02-07, ADR-0057). */
+    offline?: boolean
   }>(),
-  { user: null, topics: () => [], counts: () => ({}), writeButton: true, quickPost: false },
+  { user: null, topics: () => [], counts: () => ({}), writeButton: true, quickPost: false, offline: false },
 )
 const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
 </script>
@@ -40,6 +43,7 @@ const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
         <ShellNav :current-path="currentPath" :topics="topics" />
       </div>
       <main id="content" class="shell__content" tabindex="-1" data-column="feed">
+        <ShellOfflineBanner v-if="offline" />
         <slot />
       </main>
       <div class="shell__aside" data-column="aside">

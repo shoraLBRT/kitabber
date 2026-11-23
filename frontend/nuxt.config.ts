@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     strict: true,
   },
   // Design tokens as CSS custom properties, generated from brand/ (ADR-0012).
-  css: [fileURLToPath(new URL('../brand/tokens.css', import.meta.url))],
+  css: [fileURLToPath(new URL('../brand/tokens.css', import.meta.url)), '~/assets/base.css'],
   app: {
     head: {
       htmlAttrs: { lang: 'ru' },

@@ -27,7 +27,9 @@ const owner = computed(() => state.value.status === 'found' && state.value.owner
 
 if (import.meta.server) {
   const found = data.value
-  if (found?.status === 'not-found') setResponseStatus(useRequestEvent()!, 404)
+  // 404 for a missing blog, 500 when the API failed (E02-07, ADR-0057).
+  const code = responseStatus(found)
+  if (code) setResponseStatus(useRequestEvent()!, code)
   // One address per blog: an id, `@nick` or another case of the nickname leads to the blog's own address.
   if (found?.status === 'found') {
     const canonical = blogPath(found.profile)

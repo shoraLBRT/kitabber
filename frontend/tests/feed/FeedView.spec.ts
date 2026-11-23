@@ -109,7 +109,10 @@ describe('FeedView', () => {
     // While the page loads the mark is gone; after it a new mark is watched, so a short list asks once more.
     await wrapper.setProps({ loadingMore: true })
     expect(wrapper.find('[data-testid="feed-sentinel"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="feed-loading-more"]').attributes('role')).toBe('status')
+    const loadingMore = wrapper.get('[data-testid="feed-loading-more"]')
+    expect(loadingMore.attributes('role')).toBe('status')
+    // One card's skeleton under the list (docs/ui/feed.md, E02-07).
+    expect(loadingMore.findAll('[data-testid="feed-card-skeleton"]')).toHaveLength(1)
     expect(observer.observed).toEqual([])
     await wrapper.setProps({
       loadingMore: false,
@@ -160,6 +163,14 @@ describe('FeedView', () => {
     const wrapper = mountView({ status: 'loading' })
     expect(wrapper.get('[data-testid="feed-loading"]').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('[role="status"]').text()).toBe('Загрузка ленты')
+    // Three card skeletons: the avatar and the author, the title, two lines of text (docs/ui/feed.md, E02-07).
+    const skeletons = wrapper.findAll('[data-testid="feed-card-skeleton"]')
+    expect(skeletons).toHaveLength(3)
+    expect(skeletons[0]!.find('.ui-skeleton--avatar-sm').exists()).toBe(true)
+    expect(skeletons[0]!.find('[data-testid="feed-card-skeleton-title"]').classes()).toContain(
+      'ui-skeleton--text-xl',
+    )
+    expect(skeletons[0]!.findAll('.ui-skeleton--text-reading')).toHaveLength(2)
   })
 
   it('shows the empty state', () => {

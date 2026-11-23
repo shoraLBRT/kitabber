@@ -42,7 +42,9 @@ const canonical = (found: PostLookup | null | undefined) =>
     : undefined
 
 if (import.meta.server) {
-  if (data.value?.status === 'not-found') setResponseStatus(useRequestEvent()!, 404)
+  // 404 for a missing post, 500 when the API failed (E02-07, ADR-0057).
+  const code = responseStatus(data.value)
+  if (code) setResponseStatus(useRequestEvent()!, code)
   await canonical(data.value)
 }
 
