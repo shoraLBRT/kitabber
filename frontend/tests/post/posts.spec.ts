@@ -162,10 +162,10 @@ describe('lookUpPost', () => {
 describe('deletePost', () => {
   it('deletes the post by its id and gives the status of the answer', async () => {
     for (const status of [204, 403, 404]) {
-      const fetch = vi.fn(async () => new Response(status === 204 ? null : '{}', { status }))
+      const fetch = vi.fn(async (_request: Request) => new Response(status === 204 ? null : '{}', { status }))
       const client = createApiClient({ baseUrl: 'http://api.test', fetch })
       expect(await deletePost(client, id)).toBe(status)
-      const request = fetch.mock.calls[0]![0] as unknown as Request
+      const request = fetch.mock.calls[0]![0]
       expect(request.method).toBe('DELETE')
       expect(request.url).toBe(`http://api.test/api/v1/posts/${id}`)
     }
