@@ -374,6 +374,81 @@ function post(response, url) {
     : send(response, 404, { status: 404, code: 'posts.post_not_found' })
 }
 
+// Comments (E09-02, ADR-0048, ADR-0054): GET /api/v1/posts/{postId}/comments and /api/v1/comments/{id}/branch with
+// `?levels=`, in the order of the tree, each comment with the number of replies under it at any depth. The titled post
+// has two threads, one seven levels deep, and a guest comment; the short one none; the post in the topic a thousand
+// (250 threads of four levels, for the test of a big tree).
+const commentPost = (id, postId, parent, n, text, author) => ({
+  id,
+  postId,
+  parentId: parent?.id ?? null,
+  depth: (parent?.depth ?? 0) + 1,
+  kind: author ? 'native' : 'guest',
+  authorAccountId: author ?? null,
+  guest: author ? null : { name: 'Гость из канала', url: 'https://t.me/example/1' },
+  text,
+  createdAt: new Date(Date.UTC(2026, 10, 20, 12, 0, n)).toISOString(),
+})
+const commentId = (n) => `0195f3a0-0000-7000-8000-${n.toString(16).padStart(12, '0')}`
+const comments = (() => {
+  const list = []
+  const add = (postId, parent, text, author) => {
+    const comment = commentPost(commentId(0xd00000 + list.length), postId, parent, list.length, text, author)
+    list.push(comment)
+    return comment
+  }
+  const titledPost = posts[0].id
+  const anna = blogs[0].owner
+  const boris = blogs[1].owner
+  let deep = add(titledPost, null, 'Первый уровень', anna)
+  const levelNames = ['Второй', 'Третий', 'Четвёртый', 'Пятый', 'Шестой', 'Седьмой']
+  for (const [n, name] of levelNames.entries()) {
+    deep = add(titledPost, deep, `${name} уровень`, n % 2 ? anna : boris)
+  }
+  const second = add(titledPost, null, 'Вторая ветка', boris)
+  add(titledPost, second, 'Ответ во второй ветке', anna)
+  add(titledPost, second, 'Ещё ответ во второй ветке', anna)
+  add(titledPost, null, 'Комментарий из обсуждения канала', undefined)
+  const bigPost = posts[2].id
+  for (let n = 0; n < 250; n++) {
+    let parent = null
+    for (let level = 0; level < 4; level++) {
+      parent = add(bigPost, parent, `Комментарий ${n + 1}.${level + 1}`, level % 2 ? anna : boris)
+    }
+  }
+  return list
+})()
+
+// What a read shows, as CommentTree.Shown does: `levels` levels below the start, with every reply counted.
+function shownComments(ordered, start, levels) {
+  return ordered
+    .map((comment, at) => {
+      let replies = 0
+      while (ordered[at + 1 + replies]?.depth > comment.depth) replies++
+      return { ...comment, replies }
+    })
+    .filter((comment) => !levels || comment.depth <= start + levels)
+}
+
+function commentTree(response, url) {
+  const levels = Number(url.searchParams.get('levels')) || null
+  const [, postId] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
+  if (postId) {
+    if (!posts.some((item) => item.id === postId) && !written.has(postId))
+      return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+    const ordered = comments.filter((comment) => comment.postId === postId)
+    return send(response, 200, { postId, maxDepth: 8, comments: shownComments(ordered, 0, levels) })
+  }
+  const [, id] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)\/branch$/) ?? []
+  const at = comments.findIndex((comment) => comment.id === id)
+  if (at < 0) return send(response, 404, { status: 404, code: 'comments.comment_not_found' })
+  const root = comments[at]
+  let end = at + 1
+  while (comments[end]?.depth > root.depth) end++
+  const branch = shownComments(comments.slice(at, end), root.depth, levels)
+  return send(response, 200, { postId: root.postId, maxDepth: 8, comments: branch })
+}
+
 // Publishing (E05-09, ADR-0046): GET /api/v1/topics, POST /api/v1/posts (a draft), PUT /api/v1/posts/{id} and
 // POST /api/v1/posts/{id}/publish with the checks of PostChecks: a post with no text is refused, as is a title longer
 // than 120 characters. A post whose text is «сбой» fails as an unavailable API would. Written posts stay out of the
@@ -663,6 +738,11 @@ createServer(async (request, response) => {
     return editProfile(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
+  if (
+    /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/branch)$/.test(url.pathname) &&
+    request.method === 'GET'
+  )
+    return commentTree(response, url)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
     return writePost(request, response, url)

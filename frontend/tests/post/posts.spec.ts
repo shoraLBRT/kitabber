@@ -138,7 +138,14 @@ describe('lookUpPost', () => {
 })
 
 describe('PostView', () => {
-  const stubs = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
+  // The comments read the API themselves; tests/comments covers them.
+  const stubs = {
+    NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+    PostComments: {
+      props: ['postId'],
+      template: '<div data-testid="post-comments-stub" :data-post="postId" />',
+    },
+  }
   const mountView = (state: PostLookup | { status: 'loading' }) =>
     mount(PostView, { props: { state }, global: { stubs } })
 
