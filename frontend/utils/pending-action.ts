@@ -58,3 +58,17 @@ export function takePendingAction(
     pending.path === path && typeof pending.at === 'number' && now - pending.at <= pendingActionLifetimeMs
   )
 }
+
+/**
+ * The remembered action that begins with `prefix`, left in place for `takePendingAction`: a page with many buttons of
+ * the same kind (a reply under each comment) learns which one to repeat.
+ */
+export function pendingActionWith(storage: Storage | undefined, prefix: string): string | undefined {
+  try {
+    const raw = storage?.getItem(pendingActionKey)
+    const action = raw ? (JSON.parse(raw) as Partial<PendingAction>).action : undefined
+    return typeof action === 'string' && action.startsWith(prefix) ? action : undefined
+  } catch {
+    return undefined
+  }
+}

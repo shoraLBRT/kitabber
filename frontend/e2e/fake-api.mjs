@@ -449,6 +449,38 @@ function commentTree(response, url) {
   return send(response, 200, { postId: root.postId, maxDepth: 8, comments: branch })
 }
 
+// Writing a comment (E09-03): POST /api/v1/posts/{postId}/comments with the checks of the server (a signed-in account,
+// a text, a parent under the post that takes replies). The comment is answered, not kept: tests run in parallel against
+// one fake, and the trees the other tests read stay as they are. A text «сбой» fails as the server would.
+async function writeComment(request, response, postId) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  if (!posts.some((item) => item.id === postId))
+    return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  const text = typeof input.text === 'string' ? input.text.trim() : ''
+  if (text === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  const parent = input.parentId ? comments.find((comment) => comment.id === input.parentId) : null
+  const errors = {}
+  if (!text) errors.text = ['Напишите текст комментария.']
+  if (input.parentId && (!parent || parent.postId !== postId))
+    errors.parentId = ['Под этим постом нет такого комментария.']
+  else if (parent?.kind === 'guest') errors.parentId = ['На гостевой комментарий ответить нельзя.']
+  if (Object.keys(errors).length > 0) return send(response, 400, { status: 400, code: 'validation', errors })
+  return send(response, 201, {
+    id: randomUUID(),
+    postId,
+    parentId: parent?.id ?? null,
+    depth: (parent?.depth ?? 0) + 1,
+    kind: 'native',
+    authorAccountId: account,
+    guest: null,
+    text,
+    createdAt: new Date().toISOString(),
+    replies: 0,
+  })
+}
+
 // Publishing (E05-09, ADR-0046): GET /api/v1/topics, POST /api/v1/posts (a draft), PUT /api/v1/posts/{id} and
 // POST /api/v1/posts/{id}/publish with the checks of PostChecks: a post with no text is refused, as is a title longer
 // than 120 characters. A post whose text is «сбой» fails as an unavailable API would. Written posts stay out of the
@@ -758,6 +790,8 @@ createServer(async (request, response) => {
     request.method === 'GET'
   )
     return commentTree(response, url)
+  const [, commentedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
+  if (commentedPost && request.method === 'POST') return writeComment(request, response, commentedPost)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
     return writePost(request, response, url)

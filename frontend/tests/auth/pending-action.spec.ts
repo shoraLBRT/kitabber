@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   pendingActionKey,
   pendingActionLifetimeMs,
+  pendingActionWith,
   rememberPendingAction,
   takePendingAction,
 } from '../../utils/pending-action'
@@ -46,5 +47,15 @@ describe('pending action', () => {
     expect(takePendingAction(sessionStorage, 'like:post:42', '/ui', start)).toBe(false)
     expect(() => rememberPendingAction(undefined, 'like:post:42', '/ui', start)).not.toThrow()
     expect(takePendingAction(undefined, 'like:post:42', '/ui', start)).toBe(false)
+  })
+
+  it('names the remembered action of a kind and leaves it for the take', () => {
+    rememberPendingAction(sessionStorage, 'comment:p1:c7', '/post', start)
+    expect(pendingActionWith(sessionStorage, 'comment:p2:')).toBeUndefined()
+    expect(pendingActionWith(sessionStorage, 'comment:p1:')).toBe('comment:p1:c7')
+    expect(takePendingAction(sessionStorage, 'comment:p1:c7', '/post', start)).toBe(true)
+    expect(pendingActionWith(sessionStorage, 'comment:p1:')).toBeUndefined()
+    sessionStorage.setItem(pendingActionKey, '{broken')
+    expect(pendingActionWith(sessionStorage, 'comment:p1:')).toBeUndefined()
   })
 })

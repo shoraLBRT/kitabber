@@ -10,9 +10,12 @@ export type CommentTree = components['schemas']['CommentTreeView']
 
 export type CommentsLookup = { status: 'found'; tree: CommentTree } | { status: 'error' }
 
-/** What the comments block shows: the skeleton, a failure with «Повторить», or the comments in the order of the tree. */
+/**
+ * What the comments block shows: the skeleton, a failure with «Повторить», or the comments in the order of the tree
+ * with the deepest level a reply may take (`maxDepth`, CommentLimits on the server).
+ */
 export type CommentsState =
-  { status: 'loading' } | { status: 'error' } | { status: 'found'; comments: Comment[] }
+  { status: 'loading' } | { status: 'error' } | { status: 'found'; comments: Comment[]; maxDepth: number }
 
 /**
  * How many levels of replies one read brings (docs/ui/comments.md): six on a wide screen, three on a phone, where the
@@ -142,4 +145,89 @@ export async function loadAuthors(
   }
   await Promise.all(Array.from({ length: Math.min(authorLookups, queue.length) }, next))
   return found
+}
+
+/**
+ * What became of a comment sent (E09-03): the comment the server kept; a refusal with the server's reason (an empty
+ * text, a branch too deep); the person is not signed in any more; or the request failed and may be sent again.
+ */
+export type CommentSend =
+  | { status: 'sent'; comment: Comment }
+  | { status: 'refused'; message: string }
+  | { status: 'unauthorized' }
+  | { status: 'error' }
+
+/** Writes a comment under the post, or a reply to `parentId`: POST /posts/{postId}/comments. */
+export async function sendComment(
+  client: ApiClient,
+  postId: string,
+  text: string,
+  parentId: string | null,
+): Promise<CommentSend> {
+  try {
+    const { data, error, response } = await client.POST('/api/v1/posts/{postId}/comments', {
+      params: { path: { postId } },
+      body: { text, parentId },
+    })
+    if (data) return { status: 'sent', comment: data }
+    if (response.status === 400) {
+      const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {}
+      return { status: 'refused', message: Object.values(errors).flat()[0] ?? 'Комментарий не принят.' }
+    }
+    if (response.status === 401) return { status: 'unauthorized' }
+    return { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/**
+ * The comments with a new one where the tree puts it (E09-03): a reply after the replies of its parent that were read,
+ * a comment under the post at the end; every comment above it counts one reply more. A reply to a comment that is not
+ * shown changes nothing.
+ */
+export function withComment(comments: readonly Comment[], added: Comment): Comment[] {
+  if (added.parentId === null) return [...comments, added]
+  const at = comments.findIndex((comment) => comment.id === added.parentId)
+  if (at < 0) return [...comments]
+  let end = at + 1
+  while (end < comments.length && comments[end]!.depth > comments[at]!.depth) end++
+  const above = ancestors(comments, added.parentId)
+  const counted = comments.map((comment) =>
+    above.has(comment.id) ? { ...comment, replies: comment.replies + 1 } : comment,
+  )
+  return [...counted.slice(0, end), added, ...counted.slice(end)]
+}
+
+/** The comments without one that has no replies, every comment above it counting one reply less: a send undone. */
+export function withoutComment(comments: readonly Comment[], id: string): Comment[] {
+  const removed = comments.find((comment) => comment.id === id)
+  if (!removed) return [...comments]
+  const above = removed.parentId === null ? new Set<string>() : ancestors(comments, removed.parentId)
+  return comments
+    .filter((comment) => comment.id !== id)
+    .map((comment) =>
+      above.has(comment.id) ? { ...comment, replies: Math.max(0, comment.replies - 1) } : comment,
+    )
+}
+
+/** The comments with `id` replaced by `next` in the same place: the server's comment takes the sent one's place. */
+export function replaceComment(comments: readonly Comment[], id: string, next: Comment): Comment[] {
+  return comments.map((comment) => (comment.id === id ? { ...next, replies: comment.replies } : comment))
+}
+
+/** The comment `id` and every comment above it. */
+function ancestors(comments: readonly Comment[], id: string): Set<string> {
+  const byId = new Map(comments.map((comment) => [comment.id, comment]))
+  const found = new Set<string>()
+  for (let current = byId.get(id); current && !found.has(current.id);) {
+    found.add(current.id)
+    current = current.parentId === null ? undefined : byId.get(current.parentId)
+  }
+  return found
+}
+
+/** Whether a native comment may reply to this one: not to a guest comment (FR-TG-6), not past `maxDepth` levels. */
+export function canReply(comment: Comment, maxDepth: number): boolean {
+  return comment.kind !== 'guest' && comment.depth < maxDepth
 }
