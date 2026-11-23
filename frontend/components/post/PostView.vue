@@ -2,17 +2,26 @@
 // The post page (FR-POST, docs/ui/post.md): the post found by the id of its address, with its header (E07-04,
 // ADR-0050: the author's avatar and name leading to their blog, the topic when the post is in one, the date or
 // «черновик»), its title (a short post has none), its blocks drawn by PostBlocks (E07-03) and the floating action
-// panel PostActions. States: loading, not found, a failure with «Повторить», and the post.
+// panel PostActions; the «…» menu PostMenu in the header holds the author's or a reader's items (E07-05, ADR-0053).
+// States: loading, not found, a failure with «Повторить», and the post.
 import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import PostActions from './PostActions.vue'
 import PostBlocks from './PostBlocks.vue'
 import PostComments from '../comments/PostComments.vue'
+import PostMenu from './PostMenu.vue'
+import type { PostMenuFeatures } from '../../utils/post-menu'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 
-const props = defineProps<{ state: PostLookup | { status: 'loading' } }>()
+const props = defineProps<{
+  state: PostLookup | { status: 'loading' }
+  /** The flags of the «…» menu's items (E07-05). */
+  features?: PostMenuFeatures
+  /** Deletes the post from the author's menu; see PostMenu. */
+  remove?: () => Promise<boolean>
+}>()
 
 defineEmits<{ retry: [] }>()
 
@@ -83,6 +92,7 @@ const inBlog = computed(() =>
           dateFormat.format(new Date(found.post.publishedAt))
         }}</time>
       </p>
+      <PostMenu :own="found.own" :path="found.path" :features="features" :remove="remove" />
     </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
     <PostBlocks :document="found.post.body" :images="found.post.images" />

@@ -2,7 +2,15 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { createApiClient } from '../../api/client'
 import type { Profile } from '../../api/profiles'
-import { lookUpPost, postIdOf, postPath, postText, type Post, type PostLookup } from '../../api/posts'
+import {
+  deletePost,
+  lookUpPost,
+  postIdOf,
+  postPath,
+  postText,
+  type Post,
+  type PostLookup,
+} from '../../api/posts'
 import PostView from '../../components/post/PostView.vue'
 
 // The address of a post (E07-02, ADR-0041) and the post page's states; the redirects against the fake API are in
@@ -97,10 +105,23 @@ describe('lookUpPost', () => {
       blog: anna,
       author: anna,
       path: `/u/anna/${id}-privet-mir`,
+      own: false,
     })
     expect(fetch.mock.calls[0]![0].url).toBe(`http://api.test/api/v1/posts/${id}`)
     // In a personal blog the blog is the author's: no third request.
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  // E07-05 (ADR-0053): the post is the reader's own when the account of their session wrote it.
+  it('says whether the reader wrote the post', async () => {
+    const answers = {
+      [`/api/v1/posts/${id}`]: { status: 200, body: post },
+      [`/api/v1/profiles/${anna.id}`]: { status: 200, body: anna },
+    }
+    const author = post.authorAccountId.toUpperCase()
+    expect(await lookUpPost(clientAnswering(answers).client, id, author)).toMatchObject({ own: true })
+    expect(await lookUpPost(clientAnswering(answers).client, id, anna.id)).toMatchObject({ own: false })
+    expect(await lookUpPost(clientAnswering(answers).client, id, null)).toMatchObject({ own: false })
   })
 
   // E07-04 (ADR-0050): in a topic the author is the personal blog of the post's account.
@@ -137,6 +158,20 @@ describe('lookUpPost', () => {
   })
 })
 
+// E07-05 (ADR-0053): deleting asks the API with DELETE and gives its status, which the site's server passes on.
+describe('deletePost', () => {
+  it('deletes the post by its id and gives the status of the answer', async () => {
+    for (const status of [204, 403, 404]) {
+      const fetch = vi.fn(async (_request: Request) => new Response(status === 204 ? null : '{}', { status }))
+      const client = createApiClient({ baseUrl: 'http://api.test', fetch })
+      expect(await deletePost(client, id)).toBe(status)
+      const request = fetch.mock.calls[0]![0]
+      expect(request.method).toBe('DELETE')
+      expect(request.url).toBe(`http://api.test/api/v1/posts/${id}`)
+    }
+  })
+})
+
 describe('PostView', () => {
   // The comments read the API themselves; tests/comments covers them.
   const stubs = {
@@ -150,7 +185,14 @@ describe('PostView', () => {
     mount(PostView, { props: { state }, global: { stubs } })
 
   it('shows the author, the date, the title and the text of the post', () => {
-    const wrapper = mountView({ status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) })
+    const wrapper = mountView({
+      status: 'found',
+      post,
+      blog: anna,
+      author: anna,
+      path: postPath(anna, post),
+      own: false,
+    })
     expect(wrapper.get('h1').text()).toBe('Привет, мир')
     const author = wrapper.get('[data-testid="post-author"]')
     expect(author.attributes('href')).toBe('/u/anna')
@@ -175,6 +217,7 @@ describe('PostView', () => {
       blog: books,
       author: anna,
       path: postPath(books, draft),
+      own: false,
     })
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.get('[data-testid="post-author"]').attributes('href')).toBe('/u/anna')
@@ -190,6 +233,7 @@ describe('PostView', () => {
       blog: books,
       author: null,
       path: postPath(books, post),
+      own: false,
     })
     expect(wrapper.find('[data-testid="post-author"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="post-blog"]').text()).toBe('Книги')
@@ -199,7 +243,14 @@ describe('PostView', () => {
   it('has the action panel with the like, the comments and sharing', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-    const wrapper = mountView({ status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) })
+    const wrapper = mountView({
+      status: 'found',
+      post,
+      blog: anna,
+      author: anna,
+      path: postPath(anna, post),
+      own: false,
+    })
     const bar = wrapper.get('[role="toolbar"]')
     expect(bar.attributes('aria-label')).toBe('Действия с постом')
     expect(bar.get('[data-testid="post-like"]').attributes('disabled')).toBeDefined()
@@ -209,9 +260,31 @@ describe('PostView', () => {
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/u/anna/${id}-privet-mir`)
   })
 
+  // E07-05 (ADR-0053): the «…» menu in the header holds the author's items for their own post.
+  it('puts the menu of the author or of a reader into the header', async () => {
+    for (const [own, item] of [
+      [true, 'Удалить'],
+      [false, 'Скопировать ссылку'],
+    ] as const) {
+      const wrapper = mountView({
+        status: 'found',
+        post,
+        blog: anna,
+        author: anna,
+        path: postPath(anna, post),
+        own,
+      })
+      await wrapper.get('[data-testid="post-header"] button[aria-label="Меню поста"]').trigger('click')
+      expect(wrapper.get('[role="menu"]').text()).toBe(item)
+      wrapper.unmount()
+    }
+  })
+
   it('moves between the buttons of the panel with the arrow keys', async () => {
     const wrapper = mount(PostView, {
-      props: { state: { status: 'found', post, blog: anna, author: anna, path: postPath(anna, post) } },
+      props: {
+        state: { status: 'found', post, blog: anna, author: anna, path: postPath(anna, post), own: false },
+      },
       global: { stubs },
       attachTo: document.body,
     })

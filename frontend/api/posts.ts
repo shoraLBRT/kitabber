@@ -10,10 +10,12 @@ export type Post = components['schemas']['PostView']
 /**
  * A found post comes with its blog and its author (E07-04, ADR-0050): the personal blog of the account that wrote it,
  * the blog itself for a post in a personal blog; `null` when the author's blog cannot be read, so the header goes
- * without the author rather than the page failing.
+ * without the author rather than the page failing. `own` says whether the reader wrote it (E07-05, ADR-0053): the «…»
+ * menu then holds the author's items. The site's server decides it from its session, so the page never learns the
+ * reader's account id.
  */
 export type PostLookup =
-  | { status: 'found'; post: Post; blog: Profile; author: Profile | null; path: string }
+  | { status: 'found'; post: Post; blog: Profile; author: Profile | null; path: string; own: boolean }
   | { status: 'not-found' }
   | { status: 'error' }
 
@@ -45,9 +47,14 @@ export function postPath(
 
 /**
  * Looks the post of an address segment up, and its blog for the canonical address. A draft is found only with its
- * author's access token (ADR-0029), so the client must carry the reader's token (server side only, ADR-0018).
+ * author's access token (ADR-0029), so the client must carry the reader's token (server side only, ADR-0018);
+ * `reader` is the account of that token, `null` for a guest.
  */
-export async function lookUpPost(client: ApiClient, segment: string): Promise<PostLookup> {
+export async function lookUpPost(
+  client: ApiClient,
+  segment: string,
+  reader: string | null = null,
+): Promise<PostLookup> {
   const id = postIdOf(segment)
   if (!id) return { status: 'not-found' }
   try {
@@ -63,6 +70,7 @@ export async function lookUpPost(client: ApiClient, segment: string): Promise<Po
       blog,
       author: await authorOf(client, post, blog),
       path: postPath(blog, post),
+      own: reader !== null && reader.toLowerCase() === post.authorAccountId.toLowerCase(),
     }
   } catch {
     return { status: 'error' }
@@ -80,6 +88,15 @@ async function authorOf(client: ApiClient, post: Post, blog: Profile): Promise<P
   } catch {
     return null
   }
+}
+
+/**
+ * Deletes the reader's own post (E07-05, ADR-0053): the API deletes softly and only for the author. The answer's status:
+ * 204 once deleted, 401, 403 (`posts.not_author`) or 404 otherwise.
+ */
+export async function deletePost(client: ApiClient, id: string): Promise<number> {
+  const { response } = await client.DELETE('/api/v1/posts/{id}', { params: { path: { id } } })
+  return response.status
 }
 
 /** The plain text of the text blocks, for the feed card until it draws the blocks with PostBlocks (E08-02, #55). */

@@ -526,6 +526,21 @@ async function writePost(request, response, url) {
   return send(response, existing ? 200 : 201, saved)
 }
 
+// Deleting (E07-05): DELETE /api/v1/posts/{id} of a written post by its author; the post is then not found. A seeded
+// post of another author is refused as by the API (posts.not_author), and the seeded posts stay for the other tests.
+function deletePost(request, response, url) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const [, id] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)$/) ?? []
+  if (posts.some((item) => item.id === id))
+    return send(response, 403, { status: 403, code: 'posts.not_author' })
+  const existing = written.get(id)
+  if (!existing || existing.authorAccountId !== account)
+    return send(response, 404, { status: 404, code: 'posts.post_not_found' })
+  written.delete(id)
+  return send(response, 204)
+}
+
 const topics = () =>
   blogs.filter((blog) => blog.type === 'topic').map(({ id, name, nickname }) => ({ id, name, nickname }))
 
@@ -746,6 +761,8 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
     return writePost(request, response, url)
+  if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'DELETE')
+    return deletePost(request, response, url)
   if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
