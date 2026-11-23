@@ -64,7 +64,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
 
     private static readonly ImageVariant _avatar = ImageVariant.Square(AvatarSide, ImageFormat.WebP);
 
-    private static readonly IReadOnlyList<ImageVariant> _avatarSources =
+    internal static readonly IReadOnlyList<ImageVariant> AvatarSourceVariants =
         [.. AvatarSides.Select(side => ImageVariant.Square(side, ImageFormat.WebP))];
 
     public void MapV1(IEndpointRouteBuilder v1)
@@ -212,7 +212,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
 
     private static async Task<IReadOnlyList<ImageSource>> AvatarSourcesAsync(
         Guid? avatarId, IMediaLibrary media, CancellationToken ct) =>
-        avatarId is { } id && (await media.ImageSourcesAsync([id], _avatarSources, ct)).TryGetValue(id, out var sources)
+        avatarId is { } id && (await media.ImageSourcesAsync([id], AvatarSourceVariants, ct)).TryGetValue(id, out var sources)
             ? sources
             : [];
 

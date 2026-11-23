@@ -468,7 +468,16 @@ function freshFeed(response, url) {
     return send(response, 400, { status: 400, code: 'invalid_cursor' })
   const end = start + feedPageSize
   const nextCursor = end < sorted.length ? Buffer.from(String(end)).toString('base64url') : null
-  return send(response, 200, { items: sorted.slice(start, end), nextCursor })
+  return send(response, 200, { items: sorted.slice(start, end).map(feedItem), nextCursor })
+}
+
+// A feed item carries the author's personal blog and the post's topic (E08-02, ADR-0052).
+const feedBlog = ({ id, type, name, nickname }) => ({ id, type, name, nickname, avatarSources: [] })
+
+function feedItem(post) {
+  const author = blogs.find((blog) => blog.type === 'personal' && blog.owner === post.authorAccountId)
+  const topic = blogs.find((blog) => blog.type === 'topic' && blog.id === post.blogId)
+  return { post, author: author ? feedBlog(author) : null, topic: topic ? feedBlog(topic) : null }
 }
 
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */

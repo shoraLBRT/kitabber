@@ -516,9 +516,22 @@ export interface components {
         ConfirmRegistrationRequest: {
             code: null | string;
         };
-        CursorPageOfPostView: {
-            items: components["schemas"]["PostView"][];
+        CursorPageOfFeedPostView: {
+            items: components["schemas"]["FeedPostView"][];
             nextCursor: null | string;
+        };
+        FeedBlogView: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            name: null | string;
+            nickname: null | string;
+            avatarSources: components["schemas"]["ImageSource"][];
+        };
+        FeedPostView: {
+            post: components["schemas"]["PostView"];
+            author: null | components["schemas"]["FeedBlogView"];
+            topic: null | components["schemas"]["FeedBlogView"];
         };
         GuestAuthorView: {
             name: string;
@@ -1735,7 +1748,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageOfPostView"];
+                    "application/json": components["schemas"]["CursorPageOfFeedPostView"];
                 };
             };
             /** @description Bad Request */

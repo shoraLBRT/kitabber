@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Platform.Modules.Blogs;
 
 namespace Platform.Modules.Posts.IntegrationTests;
 
@@ -109,10 +110,48 @@ public sealed class FreshFeedApiTests(PostsApi api) : IClassFixture<PostsApi>, I
 
         var page = await _client.GetFromJsonAsync<JsonElement>("/api/v1/feeds/fresh", Ct);
 
-        var item = page.GetProperty("items")[0];
+        var item = page.GetProperty("items")[0].GetProperty("post");
         Assert.Equal("published", item.GetProperty("status").GetString());
         Assert.Equal(_blog, item.GetProperty("blogId").GetGuid());
         Assert.Equal("paragraph", item.GetProperty("body").GetProperty("blocks")[0].GetProperty("type").GetString());
+    }
+
+    // E08-02, ADR-0052: the card shows the author's personal blog and, for a post in a topic, the topic.
+    [Fact]
+    public async Task FeedItemCarriesTheAuthorAndTheTopic()
+    {
+        var own = Subsite.CreatePersonal(_author, api.Time.GetUtcNow());
+        own.Rename("Анна");
+        var topic = Subsite.CreateTopic("Игры", "games", api.Time.GetUtcNow());
+        await api.SaveAsync<BlogsDbContext>(own);
+        await api.SaveAsync<BlogsDbContext>(topic);
+        await SaveAsync(publishedAt: api.Time.GetUtcNow(), blog: own.Id);
+        await SaveAsync(publishedAt: api.Time.GetUtcNow().AddMinutes(1), blog: topic.Id);
+
+        var items = (await _client.GetFromJsonAsync<JsonElement>("/api/v1/feeds/fresh", Ct)).GetProperty("items");
+
+        var inTopic = items[0];
+        Assert.Equal(own.Id, inTopic.GetProperty("author").GetProperty("id").GetGuid());
+        Assert.Equal("Анна", inTopic.GetProperty("author").GetProperty("name").GetString());
+        Assert.Equal("personal", inTopic.GetProperty("author").GetProperty("type").GetString());
+        Assert.Equal(topic.Id, inTopic.GetProperty("topic").GetProperty("id").GetGuid());
+        Assert.Equal("games", inTopic.GetProperty("topic").GetProperty("nickname").GetString());
+        Assert.Equal("topic", inTopic.GetProperty("topic").GetProperty("type").GetString());
+        var inBlog = items[1];
+        Assert.Equal(own.Id, inBlog.GetProperty("author").GetProperty("id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, inBlog.GetProperty("topic").ValueKind);
+        Assert.Empty(inBlog.GetProperty("author").GetProperty("avatarSources").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task FeedItemOfAnAccountWithoutABlogHasNoAuthor()
+    {
+        await SaveAsync(publishedAt: api.Time.GetUtcNow());
+
+        var item = (await _client.GetFromJsonAsync<JsonElement>("/api/v1/feeds/fresh", Ct)).GetProperty("items")[0];
+
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("author").ValueKind);
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("topic").ValueKind);
     }
 
     [Theory]
@@ -140,9 +179,9 @@ public sealed class FreshFeedApiTests(PostsApi api) : IClassFixture<PostsApi>, I
         return ids;
     }
 
-    private async Task<Guid> SaveAsync(DateTimeOffset? publishedAt, bool delete = false)
+    private async Task<Guid> SaveAsync(DateTimeOffset? publishedAt, bool delete = false, Guid? blog = null)
     {
-        var post = Post.CreateDraft(_author, _blog, "Заголовок", PostFactory.Body("Текст."), api.Time.GetUtcNow());
+        var post = Post.CreateDraft(_author, blog ?? _blog, "Заголовок", PostFactory.Body("Текст."), api.Time.GetUtcNow());
         if (publishedAt is { } at)
         {
             post.Publish(at);
@@ -173,7 +212,7 @@ public sealed class FreshFeedApiTests(PostsApi api) : IClassFixture<PostsApi>, I
         var page = await _client.GetFromJsonAsync<JsonElement>(
             $"/api/v1/feeds/fresh{(query.Count > 0 ? "?" + string.Join('&', query) : string.Empty)}", Ct);
         var next = page.GetProperty("nextCursor");
-        return ([.. page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid())],
+        return ([.. page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("post").GetProperty("id").GetGuid())],
             next.ValueKind == JsonValueKind.Null ? null : next.GetString());
     }
 }
