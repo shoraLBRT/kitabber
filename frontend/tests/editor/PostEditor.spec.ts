@@ -1,5 +1,6 @@
 import type { OutputData } from '@editorjs/editorjs'
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
+import { reactive } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PostEditor from '../../components/editor/PostEditor.vue'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
@@ -121,7 +122,8 @@ describe('PostEditor', () => {
       { id: 'q2', type: 'image' as const, data: { media: 'm1', width: 40, height: 30, caption: '' } },
     ]
     const publish = vi.fn(async (_: PublishInput) => published())
-    await mountEditor(publish, { document: { version: 1, blocks }, topicId: topics[1]!.id })
+    // The hand-off comes from the page's reactive state (useState), as on the site.
+    await mountEditor(publish, reactive({ document: { version: 1, blocks }, topicId: topics[1]!.id }))
 
     expect(engine.options.data.blocks).toEqual(blocks)
     expect(page().get('[data-testid="editor-topic"]').text()).toContain('Книги')

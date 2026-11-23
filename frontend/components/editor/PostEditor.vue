@@ -13,7 +13,7 @@ import EditorKeyboardBar from './EditorKeyboardBar.vue'
 import EditorWindow from './EditorWindow.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
-import { emptyDocument, isEmptyDocument } from '../../editor/document'
+import { emptyDocument, isEmptyDocument, type PostDocument } from '../../editor/document'
 import type { CreateEngine } from '../../editor/engine'
 import { postTitleMaxLength, titleLength } from '../../editor/publish'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
@@ -35,7 +35,10 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; published: [path: string]; unauthorized: [] }>()
 
 const noTopic = 'none'
-const document = ref(props.initial ? structuredClone(props.initial.document) : emptyDocument())
+// A copy through JSON: the hand-off comes from the page's reactive state, which structuredClone cannot copy.
+const document = ref<PostDocument>(
+  props.initial ? JSON.parse(JSON.stringify(props.initial.document)) : emptyDocument(),
+)
 const title = ref('')
 const topicId = ref<string | null>(props.initial?.topicId ?? null)
 const publishing = ref(false)
