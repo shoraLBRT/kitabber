@@ -1,0 +1,149 @@
+<script setup lang="ts">
+// The comments under a post (E09-02, FR-COMMENT, docs/ui/comments.md): the heading with their number and the tree of
+// nested lists, a level per `aria-level`. States: a skeleton of three comments while the tree loads, a failure with
+// «Повторить» (the post above stays), no comments yet, and the tree. The form to write one comes with E09-03.
+import { computed, provide, toRef } from 'vue'
+import UiButton from '../ui/UiButton.vue'
+import CommentItem from './CommentItem.vue'
+import { commentCount, nestComments, type CommentsState } from '../../api/comments'
+import type { Profile } from '../../api/profiles'
+import { commentTreeKey, type BranchStatus } from './context'
+
+const props = defineProps<{
+  state: CommentsState
+  authors: ReadonlyMap<string, Profile | null>
+  branches: Readonly<Record<string, BranchStatus>>
+}>()
+
+const emit = defineEmits<{ retry: []; more: [commentId: string] }>()
+
+provide(commentTreeKey, {
+  authors: toRef(props, 'authors'),
+  branches: toRef(props, 'branches'),
+  more: (commentId) => emit('more', commentId),
+})
+
+const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))
+const roots = computed(() => nestComments(comments.value))
+const count = computed(() => commentCount(comments.value))
+</script>
+
+<template>
+  <section class="comments" aria-labelledby="comments-title" data-testid="comments">
+    <h2 id="comments-title" class="comments__title">
+      Комментарии
+      <span
+        v-if="state.status === 'found' && count > 0"
+        class="comments__count"
+        data-testid="comments-count"
+        >{{ count }}</span
+      >
+    </h2>
+
+    <div
+      v-if="state.status === 'loading'"
+      class="comments__loading"
+      aria-busy="true"
+      data-testid="comments-loading"
+    >
+      <span class="visually-hidden" role="status">Загрузка комментариев</span>
+      <div v-for="n in 3" :key="n" class="comments__skeleton">
+        <div class="comments__skeleton-mark" />
+        <div class="comments__skeleton-lines">
+          <div class="comments__skeleton-line" />
+          <div class="comments__skeleton-line comments__skeleton-line--short" />
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="state.status === 'error'" class="comments__error" data-testid="comments-error">
+      <p class="comments__muted" role="alert">Не удалось загрузить комментарии.</p>
+      <UiButton variant="secondary" size="sm" @click="emit('retry')">Повторить</UiButton>
+    </div>
+
+    <p v-else-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
+      Комментариев пока нет — будьте первым
+    </p>
+
+    <ul v-else class="comments__tree" data-testid="comment-tree">
+      <CommentItem v-for="root in roots" :key="root.comment.id" :node="root" />
+    </ul>
+  </section>
+</template>
+
+<style scoped>
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.comments__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.comments__count {
+  color: var(--color-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.comments__muted {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.comments__error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.comments__tree {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comments__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.comments__skeleton {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.comments__skeleton-mark {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+}
+
+.comments__skeleton-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.comments__skeleton-line {
+  height: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.comments__skeleton-line--short {
+  width: 60%;
+}
+</style>

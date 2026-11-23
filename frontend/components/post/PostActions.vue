@@ -124,5 +124,16 @@ function move(event: KeyboardEvent) {
   .post-actions__item {
     padding: 0 var(--space-2);
   }
+
+  /* Icons only, as docs/ui/post.md draws the phone: three labels are wider than 390 px and pushed the page sideways.
+     The labels stay for screen readers. */
+  .post-actions__item > span {
+    position: absolute;
+    width: var(--size-border);
+    height: var(--size-border);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 </style>

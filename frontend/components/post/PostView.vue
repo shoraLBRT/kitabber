@@ -8,6 +8,7 @@ import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import PostActions from './PostActions.vue'
 import PostBlocks from './PostBlocks.vue'
+import PostComments from '../comments/PostComments.vue'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 
@@ -85,7 +86,9 @@ const inBlog = computed(() =>
     </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
     <PostBlocks :document="found.post.body" :images="found.post.images" />
-    <div id="comments" class="post__comments" />
+    <div id="comments" class="post__comments">
+      <PostComments v-if="found.post.status === 'published'" :key="found.post.id" :post-id="found.post.id" />
+    </div>
     <PostActions :path="found.path" />
   </article>
 </template>
@@ -148,8 +151,9 @@ const inBlog = computed(() =>
   overflow-wrap: anywhere;
 }
 
-/* The comments under the post (E09-02) come here; «Комментарии» of the action panel leads to it. */
+/* The comments under the post (E09-02); «Комментарии» of the action panel leads to them. */
 .post__comments {
+  margin-top: var(--space-6);
   scroll-margin-top: calc(var(--space-16) + var(--space-4));
 }
 

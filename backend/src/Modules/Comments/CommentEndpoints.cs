@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
@@ -29,6 +30,10 @@ public sealed record GuestAuthorView(string Name, string? Url);
 /// <param name="Guest">The author of a guest comment; <c>null</c> for a native one.</param>
 /// <param name="Text">The text.</param>
 /// <param name="CreatedAt">When it was written.</param>
+/// <param name="Replies">
+/// Every reply under it at any depth, those the read left out too (ADR-0054): when it is more than the replies shown,
+/// the rest come with its branch.
+/// </param>
 public sealed record CommentView(
     Guid Id,
     Guid PostId,
@@ -38,7 +43,8 @@ public sealed record CommentView(
     Guid? AuthorAccountId,
     GuestAuthorView? Guest,
     string Text,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int Replies);
 
 /// <summary>A tree or a branch of comments, in the order of the tree.</summary>
 /// <param name="PostId">The post the comments are under.</param>
@@ -62,7 +68,8 @@ public sealed class CommentEndpoints : IApiEndpoints
             .Produces<CommentTreeView>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithName("GetCommentTree")
-            .WithSummary("Every comment under a published post, in the order of the tree");
+            .ProducesValidationProblem()
+            .WithSummary("The comments under a published post in the order of the tree, all or some levels down");
         underPost.MapPost("/", CreateAsync)
             .RequireAuthorization(AccountPolicies.ConfirmedEmail)
             .Produces<CommentView>(StatusCodes.Status201Created)
@@ -78,31 +85,53 @@ public sealed class CommentEndpoints : IApiEndpoints
             .Produces<CommentTreeView>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithName("GetCommentBranch")
-            .WithSummary("A comment and every reply under it, in the order of the tree");
+            .ProducesValidationProblem()
+            .WithSummary("A comment and the replies under it in the order of the tree, all or some levels down");
     }
 
     private static async Task<IResult> GetTreeAsync(
-        Guid postId, CommentsDbContext db, IPostDirectory posts, CommentLimits limits, CancellationToken ct)
+        Guid postId,
+        [FromQuery] int? levels,
+        CommentsDbContext db,
+        IPostDirectory posts,
+        CommentLimits limits,
+        CancellationToken ct)
     {
+        if (LevelsProblem(levels) is { } problem)
+        {
+            return problem;
+        }
+
         if (await posts.FindPublishedAsync(postId, ct) is null)
         {
             return ApiProblems.NotFound(PostNotFoundCode);
         }
 
         var tree = await CommentTree.OfPost(db, postId).ToListAsync(ct);
-        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, [.. tree.Select(View)]));
+        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(CommentTree.Shown(tree, 0, levels))));
     }
 
     private static async Task<IResult> GetBranchAsync(
-        Guid id, CommentsDbContext db, IPostDirectory posts, CommentLimits limits, CancellationToken ct)
+        Guid id,
+        [FromQuery] int? levels,
+        CommentsDbContext db,
+        IPostDirectory posts,
+        CommentLimits limits,
+        CancellationToken ct)
     {
+        if (LevelsProblem(levels) is { } problem)
+        {
+            return problem;
+        }
+
         var branch = await CommentTree.Branch(db, id).ToListAsync(ct);
         if (branch.Count == 0 || await posts.FindPublishedAsync(branch[0].PostId, ct) is null)
         {
             return ApiProblems.NotFound(CommentNotFoundCode);
         }
 
-        return TypedResults.Ok(new CommentTreeView(branch[0].PostId, limits.MaxDepth, [.. branch.Select(View)]));
+        var shown = CommentTree.Shown(branch, branch[0].Depth, levels);
+        return TypedResults.Ok(new CommentTreeView(branch[0].PostId, limits.MaxDepth, Views(shown)));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -156,10 +185,22 @@ public sealed class CommentEndpoints : IApiEndpoints
         var comment = Comment.CreateNative(account, postId, parent, text!, time.GetUtcNow());
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Created($"/api/v1/comments/{comment.Id}/branch", View(comment));
+        return TypedResults.Created($"/api/v1/comments/{comment.Id}/branch", View(comment, replies: 0));
     }
 
-    internal static CommentView View(Comment comment) => new(
+    // A read may stop some levels down (ADR-0054); any other number is refused rather than read as the whole tree.
+    private static IResult? LevelsProblem(int? levels) =>
+        levels is null or (>= 1 and <= CommentsSettings.MaxDepthLimit)
+            ? null
+            : ApiProblems.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["levels"] = [$"Число уровней — от 1 до {CommentsSettings.MaxDepthLimit}."],
+            });
+
+    private static CommentView[] Views(IReadOnlyList<ShownComment> shown) =>
+        [.. shown.Select(s => View(s.Comment, s.Replies))];
+
+    internal static CommentView View(Comment comment, int replies) => new(
         comment.Id,
         comment.PostId,
         comment.ParentId,
@@ -168,7 +209,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         comment.AuthorAccountId,
         comment.Guest is { } guest ? new GuestAuthorView(guest.Name, guest.Url?.AbsoluteUri) : null,
         comment.Text,
-        comment.CreatedAt);
+        comment.CreatedAt,
+        replies);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

@@ -1306,7 +1306,7 @@
         "tags": [
           "Comments"
         ],
-        "summary": "Every comment under a published post, in the order of the tree",
+        "summary": "The comments under a published post in the order of the tree, all or some levels down",
         "operationId": "GetCommentTree",
         "parameters": [
           {
@@ -1316,6 +1316,14 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           }
         ],
@@ -1336,6 +1344,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -1428,7 +1446,7 @@
         "tags": [
           "Comments"
         ],
-        "summary": "A comment and every reply under it, in the order of the tree",
+        "summary": "A comment and the replies under it in the order of the tree, all or some levels down",
         "operationId": "GetCommentBranch",
         "parameters": [
           {
@@ -1438,6 +1456,14 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           }
         ],
@@ -1458,6 +1484,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -1740,7 +1776,8 @@
           "authorAccountId",
           "guest",
           "text",
-          "createdAt"
+          "createdAt",
+          "replies"
         ],
         "type": "object",
         "properties": {
@@ -1789,6 +1826,10 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "replies": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
