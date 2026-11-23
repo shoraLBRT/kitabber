@@ -7,19 +7,13 @@
 // networks are E07-07 (#97). The arrow keys move between the buttons, as in a toolbar.
 import { Heart, MessageCircle, Share2 } from 'lucide-vue-next'
 import { useToast } from '../../composables/useToast'
+import { copyPostLink } from '../../utils/post-menu'
 
 const props = defineProps<{ path: string }>()
 
 const toast = useToast()
 
-async function share() {
-  try {
-    await navigator.clipboard.writeText(new URL(props.path, window.location.origin).href)
-    toast.show('Ссылка скопирована', { tone: 'success' })
-  } catch {
-    toast.show('Не удалось скопировать ссылку', { tone: 'error' })
-  }
-}
+const share = () => copyPostLink(props.path, toast)
 
 function move(event: KeyboardEvent) {
   const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0

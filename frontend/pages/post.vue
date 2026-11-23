@@ -6,7 +6,7 @@
 // happens on the server with the reader's access token, so the author sees their draft; later lookups in the browser
 // go through server/routes/bff/post.get.ts.
 import PostView from '~/components/post/PostView.vue'
-import { lookUpPost, type PostLookup } from '~/api/posts'
+import { lookUpPost, subsitePath, type PostLookup } from '~/api/posts'
 
 definePageMeta({
   path: '/u/:blog/:post([0-9a-fA-F]{8}-[^/]*)',
@@ -23,7 +23,7 @@ const { data, pending, refresh } = await useAsyncData(
   () => `post:${segment.value}`,
   (): Promise<PostLookup> =>
     import.meta.server
-      ? lookUpPost($api, segment.value)
+      ? lookUpPost($api, segment.value, useRequestEvent()?.context.auth?.accountId ?? null)
       : $fetch<PostLookup>('/bff/post', { query: { post: segment.value } }).catch(() => ({
           status: 'error' as const,
         })),
@@ -48,6 +48,24 @@ if (import.meta.server) {
 
 watch(data, (found) => canonical(found))
 
+// The «…» menu (E07-05, ADR-0053): its flagged items, and deleting the author's post through the site's server
+// (server/routes/bff/post.delete.ts); a deleted post leaves for its blog with a toast.
+const features = useRuntimeConfig().public.features
+const toast = useToast()
+
+async function remove(): Promise<boolean> {
+  const found = data.value
+  if (found?.status !== 'found') return false
+  try {
+    await $fetch('/bff/post', { method: 'DELETE', query: { id: found.post.id } })
+  } catch {
+    return false
+  }
+  toast.show('Пост удалён', { tone: 'success' })
+  await navigateTo(subsitePath(found.blog), { replace: true })
+  return true
+}
+
 useHead(() => ({
   title:
     state.value.status === 'found'
@@ -59,5 +77,5 @@ useHead(() => ({
 </script>
 
 <template>
-  <PostView :state="state" @retry="refresh()" />
+  <PostView :state="state" :features="features" :remove="remove" @retry="refresh()" />
 </template>

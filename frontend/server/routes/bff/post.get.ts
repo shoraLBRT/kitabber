@@ -17,5 +17,5 @@ export default defineEventHandler(async (event) => {
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
     },
   })
-  return lookUpPost(client, post)
+  return lookUpPost(client, post, event.context.auth?.accountId ?? null)
 })

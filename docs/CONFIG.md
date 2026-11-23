@@ -236,6 +236,7 @@ openssl rand -base64 32                                                         
   | --- | --- | --- | --- |
   | `NUXT_API_BASE` | нет | — | адрес API для отрисовки на сервере; на стенде `http://api:8080` |
   | `NUXT_PUBLIC_API_BASE` | нет | тот же адрес сайта | адрес API для браузера |
+  | `NUXT_PUBLIC_FEATURES_POST_EDIT`, `NUXT_PUBLIC_FEATURES_POST_REPORT`, `NUXT_PUBLIC_FEATURES_POST_HIDE` | нет | `false` | флаги пунктов меню «…» поста без готового функционала: «Редактировать», «Пожаловаться», «Скрыть» (E07-05, ADR-0053) |
   | `NUXT_OIDC_ISSUER` | нет | в `nuxt dev` — `http://localhost:5103/` | провайдер входа (E18-02), на стенде — адрес сайта со слешем; должен совпадать с `Identity:Issuer` |
   | `NUXT_OIDC_CLIENT_ID` | нет | `web` | клиент сайта у провайдера |
   | `NUXT_OIDC_REDIRECT_URI` | нет | в `nuxt dev` — `http://localhost:3000/auth/callback` | адрес `/auth/callback` сайта, ровно как в `Identity:Clients:Web:RedirectUris` |
