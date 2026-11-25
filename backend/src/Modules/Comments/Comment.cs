@@ -61,10 +61,21 @@ public sealed class Comment
     /// <summary>The message in <see cref="SourceChannel"/>.</summary>
     public string? SourceMessage { get; init; }
 
-    /// <summary>The text, trimmed (<see cref="CommentRules.CleanText"/>).</summary>
-    public string Text { get; init; } = string.Empty;
+    /// <summary>The text, trimmed (<see cref="CommentRules.CleanText"/>); empty once the comment is deleted.</summary>
+    public string Text { get; private set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>When the author last changed the text (E09-05, ADR-0059); <c>null</c> for a text never changed.</summary>
+    public DateTimeOffset? EditedAt { get; private set; }
+
+    /// <summary>
+    /// When the author deleted it (E09-05, ADR-0059). A deleted comment stays only while it has replies, as the stub
+    /// «Комментарий удалён» that holds their place in the tree; its text is gone.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; private set; }
+
+    public bool IsDeleted => DeletedAt is not null;
 
     /// <summary>The guest author; <c>null</c> for a native comment.</summary>
     public GuestAuthor? Guest => Kind == CommentKind.Guest && GuestName is not null
@@ -121,6 +132,33 @@ public sealed class Comment
             SourceChannel = source.Channel,
             SourceMessage = source.Message,
         });
+    }
+
+    /// <summary>
+    /// The new text of the comment, trimmed (<see cref="CommentRules.CleanText"/>). Whether the author may still change
+    /// it (<see cref="CommentRules.ChangeProblem"/>) is checked by the endpoint.
+    /// </summary>
+    public void Edit(string text, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            throw new InvalidOperationException("A deleted comment has no text to change.");
+        }
+
+        Text = CommentRules.CleanText(text) ?? throw new ArgumentException("A comment needs its text.", nameof(text));
+        EditedAt = now;
+    }
+
+    /// <summary>The comment becomes the stub of its replies: its text is gone, its place in the tree stays.</summary>
+    public void Delete(DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return;
+        }
+
+        Text = string.Empty;
+        DeletedAt = now;
     }
 
     private static Comment Create(
