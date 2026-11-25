@@ -56,7 +56,7 @@ describe('CommentTree', () => {
   it('offers «Повторить» when the tree fails to load', async () => {
     const view = mountTree({ status: 'error' })
     expect(view.get('[role="alert"]').text()).toBe('Не удалось загрузить комментарии.')
-    await view.get('button').trigger('click')
+    await view.get('[data-testid="comments-error"] button').trigger('click')
     expect(view.emitted('retry')).toHaveLength(1)
   })
 

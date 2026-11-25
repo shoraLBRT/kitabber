@@ -100,6 +100,45 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
     }
 
     [Fact]
+    public async Task TreeComesPopularFirstUnlessTheReadAsksForTheNewest()
+    {
+        var post = await SavePostAsync(publish: true);
+        var quiet = await CreateAsync(post.Id, "тихий", parentId: null);
+        var busy = await CreateAsync(post.Id, "обсуждаемый", parentId: null);
+        var latest = await CreateAsync(post.Id, "последний", parentId: null);
+        var reply = await CreateAsync(post.Id, "ответ", busy);
+        var otherReply = await CreateAsync(post.Id, "ещё ответ", busy);
+
+        using var byDefault = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, null);
+        using var popular = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort=popular", null, null);
+        using var byDate = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort=date", null, null);
+        using var dateTop = await SendAsync(
+            HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort=date&levels=1", null, null);
+
+        Assert.Equal(HttpStatusCode.OK, byDefault.StatusCode);
+        Assert.Equal([busy, reply, otherReply, quiet, latest], IdsOf(await byDefault.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        Assert.Equal([busy, reply, otherReply, quiet, latest], IdsOf(await popular.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        Assert.Equal([latest, busy, reply, otherReply, quiet], IdsOf(await byDate.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        var top = await dateTop.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal([latest, busy, quiet], IdsOf(top));
+        Assert.Equal([0, 2, 0], RepliesOf(top));
+    }
+
+    [Theory]
+    [InlineData("rating")]
+    [InlineData("Date")]
+    public async Task UnknownSortIsAValidationError(string sort)
+    {
+        var post = await SavePostAsync(publish: true);
+        await CreateAsync(post.Id, "1", parentId: null);
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort={sort}", null, null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["sort"], await ErrorFieldsOf(response));
+    }
+
+    [Fact]
     public async Task BranchIsTheCommentAndEveryReplyUnderIt()
     {
         var post = await SavePostAsync(publish: true);

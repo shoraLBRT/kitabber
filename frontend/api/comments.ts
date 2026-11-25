@@ -23,15 +23,31 @@ export type CommentsState =
  */
 export const commentLevels = { wide: 6, phone: 3 } as const
 
-/** The comments under a post, `levels` levels down. */
+/**
+ * The order of the comments under a post (E09-04, ADR-0058), kept by the server: «Популярные» — the threads with the
+ * most replies first, the older among equals; «По дате» — the newest first. Replies keep the order of the tree.
+ */
+export type CommentSort = 'popular' | 'date'
+
+export const commentSorts: readonly { id: CommentSort; label: string }[] = [
+  { id: 'popular', label: 'Популярные' },
+  { id: 'date', label: 'По дате' },
+]
+
+export function isCommentSort(value: unknown): value is CommentSort {
+  return value === 'popular' || value === 'date'
+}
+
+/** The comments under a post, `levels` levels down, in the order `sort`. */
 export async function loadComments(
   client: ApiClient,
   postId: string,
   levels: number,
+  sort: CommentSort = 'popular',
 ): Promise<CommentsLookup> {
   try {
     const { data } = await client.GET('/api/v1/posts/{postId}/comments', {
-      params: { path: { postId }, query: { levels } },
+      params: { path: { postId }, query: { levels, sort } },
     })
     return data ? { status: 'found', tree: data } : { status: 'error' }
   } catch {
@@ -183,11 +199,16 @@ export async function sendComment(
 
 /**
  * The comments with a new one where the tree puts it (E09-03): a reply after the replies of its parent that were read,
- * a comment under the post at the end; every comment above it counts one reply more. A reply to a comment that is not
- * shown changes nothing.
+ * a comment under the post where the order `sort` puts a new thread with no replies — at the end of «Популярные», at
+ * the top of «По дате»; every comment above it counts one reply more. A reply to a comment that is not shown changes
+ * nothing.
  */
-export function withComment(comments: readonly Comment[], added: Comment): Comment[] {
-  if (added.parentId === null) return [...comments, added]
+export function withComment(
+  comments: readonly Comment[],
+  added: Comment,
+  sort: CommentSort = 'popular',
+): Comment[] {
+  if (added.parentId === null) return sort === 'date' ? [added, ...comments] : [...comments, added]
   const at = comments.findIndex((comment) => comment.id === added.parentId)
   if (at < 0) return [...comments]
   let end = at + 1

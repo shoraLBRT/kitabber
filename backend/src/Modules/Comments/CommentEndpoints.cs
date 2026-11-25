@@ -49,7 +49,10 @@ public sealed record CommentView(
 /// <summary>A tree or a branch of comments, in the order of the tree.</summary>
 /// <param name="PostId">The post the comments are under.</param>
 /// <param name="MaxDepth">The most levels of a branch: a comment at this depth takes no replies.</param>
-/// <param name="Comments">Depth first: a parent before its replies, older siblings first.</param>
+/// <param name="Comments">
+/// Depth first: a parent before its replies, older replies first. The comments under the post come in the order the
+/// read asked for (<c>sort</c>); a branch is one thread and keeps the order of the tree.
+/// </param>
 public sealed record CommentTreeView(Guid PostId, int MaxDepth, IReadOnlyList<CommentView> Comments);
 
 /// <summary>
@@ -69,7 +72,7 @@ public sealed class CommentEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithName("GetCommentTree")
             .ProducesValidationProblem()
-            .WithSummary("The comments under a published post in the order of the tree, all or some levels down");
+            .WithSummary("The comments under a published post, popular or newest threads first, all or some levels down");
         underPost.MapPost("/", CreateAsync)
             .RequireAuthorization(AccountPolicies.ConfirmedEmail)
             .Produces<CommentView>(StatusCodes.Status201Created)
@@ -92,6 +95,7 @@ public sealed class CommentEndpoints : IApiEndpoints
     private static async Task<IResult> GetTreeAsync(
         Guid postId,
         [FromQuery] int? levels,
+        [FromQuery] string? sort,
         CommentsDbContext db,
         IPostDirectory posts,
         CommentLimits limits,
@@ -102,13 +106,22 @@ public sealed class CommentEndpoints : IApiEndpoints
             return problem;
         }
 
+        if (SortOf(sort) is not { } order)
+        {
+            return ApiProblems.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["sort"] = ["Порядок комментариев — popular или date."],
+            });
+        }
+
         if (await posts.FindPublishedAsync(postId, ct) is null)
         {
             return ApiProblems.NotFound(PostNotFoundCode);
         }
 
         var tree = await CommentTree.OfPost(db, postId).ToListAsync(ct);
-        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(CommentTree.Shown(tree, 0, levels))));
+        var shown = CommentTree.Sorted(CommentTree.Shown(tree, 0, levels), order);
+        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(shown)));
     }
 
     private static async Task<IResult> GetBranchAsync(
@@ -196,6 +209,14 @@ public sealed class CommentEndpoints : IApiEndpoints
             {
                 ["levels"] = [$"Число уровней — от 1 до {CommentsSettings.MaxDepthLimit}."],
             });
+
+    // «Популярные» unless the read asks for «По дате» (ADR-0058); any other word is refused, not read as the default.
+    private static CommentSort? SortOf(string? sort) => sort switch
+    {
+        null or "popular" => CommentSort.Popular,
+        "date" => CommentSort.Date,
+        _ => null,
+    };
 
     private static CommentView[] Views(IReadOnlyList<ShownComment> shown) =>
         [.. shown.Select(s => View(s.Comment, s.Replies))];

@@ -430,14 +430,36 @@ function shownComments(ordered, start, levels) {
     .filter((comment) => !levels || comment.depth <= start + levels)
 }
 
+// The threads in the order `sort` asks for, as CommentTree.Sorted does (E09-04, ADR-0058): «popular» — the most
+// replies first, the older among equals; «date» — the newest first. Replies keep the order of the tree.
+function sortedThreads(shown, sort) {
+  const threads = []
+  for (const comment of shown) {
+    if (comment.depth === 1 || threads.length === 0) threads.push([])
+    threads.at(-1).push(comment)
+  }
+  const byDate = (a, b) => a[0].createdAt.localeCompare(b[0].createdAt)
+  threads.sort(
+    sort === 'date' ? (a, b) => byDate(b, a) : (a, b) => b[0].replies - a[0].replies || byDate(a, b),
+  )
+  return threads.flat()
+}
+
 function commentTree(response, url) {
   const levels = Number(url.searchParams.get('levels')) || null
+  const sort = url.searchParams.get('sort') ?? 'popular'
   const [, postId] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
   if (postId) {
+    if (!['popular', 'date'].includes(sort))
+      return send(response, 400, {
+        status: 400,
+        errors: { sort: ['Порядок комментариев — popular или date.'] },
+      })
     if (!posts.some((item) => item.id === postId) && !written.has(postId))
       return send(response, 404, { status: 404, code: 'comments.post_not_found' })
     const ordered = comments.filter((comment) => comment.postId === postId)
-    return send(response, 200, { postId, maxDepth: 8, comments: shownComments(ordered, 0, levels) })
+    const shown = sortedThreads(shownComments(ordered, 0, levels), sort)
+    return send(response, 200, { postId, maxDepth: 8, comments: shown })
   }
   const [, id] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)\/branch$/) ?? []
   const at = comments.findIndex((comment) => comment.id === id)

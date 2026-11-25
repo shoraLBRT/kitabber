@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The comments of a published post (E09-02, E09-03), read and sent by useComments and drawn by CommentTree. A guest's
+// The comments of a published post (E09-02, E09-03, E09-04), read, sent and ordered by useComments and drawn by
+// CommentTree. A guest's
 // press on a form opens the sign-in window (ADR-0032); back on the page signed in, the same form opens.
 import { onMounted, ref } from 'vue'
 import CommentTree from './CommentTree.vue'
@@ -9,7 +10,7 @@ import { pendingActionWith, tabStorage, takePendingAction } from '../../utils/pe
 
 const props = defineProps<{ postId: string }>()
 
-const { state, branches, authors, pending, failures, retry, more, send, dismiss } = useComments(
+const { state, branches, authors, pending, failures, sort, retry, more, send, dismiss, order } = useComments(
   () => props.postId,
 )
 const account = useAccount()
@@ -42,7 +43,9 @@ onMounted(() => {
     :pending="pending"
     :failures="failures"
     :resume="resume"
+    :sort="sort"
     @retry="retry()"
+    @sort="order"
     @more="more"
     @send="send"
     @dismiss="dismiss"

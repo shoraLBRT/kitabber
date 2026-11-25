@@ -1306,7 +1306,7 @@
         "tags": [
           "Comments"
         ],
-        "summary": "The comments under a published post in the order of the tree, all or some levels down",
+        "summary": "The comments under a published post, popular or newest threads first, all or some levels down",
         "operationId": "GetCommentTree",
         "parameters": [
           {
@@ -1324,6 +1324,13 @@
             "schema": {
               "type": "integer",
               "format": "int32"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
