@@ -61,6 +61,48 @@ public static class CommentTree
         var deepest = levels is { } most ? start + most : int.MaxValue;
         return [.. ordered.Select((c, i) => new ShownComment(c, replies[i])).Where(s => s.Comment.Depth <= deepest)];
     }
+
+    /// <summary>
+    /// The threads of a post's <paramref name="shown"/> comments, in the order of the tree — each comment under the
+    /// post with the replies after it — put in the order of <paramref name="sort"/> (E09-04, ADR-0058). The replies
+    /// inside a thread keep the order of the tree. <see cref="CommentSort.Popular"/>: the most replies first, the older
+    /// among equals; <see cref="CommentSort.Date"/>: the newest first. A comment's rating takes the place of its
+    /// replies once comments have one (E10-05).
+    /// </summary>
+    public static IReadOnlyList<ShownComment> Sorted(IReadOnlyList<ShownComment> shown, CommentSort sort)
+    {
+        ArgumentNullException.ThrowIfNull(shown);
+        var threads = new List<List<ShownComment>>();
+        foreach (var comment in shown)
+        {
+            if (comment.Comment.Depth == 1 || threads.Count == 0)
+            {
+                threads.Add([]);
+            }
+
+            threads[^1].Add(comment);
+        }
+
+        var ordered = sort == CommentSort.Date
+            ? threads
+                .OrderByDescending(t => t[0].Comment.CreatedAt)
+                .ThenByDescending(t => t[0].Comment.Path, StringComparer.Ordinal)
+            : threads
+                .OrderByDescending(t => t[0].Replies)
+                .ThenBy(t => t[0].Comment.CreatedAt)
+                .ThenBy(t => t[0].Comment.Path, StringComparer.Ordinal);
+        return [.. ordered.SelectMany(t => t)];
+    }
+}
+
+/// <summary>The order of the comments under a post (FR-COMMENT, ADR-0058).</summary>
+public enum CommentSort
+{
+    /// <summary>«Популярные»: the threads with the most replies first, the older first among equals.</summary>
+    Popular,
+
+    /// <summary>«По дате»: the newest threads first.</summary>
+    Date,
 }
 
 /// <summary>A comment a read shows, with the number of replies under it at any depth.</summary>

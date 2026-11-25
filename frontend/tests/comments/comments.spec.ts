@@ -120,9 +120,17 @@ describe('reads', () => {
     })
 
     expect(await loadComments(api, 'p1', 6)).toEqual({ status: 'found', tree })
+    expect(await loadComments(api, 'p1', 6, 'date')).toEqual({ status: 'found', tree })
     expect(await loadBranch(api, '1', 3)).toEqual({ status: 'found', tree })
     expect(calls).toEqual([
-      ['/api/v1/posts/{postId}/comments', { params: { path: { postId: 'p1' }, query: { levels: 6 } } }],
+      [
+        '/api/v1/posts/{postId}/comments',
+        { params: { path: { postId: 'p1' }, query: { levels: 6, sort: 'popular' } } },
+      ],
+      [
+        '/api/v1/posts/{postId}/comments',
+        { params: { path: { postId: 'p1' }, query: { levels: 6, sort: 'date' } } },
+      ],
       ['/api/v1/comments/{id}/branch', { params: { path: { id: '1' }, query: { levels: 3 } } }],
     ])
   })

@@ -394,7 +394,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The comments under a published post in the order of the tree, all or some levels down */
+        /** The comments under a published post, popular or newest threads first, all or some levels down */
         get: operations["GetCommentTree"];
         put?: never;
         /** Replies to a published post or to one of its comments */
@@ -1768,6 +1768,7 @@ export interface operations {
         parameters: {
             query?: {
                 levels?: number;
+                sort?: string;
             };
             header?: never;
             path: {

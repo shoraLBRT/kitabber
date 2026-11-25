@@ -7,7 +7,11 @@ import { expect, expectNoHorizontalScroll, press, test, waitForHydration } from 
 const titled = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
 const short = '/u/anna/0195f3a0-0000-7000-8000-0000000000c2'
 const big = '/books/0195f3a0-0000-7000-8000-0000000000c3-knigi-oseni'
-const reads = (kind: string) => [`${kind}?levels=6`, `${kind}?levels=3`]
+// The reads of the tree carry the order too (E09-04): «Популярные» unless the reader chose another.
+const reads = (kind: string) =>
+  kind === 'comments'
+    ? ['comments?levels=6&sort=popular', 'comments?levels=3&sort=popular']
+    : [`${kind}?levels=6`, `${kind}?levels=3`]
 
 test.describe('дерево комментариев', () => {
   test('ветки вложены, сворачиваются и разворачиваются', async ({ page }) => {

@@ -2,12 +2,20 @@
 // The comments under a post (E09-02, FR-COMMENT, docs/ui/comments.md): the heading with their number and the tree of
 // nested lists, a level per `aria-level`. States: a skeleton of three comments while the tree loads, a failure with
 // «Повторить» (the post above stays), no comments yet, and the tree. The form to write a comment (E09-03) stands
-// above the tree once it is read, open when there is none yet.
+// above the tree once it is read, open when there is none yet. Next to the heading, «Популярные | По дате» (E09-04,
+// ADR-0058) picks the order of the threads; it stays while the tree is read again and is gone only when there are no
+// comments to order.
 import { computed, provide, toRef } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
-import { commentCount, nestComments, type CommentsState } from '../../api/comments'
+import {
+  commentCount,
+  commentSorts,
+  nestComments,
+  type CommentSort,
+  type CommentsState,
+} from '../../api/comments'
 import type { Profile } from '../../api/profiles'
 import { commentTreeKey, type BranchStatus, type CommentFailure, type FormTarget } from './context'
 
@@ -21,12 +29,14 @@ const props = withDefaults(
     pending?: Readonly<Record<string, true>>
     failures?: Readonly<Record<FormTarget, CommentFailure>>
     resume?: FormTarget | null
+    sort?: CommentSort
   }>(),
-  { pending: () => ({}), failures: () => ({}), resume: null },
+  { pending: () => ({}), failures: () => ({}), resume: null, sort: 'popular' },
 )
 
 const emit = defineEmits<{
   retry: []
+  sort: [sort: CommentSort]
   more: [commentId: string]
   send: [text: string, parentId: string | null]
   dismiss: [target: FormTarget]
@@ -51,19 +61,41 @@ provide(commentTreeKey, {
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))
 const roots = computed(() => nestComments(comments.value))
 const count = computed(() => commentCount(comments.value))
+const sortable = computed(() => props.state.status !== 'found' || roots.value.length > 0)
 </script>
 
 <template>
   <section class="comments" aria-labelledby="comments-title" data-testid="comments">
-    <h2 id="comments-title" class="comments__title">
-      Комментарии
-      <span
-        v-if="state.status === 'found' && count > 0"
-        class="comments__count"
-        data-testid="comments-count"
-        >{{ count }}</span
+    <div class="comments__head">
+      <h2 id="comments-title" class="comments__title">
+        Комментарии
+        <span
+          v-if="state.status === 'found' && count > 0"
+          class="comments__count"
+          data-testid="comments-count"
+          >{{ count }}</span
+        >
+      </h2>
+      <div
+        v-if="sortable"
+        class="comments__sort"
+        role="group"
+        aria-label="Порядок комментариев"
+        data-testid="comments-sort"
       >
-    </h2>
+        <button
+          v-for="option in commentSorts"
+          :key="option.id"
+          type="button"
+          class="comments__sort-option"
+          :aria-pressed="option.id === sort ? 'true' : 'false'"
+          :data-testid="`comments-sort-${option.id}`"
+          @click="emit('sort', option.id)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+    </div>
 
     <div
       v-if="state.status === 'loading'"
@@ -104,6 +136,44 @@ const count = computed(() => commentCount(comments.value))
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+}
+
+.comments__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.comments__sort {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.comments__sort-option {
+  min-height: var(--space-8);
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.comments__sort-option:hover {
+  color: var(--color-text);
+}
+
+.comments__sort-option[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .comments__title {

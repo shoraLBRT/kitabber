@@ -2,7 +2,8 @@
 // the comments never hold up its server render. One read brings some levels of the tree (fewer on a phone); a branch
 // with replies left out is read on «Показать ещё». The authors' names and avatars follow, a few profiles at a time.
 // A comment written (E09-03, ADR-0056) is in the tree at once, dimmed until the server keeps it; a failed send takes it
-// out again and gives its text back to its form with the reason.
+// out again and gives its text back to its form with the reason. The server puts the threads in the order the reader
+// chose (E09-04, ADR-0058), remembered in the browser; another choice reads the tree again.
 import { onMounted, ref, shallowRef } from 'vue'
 import {
   commentLevels,
@@ -16,6 +17,7 @@ import {
   withoutComment,
   type Comment,
   type CommentSend,
+  type CommentSort,
   type CommentsState,
 } from '../api/comments'
 import type { Profile } from '../api/profiles'
@@ -26,6 +28,7 @@ import {
   type FormTarget,
 } from '../components/comments/context'
 import { commentDraftKey, draftStorage, forgetCommentDraft } from '../utils/comment-draft'
+import { readCommentSort, saveCommentSort } from '../utils/comment-sort'
 import { phoneQuery } from './useMediaQuery'
 
 const sendFailure = 'Не удалось отправить комментарий. Текст сохранён — попробуйте ещё раз.'
@@ -47,8 +50,10 @@ export function useComments(postId: () => string) {
   const authors = shallowRef(new Map<string, Profile | null>())
   const pending = ref<Record<string, true>>({})
   const failures = ref<Record<FormTarget, CommentFailure>>({})
+  const sort = ref<CommentSort>('popular')
   let levels: number = commentLevels.wide
   let sent = 0
+  let reads = 0
 
   async function addAuthors(comments: Comment[]) {
     const ids = unknownAuthors(comments, authors.value)
@@ -59,7 +64,11 @@ export function useComments(postId: () => string) {
 
   async function load() {
     state.value = { status: 'loading' }
-    const found = await loadComments($api, postId(), levels)
+    branches.value = {}
+    // Only the last read counts: a quick change of order must not let an older answer draw over a newer one.
+    const read = ++reads
+    const found = await loadComments($api, postId(), levels, sort.value)
+    if (read !== reads) return
     state.value =
       found.status === 'found'
         ? { status: 'found', comments: found.tree.comments, maxDepth: found.tree.maxDepth }
@@ -102,7 +111,7 @@ export function useComments(postId: () => string) {
     }
     failures.value = Object.fromEntries(Object.entries(failures.value).filter(([key]) => key !== target))
     pending.value = { ...pending.value, [local.id]: true }
-    update((comments) => withComment(comments, local))
+    update((comments) => withComment(comments, local, sort.value))
 
     const result = await post(postId(), local.text, parentId)
     pending.value = Object.fromEntries(Object.entries(pending.value).filter(([id]) => id !== local.id))
@@ -126,12 +135,21 @@ export function useComments(postId: () => string) {
     failures.value = Object.fromEntries(Object.entries(failures.value).filter(([key]) => key !== target))
   }
 
+  /** Another order: remembered for the next posts and read from the server. */
+  function order(next: CommentSort) {
+    if (next === sort.value) return
+    sort.value = next
+    saveCommentSort(draftStorage(), next)
+    void load()
+  }
+
   onMounted(() => {
     if (typeof window.matchMedia === 'function' && window.matchMedia(phoneQuery).matches) {
       levels = commentLevels.phone
     }
+    sort.value = readCommentSort(draftStorage())
     void load()
   })
 
-  return { state, branches, authors, pending, failures, retry: load, more, send, dismiss }
+  return { state, branches, authors, pending, failures, sort, retry: load, more, send, dismiss, order }
 }
