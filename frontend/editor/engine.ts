@@ -136,6 +136,7 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
   const stopRemoving = removeSelectedDelimiter(holder, editor)
   const stopMoving = moveBlocks(holder, editor)
   const stopSearching = searchOnPhone(holder, messages.ui.popover.Filter)
+  const stopMarking = markAtCaret(holder)
 
   const inputOf = (index: number): HTMLElement | null => {
     const block = editor.blocks.getBlockByIndex(index)
@@ -184,6 +185,7 @@ export const createEditorJs: CreateEngine = async ({ holder, data, placeholder, 
       stopRemoving()
       stopMoving()
       stopSearching()
+      stopMarking()
       editor.destroy()
     },
   }
@@ -218,6 +220,32 @@ function cleanTransfers(holder: HTMLElement): () => void {
     holder.removeEventListener('paste', clean, true)
     holder.removeEventListener('drop', clean, true)
   }
+}
+
+const caretMarks: Record<string, InlineMark> = { KeyB: 'bold', KeyI: 'italic' }
+
+/**
+ * Ctrl+B and Ctrl+I (Cmd on a Mac) with no selection turn bold or italic on for the text typed next (#387). Editor.js
+ * reads these keys on the document and, once a block is its current one, prevents the browser's own command and asks
+ * its inline toolbar instead; with a bare caret the toolbar is not open, so the key was lost — in a new list item as
+ * soon as Editor.js had made the list current (a pause after Enter). The command is given here, before Editor.js sees
+ * the key; a selection is still Editor.js's (its toolbar is open then). The keys are read by position, so they work
+ * in the Russian layout too.
+ */
+export function markAtCaret(holder: HTMLElement): () => void {
+  const mark = (event: KeyboardEvent) => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.isComposing) return
+    const name = caretMarks[event.code]
+    const target = event.target instanceof HTMLElement ? event.target : null
+    const selection = window.getSelection()
+    if (!name || !target?.isContentEditable || !selection?.isCollapsed || selection.rangeCount === 0) return
+    if (!target.contains(selection.anchorNode)) return
+    event.preventDefault()
+    event.stopPropagation()
+    window.document.execCommand(name)
+  }
+  holder.addEventListener('keydown', mark, true)
+  return () => holder.removeEventListener('keydown', mark, true)
 }
 
 const toolbarGap = 8
