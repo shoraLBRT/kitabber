@@ -27,7 +27,9 @@ builder.AddCommentsModule();
 builder.AddReactionsModule();
 builder.AddPreferencesModule();
 builder.AddMediaModule();
-builder.Services.AddPlatformMessaging(builder.Configuration, bus => bus.AddIdentityOutbox());
+builder.Services.AddPlatformMessaging(
+    builder.Configuration,
+    bus => bus.AddIdentityOutbox().AddBlogsOutbox().AddCommentsOutbox().AddReactionsOutbox());
 builder.Services.AddPlatformRealtime(builder.Configuration);
 
 var app = builder.Build();

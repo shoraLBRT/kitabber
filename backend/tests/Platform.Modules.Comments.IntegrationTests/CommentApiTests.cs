@@ -3,10 +3,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
+using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
 using Platform.Persistence;
@@ -77,6 +79,47 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
         var reply = await replied.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal(rootId, reply.GetProperty("parentId").GetGuid());
         Assert.Equal(2, reply.GetProperty("depth").GetInt32());
+    }
+
+    [Fact]
+    public async Task NewCommentIsPublishedWithThePeopleItConcerns()
+    {
+        var events = new System.Collections.Concurrent.ConcurrentQueue<CommentPosted>();
+        var endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
+            $"comments-tests-comment-posted-{Guid.NewGuid():N}",
+            (_, e) => e.Handler<CommentPosted>(c =>
+            {
+                events.Enqueue(c.Message);
+                return Task.CompletedTask;
+            }));
+        await endpoint.Ready;
+        try
+        {
+            var post = await SavePostAsync(publish: true);
+            var other = await SaveConfirmedAccountAsync(2, "other@example.com");
+            var rootId = await CreateAsync(post.Id, "Первый", parentId: null);
+            using var replied = await CommentAsync(post.Id, "Ответ", rootId, other);
+            var replyId = (await replied.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
+
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (events.Count(e => e.PostId == post.Id) < 2)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "the comments were not published in 30s");
+                await Task.Delay(100, Ct);
+            }
+
+            var root = Assert.Single(events, e => e.CommentId == rootId);
+            Assert.Equal((post.AuthorAccountId, _reader, (Guid?)null, (Guid?)null), (root.PostAuthorAccountId,
+                root.AuthorAccountId, root.ParentCommentId, root.ParentAuthorAccountId));
+            var reply = Assert.Single(events, e => e.CommentId == replyId);
+            Assert.Equal((other, (Guid?)rootId, (Guid?)_reader), (reply.AuthorAccountId, reply.ParentCommentId,
+                reply.ParentAuthorAccountId));
+            Assert.Empty(reply.MentionedAccountIds);
+        }
+        finally
+        {
+            await endpoint.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]

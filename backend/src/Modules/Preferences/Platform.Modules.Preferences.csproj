@@ -19,6 +19,7 @@
         <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
+        <ProjectReference Include="../Notifications.Contracts/Platform.Modules.Notifications.Contracts.csproj" />
         <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
         <ProjectReference Include="../Preferences.Contracts/Platform.Modules.Preferences.Contracts.csproj" />
     </ItemGroup>

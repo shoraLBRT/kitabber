@@ -3,6 +3,7 @@ using Platform.Modules.Blogs;
 using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Media;
+using Platform.Modules.Notifications;
 using Platform.Modules.Posts;
 using Platform.Modules.Preferences;
 using Platform.Modules.Reactions;
@@ -27,5 +28,6 @@ public static class ModuleCatalog
         services.AddModuleDbContext<MediaDbContext>(connectionString);
         services.AddModuleDbContext<ReactionsDbContext>(connectionString);
         services.AddModuleDbContext<PreferencesDbContext>(connectionString);
+        services.AddModuleDbContext<NotificationsDbContext>(connectionString);
     }
 }

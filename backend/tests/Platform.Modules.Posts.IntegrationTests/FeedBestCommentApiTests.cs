@@ -44,7 +44,13 @@ public sealed class CommandCounter : DbCommandInterceptor
         InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
-        Interlocked.Increment(ref _count);
+        // The outbox delivery services of the publishing modules poll their outbox tables on their own (ADR-0092):
+        // that is not the read under test.
+        if (!command.CommandText.Contains("outbox_", StringComparison.Ordinal))
+        {
+            Interlocked.Increment(ref _count);
+        }
+
         return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
     }
 }

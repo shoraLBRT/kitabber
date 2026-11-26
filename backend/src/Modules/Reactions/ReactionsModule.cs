@@ -1,7 +1,9 @@
+using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
+using Platform.Messaging;
 using Platform.Modules.Reactions.Contracts;
 using Platform.Persistence;
 
@@ -26,5 +28,15 @@ public static class ReactionsModule
         builder.Services.AddScoped<IReactionRatings, ReactionRatings>();
         builder.Services.AddApiEndpoints<LikeEndpoints>();
         return builder;
+    }
+
+    /// <summary>
+    /// The module's outbox in the API host (ADR-0005): a new reaction publishes <c>ReactionPut</c> through
+    /// <c>IModuleOutbox&lt;ReactionsDbContext&gt;</c> (ADR-0092).
+    /// </summary>
+    public static IBusRegistrationConfigurator AddReactionsOutbox(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        return bus.AddModuleOutbox<ReactionsDbContext>();
     }
 }

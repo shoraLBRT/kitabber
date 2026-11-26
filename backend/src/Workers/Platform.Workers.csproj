@@ -14,6 +14,7 @@
         <ProjectReference Include="../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../Modules/Blogs/Platform.Modules.Blogs.csproj" />
         <ProjectReference Include="../Modules/Preferences/Platform.Modules.Preferences.csproj" />
+        <ProjectReference Include="../Modules/Notifications/Platform.Modules.Notifications.csproj" />
         <ProjectReference Include="../Observability/Platform.Observability.csproj" />
     </ItemGroup>
 

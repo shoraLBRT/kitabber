@@ -4,6 +4,7 @@ using Platform.Configuration;
 using Platform.Mail;
 using Platform.Messaging;
 using Platform.Modules.Blogs;
+using Platform.Modules.Notifications;
 using Platform.Modules.Preferences;
 using Platform.Observability;
 
@@ -30,6 +31,7 @@ public static class WorkerHost
         builder.AddPlatformObservability(ServiceName);
         builder.Services.AddBlogsWorkers(builder.Configuration);
         builder.Services.AddPreferencesWorkers(builder.Configuration);
+        builder.Services.AddNotificationsWorkers(builder.Configuration);
         Configure(builder.Services, builder.Configuration, bus =>
         {
             AddModules(bus);
@@ -54,5 +56,6 @@ public static class WorkerHost
     }
 
     // One line per module: its consumers and, when it publishes, its outbox (AddModuleOutbox, ADR-0005).
-    private static void AddModules(IBusRegistrationConfigurator bus) => bus.AddBlogsConsumers().AddPreferencesConsumers();
+    private static void AddModules(IBusRegistrationConfigurator bus) =>
+        bus.AddBlogsConsumers().AddPreferencesConsumers().AddNotificationsConsumers();
 }

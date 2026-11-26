@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
 using Platform.Messaging;
+using Platform.Modules.Notifications.Contracts;
 using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Preferences.Blocks;
 using Platform.Modules.Preferences.Contracts;
@@ -43,6 +44,7 @@ public static class PreferencesModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
         AddDatabase(services, configuration);
+        services.AddScoped<INotificationSuppression, BlockedNotificationSuppression>();
         return services;
     }
 

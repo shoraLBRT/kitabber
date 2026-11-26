@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -93,6 +94,56 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         Assert.Equal(HttpStatusCode.OK, taken.StatusCode);
         Assert.Equal((1, false), await StateOf(taken));
         Assert.Equal(1, await CountAsync());
+    }
+
+    [Fact]
+    public async Task OnlyANewLikeIsPublishedWithTheAuthorOfItsTarget()
+    {
+        var events = new ConcurrentQueue<ReactionPut>();
+        var endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
+            $"reactions-tests-reaction-put-{Guid.NewGuid():N}",
+            (_, e) => e.Handler<ReactionPut>(c =>
+            {
+                events.Enqueue(c.Message);
+                return Task.CompletedTask;
+            }));
+        await endpoint.Ready;
+        try
+        {
+            var post = await SavePostAsync(publish: true);
+            var comment = await SaveCommentAsync(post.Id, _other);
+
+            using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+            using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+            using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+            using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (events.Count(e => e.PostId == post.Id) < 2)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "the likes were not published in 30s");
+                await Task.Delay(100, Ct);
+            }
+
+            // A marker after them: the repeated like and the taken one would have come before it.
+            using var marker = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+            while (!events.Any(e => e.AccountId == _other))
+            {
+                Assert.True(DateTime.UtcNow < deadline, "the marker was not published in 30s");
+                await Task.Delay(100, Ct);
+            }
+
+            var mine = events.Where(e => e.AccountId == _reader).ToList();
+            Assert.Equal(
+                [("post", post.Id, _author), ("comment", comment.Id, _other)],
+                mine.OrderBy(e => e.Target, StringComparer.Ordinal).Reverse()
+                    .Select(e => (e.Target, e.TargetId, e.TargetAuthorAccountId)));
+            Assert.All(mine, e => Assert.Equal(("like", post.Id), (e.Kind, e.PostId)));
+        }
+        finally
+        {
+            await endpoint.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]

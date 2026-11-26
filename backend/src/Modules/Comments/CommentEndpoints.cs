@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
+using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Preferences.Contracts;
 using Platform.Modules.Reactions.Contracts;
@@ -321,6 +323,7 @@ public sealed class CommentEndpoints : IApiEndpoints
         CommentInput input,
         ClaimsPrincipal user,
         CommentsDbContext db,
+        IModuleOutbox<CommentsDbContext> outbox,
         IPostDirectory posts,
         CommentLimits limits,
         TimeProvider time,
@@ -372,6 +375,18 @@ public sealed class CommentEndpoints : IApiEndpoints
 
         var comment = Comment.CreateNative(account, postId, parent, text!, time.GetUtcNow());
         db.Comments.Add(comment);
+        // The comment and its event are one change (ADR-0092): the notifications of the people it concerns follow it.
+        await outbox.Publish(
+            new CommentPosted(
+                comment.Id,
+                postId,
+                post.AuthorAccountId,
+                account,
+                parent?.Id,
+                parent?.AuthorAccountId,
+                [],
+                comment.CreatedAt),
+            ct);
         await db.SaveChangesAsync(ct);
         return TypedResults.Created($"/api/v1/comments/{comment.Id}/branch", View(comment, replies: 0, limits));
     }

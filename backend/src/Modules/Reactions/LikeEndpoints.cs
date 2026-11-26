@@ -7,8 +7,10 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Posts.Contracts;
+using Platform.Modules.Reactions.Contracts;
 using Platform.Realtime;
 
 namespace Platform.Modules.Reactions;
@@ -118,6 +120,7 @@ public sealed class LikeEndpoints : IApiEndpoints
         Guid postId,
         ClaimsPrincipal user,
         ReactionsDbContext db,
+        IModuleOutbox<ReactionsDbContext> outbox,
         IPostDirectory posts,
         TimeProvider time,
         IRealtimePublisher realtime,
@@ -136,7 +139,13 @@ public sealed class LikeEndpoints : IApiEndpoints
 
         return Refused(LikeRules.Refusal(account, post.AuthorAccountId))
             ?? await LikeAsync(
-                db, Reaction.Like(ReactionTarget.Post, postId, postId, account, time.GetUtcNow()), realtime, logger, ct);
+                db,
+                outbox,
+                Reaction.Like(ReactionTarget.Post, postId, postId, account, time.GetUtcNow()),
+                post.AuthorAccountId,
+                realtime,
+                logger,
+                ct);
     }
 
     private static async Task<IResult> UnlikePostAsync(
@@ -162,6 +171,7 @@ public sealed class LikeEndpoints : IApiEndpoints
         Guid id,
         ClaimsPrincipal user,
         ReactionsDbContext db,
+        IModuleOutbox<ReactionsDbContext> outbox,
         ICommentDirectory comments,
         TimeProvider time,
         IRealtimePublisher realtime,
@@ -181,7 +191,9 @@ public sealed class LikeEndpoints : IApiEndpoints
         return Refused(LikeRules.Refusal(account, comment.AuthorAccountId))
             ?? await LikeAsync(
                 db,
+                outbox,
                 Reaction.Like(ReactionTarget.Comment, id, comment.PostId, account, time.GetUtcNow()),
+                comment.AuthorAccountId!.Value,
                 realtime,
                 logger,
                 ct);
@@ -210,7 +222,9 @@ public sealed class LikeEndpoints : IApiEndpoints
     // is the same like (ADR-0061). Only a change reaches the readers of the post (ADR-0072).
     private static async Task<IResult> LikeAsync(
         ReactionsDbContext db,
+        IModuleOutbox<ReactionsDbContext> outbox,
         Reaction like,
+        Guid targetAuthor,
         IRealtimePublisher realtime,
         ILogger logger,
         CancellationToken ct)
@@ -227,6 +241,17 @@ public sealed class LikeEndpoints : IApiEndpoints
             if (!there)
             {
                 db.Reactions.Add(like);
+                // Only a new reaction is announced, in the same transaction (ADR-0092).
+                await outbox.Publish(
+                    new ReactionPut(
+                        ReactionEvents.NameOf(like.TargetKind),
+                        like.TargetId,
+                        like.PostId,
+                        targetAuthor,
+                        like.AccountId,
+                        ReactionEvents.NameOf(like.Kind),
+                        like.CreatedAt),
+                    ct);
                 await db.SaveChangesAsync(ct);
                 await Ratings.RecountAsync(db, like.TargetKind, like.TargetId, like.PostId, ct);
                 await transaction.CommitAsync(ct);

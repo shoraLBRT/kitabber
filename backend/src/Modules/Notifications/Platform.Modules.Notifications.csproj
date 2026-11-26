@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The Notifications module (FR-NOTIFY, ADR-0092): turns the events of other modules (a comment, a reaction, a
+      subscription) into notifications for the people they concern, in the workers host. Its tables live in the schema
+      `notifications`; it knows people only by the account_id (FR-ID-1) and learns about comments, reactions and
+      subscriptions only from the events in Comments.Contracts, Reactions.Contracts and Blogs.Contracts.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Notifications</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />
+        <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../Blogs.Contracts/Platform.Modules.Blogs.Contracts.csproj" />
+        <ProjectReference Include="../Comments.Contracts/Platform.Modules.Comments.Contracts.csproj" />
+        <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
+        <ProjectReference Include="../Notifications.Contracts/Platform.Modules.Notifications.Contracts.csproj" />
+        <ProjectReference Include="../Reactions.Contracts/Platform.Modules.Reactions.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>
