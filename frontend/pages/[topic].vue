@@ -33,6 +33,9 @@ const state = computed(() => {
   return { status: 'error' as const }
 })
 
+// The subscriber count and «Подписаться» (E11-03, ADR-0085).
+const subscription = useSubscription(() => (state.value.status === 'found' ? state.value.profile : null))
+
 const notFound = computed(() => data.value?.status === 'not-found')
 
 if (import.meta.server) {
@@ -68,7 +71,12 @@ useHead(() => ({
 </script>
 
 <template>
-  <TopicView :state="state" @retry="refresh()">
+  <TopicView
+    :state="state"
+    :subscription="{ state: subscription.state.value, busy: subscription.busy.value }"
+    @retry="refresh()"
+    @subscribe="subscription.toggle()"
+  >
     <template #default="{ profile }">
       <TopicFeed :key="profile.id" :topic-id="profile.id" />
     </template>

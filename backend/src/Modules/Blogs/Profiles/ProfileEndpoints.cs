@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Modules.Blogs.Subscriptions;
 using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Blogs.Profiles;
@@ -32,6 +33,11 @@ namespace Platform.Modules.Blogs.Profiles;
 /// The owner of a topic (E11-01, ADR-0082): the personal blog of the account that runs it; <c>null</c> for a personal
 /// blog (its owner is the blog itself) and for a topic whose owner has no personal blog yet.
 /// </param>
+/// <param name="SubscriberCount">How many accounts follow the blog (E11-03, ADR-0085).</param>
+/// <param name="SubscriptionCount">
+/// How many blogs and topics the owner of a personal blog follows (ADR-0085); <c>null</c> for a topic.
+/// </param>
+/// <param name="Subscribed">The reader follows the blog (ADR-0085); <c>false</c> for a guest.</param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -43,7 +49,10 @@ public sealed record Profile(
     Uri? AvatarUrl,
     IReadOnlyList<ImageSource> AvatarSources,
     ProfileCover? Cover,
-    ProfileOwner? Owner = null);
+    ProfileOwner? Owner = null,
+    int SubscriberCount = 0,
+    int? SubscriptionCount = null,
+    bool Subscribed = false);
 
 /// <summary>The owner of a topic as its page shows it (ADR-0082): the owner's personal blog.</summary>
 /// <param name="Id">The owner's personal blog.</param>
@@ -154,14 +163,14 @@ public sealed class ProfileEndpoints : IApiEndpoints
     }
 
     private static async Task<IResult> GetOwnAsync(
-        ClaimsPrincipal user, PersonalBlogs blogs, IMediaLibrary media, CancellationToken ct)
+        ClaimsPrincipal user, PersonalBlogs blogs, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
     {
         if (AccountOf(user) is not { } accountId)
         {
             return TypedResults.Unauthorized();
         }
 
-        return TypedResults.Ok(await ViewAsync(await blogs.EnsureAsync(accountId, ct), accountId, media, ct));
+        return TypedResults.Ok(await ViewAsync(await blogs.EnsureAsync(accountId, ct), accountId, db, media, ct));
     }
 
     private static async Task<IResult> UpdateOwnAsync(
@@ -203,7 +212,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         blog.Describe(input.Description);
         blog.SetAvatar(input.AvatarId);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
+        return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
 
     private static async Task<IResult> SetOwnCoverAsync(
@@ -238,7 +247,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         var blog = await blogs.EnsureAsync(accountId, ct);
         blog.SetCover(input.MediaId, input.Position);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
+        return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
 
     private static async Task<IResult> RemoveOwnCoverAsync(
@@ -252,7 +261,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         var blog = await blogs.EnsureAsync(accountId, ct);
         blog.RemoveCover();
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
+        return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
 
     private static Task<string?> AvatarProblemAsync(Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
@@ -302,7 +311,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
     // A reader's view of any blog: a topic also names its owner (ADR-0082).
     private static async Task<Profile> ReadAsync(
         Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
-        await ViewAsync(blog, viewer, media, ct) with { Owner = await TopicOwnerAsync(blog, db, ct) };
+        await ViewAsync(blog, viewer, db, media, ct) with { Owner = await TopicOwnerAsync(blog, db, ct) };
 
     // The owner of a topic is shown by the owner's personal blog; a reader's request never creates that blog.
     private static async Task<ProfileOwner?> TopicOwnerAsync(Subsite blog, BlogsDbContext db, CancellationToken ct) =>
@@ -313,7 +322,19 @@ public sealed class ProfileEndpoints : IApiEndpoints
                 .SingleOrDefaultAsync(ct)
             : null;
 
-    private static async Task<Profile> ViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct) => new(
+    private static async Task<Profile> ViewAsync(
+        Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
+    {
+        var numbers = await SubscriptionCounts.OfAsync(db, blog, viewer, ct);
+        return await BareViewAsync(blog, viewer, media, ct) with
+        {
+            SubscriberCount = numbers.SubscriberCount,
+            SubscriptionCount = numbers.SubscriptionCount,
+            Subscribed = numbers.Subscribed,
+        };
+    }
+
+    private static async Task<Profile> BareViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct) => new(
         blog.Id,
         blog.Type == SubsiteType.Personal ? "personal" : "topic",
         blog.Name,

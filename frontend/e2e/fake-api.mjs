@@ -978,7 +978,50 @@ function clientOf(request) {
 function edited(blog, request) {
   const edit = clientOf(request) && edits.get(clientOf(request))
   const empty = { avatarId: null, avatarUrl: null, avatarSources: [], cover: null }
-  return edit && blog.owner === owner ? { ...empty, ...blog, ...edit } : { ...empty, ...blog }
+  const shown = { ...empty, ...blog, ...subscriptionFields(blog, request) }
+  return edit && blog.owner === owner ? { ...shown, ...edit } : shown
+}
+
+// Subscriptions (E11-03, ADR-0085): PUT and DELETE /api/v1/blogs/{id}/subscription. Like the edits, they are kept per
+// client address, so only that client sees them. «Книги» has 41 subscribers of others, the other blogs none; anna
+// follows no one of her own. Her own blog is refused, and the subscription to «Сбой» fails as an unavailable API would.
+const othersSubscribers = { books: 41 }
+const subscriptions = new Map() // client address -> Set of blog ids
+
+function subscribedBy(request) {
+  const client = clientOf(request)
+  if (client && !subscriptions.has(client)) subscriptions.set(client, new Set())
+  return subscriptions.get(client) ?? new Set()
+}
+
+function subscriptionFields(blog, request) {
+  const reader = subject(request)
+  const own = reader ? subscribedBy(request) : new Set()
+  const subscribed = own.has(blog.id)
+  return {
+    subscriberCount: (othersSubscribers[blog.nickname] ?? 0) + (subscribed ? 1 : 0),
+    subscriptionCount: blog.type === 'personal' ? (reader && blog.owner === reader ? own.size : 0) : null,
+    subscribed,
+  }
+}
+
+function changeSubscription(request, response, blogId) {
+  const reader = subject(request)
+  if (!reader) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const blog = blogs.find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'blogs.blog_not_found' })
+  if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
+  if (blog.type === 'personal' && blog.owner === reader)
+    return send(response, 403, {
+      status: 403,
+      code: 'blogs.own_blog',
+      detail: 'На свой блог подписаться нельзя.',
+    })
+  const own = subscribedBy(request)
+  if (request.method === 'PUT') own.add(blog.id)
+  else own.delete(blog.id)
+  const { subscriberCount, subscribed } = subscriptionFields(blog, request)
+  return send(response, 200, { subscriberCount, subscribed })
 }
 
 function readBytes(request) {
@@ -1217,6 +1260,9 @@ createServer(async (request, response) => {
     return setCover(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
+  const [, subscriptionBlog] = url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/subscription$/) ?? []
+  if (subscriptionBlog && ['PUT', 'DELETE'].includes(request.method))
+    return changeSubscription(request, response, subscriptionBlog)
   const [, likedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/likes$/) ?? []
   if (likedPost && request.method === 'GET') return postLikes(request, response, likedPost)
   const [, likeTarget, likeId] = url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/like$/) ?? []

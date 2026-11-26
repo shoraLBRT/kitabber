@@ -19,6 +19,8 @@ const anna: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  subscriberCount: 0,
+  subscribed: false,
   cover: null,
 }
 
@@ -59,6 +61,25 @@ describe('BlogView', () => {
     const without = mountView({ status: 'found', profile: anna, owner: false })
     expect(without.find('img.blog__avatar').exists()).toBe(false)
     expect(without.get('.blog__avatar').text()).toBe('А')
+  })
+
+  // E11-03, ADR-0085: the subscriber numbers and «Подписаться» for a visitor, the numbers alone for the owner.
+  it('shows a visitor the subscriber numbers and «Подписаться», whose press goes to the page', async () => {
+    const profile = { ...anna, subscriberCount: 5, subscriptionCount: 2 }
+    const wrapper = mountView({ status: 'found', profile, owner: false })
+    expect(wrapper.get('[data-testid="subscription-counts"]').text()).toBe('5 подписчиков · 2 подписки')
+    await wrapper.get('[data-testid="subscribe-button"]').trigger('click')
+    expect(wrapper.emitted('subscribe')).toHaveLength(1)
+  })
+
+  it('shows the state the page holds over the profile’s, and the owner no button', async () => {
+    const wrapper = mountView({ status: 'found', profile: anna, owner: false })
+    await wrapper.setProps({ subscription: { state: { subscriberCount: 1, subscribed: true }, busy: false } })
+    expect(wrapper.get('[data-testid="subscriber-count"]').text()).toBe('1 подписчик')
+    expect(wrapper.get('[data-testid="subscribe-button"]').text()).toBe('Вы подписаны')
+    const own = mountView({ status: 'found', profile: anna, owner: true })
+    expect(own.get('[data-testid="subscriber-count"]').text()).toBe('0 подписчиков')
+    expect(own.find('[data-testid="subscribe-button"]').exists()).toBe(false)
   })
 
   it('shows the owner the registration date and the management buttons', () => {

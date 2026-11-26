@@ -3,13 +3,16 @@
 // each at its own address, so the tab content is the slot. States: loading (a skeleton of the header and the list),
 // not found, a failure with «Повторить», and the blog itself. The owner also sees the registration date and the
 // management buttons: «Ред.» and «Настройки» open the blog settings (E04-03, /settings/blog); statistics comes with
-// its own issue, so its button is there but disabled. Visitor actions (subscribe, message, block, report) come with FR-SUB, FR-MSG and FR-MOD.
+// its own issue, so its button is there but disabled. The subscriber numbers and «Подписаться» are BlogSubscription.vue
+// (E11-03); the page passes their state. Other visitor actions (message, block, report) come with FR-MSG and FR-MOD.
 // The cover (E04-04, BlogCover.vue) is shown to everyone; the owner's page passes coverActions to change it.
 import { computed } from 'vue'
 import BlogCover, { type CoverActions } from './BlogCover.vue'
+import BlogSubscription from './BlogSubscription.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import { blogTitle, type Profile, type ProfileLookup } from '../../api/profiles'
+import { subscriptionOf, type SubscriptionView } from '../../api/subscriptions'
 import { locale, t } from '../../i18n'
 
 export type BlogTab = 'posts' | 'comments'
@@ -21,9 +24,11 @@ const props = defineProps<{
   tab: BlogTab
   /** What the owner can do with the cover; only the owner's page passes it. */
   coverActions?: CoverActions
+  /** The subscription as the page holds it (useSubscription); the profile's own numbers without it. */
+  subscription?: { state: SubscriptionView; busy: boolean }
 }>()
 
-defineEmits<{ retry: []; saved: [profile: Profile]; unauthorized: [] }>()
+defineEmits<{ retry: []; saved: [profile: Profile]; unauthorized: []; subscribe: [] }>()
 
 const tabs = computed(() => [
   { id: 'posts' as const, label: t('blog.posts'), to: props.base },
@@ -32,6 +37,9 @@ const tabs = computed(() => [
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
 const title = computed(() => (found.value ? blogTitle(found.value.profile) : ''))
+const shownSubscription = computed(() =>
+  found.value ? (props.subscription?.state ?? subscriptionOf(found.value.profile)) : null,
+)
 
 // A fixed time zone keeps the server and the browser on the same day, so hydration does not differ.
 const registered = computed(() => {
@@ -102,6 +110,14 @@ const registered = computed(() => {
           @{{ found.profile.nickname }}
         </p>
         <p v-if="found.profile.description" class="blog__description">{{ found.profile.description }}</p>
+        <BlogSubscription
+          v-if="shownSubscription"
+          :state="shownSubscription"
+          :subscription-count="found.profile.subscriptionCount"
+          :own="found.owner"
+          :busy="props.subscription?.busy"
+          @toggle="$emit('subscribe')"
+        />
         <template v-if="found.owner">
           <p class="blog__muted" data-testid="blog-registered">
             {{ t('blog.registered', { date: registered ?? '' }) }}

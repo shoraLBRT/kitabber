@@ -1,24 +1,31 @@
 <script setup lang="ts">
 // The topic page (E11-01, FR-TOPIC, docs/ui/topic.md, ADR-0082): the header of the topic — cover, avatar, name,
 // description and its owner — and its posts below it, which the page passes as the slot. States: loading (a skeleton of
-// the header), a failure with «Повторить», and the topic. A missing topic is the page's 404 (error.vue). Subscribing,
-// notifications, the «Комментарии» tab, the rules and moderators come with their own E11 issues; changing the cover of
+// the header), a failure with «Повторить», and the topic. A missing topic is the page's 404 (error.vue). The subscriber
+// count and «Подписаться» are BlogSubscription.vue (E11-03), its state held by the page. Notifications, the «Комментарии» tab, the rules and moderators come with their own E11 issues; changing the cover of
 // a topic comes with the topic's management (E11-12, #114), so the cover is only shown here.
 import { computed } from 'vue'
 import BlogCover from '../blog/BlogCover.vue'
+import BlogSubscription from '../blog/BlogSubscription.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiState from '../ui/UiState.vue'
 import { blogPath, blogTitle, type Profile } from '../../api/profiles'
+import { subscriptionOf, type SubscriptionView } from '../../api/subscriptions'
 import { t } from '../../i18n'
 
 const props = defineProps<{
   state: { status: 'loading' } | { status: 'error' } | { status: 'found'; profile: Profile }
+  /** The subscription as the page holds it (useSubscription); the profile's own numbers without it. */
+  subscription?: { state: SubscriptionView; busy: boolean }
 }>()
 
-defineEmits<{ retry: [] }>()
+defineEmits<{ retry: []; subscribe: [] }>()
 
 const topic = computed(() => (props.state.status === 'found' ? props.state.profile : null))
+const shownSubscription = computed(() =>
+  topic.value ? (props.subscription?.state ?? subscriptionOf(topic.value)) : null,
+)
 const title = computed(() => (topic.value ? blogTitle(topic.value) : ''))
 const owner = computed(() => topic.value?.owner ?? null)
 </script>
@@ -69,6 +76,12 @@ const owner = computed(() => topic.value?.owner ?? null)
           {{ t('topic.owner') }}
           <NuxtLink :to="blogPath(owner)" class="topic__owner">{{ blogTitle(owner) }}</NuxtLink>
         </p>
+        <BlogSubscription
+          v-if="shownSubscription"
+          :state="shownSubscription"
+          :busy="props.subscription?.busy"
+          @toggle="$emit('subscribe')"
+        />
       </div>
     </header>
 

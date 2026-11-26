@@ -1135,6 +1135,118 @@
         }
       }
     },
+    "/api/v1/blogs/{id}/subscription": {
+      "put": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscribes to a blog or a topic; subscribing again changes nothing",
+        "operationId": "SubscribeToBlog",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Unsubscribes from a blog or a topic; unsubscribing when not subscribed changes nothing",
+        "operationId": "UnsubscribeFromBlog",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts": {
       "post": {
         "tags": [
@@ -3599,6 +3711,22 @@
                 "$ref": "#/components/schemas/ProfileOwner"
               }
             ]
+          },
+          "subscriberCount": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "subscriptionCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "subscribed": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -3804,6 +3932,22 @@
           }
         }
       },
+      "SubscriptionView": {
+        "required": [
+          "subscriberCount",
+          "subscribed"
+        ],
+        "type": "object",
+        "properties": {
+          "subscriberCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "subscribed": {
+            "type": "boolean"
+          }
+        }
+      },
       "TopicSummary": {
         "required": [
           "id",
@@ -3892,6 +4036,9 @@
     },
     {
       "name": "Topics"
+    },
+    {
+      "name": "Subscriptions"
     },
     {
       "name": "Posts"

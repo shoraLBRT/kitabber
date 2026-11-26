@@ -27,6 +27,8 @@ const anna: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  subscriberCount: 0,
+  subscribed: false,
   cover: null,
 }
 const books: Profile = {

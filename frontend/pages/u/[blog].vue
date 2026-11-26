@@ -36,6 +36,8 @@ const { data, pending, refresh } = await useAsyncData(
 const state = computed(() => (pending.value || !data.value ? { status: 'loading' as const } : data.value))
 const tab = computed<BlogTab>(() => (route.path.endsWith('/comments') ? 'comments' : 'posts'))
 const owner = computed(() => state.value.status === 'found' && state.value.owner)
+// The subscriber numbers and «Подписаться» (E11-03, ADR-0085).
+const subscription = useSubscription(() => (state.value.status === 'found' ? state.value.profile : null))
 
 if (import.meta.server) {
   const found = data.value
@@ -90,9 +92,11 @@ useHead(() => ({
     :base="`/u/${segment}`"
     :tab="tab"
     :cover-actions="coverActions"
+    :subscription="{ state: subscription.state.value, busy: subscription.busy.value }"
     @retry="refresh()"
     @saved="onSaved"
     @unauthorized="onUnauthorized"
+    @subscribe="subscription.toggle()"
   >
     <NuxtPage :owner="owner" />
   </BlogView>

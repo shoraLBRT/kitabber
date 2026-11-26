@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Platform.Messaging;
+using Platform.Modules.Blogs.Subscriptions;
 using Platform.Persistence;
 
 namespace Platform.Modules.Blogs;
@@ -21,7 +22,13 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
 
     public static string Schema => "blogs";
 
+    /// <summary>The subscribers of a blog, counted for its profile (ADR-0085).</summary>
+    public const string SubscriptionBlogIndex = "ix_subscriptions_subsite";
+
     public DbSet<Subsite> Subsites => Set<Subsite>();
+
+    /// <summary>Who follows which blog or topic (E11-03, ADR-0085).</summary>
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +47,14 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
             subsite.HasIndex(s => s.Nickname).IsUnique().HasDatabaseName(NicknameIndex);
             subsite.HasIndex(s => s.OwnerAccountId).IsUnique().HasDatabaseName(PersonalBlogIndex)
                 .HasFilter("type = 'Personal'");
+        });
+        modelBuilder.Entity<Subscription>(subscription =>
+        {
+            // One subscription per account and blog: the key makes subscribing again a no-op (ADR-0085). Its first
+            // column serves the account's own list («Моя лента», E08-04).
+            subscription.HasKey(s => new { s.AccountId, s.SubsiteId });
+            subscription.HasIndex(s => s.SubsiteId).HasDatabaseName(SubscriptionBlogIndex);
+            subscription.HasOne<Subsite>().WithMany().HasForeignKey(s => s.SubsiteId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
