@@ -19,6 +19,7 @@ import { canReply, repliesText, type CommentNode } from '../../api/comments'
 import { commentMenuItems } from '../../utils/comment-menu'
 import { commentTreeKey } from './context'
 import { formatNumber, locale, t } from '../../i18n'
+import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{ node: CommentNode }>()
 
@@ -154,7 +155,9 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
       :text="comment.text"
       @close="editing = false"
     />
-    <p v-else-if="!comment.deleted" class="comment__text" data-testid="comment-text">{{ comment.text }}</p>
+    <p v-else-if="!comment.deleted" class="comment__text" data-testid="comment-text" dir="auto">
+      {{ isolateRtlText(comment.text) }}
+    </p>
     <div v-if="(likeShown || (replyable && !replying)) && !editing" class="comment__actions">
       <button
         v-if="likeShown"

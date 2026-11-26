@@ -249,6 +249,7 @@ export class ListTool implements BlockTool {
     item.dataset.level = String(level)
     item.dataset.placeholder = itemPlaceholder
     item.contentEditable = this.readOnly ? 'false' : 'true'
+    item.dir = 'auto'
     item.innerHTML = html
     return item
   }

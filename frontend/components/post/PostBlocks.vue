@@ -5,6 +5,9 @@
 // with `blockquote` and `figcaption`, a delimiter `hr`. A block the renderer does not know is a placeholder.
 // An image (E05-06, ADR-0049) is a `figure` with the picture (UiImage: its place held by the block's size, the
 // sources from PostView.images, the blurred stand-in from PostView.imagePreviews, ADR-0067) and its caption.
+// Every block of text and every caption is `dir="auto"` (E02-14, ADR-0068; a quote takes its direction from its text,
+// its caption has its own): a block that starts with Arabic letters is drawn right to left, its line on the right and
+// its punctuation where Arabic puts it, the rest left to right.
 import { computed } from 'vue'
 import PostList from './PostList.vue'
 import UiImage from '../ui/UiImage.vue'
@@ -36,23 +39,30 @@ const blocks = computed(() => viewBlocks(props.document))
       {{ t('post.empty') }}
     </p>
     <template v-for="block in blocks" :key="block.key">
-      <p v-if="block.kind === 'paragraph'" class="post-blocks__text" v-html="block.html" />
+      <p v-if="block.kind === 'paragraph'" class="post-blocks__text" dir="auto" v-html="block.html" />
       <h2
         v-else-if="block.kind === 'header' && block.level === 2"
         :id="block.anchor"
         class="post-blocks__heading post-blocks__heading--h2"
+        dir="auto"
         v-html="block.html"
       />
       <h3
         v-else-if="block.kind === 'header'"
         :id="block.anchor"
         class="post-blocks__heading post-blocks__heading--h3"
+        dir="auto"
         v-html="block.html"
       />
       <PostList v-else-if="block.kind === 'list'" :ordered="block.ordered" :items="block.items" />
-      <figure v-else-if="block.kind === 'quote'" class="post-blocks__quote">
+      <figure v-else-if="block.kind === 'quote'" class="post-blocks__quote" dir="auto">
         <blockquote class="post-blocks__quote-text"><p v-html="block.html" /></blockquote>
-        <figcaption v-if="block.caption" class="post-blocks__quote-caption" v-html="block.caption" />
+        <figcaption
+          v-if="block.caption"
+          class="post-blocks__quote-caption"
+          dir="auto"
+          v-html="block.caption"
+        />
       </figure>
       <hr v-else-if="block.kind === 'delimiter'" class="post-blocks__delimiter" />
       <figure v-else-if="block.kind === 'image'" class="post-blocks__image" data-testid="post-block-image">
@@ -66,7 +76,12 @@ const blocks = computed(() => viewBlocks(props.document))
           :alt="block.caption ? '' : t('post.photo')"
           fit="contain"
         />
-        <figcaption v-if="block.caption" class="post-blocks__image-caption" v-html="block.caption" />
+        <figcaption
+          v-if="block.caption"
+          class="post-blocks__image-caption"
+          dir="auto"
+          v-html="block.caption"
+        />
       </figure>
       <p
         v-else

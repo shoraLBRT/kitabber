@@ -12,6 +12,7 @@ import { feedCommentPath, feedItemPath, feedPreview, type FeedPost } from '../..
 import { blogTitle } from '../../api/profiles'
 import { subsitePath } from '../../api/posts'
 import { locale, t } from '../../i18n'
+import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{ item: FeedPost }>()
 
@@ -63,7 +64,7 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
     </header>
 
     <NuxtLink v-if="item.post.title" :to="path" class="feed-card__link" data-testid="feed-card-title">
-      <h2 class="feed-card__title">{{ item.post.title }}</h2>
+      <h2 class="feed-card__title" dir="auto">{{ isolateRtlText(item.post.title) }}</h2>
     </NuxtLink>
 
     <PostBlocks :document="shown" :images="item.post.images" :previews="item.post.imagePreviews" />

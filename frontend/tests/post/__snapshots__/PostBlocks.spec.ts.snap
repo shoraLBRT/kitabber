@@ -1,8 +1,30 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`PostBlocks: a snapshot of each block type > Arabic and mixed Russian and Arabic text 1`] = `
+"<div class="post-blocks" data-testid="post-blocks">
+<p class="post-blocks__text" dir="auto">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ، قال: «Привет»!</p>
+<p class="post-blocks__text" dir="auto">Он сказал: «<b>[السلام</b> عليكم]», и повторил 3 раза.</p>
+<h2 id="h-r3" class="post-blocks__heading post-blocks__heading--h2" dir="auto">Глава «[كتاب]»</h2>
+<ul class="post-list" dir="auto">
+<li class="post-list__item">
+<span>واحد</span>
+</li>
+<li class="post-list__item">
+<span>Два: [اثنان].</span>
+</li>
+</ul>
+<figure class="post-blocks__quote" dir="auto">
+<blockquote class="post-blocks__quote-text">
+<p>العلم نور</p>
+</blockquote>
+<figcaption class="post-blocks__quote-caption" dir="auto">Пословица, «[مثل]»</figcaption>
+</figure>
+</div>"
+`;
+
 exports[`PostBlocks: a snapshot of each block type > bulleted and numbered lists with nesting 1`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<ul class="post-list">
+<ul class="post-list" dir="auto">
 <li class="post-list__item">
 <span>Раз</span>
 </li>
@@ -10,10 +32,10 @@ exports[`PostBlocks: a snapshot of each block type > bulleted and numbered lists
 <span>Два</span>
 </li>
 </ul>
-<ol class="post-list">
+<ol class="post-list" dir="auto">
 <li class="post-list__item">
 <span>Первый</span>
-<ol class="post-list post-list--nested">
+<ol class="post-list post-list--nested" dir="auto">
 <li class="post-list__item">
 <span>
 <b>Вложенный</b>
@@ -36,27 +58,27 @@ exports[`PostBlocks: a snapshot of each block type > delimiter 1`] = `
 
 exports[`PostBlocks: a snapshot of each block type > header of level 2 and 3 with anchors 1`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<h2 id="h-h2" class="post-blocks__heading post-blocks__heading--h2">Глава</h2>
-<h3 id="h-h3" class="post-blocks__heading post-blocks__heading--h3">Раздел <i>главы</i>
+<h2 id="h-h2" class="post-blocks__heading post-blocks__heading--h2" dir="auto">Глава</h2>
+<h3 id="h-h3" class="post-blocks__heading post-blocks__heading--h3" dir="auto">Раздел <i>главы</i>
 </h3>
 </div>"
 `;
 
 exports[`PostBlocks: a snapshot of each block type > paragraph 1`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<p class="post-blocks__text">Текст с <b>жирным</b>, <i>курсивом</i>, <mark>маркером</mark> и <a href="https://example.org/?a=1&amp;b=2" rel="nofollow ugc noopener noreferrer">ссылкой</a>.<br>Вторая строка</p>
+<p class="post-blocks__text" dir="auto">Текст с <b>жирным</b>, <i>курсивом</i>, <mark>маркером</mark> и <a href="https://example.org/?a=1&amp;b=2" rel="nofollow ugc noopener noreferrer">ссылкой</a>.<br>Вторая строка</p>
 </div>"
 `;
 
 exports[`PostBlocks: a snapshot of each block type > quote with and without a caption 1`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<figure class="post-blocks__quote">
+<figure class="post-blocks__quote" dir="auto">
 <blockquote class="post-blocks__quote-text">
 <p>Краткость — сестра таланта.</p>
 </blockquote>
-<figcaption class="post-blocks__quote-caption">А. П. Чехов</figcaption>
+<figcaption class="post-blocks__quote-caption" dir="auto">А. П. Чехов</figcaption>
 </figure>
-<figure class="post-blocks__quote">
+<figure class="post-blocks__quote" dir="auto">
 <blockquote class="post-blocks__quote-text">
 <p>Без подписи</p>
 </blockquote>

@@ -107,6 +107,7 @@ onMounted(() => {
         :id="fieldId"
         ref="field"
         v-model="text"
+        dir="auto"
         class="comment-form__field"
         :placeholder="reply ? t('comments.replyPlaceholder') : t('comments.placeholder')"
         :maxlength="maxLength"

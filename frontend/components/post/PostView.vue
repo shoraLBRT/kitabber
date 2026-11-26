@@ -16,6 +16,7 @@ import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 import type { Likes } from '../../composables/useLikes'
 import { locale, t } from '../../i18n'
+import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{
   state: PostLookup | { status: 'loading' }
@@ -103,7 +104,9 @@ const inBlog = computed(() =>
       </p>
       <PostMenu :own="found.own" :path="found.path" :features="features" :remove="remove" />
     </header>
-    <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
+    <h1 v-if="found.post.title" class="post__title" data-testid="post-title" dir="auto">
+      {{ isolateRtlText(found.post.title) }}
+    </h1>
     <PostBlocks
       :document="found.post.body"
       :images="found.post.images"

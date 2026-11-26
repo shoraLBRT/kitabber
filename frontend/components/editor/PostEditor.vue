@@ -180,6 +180,7 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
     <textarea
       ref="titleField"
       v-model="title"
+      dir="auto"
       class="post-editor__title"
       rows="1"
       :placeholder="t('editor.title')"
