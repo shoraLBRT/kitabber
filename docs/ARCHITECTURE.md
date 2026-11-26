@@ -78,6 +78,10 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 и число комментариев через `Comments.Contracts.ICommentDirectory`, а просмотры — из своей таблицы, и пишет счета в
 `posts.post_hotness`; лента `GET /api/v1/feeds/popular` читает их оттуда. Коэффициенты — настройки `Posts:Hotness:*`.
 
+«Моя лента» (E08-04, ADR-0089): `GET /api/v1/feeds/my` берёт подписки читателя через `Blogs.Contracts.IBlogSubscriptions`
+и отбрасывает то, что называют источники `Posts.Contracts.IFeedExclusionSource` (чёрный список, скрытое) — их реализуют
+и регистрируют модули, которые ведут эти списки. Лента у каждого своя и в общий кэш лент (ADR-0080) не попадает.
+
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и

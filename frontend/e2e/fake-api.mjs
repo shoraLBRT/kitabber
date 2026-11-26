@@ -893,6 +893,17 @@ function blogFeed(response, url) {
   return freshFeed(response, url, (post) => post.blogId === blogId)
 }
 
+// «Моя лента» (E08-04, ADR-0089): GET /api/v1/feeds/my, the same pages for the posts of the blogs and topics the client
+// is subscribed to (kept per client address, see the subscriptions below) and of the people whose blogs it follows.
+function myFeed(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const own = subscribedBy(request)
+  const followed = new Set(
+    blogs.filter((blog) => blog.type === 'personal' && own.has(blog.id)).map((blog) => blog.owner),
+  )
+  return freshFeed(response, url, (post) => own.has(post.blogId) || followed.has(post.authorAccountId))
+}
+
 function freshFeed(response, url, only = () => true) {
   const sorted = [...posts]
     .filter(only)
@@ -1347,6 +1358,7 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
   if (url.pathname === '/api/v1/topics' && request.method === 'POST') return createTopic(request, response)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
+  if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
     return blogFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
