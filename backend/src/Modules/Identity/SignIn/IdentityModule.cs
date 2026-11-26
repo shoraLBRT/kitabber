@@ -193,6 +193,7 @@ public static class IdentityModule
     {
         services.AddPlatformMail();
         services.AddScoped<AccountEmails>();
+        services.AddScoped<AccountDeletions>();
         services.AddScoped<IAuthorizationHandler, ConfirmedEmailHandler>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, ConfirmedEmailResultHandler>();
         services.AddAuthorizationBuilder().AddPolicy(AccountPolicies.ConfirmedEmail, policy => policy

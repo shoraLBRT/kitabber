@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/Modules/Preferences/Platform.Modules.Preferences.csproj" />
+        <ProjectReference Include="../../src/Workers/Platform.Workers.csproj" />
         <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 

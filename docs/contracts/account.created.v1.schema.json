@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:message:account.created.v1",
+  "title": "account.created.v1",
+  "description": "Аккаунт создан: у него впервые подтверждён способ входа (ADR-0025).",
+  "type": "object",
+  "properties": {
+    "accountId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "accountId",
+    "occurredAt"
+  ]
+}

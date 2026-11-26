@@ -2,10 +2,16 @@
 
     <!--
       The public contracts of the Identity module (docs/ARCHITECTURE.md, "Границы модулей"): the events other modules
-      react to. They carry only the account_id and times, never an email or a password (FR-ID-1).
+      react to. They carry only the account_id and times, never an email, a password or a token (FR-ID-1). The versioned
+      account.* events are also the contract for other projects (FR-ID-5, ADR-0087); their schemas are in docs/contracts.
+      MassTransit.Abstractions gives them their stable message names and exchanges, nothing else.
     -->
     <PropertyGroup>
         <RootNamespace>Platform.Modules.Identity.Contracts</RootNamespace>
     </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MassTransit.Abstractions" />
+    </ItemGroup>
 
 </Project>

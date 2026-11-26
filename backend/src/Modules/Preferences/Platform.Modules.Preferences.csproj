@@ -3,7 +3,8 @@
     <!--
       The Preferences module (FR-PROFILE, FR-UI, ADR-0070): the settings of a person that follow them to every device,
       such as the colour theme. Its tables live in the schema `preferences`; it knows the person only by the
-      account_id (FR-ID-1). The blog's own settings stay in Blogs, the password and the email in Identity.
+      account_id (FR-ID-1) and erases its settings on the Identity event account.deleted (ADR-0087). The blog's own
+      settings stay in Blogs, the password and the email in Identity.
     -->
     <PropertyGroup>
         <RootNamespace>Platform.Modules.Preferences</RootNamespace>
@@ -15,7 +16,9 @@
 
     <ItemGroup>
         <ProjectReference Include="../../Http/Platform.Http.csproj" />
+        <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
     </ItemGroup>
 
 </Project>
