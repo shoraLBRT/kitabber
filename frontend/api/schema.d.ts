@@ -785,6 +785,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/preferences/me/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The black list of the signed-in account, the latest blocked first */
+        get: operations["GetOwnBlockList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preferences/me/blocks/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Adds an account to the black list of the signed-in account */
+        put: operations["BlockAccount"];
+        post?: never;
+        /** Removes an account from the black list of the signed-in account */
+        delete: operations["UnblockAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media": {
         parameters: {
             query?: never;
@@ -837,6 +872,17 @@ export interface components {
             /** Format: date-time */
             lastActiveAt: string;
             current: boolean;
+        };
+        BlockedAccountView: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: date-time */
+            blockedAt: string;
+        };
+        BlockListView: {
+            accounts: components["schemas"]["BlockedAccountView"][];
+            /** Format: int32 */
+            max: number;
         };
         CaptchaChallenge: {
             provider: string;
@@ -899,6 +945,7 @@ export interface components {
             deleted: boolean;
             /** Format: int32 */
             replies: number;
+            authorBlocked: boolean;
         };
         ConfirmEmailRequest: {
             code: null | string;
@@ -941,6 +988,8 @@ export interface components {
             author: null | components["schemas"]["FeedBlogView"];
             guestName: null | string;
             text: string;
+            /** Format: uuid */
+            authorAccountId?: null | string;
         };
         FeedPostView: {
             post: components["schemas"]["PostView"];
@@ -3474,6 +3523,102 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOwnBlockList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockListView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    BlockAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnblockAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {

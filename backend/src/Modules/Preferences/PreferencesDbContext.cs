@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Platform.Messaging;
+using Platform.Modules.Preferences.Blocks;
 using Platform.Persistence;
 
 namespace Platform.Modules.Preferences;
@@ -16,6 +17,8 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
 
     public DbSet<AccountPreferences> AccountPreferences => Set<AccountPreferences>();
 
+    public DbSet<BlockedAccount> BlockedAccounts => Set<BlockedAccount>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -26,6 +29,13 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
             // One row per account; an account without a row has the defaults (ADR-0070).
             preferences.HasKey(p => p.AccountId);
             preferences.Property(p => p.Theme).HasConversion<string>().HasMaxLength(16);
+        });
+        modelBuilder.Entity<BlockedAccount>(blocked =>
+        {
+            // One entry per pair (ADR-0091): the key serves the reads of one person's list; the index of the blocked
+            // account serves the erasure of a deleted account from every list.
+            blocked.HasKey(b => new { b.OwnerAccountId, b.AccountId });
+            blocked.HasIndex(b => b.AccountId);
         });
     }
 }

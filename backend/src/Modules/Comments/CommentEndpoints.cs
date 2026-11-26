@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Modules.Posts.Contracts;
+using Platform.Modules.Preferences.Contracts;
 using Platform.Modules.Reactions.Contracts;
 
 namespace Platform.Modules.Comments;
@@ -51,6 +52,10 @@ public sealed record GuestAuthorView(string Name, string? Url);
 /// Every reply under it at any depth, those the read left out too (ADR-0054): when it is more than the replies shown,
 /// the rest come with its branch.
 /// </param>
+/// <param name="AuthorBlocked">
+/// The signed-in reader blocked its author (E11-06, ADR-0091): the page shows it folded, with «Показать». Always
+/// <c>false</c> for a guest reader.
+/// </param>
 public sealed record CommentView(
     Guid Id,
     Guid PostId,
@@ -64,7 +69,8 @@ public sealed record CommentView(
     DateTimeOffset? EditedAt,
     DateTimeOffset? EditableUntil,
     bool Deleted,
-    int Replies);
+    int Replies,
+    bool AuthorBlocked);
 
 /// <summary>A tree or a branch of comments, in the order of the tree.</summary>
 /// <param name="PostId">The post the comments are under.</param>
@@ -86,6 +92,7 @@ public sealed class CommentEndpoints : IApiEndpoints
     public const string CommentNotFoundCode = "comments.comment_not_found";
     public const string NotAuthorCode = "comments.not_author";
     public const string EditClosedCode = "comments.edit_closed";
+    public const string BlockedCode = "comments.blocked";
 
     public void MapV1(IEndpointRouteBuilder v1)
     {
@@ -147,6 +154,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         IPostDirectory posts,
         IReactionRatings ratings,
         CommentLimits limits,
+        ClaimsPrincipal user,
+        IBlockList blocks,
         CancellationToken ct)
     {
         if (LevelsProblem(levels) is { } problem)
@@ -170,7 +179,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         var tree = await CommentTree.OfPost(db, postId).ToListAsync(ct);
         var rated = order == CommentSort.Popular ? await ratings.CommentRatingsAsync([postId], ct) : null;
         var shown = CommentTree.Sorted(CommentTree.Shown(tree, 0, levels), order, rated);
-        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(shown, limits)));
+        var blocked = await BlockedByReaderAsync(user, blocks, ct);
+        return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(shown, limits, blocked)));
     }
 
     private static async Task<IResult> GetBranchAsync(
@@ -179,6 +189,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         CommentsDbContext db,
         IPostDirectory posts,
         CommentLimits limits,
+        ClaimsPrincipal user,
+        IBlockList blocks,
         CancellationToken ct)
     {
         if (LevelsProblem(levels) is { } problem)
@@ -193,7 +205,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         }
 
         var shown = CommentTree.Shown(branch, branch[0].Depth, levels);
-        return TypedResults.Ok(new CommentTreeView(branch[0].PostId, limits.MaxDepth, Views(shown, limits)));
+        var blocked = await BlockedByReaderAsync(user, blocks, ct);
+        return TypedResults.Ok(new CommentTreeView(branch[0].PostId, limits.MaxDepth, Views(shown, limits, blocked)));
     }
 
     private static async Task<IResult> GetOwnAsync(
@@ -311,6 +324,7 @@ public sealed class CommentEndpoints : IApiEndpoints
         IPostDirectory posts,
         CommentLimits limits,
         TimeProvider time,
+        IBlockList blocks,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
@@ -318,7 +332,7 @@ public sealed class CommentEndpoints : IApiEndpoints
             return TypedResults.Unauthorized();
         }
 
-        if (await posts.FindPublishedAsync(postId, ct) is null)
+        if (await posts.FindPublishedAsync(postId, ct) is not { } post)
         {
             return ApiProblems.NotFound(PostNotFoundCode);
         }
@@ -345,6 +359,15 @@ public sealed class CommentEndpoints : IApiEndpoints
         if (errors.Count > 0)
         {
             return ApiProblems.Validation(errors);
+        }
+
+        // A blocked account writes neither under the post of the one who blocked it nor in reply to their comment
+        // (E11-06, ADR-0091).
+        if (await blocks.IsBlockedAsync(post.AuthorAccountId, account, ct)
+            || (parent?.AuthorAccountId is { } addressee && !parent.IsDeleted
+                && await blocks.IsBlockedAsync(addressee, account, ct)))
+        {
+            return ApiProblems.Forbidden(BlockedCode, "Автор заблокировал вас: отвечать ему нельзя.");
         }
 
         var comment = Comment.CreateNative(account, postId, parent, text!, time.GetUtcNow());
@@ -384,11 +407,18 @@ public sealed class CommentEndpoints : IApiEndpoints
         _ => null,
     };
 
-    private static CommentView[] Views(IReadOnlyList<ShownComment> shown, CommentLimits limits) =>
-        [.. shown.Select(s => View(s.Comment, s.Replies, limits))];
+    private static CommentView[] Views(
+        IReadOnlyList<ShownComment> shown, CommentLimits limits, IReadOnlySet<Guid> blocked) =>
+        [.. shown.Select(s => View(s.Comment, s.Replies, limits, blocked))];
+
+    // The accounts the signed-in reader blocked (ADR-0091); none for a guest.
+    private static async Task<IReadOnlySet<Guid>> BlockedByReaderAsync(
+        ClaimsPrincipal user, IBlockList blocks, CancellationToken ct) =>
+        AccountOf(user) is { } reader ? await blocks.BlockedByAsync(reader, ct) : new HashSet<Guid>();
 
     // A stub names no author: the comment is gone, only the place of its replies stays (ADR-0059).
-    internal static CommentView View(Comment comment, int replies, CommentLimits limits) => new(
+    internal static CommentView View(
+        Comment comment, int replies, CommentLimits limits, IReadOnlySet<Guid>? blocked = null) => new(
         comment.Id,
         comment.PostId,
         comment.ParentId,
@@ -401,7 +431,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         comment.IsDeleted ? null : comment.EditedAt,
         CommentRules.EditableUntil(comment, limits.EditWindow),
         comment.IsDeleted,
-        replies);
+        replies,
+        !comment.IsDeleted && comment.AuthorAccountId is { } author && blocked?.Contains(author) == true);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

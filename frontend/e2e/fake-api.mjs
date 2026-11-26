@@ -291,6 +291,28 @@ function sessionsOf(request) {
   return accountSessions.get(client)
 }
 
+// The black list (E11-06, ADR-0091): GET /api/v1/preferences/me/blocks, PUT and DELETE /{accountId}, idempotent.
+// Kept per client address; the fake provider's account starts with Борис (whose blog is in `blogs`) blocked.
+const blackLists = new Map() // client address -> [{ accountId, blockedAt }], the latest first
+
+function blocksRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const client = clientOf(request)
+  if (!blackLists.has(client))
+    blackLists.set(client, [
+      { accountId: '0195f3a0-0000-7000-8000-000000000002', blockedAt: '2026-11-25T10:00:00Z' },
+    ])
+  const list = blackLists.get(client)
+  if (request.method === 'GET') return send(response, 200, { accounts: list, max: 1000 })
+  const accountId = decodeURIComponent(url.pathname.split('/').pop() ?? '')
+  const rest = list.filter((entry) => entry.accountId !== accountId)
+  blackLists.set(
+    client,
+    request.method === 'PUT' ? [{ accountId, blockedAt: new Date().toISOString() }, ...rest] : rest,
+  )
+  return send(response, 204)
+}
+
 function accountSessionsRoute(request, response, url) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const client = clientOf(request)
@@ -558,6 +580,7 @@ const commentPost = (id, postId, parent, n, text, author) => {
     editedAt: null,
     editableUntil: author ? new Date(createdAt.getTime() + editMinutes * 60_000).toISOString() : null,
     deleted: false,
+    authorBlocked: false,
   }
 }
 const commentId = (n) => `0195f3a0-0000-7000-8000-${n.toString(16).padStart(12, '0')}`
@@ -680,6 +703,7 @@ async function writeComment(request, response, postId) {
     editedAt: null,
     editableUntil: new Date(Date.now() + editMinutes * 60_000).toISOString(),
     deleted: false,
+    authorBlocked: false,
     replies: 0,
   })
 }
@@ -729,6 +753,7 @@ async function changeComment(request, response, id) {
     editedAt: now.toISOString(),
     editableUntil: new Date(now.getTime() + editMinutes * 60_000).toISOString(),
     deleted: false,
+    authorBlocked: false,
     replies: 0,
   })
 }
@@ -1397,6 +1422,11 @@ createServer(async (request, response) => {
     (url.pathname.startsWith('/api/v1/account/sessions/') && request.method === 'DELETE')
   )
     return accountSessionsRoute(request, response, url)
+  if (
+    (url.pathname === '/api/v1/preferences/me/blocks' && request.method === 'GET') ||
+    (url.pathname.startsWith('/api/v1/preferences/me/blocks/') && ['PUT', 'DELETE'].includes(request.method))
+  )
+    return blocksRoute(request, response, url)
   if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
     return ownPreferences(request, response)
   if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')

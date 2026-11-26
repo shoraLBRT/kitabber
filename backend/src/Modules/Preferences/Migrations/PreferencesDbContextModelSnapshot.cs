@@ -264,6 +264,29 @@ namespace Platform.Modules.Preferences.Migrations
                     b.ToTable("account_preferences", "preferences");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Preferences.Blocks.BlockedAccount", b =>
+                {
+                    b.Property<Guid>("OwnerAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_account_id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("BlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("blocked_at");
+
+                    b.HasKey("OwnerAccountId", "AccountId")
+                        .HasName("pk_blocked_accounts");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("ix_blocked_accounts_account_id");
+
+                    b.ToTable("blocked_accounts", "preferences");
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
                     b.HasOne("MassTransit.EntityFrameworkCoreIntegration.OutboxState", null)

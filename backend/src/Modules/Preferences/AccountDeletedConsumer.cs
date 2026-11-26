@@ -20,6 +20,12 @@ public sealed class AccountDeletedConsumer(PreferencesDbContext db) : IConsumer<
         {
             db.AccountPreferences.Remove(preferences);
         }
+
+        // The account's own black list and its place in the lists of others (ADR-0091).
+        var account = context.Message.AccountId;
+        db.BlockedAccounts.RemoveRange(await db.BlockedAccounts
+            .Where(b => b.OwnerAccountId == account || b.AccountId == account)
+            .ToListAsync(context.CancellationToken));
     }
 }
 

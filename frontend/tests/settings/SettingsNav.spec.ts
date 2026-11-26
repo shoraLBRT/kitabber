@@ -25,6 +25,7 @@ describe('the settings sections', () => {
       ['Ленты', '/settings/feeds'],
       ['Основные', '/settings/general'],
       ['Уведомления', '/settings/notifications'],
+      ['Приватность и блокировки', '/settings/privacy'],
       ['Аккаунт и вход', '/settings/account'],
       ['Настройки cookie', '/settings/cookies'],
     ])
