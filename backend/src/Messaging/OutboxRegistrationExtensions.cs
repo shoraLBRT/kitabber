@@ -1,5 +1,8 @@
 using MassTransit;
+using MassTransit.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Platform.Messaging;
 
@@ -23,9 +26,11 @@ public static class OutboxRegistrationExtensions
     }
 
     /// <summary>
-    /// Registers the outbox of <typeparamref name="TContext"/> on PostgreSQL and makes it the bus outbox: within a
-    /// scope, <see cref="IPublishEndpoint"/> and <see cref="ISendEndpointProvider"/> write to this context, and the
-    /// delivery service of this host sends the stored messages.
+    /// Registers the outbox of <typeparamref name="TContext"/> on PostgreSQL: the module publishes and sends through
+    /// <see cref="IModuleOutbox{TContext}"/>, which writes to this context, and the delivery service of this host sends
+    /// the stored messages. Each module of a host calls it for its own context, so every module writes to the outbox
+    /// of its own schema. The first module registered also backs the scope's plain <see cref="IPublishEndpoint"/>
+    /// and <see cref="ISendEndpointProvider"/>, which shared services such as the mailer use; later calls leave it.
     /// </summary>
     public static IBusRegistrationConfigurator AddModuleOutbox<TContext>(
         this IBusRegistrationConfigurator bus,
@@ -33,6 +38,13 @@ public static class OutboxRegistrationExtensions
         where TContext : DbContext
     {
         ArgumentNullException.ThrowIfNull(bus);
+        if (bus.Any(d => d.ServiceType == typeof(IModuleOutbox<TContext>)))
+        {
+            throw new InvalidOperationException($"The outbox of {typeof(TContext).Name} is already registered.");
+        }
+
+        // UseBusOutbox adds the delivery service of this context and points the scope's IPublishEndpoint at it; the
+        // pointer is set back below, so the host's first module keeps it whatever is registered after it.
         bus.AddEntityFrameworkOutbox<TContext>(outbox =>
         {
             outbox.UsePostgres();
@@ -41,6 +53,18 @@ public static class OutboxRegistrationExtensions
             outbox.DuplicateDetectionWindow = TimeSpan.FromDays(1);
             configure?.Invoke(outbox);
         });
+        bus.AddScoped<IModuleOutbox<TContext>, ModuleOutbox<TContext>>();
+
+        var host = bus.FirstOrDefault(d => d.ServiceType == typeof(HostBusOutbox))?.ImplementationInstance as HostBusOutbox;
+        if (host is null)
+        {
+            host = new HostBusOutbox(typeof(TContext));
+            bus.AddSingleton(host);
+        }
+
+        bus.Replace(ServiceDescriptor.Scoped(
+            typeof(IScopedBusContextProvider<IBus>),
+            typeof(HostBusOutboxProvider<>).MakeGenericType(host.Context)));
         return bus;
     }
 }

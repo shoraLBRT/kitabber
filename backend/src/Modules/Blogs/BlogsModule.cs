@@ -52,8 +52,8 @@ public static class BlogsModule
     }
 
     /// <summary>
-    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing, so its outbox is
-    /// not the bus outbox of the host (#281): only the consumers' inbox and their own sends use it.
+    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing yet; when it does, it
+    /// registers <c>AddModuleOutbox&lt;BlogsDbContext&gt;</c> instead and publishes through <c>IModuleOutbox&lt;BlogsDbContext&gt;</c>.
     /// </summary>
     public static IBusRegistrationConfigurator AddBlogsConsumers(this IBusRegistrationConfigurator bus)
     {
