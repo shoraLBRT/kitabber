@@ -47,6 +47,22 @@ export const serviceNav: NavItem[] = [
   { id: 'cookies', label: t('nav.cookies'), to: cookieSettingsPath },
 ]
 
+/** The settings list (E04-08): on a phone it is the first screen, a section opens as a screen of its own. */
+export const settingsPath = '/settings'
+
+/**
+ * The sections of the settings (E04-08, docs/ui/settings.md, ADR-0070), each at an address of its own; the desktop
+ * shows them in the right column, the phone as the list of /settings.
+ */
+export const settingsNav: NavItem[] = [
+  { id: 'blog', label: t('settings.blogSection'), to: '/settings/blog' },
+  { id: 'feeds', label: t('settings.feeds'), to: '/settings/feeds' },
+  { id: 'general', label: t('settings.general'), to: '/settings/general' },
+  { id: 'notifications', label: t('settings.notifications'), to: '/settings/notifications' },
+  { id: 'account', label: t('settings.account'), to: '/settings/account' },
+  { id: 'cookies', label: t('nav.cookies'), to: cookieSettingsPath },
+]
+
 /** Address of the full topic list ("Показать все"). */
 export const topicsPath = '/topics'
 

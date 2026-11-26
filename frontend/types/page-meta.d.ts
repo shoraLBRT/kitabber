@@ -6,6 +6,8 @@ declare module '#app' {
      * bottom bar for its action panel.
      */
     writeButton?: boolean
+    /** `true` puts the sections of the settings in the desktop's right column (E04-08, docs/ui/settings.md). */
+    settingsNav?: boolean
   }
 }
 

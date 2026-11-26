@@ -11,6 +11,7 @@ import { blogPath, ownProfile, type Profile, type ProfileInput, type ProfileSave
 import { t } from '../../i18n'
 
 const signIn = '/auth/sign-in?returnTo=/settings/blog'
+definePageMeta({ settingsNav: true })
 useHead({ title: t('settings.blog') })
 
 const account = useAccount()

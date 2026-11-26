@@ -1961,6 +1961,88 @@
         }
       }
     },
+    "/api/v1/preferences/me": {
+      "get": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "The settings of the signed-in account, or the defaults when it never changed them",
+        "operationId": "GetOwnPreferences",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences/me/general": {
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Changes the section «Основные» of the signed-in account's settings",
+        "operationId": "PutOwnGeneralPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneralPreferencesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/media": {
       "post": {
         "tags": [
@@ -2512,6 +2594,31 @@
           }
         }
       },
+      "GeneralPreferencesInput": {
+        "required": [
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GeneralPreferencesView": {
+        "required": [
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string"
+          }
+        }
+      },
       "GuestAuthorView": {
         "required": [
           "name",
@@ -2893,6 +3000,17 @@
           }
         }
       },
+      "PreferencesView": {
+        "required": [
+          "general"
+        ],
+        "type": "object",
+        "properties": {
+          "general": {
+            "$ref": "#/components/schemas/GeneralPreferencesView"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -3226,6 +3344,9 @@
     },
     {
       "name": "Reactions"
+    },
+    {
+      "name": "Preferences"
     },
     {
       "name": "Media"

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Default layout: the shell (E02-05 desktop, E02-06 phone: bottom bar and floating "Написать" below 925 px).
 // Signed in (E18-02), the shell shows the account menu; the name and avatar come with the profile (#33).
+import SettingsNav from '~/components/settings/SettingsNav.vue'
+
 const route = useRoute()
 const user = useShellUser()
 // The floating «Написать» of a phone opens the quick post (E05-29, ADR-0055); its «Развернуть» leads on to /write.
@@ -25,5 +27,9 @@ function onAccount(id: string) {
     @write="sheetOpen = true"
   >
     <slot />
+    <!-- The settings put their sections in the right column instead of the widgets (E04-08). -->
+    <template v-if="route.meta.settingsNav" #aside>
+      <SettingsNav :current-path="route.path" />
+    </template>
   </ShellLayout>
 </template>

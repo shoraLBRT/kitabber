@@ -58,6 +58,9 @@
   <Folder Name="/src/Modules/Posts/">
     <Project Path="src/Modules/Posts/Platform.Modules.Posts.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Preferences/">
+    <Project Path="src/Modules/Preferences/Platform.Modules.Preferences.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Reactions/">
     <Project Path="src/Modules/Reactions/Platform.Modules.Reactions.csproj" />
   </Folder>
@@ -93,6 +96,7 @@
     <Project Path="tests/Platform.Modules.Editor.Tests/Platform.Modules.Editor.Tests.csproj" />
     <Project Path="tests/Platform.Modules.Identity.IntegrationTests/Platform.Modules.Identity.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Posts.IntegrationTests/Platform.Modules.Posts.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Modules.Preferences.IntegrationTests/Platform.Modules.Preferences.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Reactions.IntegrationTests/Platform.Modules.Reactions.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Media.IntegrationTests/Platform.Modules.Media.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
