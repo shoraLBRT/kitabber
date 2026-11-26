@@ -581,6 +581,22 @@ test('switches between bullets and numbers without losing the text or the nestin
   expect(await levels(page)).toEqual(['0', '1'])
 })
 
+// #387: a person pauses after Enter; Ctrl+B with no selection in the new item still makes the typed text bold.
+test('makes the typed text bold by Ctrl+B with no selection in a new item after a pause', async ({
+  page,
+}) => {
+  await startList(page, 'Маркированный список')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(1500)
+  await page.keyboard.type('Вложенный ')
+  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.type('жирный')
+  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.type(' конец')
+  // The second Ctrl+B turns it off again; the browser keeps the space after the bold word as &nbsp;.
+  expect((await itemHtmls(page))[1]).toMatch(/^Вложенный <b>жирный<\/b>(?: |&nbsp;)конец$/)
+})
+
 test('keeps the list and its nesting through undo and redo', async ({ page }) => {
   await startList(page, 'Нумерованный список')
   await page.keyboard.press('Enter')
