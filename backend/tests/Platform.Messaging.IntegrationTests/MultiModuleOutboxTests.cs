@@ -80,7 +80,8 @@ public sealed class MultiModuleOutboxTests(RabbitMqFixture rabbitMq, PostgresFix
             await tasks.SaveChangesAsync(ct);
         }
 
-        await Eventually(() => _log.Count(noteId) > 0 && _log.Count(taskId) > 0, _timeout, "both events are delivered");
+        await DeliveredAsync(noteId, "the notes event is delivered");
+        await DeliveredAsync(taskId, "the tasks event is delivered");
         await Eventually(async () => await OutboxMessagesAsync<NotesDbContext>() == 0, _timeout, "notes' outbox drains");
         await Eventually(async () => await OutboxMessagesAsync<TasksDbContext>() == 0, _timeout, "tasks' outbox drains");
         await Task.Delay(TimeSpan.FromSeconds(1), ct);
@@ -152,6 +153,29 @@ public sealed class MultiModuleOutboxTests(RabbitMqFixture rabbitMq, PostgresFix
         .Where(e => e.State == EntityState.Added)
         .Select(e => e.Entity.MessageType.Split(':')[^1])
         .ToArray();
+
+    // On a timeout, says what each module's outbox still holds, so a red run shows which side stopped.
+    private async Task DeliveredAsync(Guid id, string because)
+    {
+        try
+        {
+            await Eventually(() => _log.Count(id) > 0, _timeout, because);
+        }
+        catch (Xunit.Sdk.FailException failure)
+        {
+            Assert.Fail($"{failure.Message}; notes: {await OutboxAsync<NotesDbContext>()}; tasks: {await OutboxAsync<TasksDbContext>()}; received: {_log.Total}");
+        }
+    }
+
+    private async Task<string> OutboxAsync<TContext>()
+        where TContext : DbContext
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
+        var messages = await db.Set<OutboxMessage>().CountAsync();
+        var states = await db.Set<OutboxState>().Select(s => s.Delivered == null ? "pending" : "delivered").ToListAsync();
+        return $"{messages} messages, outbox states [{string.Join(", ", states)}]";
+    }
 
     private async Task<int> OutboxMessagesAsync<TContext>()
         where TContext : DbContext
