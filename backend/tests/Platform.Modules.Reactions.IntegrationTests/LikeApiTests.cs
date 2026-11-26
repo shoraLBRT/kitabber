@@ -28,6 +28,10 @@ public sealed class ReactionsApi : IntegrationApiFactory
             services.AddSingleton<IRealtimePublisher>(Events);
         });
 
+    /// <summary>The directory of reactions is reference data from the migration (ADR-0095): a reset keeps it.</summary>
+    protected override IEnumerable<string> KeepTables =>
+        [$"{ReactionsDbContext.Schema}.{ReactionsDbContext.ReactionSetTable}"];
+
     /// <summary>What the module published to the realtime channel (ADR-0072).</summary>
     public RecordingPublisher Events { get; } = new();
 }

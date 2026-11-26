@@ -214,6 +214,13 @@ export default {
   },
   reactions: {
     row: 'Реакции',
+    set: {
+      list: 'Набор реакций',
+      loading: 'Загружаем набор реакций…',
+      failed: 'Не удалось загрузить набор реакций.',
+      empty: 'Реакций пока нет.',
+      credit: 'Графика реакций — {name} ({author}), лицензия {license}.',
+    },
   },
   views: {
     count: {

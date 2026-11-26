@@ -313,6 +313,17 @@ function blocksRoute(request, response, url) {
   return send(response, 204)
 }
 
+// The set of reactions (E02-12, ADR-0095): GET /api/v1/reactions/set, the default directory of the Reactions module.
+const reactionSet = [
+  { code: 'like', title: 'Нравится' },
+  { code: 'heart', title: 'Тепло' },
+  { code: 'smile', title: 'Улыбка' },
+  { code: 'clap', title: 'Браво' },
+  { code: 'idea', title: 'Полезно' },
+  { code: 'wow', title: 'Удивительно' },
+  { code: 'sad', title: 'Грустно' },
+]
+
 // The notifications (E12-02, ADR-0093): GET /api/v1/notifications/me?cursor=, GET …/unread and POST …/read. Kept per
 // client address; the fake provider's account starts with five from Борис, the newest first, the second and the fifth
 // already read, three to a page.
@@ -1489,6 +1500,8 @@ createServer(async (request, response) => {
     (url.pathname === '/api/v1/notifications/me/read' && request.method === 'POST')
   )
     return notificationsRoute(request, response, url)
+  if (url.pathname === '/api/v1/reactions/set' && request.method === 'GET')
+    return send(response, 200, reactionSet)
   if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
     return ownPreferences(request, response)
   if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')

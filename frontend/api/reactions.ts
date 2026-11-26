@@ -1,6 +1,8 @@
 // The row of reactions with their counts (E10-03, FR-REACT, ADR-0072): the kinds put on a post or a comment, most
-// popular first, the person's own one marked. Only «Нравится» exists for now; the set of reactions (E02-12, E10-02)
-// adds kinds to `reactionKinds`, and the row, the sorting and the realtime event take them as they are.
+// popular first, the person's own one marked. Only «Нравится» can be put for now; the set of reactions the platform
+// offers comes from the directory (E02-12, ADR-0095, `loadReactionSet`), and choosing one of them (E10-02) adds kinds
+// to `reactionKinds`, and the row, the sorting and the realtime event take them as they are.
+import type { ApiClient, components } from './client'
 import type { LikeState, LikeTarget } from './likes'
 
 /** The kinds of reaction, in the order the row keeps for equal counts. */
@@ -75,4 +77,19 @@ export function parseReactionsChanged(data: unknown): ReactionsChanged | null {
 /** The likes of a target after new counts came: the count from the event, the own mark as it was. */
 export function likesAfter(before: LikeState, change: ReactionsChanged): LikeState {
   return { count: change.counts.like ?? 0, liked: before.liked }
+}
+
+/** One reaction the platform offers (E02-12, ADR-0095): its code, which is the code of its picture, and its name. */
+export type ReactionSetItem = components['schemas']['ReactionSetItem']
+
+export type ReactionSetLookup = { status: 'found'; items: ReactionSetItem[] } | { status: 'error' }
+
+/** The set of reactions from the directory (GET /api/v1/reactions/set), in its order; no account needed. */
+export async function loadReactionSet(client: ApiClient): Promise<ReactionSetLookup> {
+  try {
+    const { data } = await client.GET('/api/v1/reactions/set')
+    return data ? { status: 'found', items: data } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
 }

@@ -90,8 +90,8 @@ public static class TopicCreationRules
     public static IReadOnlySet<string> ReservedAddresses { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         // Pages of the site (frontend/pages).
-        "branch", "brand", "index", "login", "menu", "new", "post", "profile", "register", "settings", "tokens", "topics",
-        "write",
+        "branch", "brand", "index", "login", "menu", "new", "post", "profile", "reactions", "register",
+        "settings", "tokens", "topics", "write",
         // Service prefixes of the site and the API.
         "about", "account", "admin", "api", "assets", "auth", "bff", "connect", "favicon", "health", "img", "media",
         "robots", "sitemap", "static",

@@ -310,6 +310,84 @@ namespace Platform.Modules.Reactions.Migrations
                     b.ToTable("reactions", "reactions");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Reactions.ReactionSetEntry", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Code")
+                        .HasName("pk_reaction_set");
+
+                    b.ToTable("reaction_set", "reactions");
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "like",
+                            Enabled = true,
+                            Position = 1,
+                            Title = "Нравится"
+                        },
+                        new
+                        {
+                            Code = "heart",
+                            Enabled = true,
+                            Position = 2,
+                            Title = "Тепло"
+                        },
+                        new
+                        {
+                            Code = "smile",
+                            Enabled = true,
+                            Position = 3,
+                            Title = "Улыбка"
+                        },
+                        new
+                        {
+                            Code = "clap",
+                            Enabled = true,
+                            Position = 4,
+                            Title = "Браво"
+                        },
+                        new
+                        {
+                            Code = "idea",
+                            Enabled = true,
+                            Position = 5,
+                            Title = "Полезно"
+                        },
+                        new
+                        {
+                            Code = "wow",
+                            Enabled = true,
+                            Position = 6,
+                            Title = "Удивительно"
+                        },
+                        new
+                        {
+                            Code = "sad",
+                            Enabled = true,
+                            Position = 7,
+                            Title = "Грустно"
+                        });
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
                     b.HasOne("MassTransit.EntityFrameworkCoreIntegration.OutboxState", null)
