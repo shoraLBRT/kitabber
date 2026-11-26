@@ -4,8 +4,9 @@
 // «Повторить» (the post above stays), no comments yet, and the tree. The form to write a comment (E09-03) stands
 // above the tree once it is read, open when there is none yet. Next to the heading, «Популярные | По дате» (E09-04,
 // ADR-0058) picks the order of the threads; it stays while the tree is read again and is gone only when there are no
-// comments to order.
-import { computed, provide, toRef } from 'vue'
+// comments to order. The person's own comments (`own`) take the «…» menu with «Редактировать» and «Удалить» (E09-05,
+// ADR-0059); `edit` and `remove` do the work and answer how it went.
+import { computed, onBeforeUnmount, onMounted, provide, ref, toRef } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
@@ -30,8 +31,19 @@ const props = withDefaults(
     failures?: Readonly<Record<FormTarget, CommentFailure>>
     resume?: FormTarget | null
     sort?: CommentSort
+    own?: Readonly<Record<string, true>>
+    edit?: (id: string, text: string) => Promise<string | null>
+    remove?: (id: string) => Promise<boolean>
   }>(),
-  { pending: () => ({}), failures: () => ({}), resume: null, sort: 'popular' },
+  {
+    pending: () => ({}),
+    failures: () => ({}),
+    resume: null,
+    sort: 'popular',
+    own: () => ({}),
+    edit: async () => 'Не удалось сохранить правку. Попробуйте ещё раз.',
+    remove: async () => false,
+  },
 )
 
 const emit = defineEmits<{
@@ -43,6 +55,15 @@ const emit = defineEmits<{
   'sign-in': [target: FormTarget]
 }>()
 
+// The time the menus compare the end of the time to change a comment with: «Редактировать» goes once it is over.
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  now.value = Date.now()
+  clock = setInterval(() => (now.value = Date.now()), 30_000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+
 provide(commentTreeKey, {
   postId: toRef(props, 'postId'),
   signedIn: toRef(props, 'signedIn'),
@@ -52,6 +73,10 @@ provide(commentTreeKey, {
   pending: toRef(props, 'pending'),
   failures: toRef(props, 'failures'),
   resume: toRef(props, 'resume'),
+  own: toRef(props, 'own'),
+  now,
+  edit: (id, text) => props.edit(id, text),
+  remove: (id) => props.remove(id),
   more: (commentId) => emit('more', commentId),
   send: (text, parentId) => emit('send', text, parentId),
   dismiss: (target) => emit('dismiss', target),

@@ -63,6 +63,43 @@ public static class CommentTree
     }
 
     /// <summary>
+    /// Deletes <paramref name="commentId"/> from <paramref name="thread"/>, the comments of its thread in the order of
+    /// the tree (E09-05, ADR-0059), and gives the comments to remove from the database. A comment with replies stays as
+    /// their stub (<see cref="Comment.Delete"/>) and nothing is removed; one without replies is removed, and so is each
+    /// stub above it that is left with no replies, so a stub never stands over an empty place.
+    /// </summary>
+    public static IReadOnlyList<Comment> Delete(IReadOnlyList<Comment> thread, Guid commentId, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(thread);
+        var at = thread.Select((c, i) => (c, i)).Single(x => x.c.Id == commentId).i;
+        if (Under(thread, at).Any())
+        {
+            thread[at].Delete(now);
+            return [];
+        }
+
+        var removed = new List<Comment> { thread[at] };
+        var byId = thread.ToDictionary(c => c.Id);
+        for (var parentId = thread[at].ParentId; parentId is { } id && byId.TryGetValue(id, out var parent);)
+        {
+            var index = thread.Select((c, i) => (c, i)).Single(x => x.c.Id == id).i;
+            if (!parent.IsDeleted || Under(thread, index).Any(c => !removed.Contains(c)))
+            {
+                break;
+            }
+
+            removed.Add(parent);
+            parentId = parent.ParentId;
+        }
+
+        return removed;
+    }
+
+    // The replies under the comment at `at`, at any depth: the deeper comments right after it.
+    private static IEnumerable<Comment> Under(IReadOnlyList<Comment> ordered, int at) =>
+        ordered.Skip(at + 1).TakeWhile(c => c.Depth > ordered[at].Depth);
+
+    /// <summary>
     /// The threads of a post's <paramref name="shown"/> comments, in the order of the tree — each comment under the
     /// post with the replies after it — put in the order of <paramref name="sort"/> (E09-04, ADR-0058). The replies
     /// inside a thread keep the order of the tree. <see cref="CommentSort.Popular"/>: the most replies first, the older

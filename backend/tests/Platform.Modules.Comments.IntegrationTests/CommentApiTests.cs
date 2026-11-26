@@ -364,6 +364,150 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
         Assert.Equal(0, await CountAsync());
     }
 
+    [Fact]
+    public async Task AuthorChangesTheTextWhileTheTimeLastsAndTheTreeMarksIt()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Было", parentId: null);
+        var reply = await CreateAsync(post.Id, "Ответ", comment);
+
+        using var edited = await EditAsync(comment, " Стало ", _reader);
+
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var view = await edited.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("Стало", view.GetProperty("text").GetString());
+        Assert.Equal(api.Time.GetUtcNow(), view.GetProperty("editedAt").GetDateTimeOffset());
+        Assert.Equal(1, view.GetProperty("replies").GetInt32());
+        using var tree = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, account: null);
+        var comments = (await tree.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("comments");
+        var shown = comments.EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == comment);
+        Assert.Equal("Стало", shown.GetProperty("text").GetString());
+        Assert.Equal(JsonValueKind.String, shown.GetProperty("editedAt").ValueKind);
+        Assert.Equal(
+            shown.GetProperty("createdAt").GetDateTimeOffset().AddMinutes(CommentLimits.DefaultEditMinutes),
+            shown.GetProperty("editableUntil").GetDateTimeOffset());
+        var untouched = comments.EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == reply);
+        Assert.Equal(JsonValueKind.Null, untouched.GetProperty("editedAt").ValueKind);
+        Assert.False(untouched.GetProperty("deleted").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ChangeAfterTheTimeIsRefusedByTheServer()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Было", parentId: null);
+        api.Time.Advance(TimeSpan.FromMinutes(CommentLimits.DefaultEditMinutes));
+
+        using var late = await EditAsync(comment, "Стало", _reader);
+
+        Assert.Equal(HttpStatusCode.Forbidden, late.StatusCode);
+        Assert.Equal(CommentEndpoints.EditClosedCode, await CodeOf(late));
+        Assert.Equal("Было", await TextOfAsync(comment));
+    }
+
+    [Fact]
+    public async Task OnlyTheAuthorChangesOrDeletesAComment()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Моё", parentId: null);
+        var stranger = await SaveConfirmedAccountAsync(2, "stranger@example.com");
+
+        using var anonymousEdit = await EditAsync(comment, "Чужое", account: null);
+        using var anonymousDelete = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment}", null, null);
+        using var foreignEdit = await EditAsync(comment, "Чужое", stranger);
+        using var foreignDelete = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment}", null, stranger);
+        using var unknown = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{Guid.CreateVersion7()}", null, _reader);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousEdit.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousDelete.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, foreignEdit.StatusCode);
+        Assert.Equal(CommentEndpoints.NotAuthorCode, await CodeOf(foreignEdit));
+        Assert.Equal(HttpStatusCode.Forbidden, foreignDelete.StatusCode);
+        Assert.Equal(CommentEndpoints.NotAuthorCode, await CodeOf(foreignDelete));
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal("Моё", await TextOfAsync(comment));
+    }
+
+    [Theory]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task ChangeToAnEmptyTextIsAValidationError(string? text)
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Было", parentId: null);
+
+        using var response = await EditAsync(comment, text, _reader);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["text"], await ErrorFieldsOf(response));
+        Assert.Equal("Было", await TextOfAsync(comment));
+    }
+
+    [Fact]
+    public async Task DeletedCommentWithRepliesStaysAsAStubAndGoesWithTheLastOne()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Удалю", parentId: null);
+        var reply = await CreateAsync(post.Id, "Ответ", comment);
+        var alone = await CreateAsync(post.Id, "Без ответов", parentId: null);
+
+        using var deleted = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment}", null, _reader);
+        using var deletedAlone = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{alone}", null, _reader);
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deletedAlone.StatusCode);
+        using var tree = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, account: null);
+        var read = await tree.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal([comment, reply], IdsOf(read));
+        var stub = read.GetProperty("comments")[0];
+        Assert.True(stub.GetProperty("deleted").GetBoolean());
+        Assert.Equal(string.Empty, stub.GetProperty("text").GetString());
+        Assert.Equal(JsonValueKind.Null, stub.GetProperty("authorAccountId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, stub.GetProperty("editableUntil").ValueKind);
+        Assert.Equal(1, stub.GetProperty("replies").GetInt32());
+
+        using var replyToStub = await CommentAsync(post.Id, "Ещё", comment, _reader);
+        using var again = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment}", null, _reader);
+        using var editStub = await EditAsync(comment, "Вернул", _reader);
+        Assert.Equal(HttpStatusCode.BadRequest, replyToStub.StatusCode);
+        Assert.Equal(["parentId"], await ErrorFieldsOf(replyToStub));
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, editStub.StatusCode);
+
+        using var lastReply = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{reply}", null, _reader);
+        Assert.Equal(HttpStatusCode.NoContent, lastReply.StatusCode);
+        Assert.Equal(0, await CountAsync());
+    }
+
+    [Fact]
+    public async Task AccountReadsWhichCommentsUnderThePostAreItsOwn()
+    {
+        var post = await SavePostAsync(publish: true);
+        var stranger = await SaveConfirmedAccountAsync(2, "stranger@example.com");
+        var own = await CreateAsync(post.Id, "Моё", parentId: null);
+        using var foreign = await CommentAsync(post.Id, "Чужое", own, stranger);
+        var gone = await CreateAsync(post.Id, "Удалю", parentId: null);
+        using var deleted = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{gone}", null, _reader);
+
+        using var mine = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments/mine", null, _reader);
+        using var anonymous = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments/mine", null, null);
+
+        Assert.Equal(HttpStatusCode.OK, mine.StatusCode);
+        var ids = (await mine.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("ids");
+        Assert.Equal([own], [.. ids.EnumerateArray().Select(i => i.GetGuid())]);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    private Task<HttpResponseMessage> EditAsync(Guid commentId, string? text, Guid? account) =>
+        SendAsync(HttpMethod.Patch, $"/api/v1/comments/{commentId}", JsonSerializer.Serialize(new { text }), account);
+
+    private async Task<string> TextOfAsync(Guid commentId)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<CommentsDbContext>().Comments
+            .Where(c => c.Id == commentId).Select(c => c.Text).SingleAsync(Ct);
+    }
+
     private async Task<Guid> CreateAsync(Guid postId, string text, Guid? parentId)
     {
         using var response = await CommentAsync(postId, text, parentId, _reader);

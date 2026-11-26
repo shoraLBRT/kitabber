@@ -3,11 +3,17 @@
 // line beside the replies is the button that folds them; a folded branch leaves «Развернуть · N ответов». Replies a
 // read left out come on «Показать ещё N ответов», with a skeleton line while they load and «Повторить» on a failure.
 // «Ответить» opens the reply form under the comment (E09-03); a reply being sent is dimmed until the server keeps it.
+// The person's own comment has the «…» menu (E09-05, ADR-0059): «Редактировать» opens its text in a form while the time
+// lasts, «Удалить» asks first. A changed text is marked «изменено»; a deleted comment with replies is the stub
+// «Комментарий удалён», with no author, no text and no actions, over its replies.
 import { computed, inject, ref, watch } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
+import CommentEdit from './CommentEdit.vue'
 import CommentForm from './CommentForm.vue'
+import CommentMenu from './CommentMenu.vue'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { canReply, repliesText, type CommentNode } from '../../api/comments'
+import { commentMenuItems } from '../../utils/comment-menu'
 import { commentTreeKey } from './context'
 
 const props = defineProps<{ node: CommentNode }>()
@@ -19,6 +25,12 @@ const comment = computed(() => props.node.comment)
 const sending = computed(() => tree.pending.value[comment.value.id] === true)
 const replying = ref(tree.resume.value === props.node.comment.id)
 const replyable = computed(() => !sending.value && canReply(comment.value, tree.maxDepth.value))
+const editing = ref(false)
+const menuItems = computed(() =>
+  sending.value
+    ? []
+    : commentMenuItems(comment.value, tree.own.value[comment.value.id] === true, tree.now.value),
+)
 const profile = computed(() =>
   comment.value.authorAccountId ? tree.authors.value.get(comment.value.authorAccountId) : undefined,
 )
@@ -53,6 +65,10 @@ watch(
 const branch = computed(() => tree.branches.value[comment.value.id])
 const titleId = computed(() => `comment-${comment.value.id}`)
 
+function remove() {
+  return tree.remove(comment.value.id)
+}
+
 const timeFormat = new Intl.DateTimeFormat('ru', {
   day: 'numeric',
   month: 'short',
@@ -71,7 +87,10 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
     data-testid="comment"
     :data-comment-id="comment.id"
   >
-    <div class="comment__head">
+    <p v-if="comment.deleted" :id="titleId" class="comment__deleted" data-testid="comment-deleted">
+      Комментарий удалён
+    </p>
+    <div v-else class="comment__head">
       <UiAvatar
         :name="name"
         :src="profile?.avatarUrl ?? undefined"
@@ -102,9 +121,23 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
       <time v-else class="comment__time" :datetime="comment.createdAt">{{
         timeFormat.format(new Date(comment.createdAt))
       }}</time>
+      <span
+        v-if="comment.editedAt && !sending"
+        class="comment__time"
+        :title="`Изменено ${timeFormat.format(new Date(comment.editedAt))}`"
+        data-testid="comment-edited"
+        >· изменено</span
+      >
+      <CommentMenu v-if="menuItems.length > 0" :items="menuItems" :remove="remove" @edit="editing = true" />
     </div>
-    <p class="comment__text" data-testid="comment-text">{{ comment.text }}</p>
-    <div v-if="replyable && !replying" class="comment__actions">
+    <CommentEdit
+      v-if="editing && !comment.deleted"
+      :comment-id="comment.id"
+      :text="comment.text"
+      @close="editing = false"
+    />
+    <p v-else-if="!comment.deleted" class="comment__text" data-testid="comment-text">{{ comment.text }}</p>
+    <div v-if="replyable && !replying && !editing" class="comment__actions">
       <button type="button" class="comment__link" data-testid="comment-reply" @click="startReply">
         Ответить
       </button>
@@ -187,6 +220,13 @@ a.comment__author:hover {
   flex: none;
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+}
+
+.comment__deleted {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-style: italic;
 }
 
 .comment--sending .comment__text {

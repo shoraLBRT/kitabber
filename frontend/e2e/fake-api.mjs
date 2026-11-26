@@ -27,7 +27,7 @@ const resendSeconds = Number(process.env.FAKE_RESEND_SECONDS ?? 60)
 const cors = {
   'access-control-allow-headers':
     'authorization, content-type, x-requested-with, x-signalr-user-agent, x-e2e-client, x-forwarded-for, traceparent',
-  'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+  'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'access-control-allow-credentials': 'true',
 }
 
@@ -377,18 +377,26 @@ function post(response, url) {
 // Comments (E09-02, ADR-0048, ADR-0054): GET /api/v1/posts/{postId}/comments and /api/v1/comments/{id}/branch with
 // `?levels=`, in the order of the tree, each comment with the number of replies under it at any depth. The titled post
 // has two threads, one seven levels deep, and a guest comment; the short one none; the post in the topic a thousand
-// (250 threads of four levels, for the test of a big tree).
-const commentPost = (id, postId, parent, n, text, author) => ({
-  id,
-  postId,
-  parentId: parent?.id ?? null,
-  depth: (parent?.depth ?? 0) + 1,
-  kind: author ? 'native' : 'guest',
-  authorAccountId: author ?? null,
-  guest: author ? null : { name: 'Гость из канала', url: 'https://t.me/example/1' },
-  text,
-  createdAt: new Date(Date.UTC(2026, 10, 20, 12, 0, n)).toISOString(),
-})
+// (250 threads of four levels, for the test of a big tree). The comments are long past the 15 minutes their author
+// may change them in (E09-05): anna's take only «Удалить»; «Вторая ветка» was changed («изменено»).
+const editMinutes = 15
+const commentPost = (id, postId, parent, n, text, author) => {
+  const createdAt = new Date(Date.UTC(2026, 10, 20, 12, 0, n))
+  return {
+    id,
+    postId,
+    parentId: parent?.id ?? null,
+    depth: (parent?.depth ?? 0) + 1,
+    kind: author ? 'native' : 'guest',
+    authorAccountId: author ?? null,
+    guest: author ? null : { name: 'Гость из канала', url: 'https://t.me/example/1' },
+    text,
+    createdAt: createdAt.toISOString(),
+    editedAt: null,
+    editableUntil: author ? new Date(createdAt.getTime() + editMinutes * 60_000).toISOString() : null,
+    deleted: false,
+  }
+}
 const commentId = (n) => `0195f3a0-0000-7000-8000-${n.toString(16).padStart(12, '0')}`
 const comments = (() => {
   const list = []
@@ -406,6 +414,7 @@ const comments = (() => {
     deep = add(titledPost, deep, `${name} уровень`, n % 2 ? anna : boris)
   }
   const second = add(titledPost, null, 'Вторая ветка', boris)
+  second.editedAt = new Date(Date.parse(second.createdAt) + 5 * 60_000).toISOString()
   add(titledPost, second, 'Ответ во второй ветке', anna)
   add(titledPost, second, 'Ещё ответ во второй ветке', anna)
   add(titledPost, null, 'Комментарий из обсуждения канала', undefined)
@@ -499,6 +508,58 @@ async function writeComment(request, response, postId) {
     guest: null,
     text,
     createdAt: new Date().toISOString(),
+    editedAt: null,
+    editableUntil: new Date(Date.now() + editMinutes * 60_000).toISOString(),
+    deleted: false,
+    replies: 0,
+  })
+}
+
+// The own comments, changing and deleting them (E09-05, ADR-0059): GET /api/v1/posts/{postId}/comments/mine lists the
+// signed-in account's comments under the post; PATCH and DELETE /api/v1/comments/{id} check the author and the time to
+// change the text, as the server does. Like a comment written, a change is answered, not kept. A comment the fake does
+// not know is one the test has just written (it was not kept either): it is the caller's, still in its time. A text
+// «сбой» fails as the server would.
+function ownComments(request, response, postId) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  if (!posts.some((item) => item.id === postId))
+    return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+  const ids = comments.filter((c) => c.postId === postId && c.authorAccountId === account).map((c) => c.id)
+  return send(response, 200, { postId, ids })
+}
+
+async function changeComment(request, response, id) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const known = comments.find((comment) => comment.id === id)
+  if (known && known.authorAccountId !== account)
+    return send(response, 403, { status: 403, code: 'comments.not_author' })
+  if (request.method === 'DELETE') return send(response, 204)
+  if (known) return send(response, 403, { status: 403, code: 'comments.edit_closed' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  const text = typeof input.text === 'string' ? input.text.trim() : ''
+  if (text === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  if (!text)
+    return send(response, 400, {
+      status: 400,
+      code: 'validation',
+      errors: { text: ['Напишите текст комментария.'] },
+    })
+  const now = new Date()
+  return send(response, 200, {
+    id,
+    postId: '',
+    parentId: null,
+    depth: 1,
+    kind: 'native',
+    authorAccountId: account,
+    guest: null,
+    text,
+    createdAt: now.toISOString(),
+    editedAt: now.toISOString(),
+    editableUntil: new Date(now.getTime() + editMinutes * 60_000).toISOString(),
+    deleted: false,
     replies: 0,
   })
 }
@@ -814,6 +875,11 @@ createServer(async (request, response) => {
     return commentTree(response, url)
   const [, commentedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
   if (commentedPost && request.method === 'POST') return writeComment(request, response, commentedPost)
+  const [, ownPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments\/mine$/) ?? []
+  if (ownPost && request.method === 'GET') return ownComments(request, response, ownPost)
+  const [, changed] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)$/) ?? []
+  if (changed && ['PATCH', 'DELETE'].includes(request.method))
+    return changeComment(request, response, changed)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
     return writePost(request, response, url)
