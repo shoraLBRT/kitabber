@@ -585,8 +585,9 @@ function shownComments(ordered, start, levels) {
     .filter((comment) => !levels || comment.depth <= start + levels)
 }
 
-// The threads in the order `sort` asks for, as CommentTree.Sorted does (E09-04, ADR-0058): «popular» — the most
-// replies first, the older among equals; «date» — the newest first. Replies keep the order of the tree.
+// The threads in the order `sort` asks for, as CommentTree.Sorted does (E09-04, ADR-0058, ADR-0081): «popular» — the
+// highest rated first, then the most replies, then the older; «date» — the newest first. Replies keep the order of the
+// tree. The rating is the others' likes, a like weighing 1 (ReactionWeights): the order is the same for every client.
 function sortedThreads(shown, sort) {
   const threads = []
   for (const comment of shown) {
@@ -594,8 +595,11 @@ function sortedThreads(shown, sort) {
     threads.at(-1).push(comment)
   }
   const byDate = (a, b) => a[0].createdAt.localeCompare(b[0].createdAt)
+  const rating = (thread) => othersLikes.get(`comment:${thread[0].id}`) ?? 0
   threads.sort(
-    sort === 'date' ? (a, b) => byDate(b, a) : (a, b) => b[0].replies - a[0].replies || byDate(a, b),
+    sort === 'date'
+      ? (a, b) => byDate(b, a)
+      : (a, b) => rating(b) - rating(a) || b[0].replies - a[0].replies || byDate(a, b),
   )
   return threads.flat()
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Modules.Posts.Contracts;
+using Platform.Modules.Reactions.Contracts;
 
 namespace Platform.Modules.Comments;
 
@@ -144,6 +145,7 @@ public sealed class CommentEndpoints : IApiEndpoints
         [FromQuery] string? sort,
         CommentsDbContext db,
         IPostDirectory posts,
+        IReactionRatings ratings,
         CommentLimits limits,
         CancellationToken ct)
     {
@@ -166,7 +168,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         }
 
         var tree = await CommentTree.OfPost(db, postId).ToListAsync(ct);
-        var shown = CommentTree.Sorted(CommentTree.Shown(tree, 0, levels), order);
+        var rated = order == CommentSort.Popular ? await ratings.CommentRatingsAsync([postId], ct) : null;
+        var shown = CommentTree.Sorted(CommentTree.Shown(tree, 0, levels), order, rated);
         return TypedResults.Ok(new CommentTreeView(postId, limits.MaxDepth, Views(shown, limits)));
     }
 

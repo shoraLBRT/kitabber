@@ -1,12 +1,13 @@
 import { expect, expectNoHorizontalScroll, press, test, waitForHydration } from './fixtures'
 
 // The order of comments (E09-04, FR-COMMENT, ADR-0058) in both profiles against the fake API (e2e/fake-api.mjs): the
-// titled post has three threads — «Первый уровень» (six replies), «Вторая ветка» (two) and the guest comment (none),
-// written in that order. The server sorts; the choice is remembered for the next page.
+// titled post has three threads — «Первый уровень» (six replies, no likes), «Вторая ветка» (two replies, two likes, so
+// the highest rating, E10-05) and the guest comment (none), written in that order. The server sorts; the choice is
+// remembered for the next page.
 
 const titled = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
 const short = '/u/anna/0195f3a0-0000-7000-8000-0000000000c2'
-const popular = ['Первый уровень', 'Вторая ветка', 'Комментарий из обсуждения канала']
+const popular = ['Вторая ветка', 'Первый уровень', 'Комментарий из обсуждения канала']
 const newest = ['Комментарий из обсуждения канала', 'Вторая ветка', 'Первый уровень']
 
 test.describe('порядок комментариев', () => {
