@@ -9,6 +9,8 @@ import {
   ownProfile,
   profileInputErrors,
   profileTextLength,
+  removeOwnCover,
+  saveOwnCover,
   saveOwnProfile,
 } from '../../api/profiles'
 
@@ -25,6 +27,7 @@ const profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  cover: null,
 }
 
 function clientAnswering(status: number, body: unknown) {
@@ -175,5 +178,45 @@ describe('editing the own profile (E04-03)', () => {
       status: 'unauthorized',
     })
     expect(await uploadMedia(clientAnswering(500, {}).client, blob, 'a.jpg')).toEqual({ status: 'error' })
+  })
+})
+
+describe('the cover (E04-04)', () => {
+  const cover = { id: 'm1', position: 30, sources: [], preview: null }
+
+  it('sets or moves it through PUT /profiles/me/cover and turns the answers into outcomes', async () => {
+    const saved = clientAnswering(200, { ...profile, cover })
+    expect(await saveOwnCover(saved.client, { mediaId: 'm1', position: 30 })).toEqual({
+      status: 'saved',
+      profile: { ...profile, cover },
+    })
+    const request = saved.fetch.mock.calls[0]![0]
+    expect(request.method).toBe('PUT')
+    expect(request.url).toBe('http://api.test/api/v1/profiles/me/cover')
+    expect(await request.json()).toEqual({ mediaId: 'm1', position: 30 })
+
+    const problem = { status: 400, code: 'validation_failed', errors: { position: ['От 0 до 100.'] } }
+    expect(
+      await saveOwnCover(clientAnswering(400, problem).client, { mediaId: 'm1', position: 101 }),
+    ).toEqual({
+      status: 'invalid',
+      errors: { position: 'От 0 до 100.' },
+    })
+    expect(await saveOwnCover(clientAnswering(401, {}).client, { mediaId: 'm1', position: 50 })).toEqual({
+      status: 'unauthorized',
+    })
+    expect(await saveOwnCover(clientAnswering(500, {}).client, { mediaId: 'm1', position: 50 })).toEqual({
+      status: 'error',
+    })
+  })
+
+  it('removes it through DELETE /profiles/me/cover', async () => {
+    const removed = clientAnswering(200, profile)
+    expect(await removeOwnCover(removed.client)).toEqual({ status: 'saved', profile })
+    const request = removed.fetch.mock.calls[0]![0]
+    expect(request.method).toBe('DELETE')
+    expect(request.url).toBe('http://api.test/api/v1/profiles/me/cover')
+    expect(await removeOwnCover(clientAnswering(401, {}).client)).toEqual({ status: 'unauthorized' })
+    expect(await removeOwnCover(clientAnswering(503, {}).client)).toEqual({ status: 'error' })
   })
 })

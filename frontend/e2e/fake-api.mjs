@@ -888,9 +888,8 @@ function clientOf(request) {
 
 function edited(blog, request) {
   const edit = clientOf(request) && edits.get(clientOf(request))
-  return edit && blog.owner === owner
-    ? { ...blog, ...edit }
-    : { avatarId: null, avatarUrl: null, avatarSources: [], ...blog }
+  const empty = { avatarId: null, avatarUrl: null, avatarSources: [], cover: null }
+  return edit && blog.owner === owner ? { ...empty, ...blog, ...edit } : { ...empty, ...blog }
 }
 
 function readBytes(request) {
@@ -919,6 +918,7 @@ async function editProfile(request, response) {
   if (Object.keys(errors).length > 0)
     return send(response, 400, { status: 400, code: 'validation_failed', errors })
   edits.set(clientOf(request), {
+    ...edits.get(clientOf(request)),
     name: clean(input.name),
     description: clean(input.description),
     avatarId: input.avatarId ?? null,
@@ -933,6 +933,38 @@ async function editProfile(request, response) {
       : [],
   })
   // The owner's own view: `owner` is the fake's, not the API's (undefined drops it from the JSON).
+  return send(response, 200, { ...edited(own, request), owner: undefined })
+}
+
+// The cover (E04-04, ADR-0079): PUT and DELETE /api/v1/profiles/me/cover, kept per client address like the edits.
+// The sources are the fake's square pixel, so the picture is taller than the header and can be moved.
+async function setCover(request, response) {
+  const reader = subject(request)
+  const own = blogs.find((blog) => reader && blog.owner === reader)
+  if (!own) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = request.method === 'PUT' ? JSON.parse((await readBody(request)) || '{}') : null
+  if (input) {
+    const errors = {}
+    if (!uploads.some((file) => file.id === input.mediaId))
+      errors.mediaId = ['Такого загруженного файла нет.']
+    const position = input.position ?? 50
+    if (!Number.isInteger(position) || position < 0 || position > 100)
+      errors.position = ['Положение обложки — от 0 до 100.']
+    if (Object.keys(errors).length > 0)
+      return send(response, 400, { status: 400, code: 'validation_failed', errors })
+  }
+  const cover = input
+    ? {
+        id: input.mediaId,
+        position: input.position ?? 50,
+        sources: [400, 640, 800, 1280, 1920].map((width) => ({
+          url: `http://127.0.0.1:${port}/__images/${input.mediaId}-cover-${width}.webp`,
+          width,
+        })),
+        preview: { color: '#336699', image: `data:image/webp;base64,${pixel.toString('base64')}` },
+      }
+    : null
+  edits.set(clientOf(request), { ...edits.get(clientOf(request)), cover })
   return send(response, 200, { ...edited(own, request), owner: undefined })
 }
 
@@ -1080,6 +1112,8 @@ createServer(async (request, response) => {
     return saveGeneral(request, response)
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
+  if (url.pathname === '/api/v1/profiles/me/cover' && ['PUT', 'DELETE'].includes(request.method))
+    return setCover(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
   const [, likedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/likes$/) ?? []

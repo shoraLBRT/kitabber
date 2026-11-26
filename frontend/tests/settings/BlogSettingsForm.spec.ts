@@ -20,6 +20,7 @@ const anna: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  cover: null,
 }
 
 const cropped = new Blob(['jpeg'], { type: 'image/jpeg' })
