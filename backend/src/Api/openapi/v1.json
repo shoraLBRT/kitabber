@@ -1542,6 +1542,140 @@
         }
       }
     },
+    "/api/v1/blogs/{id}/subscribers": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "The accounts that follow a blog or a topic, by their personal blogs, the newest first",
+        "operationId": "GetBlogSubscribers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfSubscriptionCard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/{id}/subscriptions": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "The blogs and topics the owner of a personal blog follows, the newest first",
+        "operationId": "GetBlogSubscriptions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfSubscriptionCard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts": {
       "post": {
         "tags": [
@@ -3817,6 +3951,27 @@
           }
         }
       },
+      "CursorPageOfSubscriptionCard": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionCard"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "CursorPageOfTopicCard": {
         "required": [
           "items",
@@ -4945,6 +5100,51 @@
           "resendAfterSeconds": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SubscriptionCard": {
+        "required": [
+          "id",
+          "type",
+          "name",
+          "nickname",
+          "avatarSources",
+          "subscribed",
+          "own"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatarSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageSource"
+            }
+          },
+          "subscribed": {
+            "type": "boolean"
+          },
+          "own": {
+            "type": "boolean"
           }
         }
       },

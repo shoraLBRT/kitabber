@@ -45,6 +45,7 @@ public static class BlogsModule
         builder.Services.AddApiEndpoints<TopicEndpoints>();
         builder.Services.AddApiEndpoints<TopicCatalogEndpoints>();
         builder.Services.AddApiEndpoints<SubscriptionEndpoints>();
+        builder.Services.AddApiEndpoints<SubscriptionListEndpoints>();
         return builder;
     }
 

@@ -402,6 +402,18 @@ export default {
     failed: 'Не удалось изменить подписку. Попробуйте ещё раз.',
     signedOut: 'Войдите снова, чтобы подписаться.',
   },
+  subscriptionList: {
+    subscribers: 'Подписчики',
+    subscriptions: 'Подписки',
+    open: 'Открыть список',
+    loading: 'Загружаем список…',
+    failed: 'Не удалось загрузить список.',
+    emptySubscribers: 'Пока никто не подписан.',
+    emptySubscriptions: 'Пока ни на кого не подписан.',
+    more: 'Показать ещё',
+    moreFailed: 'Не удалось загрузить ещё. Попробуйте ещё раз.',
+    topic: 'Тема',
+  },
   topicCatalog: {
     title: 'Темы',
     search: 'Поиск по темам',

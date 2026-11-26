@@ -114,6 +114,7 @@ const registered = computed(() => {
           v-if="shownSubscription"
           :state="shownSubscription"
           :subscription-count="found.profile.subscriptionCount"
+          :blog-id="found.profile.id"
           :own="found.owner"
           :busy="props.subscription?.busy"
           @toggle="$emit('subscribe')"

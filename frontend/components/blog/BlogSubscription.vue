@@ -2,10 +2,12 @@
 // The subscription line of a blog or topic header (E11-03, FR-SUB, docs/ui/blog.md, ADR-0085): the number of
 // subscribers (and, for a personal blog, how many the owner follows) and the button «Подписаться» / «Вы подписаны».
 // The owner sees the numbers without the button. The page holds the state (composables/useSubscription.ts); this only
-// shows it and reports a press. On a phone the button takes the free width.
-import { computed } from 'vue'
+// shows it and reports a press. On a phone the button takes the free width. With the blog's id the numbers open its lists
+// (E04-06, ADR-0099): «Подписчики» and, for a personal blog, «Подписки».
+import { computed, nextTick, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
-import { compactCount, type SubscriptionView } from '../../api/subscriptions'
+import SubscriptionListDialog from './SubscriptionListDialog.vue'
+import { compactCount, type SubscriptionListKind, type SubscriptionView } from '../../api/subscriptions'
 import { t } from '../../i18n'
 
 const props = defineProps<{
@@ -15,7 +17,23 @@ const props = defineProps<{
   /** The reader runs this blog: the numbers only, no button. */
   own?: boolean
   busy?: boolean
+  /** The blog the numbers belong to: they then open its lists. */
+  blogId?: string
 }>()
+
+// The dialog is made at the first press and then opened, so it opens as a closed dialog does (focus, scroll lock).
+const list = ref<SubscriptionListKind>('subscribers')
+const listMade = ref(false)
+const listOpen = ref(false)
+
+async function openList(kind: SubscriptionListKind) {
+  list.value = kind
+  if (!listMade.value) {
+    listMade.value = true
+    await nextTick()
+  }
+  listOpen.value = true
+}
 
 defineEmits<{ toggle: [] }>()
 
@@ -39,12 +57,38 @@ const subscriptions = computed(() =>
 <template>
   <div class="subscription" data-testid="subscription">
     <p class="subscription__counts" data-testid="subscription-counts">
-      <span data-testid="subscriber-count">{{ subscribers }}</span>
+      <button
+        v-if="blogId"
+        type="button"
+        class="subscription__count"
+        aria-haspopup="dialog"
+        data-testid="subscriber-count"
+        @click="openList('subscribers')"
+      >
+        {{ subscribers }}
+      </button>
+      <span v-else data-testid="subscriber-count">{{ subscribers }}</span>
       <template v-if="subscriptions">
         <span aria-hidden="true"> · </span>
-        <span data-testid="subscription-count">{{ subscriptions }}</span>
+        <button
+          v-if="blogId"
+          type="button"
+          class="subscription__count"
+          aria-haspopup="dialog"
+          data-testid="subscription-count"
+          @click="openList('subscriptions')"
+        >
+          {{ subscriptions }}
+        </button>
+        <span v-else data-testid="subscription-count">{{ subscriptions }}</span>
       </template>
     </p>
+    <SubscriptionListDialog
+      v-if="blogId && listMade"
+      v-model:open="listOpen"
+      :blog-id="blogId"
+      :kind="list"
+    />
     <div v-if="!own" class="subscription__actions">
       <UiButton
         :variant="state.subscribed ? 'secondary' : 'primary'"
@@ -77,6 +121,20 @@ const subscriptions = computed(() =>
 
 .subscription__actions {
   display: flex;
+}
+
+.subscription__count {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.subscription__count:hover {
+  color: var(--color-text);
+  text-decoration: underline;
 }
 
 @media (max-width: 639px) {
