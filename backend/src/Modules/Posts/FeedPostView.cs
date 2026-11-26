@@ -27,7 +27,12 @@ public sealed record FeedBlogView(
 /// <param name="Text">
 /// The beginning of the text, at most 300 characters and «…» when it is longer; the card cuts it to a few lines.
 /// </param>
-public sealed record FeedCommentView(Guid Id, FeedBlogView? Author, string? GuestName, string Text);
+/// <param name="AuthorAccountId">
+/// The account of a native comment's author; <c>null</c> for a guest one. A reader who blocked it gets the card
+/// without the comment (E11-06, ADR-0091).
+/// </param>
+public sealed record FeedCommentView(
+    Guid Id, FeedBlogView? Author, string? GuestName, string Text, Guid? AuthorAccountId = null);
 
 /// <summary>A post in a feed with what its card shows around it (E08-02, E08-15, FR-FEED, ADR-0052, ADR-0062).</summary>
 /// <param name="Post">The post itself, as <c>/api/v1/posts/{id}</c> gives it.</param>
@@ -79,7 +84,8 @@ internal static class FeedPostViews
                             ? View(blogOf)
                             : null,
                         found.GuestName,
-                        found.Excerpt)
+                        found.Excerpt,
+                        found.AuthorAccountId)
                     : null;
                 return new FeedPostView(post, author, topic, comment);
             }),

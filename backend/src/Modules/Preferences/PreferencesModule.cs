@@ -4,6 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
 using Platform.Messaging;
+using Platform.Modules.Posts.Contracts;
+using Platform.Modules.Preferences.Blocks;
+using Platform.Modules.Preferences.Contracts;
 using Platform.Persistence;
 
 namespace Platform.Modules.Preferences;
@@ -23,6 +26,11 @@ public static class PreferencesModule
         ArgumentNullException.ThrowIfNull(builder);
         AddDatabase(builder.Services, builder.Configuration);
         builder.Services.AddApiEndpoints<PreferenceEndpoints>();
+        builder.Services.AddApiEndpoints<BlockEndpoints>();
+        // The black list for other modules and for the feeds of Posts (ADR-0089, ADR-0091).
+        builder.Services.AddScoped<BlockList>();
+        builder.Services.AddScoped<IBlockList>(sp => sp.GetRequiredService<BlockList>());
+        builder.Services.AddScoped<IFeedExclusionSource>(sp => sp.GetRequiredService<BlockList>());
         return builder;
     }
 

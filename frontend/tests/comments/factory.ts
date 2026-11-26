@@ -22,5 +22,6 @@ export function comment(
     editableUntil: '2026-11-20T12:15:00Z',
     deleted: false,
     replies,
+    authorBlocked: false,
   }
 }

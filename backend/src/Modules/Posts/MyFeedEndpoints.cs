@@ -65,11 +65,7 @@ public sealed class MyFeedEndpoints : IApiEndpoints
             .Where(b => b.Kind == BlogKind.Personal && b.OwnerAccountId is not null)
             .Select(b => b.OwnerAccountId!.Value)
             .ToList();
-        var excluded = FeedExclusions.None;
-        foreach (var source in exclusionSources)
-        {
-            excluded = excluded.Union(await source.ForReaderAsync(reader, ct));
-        }
+        var excluded = await ReaderExclusions.ForAsync(reader, exclusionSources, ct);
 
         var hiddenPosts = excluded.Posts.ToList();
         var hiddenBlogs = excluded.Blogs.ToList();
@@ -92,7 +88,9 @@ public sealed class MyFeedEndpoints : IApiEndpoints
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
         var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
-        return TypedResults.Ok(new CursorPage<FeedPostView>(
-            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor));
+        // The posts are already left out by the query; this drops a blocked author's best comment from a card.
+        return TypedResults.Ok(ReaderExclusions.Apply(
+            new CursorPage<FeedPostView>(await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor),
+            excluded));
     }
 }

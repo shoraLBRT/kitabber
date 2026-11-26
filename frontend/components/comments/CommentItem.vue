@@ -32,6 +32,9 @@ const sending = computed(() => tree.pending.value[comment.value.id] === true)
 const replying = ref(tree.resume.value === props.node.comment.id)
 const replyable = computed(() => !sending.value && canReply(comment.value, tree.maxDepth.value))
 const editing = ref(false)
+// A comment of an author the reader blocked comes folded, with «Показать» (E11-06, ADR-0091).
+const revealed = ref(false)
+const folded = computed(() => comment.value.authorBlocked && !comment.value.deleted && !revealed.value)
 const menuItems = computed(() =>
   sending.value
     ? []
@@ -159,10 +162,16 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
       :text="comment.text"
       @close="editing = false"
     />
+    <p v-else-if="folded" class="comment__folded" data-testid="comment-folded">
+      {{ t('comments.blockedAuthor') }}
+      <button type="button" class="comment__link" data-testid="comment-reveal" @click="revealed = true">
+        {{ t('comments.show') }}
+      </button>
+    </p>
     <p v-else-if="!comment.deleted" class="comment__text" data-testid="comment-text" dir="auto">
       {{ isolateRtlText(comment.text) }}
     </p>
-    <div v-if="(likeShown || (replyable && !replying)) && !editing" class="comment__actions">
+    <div v-if="(likeShown || (replyable && !replying)) && !editing && !folded" class="comment__actions">
       <ReactionRow
         v-if="likeShown"
         :reactions="reactions"
@@ -274,6 +283,11 @@ a.comment__author:hover {
   flex: none;
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+}
+
+.comment__folded {
+  margin: 0;
+  color: var(--color-muted);
 }
 
 .comment__deleted {

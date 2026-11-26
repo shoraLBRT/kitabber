@@ -2848,6 +2848,115 @@
         }
       }
     },
+    "/api/v1/preferences/me/blocks": {
+      "get": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "The black list of the signed-in account, the latest blocked first",
+        "operationId": "GetOwnBlockList",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockListView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences/me/blocks/{accountId}": {
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Adds an account to the black list of the signed-in account",
+        "operationId": "BlockAccount",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Removes an account from the black list of the signed-in account",
+        "operationId": "UnblockAccount",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/media": {
       "post": {
         "tags": [
@@ -3016,6 +3125,42 @@
           },
           "current": {
             "type": "boolean"
+          }
+        }
+      },
+      "BlockedAccountView": {
+        "required": [
+          "accountId",
+          "blockedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "blockedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BlockListView": {
+        "required": [
+          "accounts",
+          "max"
+        ],
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlockedAccountView"
+            }
+          },
+          "max": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3195,7 +3340,8 @@
           "editedAt",
           "editableUntil",
           "deleted",
-          "replies"
+          "replies",
+          "authorBlocked"
         ],
         "type": "object",
         "properties": {
@@ -3265,6 +3411,9 @@
           "replies": {
             "type": "integer",
             "format": "int32"
+          },
+          "authorBlocked": {
+            "type": "boolean"
           }
         }
       },
@@ -3435,6 +3584,13 @@
           },
           "text": {
             "type": "string"
+          },
+          "authorAccountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

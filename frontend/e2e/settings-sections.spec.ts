@@ -42,6 +42,7 @@ const sections = [
   ['Ленты', '/settings/feeds'],
   ['Основные', '/settings/general'],
   ['Уведомления', '/settings/notifications'],
+  ['Приватность и блокировки', '/settings/privacy'],
   ['Аккаунт и вход', '/settings/account'],
 ] as const
 
@@ -86,6 +87,7 @@ test.describe('разделы настроек', () => {
       'Ленты',
       'Основные',
       'Уведомления',
+      'Приватность и блокировки',
       'Аккаунт и вход',
       'Настройки cookie',
     ])

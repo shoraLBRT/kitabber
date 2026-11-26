@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Preferences module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such
+      as Comments refusing a reply from a blocked account, ask about a person's black list without reading the schema
+      `preferences` (E11-06, ADR-0091).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Preferences.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>

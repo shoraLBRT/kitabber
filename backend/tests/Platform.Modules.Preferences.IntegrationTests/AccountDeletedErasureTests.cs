@@ -77,6 +77,42 @@ public sealed class AccountDeletedErasureTests(PostgresFixture postgres) : IAsyn
         Assert.Equal([other], stored);
     }
 
+    [Fact]
+    public async Task DeletedAccountLeavesItsBlackListAndTheListsOfOthers()
+    {
+        var deletedAt = new DateTimeOffset(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
+        var account = Guid.CreateVersion7(deletedAt.AddDays(-30));
+        var other = Guid.CreateVersion7(deletedAt.AddDays(-20));
+        var third = Guid.CreateVersion7(deletedAt.AddDays(-10));
+        await using (var scope = _host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PreferencesDbContext>();
+            db.BlockedAccounts.AddRange(
+                new Blocks.BlockedAccount { OwnerAccountId = account, AccountId = other, BlockedAt = deletedAt },
+                new Blocks.BlockedAccount { OwnerAccountId = other, AccountId = account, BlockedAt = deletedAt },
+                new Blocks.BlockedAccount { OwnerAccountId = other, AccountId = third, BlockedAt = deletedAt });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await _host.Services.GetRequiredService<IBus>().Publish(new AccountDeleted(account, deletedAt), Ct);
+
+        var deadline = DateTime.UtcNow + _timeout;
+        while (true)
+        {
+            await using var scope = _host.Services.CreateAsyncScope();
+            var left = await scope.ServiceProvider.GetRequiredService<PreferencesDbContext>().BlockedAccounts
+                .AsNoTracking().Select(b => new { b.OwnerAccountId, b.AccountId }).ToListAsync(Ct);
+            if (left.Count == 1)
+            {
+                Assert.Equal(new { OwnerAccountId = other, AccountId = third }, left[0]);
+                return;
+            }
+
+            Assert.True(DateTime.UtcNow < deadline, $"the black lists still name {account} after {_timeout.TotalSeconds:0}s");
+            await Task.Delay(100, Ct);
+        }
+    }
+
     private async Task GoneAsync(Guid account)
     {
         var deadline = DateTime.UtcNow + _timeout;

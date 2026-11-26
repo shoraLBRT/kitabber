@@ -59,6 +59,7 @@ export const settingsNav: NavItem[] = [
   { id: 'feeds', label: t('settings.feeds'), to: '/settings/feeds' },
   { id: 'general', label: t('settings.general'), to: '/settings/general' },
   { id: 'notifications', label: t('settings.notifications'), to: '/settings/notifications' },
+  { id: 'privacy', label: t('settings.privacy'), to: '/settings/privacy' },
   { id: 'account', label: t('settings.account'), to: '/settings/account' },
   { id: 'cookies', label: t('nav.cookies'), to: cookieSettingsPath },
 ]

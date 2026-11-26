@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -8,6 +9,7 @@ using Platform.Http.Problems;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Media.Contracts;
+using Platform.Modules.Posts.Contracts;
 
 namespace Platform.Modules.Posts;
 
@@ -41,15 +43,18 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
         IBlogDirectory blogs,
         ICommentDirectory comments,
         FeedPageCache cache,
+        ClaimsPrincipal user,
+        IEnumerable<IFeedExclusionSource> exclusionSources,
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
+        // The reader's exclusions after the shared cache (ADR-0091).
         return await cache.GetOrReadAsync(
                 FeedPageCache.BlogFeed(blogId),
                 page,
                 token => ReadAsync(blogId, page, db, media, blogs, comments, token),
                 ct) is { } result
-            ? TypedResults.Ok(result)
+            ? TypedResults.Ok(ReaderExclusions.Apply(result, await ReaderExclusions.ForAsync(user, exclusionSources, ct)))
             : (IResult)ApiProblems.NotFound(BlogNotFoundCode);
     }
 

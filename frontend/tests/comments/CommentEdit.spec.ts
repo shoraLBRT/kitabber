@@ -161,3 +161,18 @@ describe('CommentTree: changed and deleted comments', () => {
     expect(wrapper.get('[data-comment-id="1.1"] [data-testid="comment-text"]').text()).toBe('Комментарий 1.1')
   })
 })
+
+describe('CommentTree: comments of blocked authors (E11-06)', () => {
+  it('folds a blocked author’s comment with «Показать» and shows its text on demand', async () => {
+    mountTree([{ ...comment('1', null, 1), authorBlocked: true }, comment('2', null, 1)])
+    const item = wrapper.get('[data-comment-id="1"]')
+    expect(item.get('[data-testid="comment-folded"]').text()).toContain('вы заблокировали автора')
+    expect(item.find('[data-testid="comment-text"]').exists()).toBe(false)
+    expect(item.find(':scope > .comment__actions').exists()).toBe(false)
+    expect(wrapper.get('[data-comment-id="2"] [data-testid="comment-text"]').text()).toBe('Комментарий 2')
+
+    await item.get('[data-testid="comment-reveal"]').trigger('click')
+    expect(wrapper.get('[data-comment-id="1"] [data-testid="comment-text"]').text()).toBe('Комментарий 1')
+    expect(wrapper.find('[data-comment-id="1"] [data-testid="comment-folded"]').exists()).toBe(false)
+  })
+})

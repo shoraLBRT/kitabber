@@ -162,6 +162,7 @@ export function useComments(postId: () => string, branchId: () => string | null 
       editableUntil: null,
       deleted: false,
       replies: 0,
+      authorBlocked: false,
     }
     failures.value = Object.fromEntries(Object.entries(failures.value).filter(([key]) => key !== target))
     pending.value = { ...pending.value, [local.id]: true }

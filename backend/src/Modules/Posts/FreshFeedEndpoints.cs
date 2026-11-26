@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -8,6 +9,7 @@ using Platform.Http.Pagination;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Media.Contracts;
+using Platform.Modules.Posts.Contracts;
 
 namespace Platform.Modules.Posts;
 
@@ -45,6 +47,8 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
         IBlogDirectory blogs,
         ICommentDirectory comments,
         FeedPageCache cache,
+        ClaimsPrincipal user,
+        IEnumerable<IFeedExclusionSource> exclusionSources,
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
@@ -54,7 +58,9 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
             page,
             async token => await ReadAsync(page, db, media, blogs, comments, token),
             ct);
-        return TypedResults.Ok(result!);
+        // The reader's exclusions after the shared cache (ADR-0091).
+        return TypedResults.Ok(
+            ReaderExclusions.Apply(result!, await ReaderExclusions.ForAsync(user, exclusionSources, ct)));
     }
 
     private static async Task<CursorPage<FeedPostView>> ReadAsync(
