@@ -39,7 +39,10 @@ const menuOf = (comment: Locator) =>
 async function openMenu(page: Page, comment: Locator) {
   await press(menuOf(comment))
   return isTouch()
-    ? page.getByRole('dialog', { name: 'Меню комментария' }).getByTestId('comment-menu-sheet').getByRole('button')
+    ? page
+        .getByRole('dialog', { name: 'Меню комментария' })
+        .getByTestId('comment-menu-sheet')
+        .getByRole('button')
     : page.getByRole('menu', { name: 'Меню комментария' }).getByRole('menuitem')
 }
 
@@ -63,7 +66,9 @@ test.describe('правка и удаление комментария', () => {
     const foreign = thread(comments, 'Вторая ветка')
     await expect(menuOf(own)).toBeVisible()
     await expect(menuOf(foreign)).toHaveCount(0)
-    await expect(foreign.locator(':scope > .comment__head').getByTestId('comment-edited')).toHaveText('· изменено')
+    await expect(foreign.locator(':scope > .comment__head').getByTestId('comment-edited')).toHaveText(
+      '· изменено',
+    )
     await expect(await openMenu(page, own)).toHaveText(['Удалить'])
     await expectNoHorizontalScroll(page)
   })

@@ -30,7 +30,8 @@ function mountTree(
   return wrapper
 }
 
-const menuButton = (id: string) => wrapper.find(`[data-comment-id="${id}"] button[aria-label="Меню комментария"]`)
+const menuButton = (id: string) =>
+  wrapper.find(`[data-comment-id="${id}"] button[aria-label="Меню комментария"]`)
 
 async function choose(id: string, item: 'edit' | 'delete') {
   await menuButton(id).trigger('click')
@@ -97,7 +98,9 @@ describe('CommentTree: own comments', () => {
       'Время на правку вышло: комментарий можно только удалить.',
     )
     expect(wrapper.get('[data-testid="comment-edit-text"]').attributes('aria-invalid')).toBe('true')
-    expect((wrapper.get('[data-testid="comment-edit-text"]').element as HTMLTextAreaElement).value).toBe('Поздно')
+    expect((wrapper.get('[data-testid="comment-edit-text"]').element as HTMLTextAreaElement).value).toBe(
+      'Поздно',
+    )
   })
 
   it('leaves the text as it was on «Отмена»', async () => {
@@ -141,7 +144,13 @@ describe('CommentTree: changed and deleted comments', () => {
   })
 
   it('draws a deleted comment with replies as the stub over them, with no author, text or actions', () => {
-    const stub = { ...comment('1', null, 1, 1), deleted: true, text: '', authorAccountId: null, editableUntil: null }
+    const stub = {
+      ...comment('1', null, 1, 1),
+      deleted: true,
+      text: '',
+      authorAccountId: null,
+      editableUntil: null,
+    }
     mountTree([stub, comment('1.1', '1', 2)], { own: { '1': true } })
     const item = wrapper.get('[data-comment-id="1"]')
     expect(item.get('[data-testid="comment-deleted"]').text()).toBe('Комментарий удалён')

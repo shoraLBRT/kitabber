@@ -69,7 +69,13 @@ describe('withDeleted', () => {
   it('leaves a comment with replies as their stub, with no author and no text', () => {
     const after = withDeleted(tree, '1.1')
     expect(after.map((c) => c.id)).toEqual(['1', '1.1', '1.1.1', '1.2', '2'])
-    expect(after[1]).toMatchObject({ deleted: true, text: '', authorAccountId: null, editableUntil: null, replies: 1 })
+    expect(after[1]).toMatchObject({
+      deleted: true,
+      text: '',
+      authorAccountId: null,
+      editableUntil: null,
+      replies: 1,
+    })
     expect(canReply(after[1]!, 8)).toBe(false)
   })
 
@@ -95,13 +101,15 @@ describe('withDeleted', () => {
 describe('the API of the own comments', () => {
   function client(answer: () => Promise<{ data?: unknown; error?: unknown; response: { status: number } }>) {
     const calls: unknown[] = []
-    const record =
-      (method: string) =>
-      async (path: string, init: unknown) => {
-        calls.push([method, path, init])
-        return answer()
-      }
-    const api = { GET: record('GET'), PATCH: record('PATCH'), DELETE: record('DELETE') } as unknown as ApiClient
+    const record = (method: string) => async (path: string, init: unknown) => {
+      calls.push([method, path, init])
+      return answer()
+    }
+    const api = {
+      GET: record('GET'),
+      PATCH: record('PATCH'),
+      DELETE: record('DELETE'),
+    } as unknown as ApiClient
     return { api, calls }
   }
 
@@ -109,7 +117,9 @@ describe('the API of the own comments', () => {
     const kept = { ...comment('1', null, 1), text: 'Стало' }
     const { api, calls } = client(async () => ({ data: kept, response: { status: 200 } }))
     expect(await editComment(api, '1', 'Стало')).toEqual({ status: 'edited', comment: kept })
-    expect(calls).toEqual([['PATCH', '/api/v1/comments/{id}', { params: { path: { id: '1' } }, body: { text: 'Стало' } }]])
+    expect(calls).toEqual([
+      ['PATCH', '/api/v1/comments/{id}', { params: { path: { id: '1' } }, body: { text: 'Стало' } }],
+    ])
   })
 
   it('gives the reason of a refusal', async () => {
@@ -121,13 +131,19 @@ describe('the API of the own comments', () => {
       status: 'refused',
       message: 'Напишите текст комментария.',
     })
-    const closed = client(async () => ({ error: { code: 'comments.edit_closed' }, response: { status: 403 } }))
+    const closed = client(async () => ({
+      error: { code: 'comments.edit_closed' },
+      response: { status: 403 },
+    }))
     expect(await editComment(closed.api, '1', 'Поздно')).toEqual({
       status: 'refused',
       message: 'Время на правку вышло: комментарий можно только удалить.',
     })
     const gone = client(async () => ({ response: { status: 404 } }))
-    expect(await editComment(gone.api, '1', 'Текст')).toEqual({ status: 'refused', message: 'Комментарий уже удалён.' })
+    expect(await editComment(gone.api, '1', 'Текст')).toEqual({
+      status: 'refused',
+      message: 'Комментарий уже удалён.',
+    })
   })
 
   it('tells a sign-out and a failure apart', async () => {
