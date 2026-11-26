@@ -71,6 +71,8 @@ public static class BlogsModule
     public static IBusRegistrationConfigurator AddBlogsConsumers(this IBusRegistrationConfigurator bus)
     {
         ArgumentNullException.ThrowIfNull(bus);
+        bus.AddConsumer<AccountCreatedBlogsConsumer, AccountCreatedBlogsConsumerDefinition>();
+        // Drains the queue of the former AccountActivated for one release (ADR-0087, item 9).
         bus.AddConsumer<AccountActivatedConsumer, AccountActivatedConsumerDefinition>();
         bus.AddEntityFrameworkOutbox<BlogsDbContext>(outbox =>
         {

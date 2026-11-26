@@ -11,8 +11,8 @@ namespace Platform.Modules.Blogs.IntegrationTests;
 
 /// <summary>
 /// E04-01: every account has a personal blog. The real workers host (<see cref="WorkerHost.CreateBuilder"/>, in-memory
-/// bus) receives the Identity event <see cref="AccountActivated"/> and creates the blog once, however often the event
-/// comes.
+/// bus) receives the Identity event <see cref="AccountCreated"/> (account.created.v1) and creates the blog once, however
+/// often the event comes; a former AccountActivated still queued at the switch creates it as well (ADR-0087, item 9).
 /// </summary>
 public sealed class PersonalBlogActivationTests(PostgresFixture postgres) : IAsyncLifetime
 {
@@ -42,24 +42,24 @@ public sealed class PersonalBlogActivationTests(PostgresFixture postgres) : IAsy
     }
 
     [Fact]
-    public async Task ActivatedAccountGetsOnePersonalBlog()
+    public async Task CreatedAccountGetsOnePersonalBlog()
     {
         var activatedAt = new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
         var account = Guid.CreateVersion7(activatedAt);
         var bus = _host.Services.GetRequiredService<IBus>();
         var messageId = NewId.NextGuid();
 
-        await bus.Publish(new AccountActivated(account, activatedAt), c => c.MessageId = messageId, Ct);
+        await bus.Publish(new AccountCreated(account, activatedAt), c => c.MessageId = messageId, Ct);
         var blog = await EventuallyAsync(account);
 
         Assert.Equal(SubsiteType.Personal, blog.Type);
         Assert.Equal(activatedAt, blog.CreatedAt);
 
         // The same message again (the inbox drops it) and a second event for the account (the module ignores it).
-        await bus.Publish(new AccountActivated(account, activatedAt), c => c.MessageId = messageId, Ct);
-        await bus.Publish(new AccountActivated(account, activatedAt.AddMinutes(1)), Ct);
+        await bus.Publish(new AccountCreated(account, activatedAt), c => c.MessageId = messageId, Ct);
+        await bus.Publish(new AccountCreated(account, activatedAt.AddMinutes(1)), Ct);
         var other = Guid.CreateVersion7(activatedAt.AddMinutes(2));
-        await bus.Publish(new AccountActivated(other, activatedAt.AddMinutes(2)), Ct);
+        await bus.Publish(new AccountCreated(other, activatedAt.AddMinutes(2)), Ct);
         await EventuallyAsync(other);
         await Task.Delay(TimeSpan.FromSeconds(1), Ct);
 
@@ -68,6 +68,38 @@ public sealed class PersonalBlogActivationTests(PostgresFixture postgres) : IAsy
         var blogs = await db.Subsites.Where(s => s.OwnerAccountId == account).ToListAsync(Ct);
         Assert.Equal(blog.Id, Assert.Single(blogs).Id);
         Assert.Equal(activatedAt, blogs[0].CreatedAt);
+    }
+
+    [Fact]
+    public async Task FormerActivationStillQueuedAtTheSwitchGivesOneBlog()
+    {
+        var activatedAt = new DateTimeOffset(2026, 1, 16, 12, 0, 0, TimeSpan.Zero);
+        var account = Guid.CreateVersion7(activatedAt);
+        var bus = _host.Services.GetRequiredService<IBus>();
+
+        // Published before the deploy: the old event on its old exchange, then its twin account.created.
+        await bus.Publish(new LegacyAccountActivated(account, activatedAt), Ct);
+        var blog = await EventuallyAsync(account);
+        Assert.Equal(activatedAt, blog.CreatedAt);
+
+        await bus.Publish(new AccountCreated(account, activatedAt), Ct);
+        var other = Guid.CreateVersion7(activatedAt.AddMinutes(1));
+        await bus.Publish(new AccountCreated(other, activatedAt.AddMinutes(1)), Ct);
+        await EventuallyAsync(other);
+
+        await using var scope = _host.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BlogsDbContext>();
+        Assert.Equal(blog.Id, Assert.Single(await db.Subsites.Where(s => s.OwnerAccountId == account).ToListAsync(Ct)).Id);
+    }
+
+    [Fact]
+    public void FormerActivationKeepsItsMessageTypeAndExchange()
+    {
+        // The drain reads only what the removed Platform.Modules.Identity.Contracts.AccountActivated left on the bus.
+        Assert.Equal("urn:message:Platform.Modules.Identity.Contracts:AccountActivated",
+            MessageUrn.ForTypeString<LegacyAccountActivated>());
+        Assert.Equal("Platform.Modules.Identity.Contracts:AccountActivated",
+            _host.Services.GetRequiredService<IBus>().Topology.Message<LegacyAccountActivated>().EntityName);
     }
 
     private async Task<Subsite> EventuallyAsync(Guid account)

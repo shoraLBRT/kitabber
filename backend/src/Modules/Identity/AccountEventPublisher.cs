@@ -70,10 +70,8 @@ internal static class AccountEventPublisher
         }
     }
 
-    // AccountActivated stays for the modules that already react to it (ADR-0025); account.created is the contract.
     private static void AddCreated(List<object> messages, Guid accountId, DateTimeOffset confirmedAt)
     {
-        messages.Add(new AccountActivated(accountId, confirmedAt));
         messages.Add(new AccountCreated(accountId, confirmedAt));
         messages.Add(new AccountEmailVerified(accountId, confirmedAt));
     }
