@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Platform.Configuration;
 using Platform.Modules.Identity.Contracts;
 using Platform.Testing.Containers;
+using Platform.Testing.Hosting;
 using Platform.Workers;
 
 namespace Platform.Modules.Preferences.IntegrationTests;
@@ -27,13 +28,16 @@ public sealed class AccountDeletedErasureTests(PostgresFixture postgres) : IAsyn
         _host = WorkerHost.CreateBuilder(
             ["--environment", PlatformEnvironments.Test, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory",
                 "--Mail:Provider", "InMemory", $"--ConnectionStrings:Platform={database}"]).Build();
-        await using (var scope = _host.Services.CreateAsyncScope())
+        await HostStartGate.RunAsync(async () =>
         {
-            await scope.ServiceProvider.GetRequiredService<PreferencesDbContext>().Database.MigrateAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<Blogs.BlogsDbContext>().Database.MigrateAsync(Ct);
-        }
+            await using (var scope = _host.Services.CreateAsyncScope())
+            {
+                await scope.ServiceProvider.GetRequiredService<PreferencesDbContext>().Database.MigrateAsync(Ct);
+                await scope.ServiceProvider.GetRequiredService<Blogs.BlogsDbContext>().Database.MigrateAsync(Ct);
+            }
 
-        await _host.StartAsync(Ct);
+            await _host.StartAsync(Ct);
+        }, Ct);
     }
 
     public async ValueTask DisposeAsync()

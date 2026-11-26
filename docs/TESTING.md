@@ -171,6 +171,9 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - Данные — фабрики объектов и сидер с фиксированным зерном (`SeedData`, ADR-0009); `Guid.NewGuid()` и
   `Random.Shared` в тестовых данных не используются.
 - База сбрасывается между интеграционными тестами (`IntegrationApiFactory.ResetAsync`, Respawn).
+- Хост, который тест собирает сам (`WorkerHost.CreateBuilder`), запускается и мигрирует внутри
+  `HostStartGate.RunAsync`, как `IntegrationApiFactory`: одновременно стартует не больше половины ядер хостов,
+  иначе на CI соединение с базой исчерпывает `Timeout` Npgsql ещё до сокета.
 - Тест, который падает случайно, чинится или удаляется в том же PR; «перезапустить и забыть» нельзя.
 
 ## Что обязано быть в каждом PR с кодом
