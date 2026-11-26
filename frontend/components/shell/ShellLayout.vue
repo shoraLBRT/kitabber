@@ -7,6 +7,8 @@
 //   up to 639 px  one column across the full width.
 // Below 925 px navigation moves to the phone shell (E02-06): the bottom bar ShellTabBar (and below 640 px the floating
 // "Написать" ShellWriteButton) in the "mobile" slot; the left column becomes the "Меню" screen (/menu).
+// The header's search button opens the `search` slot (ShellSearch, E14-02), which gives the focus back when it closes.
+import { nextTick, ref } from 'vue'
 import type { NavItem } from '../../utils/navigation'
 import ShellAside from './ShellAside.vue'
 import ShellHeader, { type ShellUser } from './ShellHeader.vue'
@@ -33,15 +35,28 @@ withDefaults(
   { user: null, topics: () => [], counts: () => ({}), writeButton: true, quickPost: false, offline: false },
 )
 const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
+
+const searchOpen = ref(false)
+const root = ref<HTMLElement | null>(null)
+
+function openSearch() {
+  searchOpen.value = true
+  emit('search')
+}
+
+function closeSearch() {
+  searchOpen.value = false
+  void nextTick(() => root.value?.querySelector<HTMLElement>('.shell-header__search')?.focus())
+}
 </script>
 
 <template>
-  <div class="shell" data-testid="shell">
+  <div ref="root" class="shell" data-testid="shell">
     <a href="#content" class="shell__skip">{{ t('shell.skipToContent') }}</a>
     <ShellHeader
       :user="user"
       :unread="counts.notifications ?? 0"
-      @search="emit('search')"
+      @search="openSearch()"
       @account="emit('account', $event)"
     >
       <template v-if="$slots.notifications" #notifications="{ close }">
@@ -60,6 +75,7 @@ const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
         <slot name="aside"><ShellAside /></slot>
       </div>
     </div>
+    <slot v-if="searchOpen" name="search" :close="closeSearch" />
     <slot name="mobile">
       <ShellWriteButton v-if="writeButton" :quick="quickPost" @write="emit('write')" />
       <ShellTabBar :current-path="currentPath" :counts="counts" />

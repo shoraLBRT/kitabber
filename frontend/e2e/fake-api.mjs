@@ -380,6 +380,35 @@ async function notificationsRoute(request, response, url) {
   return send(response, 200, { items: list.slice(start, end).map((n) => ({ ...n })), nextCursor })
 }
 
+// The suggestions of the header's search (E14-02, ADR-0097): GET /api/v1/search/suggestions?q=. Blogs and topics of
+// `blogs` whose name or nickname has every word of the query, and the posts below by their title, ignoring case; a
+// blank or too long query is the API's 400.
+const searchPosts = [
+  {
+    id: '0195f3a0-0000-7000-8000-00000000a101',
+    blogId: '0195f3a0-0000-7000-8000-0000000000b1',
+    title: 'Книги для долгой зимы',
+    excerpt: 'Пять романов, которые читаются у окна.',
+    publishedAt: '2026-11-20T10:00:00Z',
+  },
+]
+
+function searchSuggestions(response, url) {
+  const query = (url.searchParams.get('q') ?? '').trim().split(/\s+/u).filter(Boolean).join(' ')
+  if (query === '' || query.length > 100)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { q: ['invalid'] } })
+  const words = query.toLowerCase().split(' ')
+  const matches = (...texts) => words.every((w) => texts.some((text) => text?.toLowerCase().includes(w)))
+  return send(response, 200, {
+    query,
+    blogs: blogs
+      .filter((b) => matches(b.name, b.nickname))
+      .slice(0, 4)
+      .map((b) => ({ id: b.id, kind: b.type, name: b.name, nickname: b.nickname, avatarSources: [] })),
+    posts: searchPosts.filter((p) => matches(p.title)).slice(0, 5),
+  })
+}
+
 function accountSessionsRoute(request, response, url) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const client = clientOf(request)
@@ -1494,6 +1523,8 @@ createServer(async (request, response) => {
     (url.pathname.startsWith('/api/v1/preferences/me/blocks/') && ['PUT', 'DELETE'].includes(request.method))
   )
     return blocksRoute(request, response, url)
+  if (url.pathname === '/api/v1/search/suggestions' && request.method === 'GET')
+    return searchSuggestions(response, url)
   if (
     (url.pathname === '/api/v1/notifications/me' && request.method === 'GET') ||
     (url.pathname === '/api/v1/notifications/me/unread' && request.method === 'GET') ||

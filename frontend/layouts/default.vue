@@ -4,6 +4,8 @@
 import NotificationList from '~/components/notifications/NotificationList.vue'
 import SettingsNav from '~/components/settings/SettingsNav.vue'
 import { notificationsApi } from '~/api/notifications'
+import ShellSearch from '~/components/shell/ShellSearch.vue'
+import { searchApi } from '~/api/search'
 
 const route = useRoute()
 const user = useShellUser()
@@ -19,6 +21,9 @@ const { topics } = useTopicMenu()
 const { unread, set: setUnread } = useUnreadNotifications()
 const counts = computed(() => ({ notifications: unread.value }))
 const notifications = notificationsApi()
+// The header's search (E14-02, ADR-0097): suggestions through /bff/search-suggestions, the history of this account.
+const search = searchApi()
+const account = useAccount()
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
   if (id === 'logout') signOut()
@@ -38,6 +43,9 @@ function onAccount(id: string) {
     @write="sheetOpen = true"
   >
     <slot />
+    <template #search="{ close }">
+      <ShellSearch :api="search" :history-key="account.historyKey ?? null" @close="close()" />
+    </template>
     <template #notifications="{ close }">
       <NotificationList :api="notifications" compact @unread="setUnread" @open="close()" />
     </template>
