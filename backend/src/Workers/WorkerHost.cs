@@ -5,7 +5,9 @@ using Platform.Mail;
 using Platform.Messaging;
 using Platform.Modules.Blogs;
 using Platform.Modules.Notifications;
+using Platform.Modules.Posts;
 using Platform.Modules.Preferences;
+using Platform.Modules.Search;
 using Platform.Observability;
 
 namespace Platform.Workers;
@@ -22,7 +24,7 @@ public static class WorkerHost
     /// <summary>The service name in traces, metrics and logs (ADR-0015).</summary>
     public const string ServiceName = "platform-workers";
 
-    public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All, .. MailSettings.All, .. ObservabilitySettings.All, .. BlogsModule.WorkerSettings];
+    public static IReadOnlyList<Setting> Settings { get; } = [.. MessagingSettings.All, .. CacheSettings.All, .. MailSettings.All, .. ObservabilitySettings.All, .. BlogsModule.WorkerSettings, .. SearchModule.Settings];
 
     public static HostApplicationBuilder CreateBuilder(string[] args, Action<IBusRegistrationConfigurator>? configureBus = null)
     {
@@ -32,6 +34,8 @@ public static class WorkerHost
         builder.Services.AddBlogsWorkers(builder.Configuration);
         builder.Services.AddPreferencesWorkers(builder.Configuration);
         builder.Services.AddNotificationsWorkers(builder.Configuration);
+        builder.Services.AddPostsWorkers(builder.Configuration);
+        builder.Services.AddSearchWorkers(builder.Configuration);
         Configure(builder.Services, builder.Configuration, bus =>
         {
             AddModules(bus);
@@ -57,5 +61,5 @@ public static class WorkerHost
 
     // One line per module: its consumers and, when it publishes, its outbox (AddModuleOutbox, ADR-0005).
     private static void AddModules(IBusRegistrationConfigurator bus) =>
-        bus.AddBlogsConsumers().AddPreferencesConsumers().AddNotificationsConsumers();
+        bus.AddBlogsConsumers().AddPreferencesConsumers().AddNotificationsConsumers().AddSearchConsumers();
 }

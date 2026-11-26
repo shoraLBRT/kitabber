@@ -53,6 +53,27 @@ public sealed class ProfileNicknameApiTests(ProfilesApi api) : IClassFixture<Pro
         Assert.Equal(JsonValueKind.Null, byOld.GetProperty("nicknameChangeableFrom").ValueKind);
     }
 
+    // E14-01, ADR-0094: what search finds a blog by changed, so the change is announced.
+    [Fact]
+    public async Task NicknameChangeAndProfileEditAnnounceTheBlogChange()
+    {
+        var blog = await SaveBlogAsync(nickname: null);
+        var owner = blog.OwnerAccountId!.Value;
+        await using var probe = await BlogChangedProbe.StartAsync(api.Services);
+
+        using var changed = await PutAsync(owner, $"n{owner.ToString("N")[..10]}");
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        await probe.WaitForAsync(blog.Id);
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/v1/profiles/me")
+        {
+            Content = JsonContent.Create(new { name = "Анна", description = "О котах" }),
+        };
+        request.As(owner.ToString("D"));
+        using var edited = await _client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        await probe.WaitForAsync(blog.Id, 2);
+    }
+
     [Fact]
     public async Task ASecondChangeSoonerThanThirtyDaysIsRefused()
     {
