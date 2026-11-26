@@ -276,10 +276,10 @@ public sealed class AccountEmailTests(EmailApi api) : IClassFixture<EmailApi>, I
     {
         var owner = await api.CreateAccountAsync();
         var other = await api.CreateAccountAsync();
-        (await api.ConfirmAsync(owner, await api.RequestCodeAsync(owner, "owner@example.com"))).Dispose();
-        (await api.ConfirmAsync(other, await api.RequestCodeAsync(other, "other@example.com"))).Dispose();
+        (await api.ConfirmAsync(owner, await api.RequestCodeAsync(owner, "holder@example.com"))).Dispose();
+        (await api.ConfirmAsync(other, await api.RequestCodeAsync(other, "claimant@example.com"))).Dispose();
 
-        using var taken = await api.ChangeEmailAsync(other, "Owner@Example.com");
+        using var taken = await api.ChangeEmailAsync(other, "Holder@Example.com");
 
         Assert.Equal(HttpStatusCode.Conflict, taken.StatusCode);
         var body = await taken.Content.ReadAsStringAsync(Ct);
@@ -287,12 +287,12 @@ public sealed class AccountEmailTests(EmailApi api) : IClassFixture<EmailApi>, I
         Assert.Equal(AccountEmailEndpoints.EmailTakenCode, problem.RootElement.GetProperty("code").GetString());
         Assert.DoesNotContain(owner.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(owner.ToString("N"), body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("owner@example.com", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("other@example.com", (await StoredAsync(other)).NormalizedEmail);
+        Assert.DoesNotContain("holder@example.com", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("claimant@example.com", (await StoredAsync(other)).NormalizedEmail);
         Assert.Equal(JsonValueKind.Null, (await api.EmailStateAsync(other)).GetProperty("pendingEmail").ValueKind);
         // No code went to the taken address: the owner's mailbox has only its own confirmation letter.
-        Assert.Empty(api.LettersTo("Owner@Example.com"));
-        Assert.Single(api.LettersTo("owner@example.com"));
+        Assert.Empty(api.LettersTo("Holder@Example.com"));
+        Assert.Single(api.LettersTo("holder@example.com"));
     }
 
     [Theory]
