@@ -118,6 +118,30 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
     }
 
     [Fact]
+    public async Task AccountInTheRecipientsBlackListNotifiesNoOne()
+    {
+        var author = NewAccount();
+        var blocked = NewAccount();
+        var post = Guid.CreateVersion7(_at);
+        await using (var scope = _host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Preferences.PreferencesDbContext>();
+            db.BlockedAccounts.Add(new Preferences.Blocks.BlockedAccount
+            {
+                OwnerAccountId = author,
+                AccountId = blocked,
+                BlockedAt = _at,
+            });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await PublishAsync(new CommentPosted(Guid.CreateVersion7(_at), post, author, blocked, null, null, [], _at));
+        await PublishAsync(new ReactionPut("post", post, post, author, blocked, "like", _at));
+
+        Assert.Empty(await NotificationsOfAsync(author));
+    }
+
+    [Fact]
     public async Task RepeatedEventsAddNothing()
     {
         var author = NewAccount();
