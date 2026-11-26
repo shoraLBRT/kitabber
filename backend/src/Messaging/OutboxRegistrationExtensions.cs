@@ -28,6 +28,16 @@ public static class OutboxRegistrationExtensions
     }
 
     /// <summary>
+    /// The PostgreSQL lock statements of a module's outbox and inbox. MassTransit caches their table names in a static
+    /// map keyed by the entity type only, so the second module's <c>outbox_state</c> and <c>inbox_state</c> would be
+    /// read from the first module's schema; every module outbox turns that cache off.
+    /// </summary>
+    public static IEntityFrameworkOutboxConfigurator UseModulePostgres(this IEntityFrameworkOutboxConfigurator outbox)
+    {
+        ArgumentNullException.ThrowIfNull(outbox);
+        return outbox.UsePostgres(enableSchemaCaching: false);
+    }
+    /// <summary>
     /// Registers the outbox of <typeparamref name="TContext"/> on PostgreSQL: the module publishes and sends through
     /// <see cref="IModuleOutbox{TContext}"/>, which writes to this context, and the delivery service of this host sends
     /// the stored messages. Each module of a host calls it for its own context, so every module writes to the outbox
@@ -49,7 +59,7 @@ public static class OutboxRegistrationExtensions
         // pointer is set back below, so the host's first module keeps it whatever is registered after it.
         bus.AddEntityFrameworkOutbox<TContext>(outbox =>
         {
-            outbox.UsePostgres();
+            outbox.UseModulePostgres();
             outbox.UseBusOutbox();
             outbox.QueryDelay = TimeSpan.FromSeconds(1);
             outbox.DuplicateDetectionWindow = TimeSpan.FromDays(1);

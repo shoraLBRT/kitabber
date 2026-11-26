@@ -11,6 +11,7 @@ using static Platform.Messaging.IntegrationTests.TestHosts;
 namespace Platform.Messaging.IntegrationTests;
 
 /// <summary>Two modules publish in one host, each through the outbox of its own schema (#281, ADR-0005).</summary>
+[Collection(TestHosts.SampleEvents)]
 public sealed class MultiModuleOutboxTests(RabbitMqFixture rabbitMq, PostgresFixture postgres) : IAsyncLifetime
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);

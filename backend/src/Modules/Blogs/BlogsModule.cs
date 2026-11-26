@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Configuration;
 using Platform.Http;
+using Platform.Messaging;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Profiles;
 using Platform.Modules.Blogs.Topics;
@@ -61,7 +62,7 @@ public static class BlogsModule
         bus.AddConsumer<AccountActivatedConsumer, AccountActivatedConsumerDefinition>();
         bus.AddEntityFrameworkOutbox<BlogsDbContext>(outbox =>
         {
-            outbox.UsePostgres();
+            outbox.UseModulePostgres();
             outbox.DuplicateDetectionWindow = TimeSpan.FromDays(1);
         });
         return bus;
