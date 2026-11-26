@@ -9,6 +9,8 @@ const user = useShellUser()
 const { sheetOpen } = useQuickPost()
 // «Нет подключения» above the content while the browser is offline (E02-07, ADR-0057).
 const online = useOnline()
+// The menu's topics: the person's subscribed ones or the popular ones (E11-02, ADR-0088).
+const { topics } = useTopicMenu()
 
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
@@ -20,6 +22,7 @@ function onAccount(id: string) {
   <ShellLayout
     :current-path="route.path"
     :user="user"
+    :topics="topics"
     :write-button="route.meta.writeButton !== false"
     quick-post
     :offline="!online"

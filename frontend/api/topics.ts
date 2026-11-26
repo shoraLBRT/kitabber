@@ -1,6 +1,8 @@
-// Topics the editor offers to publish in (E05-09, ADR-0046): GET /api/v1/topics, every topic by name. The topic page,
-// subscriptions and the catalogue come with E11 (#76, #78). A person creates a topic with POST /api/v1/topics (E11-11,
-// ADR-0084): a confirmed email, a limit of topics per account, a free and allowed name and address.
+// Topics the editor offers to publish in (E05-09, ADR-0046): GET /api/v1/topics, every topic by name. A person creates
+// a topic with POST /api/v1/topics (E11-11, ADR-0084): a confirmed email, a limit of topics per account, a free and
+// allowed name and address. The catalogue behind «Показать все» and the menu's topics (E11-02, ADR-0088):
+// GET /api/v1/topics/catalog, the most followed first, searched, page by page; GET /api/v1/topics/menu, the person's
+// subscribed topics or the popular ones.
 import type { ApiClient, components } from './client'
 import { descriptionMaxLength, nameMaxLength, profileTextLength } from './profiles'
 import { t } from '../i18n'
@@ -80,4 +82,53 @@ export async function createTopic(client: ApiClient, input: TopicInput): Promise
   } catch {
     return { status: 'error' }
   }
+}
+
+export type TopicCard = components['schemas']['TopicCard']
+export type TopicCatalogPage = components['schemas']['CursorPageOfTopicCard']
+export type TopicMenu = components['schemas']['TopicMenu']
+
+/** The longest search the API takes (TopicCatalogRules.QueryMaxLength). */
+export const catalogQueryMaxLength = 50
+
+export type CatalogLookup = { status: 'found'; page: TopicCatalogPage } | { status: 'error' }
+
+/** One page of the catalogue: the first without a cursor, the next with the previous page's `nextCursor`. */
+export async function loadTopicCatalog(
+  client: ApiClient,
+  search: string,
+  cursor?: string | null,
+): Promise<CatalogLookup> {
+  const q = search.trim()
+  try {
+    const { data } = await client.GET('/api/v1/topics/catalog', {
+      params: { query: { ...(q ? { q } : {}), ...(cursor ? { cursor } : {}) } },
+    })
+    return data ? { status: 'found', page: data } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/** Adds a later page to the topics already shown, leaving out any topic that is already there. */
+export function appendTopics(shown: TopicCard[], page: TopicCatalogPage): TopicCard[] {
+  const seen = new Set(shown.map((topic) => topic.id))
+  return [...shown, ...page.items.filter((topic) => !seen.has(topic.id))]
+}
+
+/** The menu's topics; `null` when the API does not answer. */
+export async function loadTopicMenu(client: ApiClient): Promise<TopicMenu | null> {
+  try {
+    const { data } = await client.GET('/api/v1/topics/menu')
+    return data ?? null
+  } catch {
+    return null
+  }
+}
+
+/** The menu's topics as menu items: each leads to its page /<topic>. */
+export function topicMenuItems(
+  menu: TopicMenu | null | undefined,
+): { id: string; label: string; to: string }[] {
+  return (menu?.topics ?? []).map((topic) => ({ id: topic.id, label: topic.name, to: `/${topic.nickname}` }))
 }

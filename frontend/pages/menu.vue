@@ -3,8 +3,9 @@
 // column. On wide screens the left menu shows the same items, so the screen simply repeats them there.
 const route = useRoute()
 const user = useShellUser()
+const { topics } = useTopicMenu()
 </script>
 
 <template>
-  <ShellMenuScreen :current-path="route.path" :user="user" @logout="signOut" />
+  <ShellMenuScreen :current-path="route.path" :user="user" :topics="topics" @logout="signOut" />
 </template>
