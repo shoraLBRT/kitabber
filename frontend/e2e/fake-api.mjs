@@ -877,6 +877,30 @@ async function editProfile(request, response) {
   return send(response, 200, { ...edited(own, request), owner: undefined })
 }
 
+// The account's settings (E04-08, ADR-0070): GET /api/v1/preferences/me and PUT /api/v1/preferences/me/general.
+// Kept per client address, as the profile edits are: two browsers of one test sending the same `x-forwarded-for` are
+// two devices of the same person.
+const preferences = new Map() // client address -> { theme }
+const themes = ['system', 'light', 'dark']
+
+function ownPreferences(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  return send(response, 200, { general: preferences.get(clientOf(request)) ?? { theme: 'system' } })
+}
+
+async function saveGeneral(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  if (!themes.includes(input.theme))
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { theme: ['Тема — system, light или dark.'] },
+    })
+  preferences.set(clientOf(request), { theme: input.theme })
+  return send(response, 200, { general: { theme: input.theme } })
+}
+
 async function uploadMedia(request, response) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const body = await readBytes(request)
@@ -986,6 +1010,10 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/account/password' && request.method === 'PUT')
     return changePassword(request, response)
 
+  if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
+    return ownPreferences(request, response)
+  if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')
+    return saveGeneral(request, response)
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
