@@ -27,7 +27,9 @@ public static class PostsModule
         builder.Services.AddApiEndpoints<FreshFeedEndpoints>();
         builder.Services.AddApiEndpoints<BlogFeedEndpoints>();
         builder.Services.AddSingleton<ViewSaltCache>();
-        builder.Services.AddScoped<IViewCounter, DatabaseViewCounter>();
+        builder.Services.AddScoped<IViewCounter, BufferedViewCounter>();
+        builder.Services.AddSingleton<ViewFlusher>();
+        builder.Services.AddHostedService<ViewFlushService>();
         builder.Services.AddApiEndpoints<PostViewEndpoints>();
         return builder;
     }

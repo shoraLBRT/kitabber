@@ -35,7 +35,8 @@ outbox при схеме на модуль, как тесты обходятся
    модуль начнёт публиковать события.
 6. **Кэш — `IDistributedCache`** (`AddPlatformCache` из `Platform.Caching`): `Cache:Provider` = `Redis`
    (по умолчанию, `ConnectionStrings:Redis` в формате StackExchange.Redis, ключи с префиксом `platform:`) или
-   `InMemory` — фейк для тестов. Модули знают только интерфейс. Атомарные счётчики с истечением — `IRateCounter`
+   `InMemory` — фейк для тестов. Модули знают только интерфейс. Буфер записи для пакетного сброса в базу —
+   `IWriteBuffer` ([ADR-0083](0083-redis-counters-with-batched-flush.md)). Атомарные счётчики с истечением — `IRateCounter`
    с тем же провайдером; на них стоят лимиты частоты ([ADR-0016](0016-rate-limiting.md)).
 7. **Несколько публикующих модулей в одном хосте (#281)** — у каждого свой публикатор, а не своя шина.
    `AddModuleOutbox<TContext>()` регистрирует для контекста службу доставки и scoped-публикатор

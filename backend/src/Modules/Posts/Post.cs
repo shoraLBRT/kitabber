@@ -71,8 +71,8 @@ public sealed class Post
     public DateTimeOffset? DeletedAt { get; private set; }
 
     /// <summary>
-    /// How many people opened the post, each counted once a day (E07-06, ADR-0071). Only
-    /// <see cref="DatabaseViewCounter"/> changes it, in the database, so editing the post never overwrites it.
+    /// How many people opened the post, each counted once a day (E07-06, ADR-0071). Only <see cref="ViewFlusher"/>
+    /// changes it, in the database, so editing the post never overwrites it; it lags the views by one flush (ADR-0083).
     /// </summary>
     public int ViewCount { get; private set; }
 

@@ -7,6 +7,7 @@ using Platform.Messaging;
 using Platform.Modules.Comments;
 using Platform.Modules.Identity.SignIn;
 using Platform.Modules.Media;
+using Platform.Modules.Posts;
 using Platform.Observability;
 
 namespace Platform.Api;
@@ -20,7 +21,7 @@ public static class ApiSettings
     public static IReadOnlyList<Setting> All { get; } =
     [
         .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
-        .. MessagingSettings.All, .. MediaSettings.All, .. CommentsSettings.All,
+        .. MessagingSettings.All, .. MediaSettings.All, .. CommentsSettings.All, .. PostsSettings.All,
     ];
 
     /// <summary>

@@ -12,7 +12,8 @@ namespace Platform.Modules.Posts.IntegrationTests;
 /// <summary>
 /// E07-06: the view counter through <c>/api/v1/posts/{id}/open</c>, <c>/api/v1/posts/impressions</c> and
 /// <c>/api/v1/posts/{id}/reading</c> (ADR-0071) — a reader counts once a day, bots and the author never, and the count
-/// is on the post and on its card in the feed.
+/// is on the post and on its card in the feed. Counts go through the Redis buffer and reach the database when it is
+/// flushed (ADR-0083); the flush itself is covered by <see cref="ViewFlushTests"/>.
 /// </summary>
 public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsyncLifetime
 {
@@ -76,6 +77,7 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
         (await OpenAsync(post.Id, account: null, _firefox)).Dispose();
         Assert.Equal(2, await ViewCountAsync(post.Id));
 
+        await FlushAsync();
         await using var scope = api.Services.CreateAsyncScope();
         var viewers = await scope.ServiceProvider.GetRequiredService<PostsDbContext>().ViewMarks
             .Select(m => m.Viewer).ToListAsync(Ct);
@@ -149,6 +151,7 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
         (await OpenAsync(post.Id, _reader)).Dispose();
         (await OpenAsync(post.Id, _other)).Dispose();
 
+        await FlushAsync();
         var feed = await _client.GetFromJsonAsync<JsonElement>("/api/v1/feeds/fresh", Ct);
 
         var card = feed.GetProperty("items").EnumerateArray()
@@ -208,6 +211,7 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
             .Dispose();
 
         Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        await FlushAsync();
         await using var scope = api.Services.CreateAsyncScope();
         var marks = await scope.ServiceProvider.GetRequiredService<PostsDbContext>().ViewMarks
             .Select(m => m.ReadSeconds).ToListAsync(Ct);
@@ -245,6 +249,7 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
 
     private async Task<int> ViewCountAsync(Guid postId)
     {
+        await FlushAsync();
         await using var scope = api.Services.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<PostsDbContext>().Posts
             .Where(p => p.Id == postId).Select(p => p.ViewCount).SingleAsync(Ct);
@@ -252,6 +257,7 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
 
     private async Task<int> ImpressionsAsync(Guid postId)
     {
+        await FlushAsync();
         await using var scope = api.Services.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<PostsDbContext>().Posts
             .Where(p => p.Id == postId).Select(p => p.ImpressionCount).SingleAsync(Ct);
@@ -259,9 +265,13 @@ public sealed class PostViewApiTests(PostsApi api) : IClassFixture<PostsApi>, IA
 
     private async Task<int> MarksAsync()
     {
+        await FlushAsync();
         await using var scope = api.Services.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<PostsDbContext>().ViewMarks.CountAsync(Ct);
     }
+
+    // Views reach the database with the flush of the buffer (ADR-0083); the test does not wait for the timer.
+    private Task<int> FlushAsync() => api.Services.GetRequiredService<ViewFlusher>().FlushAsync(Ct);
 
     private async Task<HttpResponseMessage> SendAsync(
         HttpMethod method, string path, string? content, Guid? account, string userAgent = _chrome)
