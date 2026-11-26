@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Left menu of the desktop shell (E02-05, docs/spec.md section 5): feeds, messages, rating, the topic list with
 // "Показать все", service links and the colour theme switch. The current screen is marked with aria-current.
-import { isActive, mainNav, serviceNav, topicsPath, type NavItem } from '../../utils/navigation'
+import { isActive, mainNav, newTopicPath, serviceNav, topicsPath, type NavItem } from '../../utils/navigation'
 import ShellThemeSwitch from './ShellThemeSwitch.vue'
 import { t } from '../../i18n'
 
@@ -47,6 +47,9 @@ withDefaults(
       </ul>
       <NuxtLink :to="topicsPath" class="shell-nav__more" data-nav="topics">{{
         t('common.showAll')
+      }}</NuxtLink>
+      <NuxtLink :to="newTopicPath" class="shell-nav__more" data-nav="new-topic">{{
+        t('topicCreate.create')
       }}</NuxtLink>
     </section>
 

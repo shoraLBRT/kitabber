@@ -830,6 +830,56 @@ function deletePost(request, response, url) {
 const topics = () =>
   blogs.filter((blog) => blog.type === 'topic').map(({ id, name, nickname }) => ({ id, name, nickname }))
 
+// Creating a topic (E11-11, ADR-0084): POST /api/v1/topics with the API's answers. A created topic is found by its
+// address and has an empty feed, but stays out of GET /api/v1/topics (tests run in parallel against this one fake);
+// the limit counts the topics of one client address (`x-forwarded-for`). The name of a stored topic is taken, the
+// address `settings` is reserved, the name `сбой` fails as an unavailable API would, and the address `unconfirmed`
+// answers as for an account without a confirmed email. The real rules are the backend's (TopicCreateApiTests).
+const createdTopics = [] // { client, ...blog }
+const topicLimit = 2
+const addressForm = /^[a-z][a-z0-9_]{2,31}$/
+
+async function createTopic(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  const name = clean(input.name)
+  const nickname = String(input.nickname ?? '')
+    .trim()
+    .toLowerCase()
+  if (name === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  if (nickname === 'unconfirmed') return send(response, 403, { status: 403, code: 'email_not_confirmed' })
+  const client = clientOf(request)
+  if (createdTopics.filter((topic) => topic.client === client).length >= topicLimit)
+    return send(response, 409, {
+      status: 409,
+      code: 'blogs.topic_limit_reached',
+      detail: `Одному аккаунту можно создать не больше ${topicLimit} тем.`,
+    })
+  const all = [...blogs, ...createdTopics]
+  const errors = {}
+  if (length(name) < 2 || length(name) > 25) errors.name = ['Название — от 2 до 25 символов.']
+  else if (all.some((blog) => blog.type === 'topic' && blog.name?.toLowerCase() === name.toLowerCase()))
+    errors.name = ['Тема с таким названием уже есть.']
+  if (!addressForm.test(nickname))
+    errors.nickname = ['Адрес — от 3 до 32 латинских букв, цифр и _, начинается с буквы.']
+  else if (nickname === 'settings') errors.nickname = ['Такой адрес выбрать нельзя.']
+  else if (all.some((blog) => blog.nickname === nickname))
+    errors.nickname = ['Этот адрес уже занят блогом или темой.']
+  if (Object.keys(errors).length > 0)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors })
+  const topic = {
+    client,
+    id: randomUUID(),
+    owner,
+    type: 'topic',
+    name,
+    nickname,
+    description: clean(input.description),
+    registeredAt: null,
+  }
+  createdTopics.push(topic)
+  return send(response, 201, { id: topic.id, name, nickname })
+}
 // The fresh feed (E08-01): GET /api/v1/feeds/fresh, the posts above newest first (by publishedAt, then id), two per
 // page so the e2e test reaches a second page. The cursor is opaque to the client, as the API's (ADR-0006).
 const feedPageSize = 2
@@ -837,7 +887,7 @@ const feedPageSize = 2
 // The feed of one blog (E11-01): GET /api/v1/feeds/blogs/{blogId}, the same pages for the posts of that blog only.
 function blogFeed(response, url) {
   const [, blogId] = url.pathname.match(/^\/api\/v1\/feeds\/blogs\/([^/]+)$/) ?? []
-  const blog = blogs.find((item) => item.id === blogId)
+  const blog = [...blogs, ...createdTopics].find((item) => item.id === blogId)
   if (!blog) return send(response, 404, { status: 404, code: 'posts.blog_not_found' })
   if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
   return freshFeed(response, url, (post) => post.blogId === blogId)
@@ -1173,7 +1223,9 @@ function profile(request, response, url) {
     .replace(/^@/, '')
     .toLowerCase()
   if (kind && nickname === 'broken') return send(response, 500, { status: 500, code: 'internal' })
-  const found = blogs.find((blog) => (kind ? blog.nickname === nickname : blog.id === value))
+  const found = [...blogs, ...createdTopics].find((blog) =>
+    kind ? blog.nickname === nickname : blog.id === value,
+  )
   return found
     ? send(response, 200, view(found))
     : send(response, 404, { status: 404, code: 'profile_not_found' })
@@ -1293,6 +1345,7 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'DELETE')
     return deletePost(request, response, url)
   if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
+  if (url.pathname === '/api/v1/topics' && request.method === 'POST') return createTopic(request, response)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
     return blogFeed(response, url)

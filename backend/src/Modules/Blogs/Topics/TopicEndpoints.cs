@@ -98,7 +98,7 @@ public sealed class TopicEndpoints : IApiEndpoints
 
         if (!errors.ContainsKey("nickname") && await db.Subsites.AnyAsync(s => s.Nickname == nickname, ct))
         {
-            errors["nickname"] = [AddressTaken];
+            errors["nickname"] = [_addressTaken];
         }
 
         if (errors.Count > 0)
@@ -119,14 +119,14 @@ public sealed class TopicEndpoints : IApiEndpoints
         })
         {
             // Someone took the address between the check and the save.
-            return ApiProblems.Validation(new Dictionary<string, string[]> { ["nickname"] = [AddressTaken] });
+            return ApiProblems.Validation(new Dictionary<string, string[]> { ["nickname"] = [_addressTaken] });
         }
 
         return TypedResults.Created(
             $"/api/v1/profiles/{topic.Id}", new TopicSummary(topic.Id, topic.Name!, topic.Nickname!));
     }
 
-    private const string AddressTaken = "Этот адрес уже занят блогом или темой.";
+    private const string _addressTaken = "Этот адрес уже занят блогом или темой.";
 
     private static string? NameProblem(string? name, TopicLimits limits)
     {

@@ -66,6 +66,9 @@ export const settingsNav: NavItem[] = [
 /** Address of the full topic list ("Показать все"). */
 export const topicsPath = '/topics'
 
+/** Address of the form of a new topic (E11-11, ADR-0084). */
+export const newTopicPath = '/topics/new'
+
 /** Addresses of the header actions; on phones they move to the floating button and the "Меню" screen. */
 export const writePath = '/write'
 // Sign-in starts on the Nuxt server (E18-02): a server route, not a page, so links to it leave the app router.
