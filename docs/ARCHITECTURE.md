@@ -73,6 +73,11 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 `…/{id}/reading` с токеном, строкой браузера и адресом. В модуле Posts учёт — за внутренним `IViewCounter`
 (`BufferedViewCounter`: Redis-буфер `IWriteBuffer` с пакетным сбросом `ViewFlusher`, ADR-0083); аналитическая база (E16-18) подключается на его месте.
 
+«Горячесть» (E08-05, ADR-0086): фоновая служба `HotnessService` в API раз в минуту запускает `HotnessCalculator`
+модуля Posts под advisory-блокировкой PostgreSQL. Он читает рейтинг постов через `Reactions.Contracts.IReactionRatings`
+и число комментариев через `Comments.Contracts.ICommentDirectory`, а просмотры — из своей таблицы, и пишет счета в
+`posts.post_hotness`; лента `GET /api/v1/feeds/popular` читает их оттуда. Коэффициенты — настройки `Posts:Hotness:*`.
+
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и
