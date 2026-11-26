@@ -121,6 +121,9 @@ public sealed partial class EmailApi : IntegrationApiFactory
         }
     }
 
+    /// <summary>The letters to <paramref name="recipient"/> delivered so far, oldest first; does not wait.</summary>
+    public IReadOnlyList<SendEmail> LettersTo(string recipient) => _letters.Where(l => l.To == recipient).ToList();
+
     public static string CodeOf(SendEmail letter) => SixDigits().Match(letter.TextBody).Value;
 
     public static async Task<string?> ProblemCodeAsync(HttpResponseMessage response) =>
