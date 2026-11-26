@@ -15,7 +15,10 @@ export type CommentsLookup = { status: 'found'; tree: CommentTree } | { status: 
  * with the deepest level a reply may take (`maxDepth`, CommentLimits on the server).
  */
 export type CommentsState =
-  { status: 'loading' } | { status: 'error' } | { status: 'found'; comments: Comment[]; maxDepth: number }
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'not-found' }
+  | { status: 'found'; comments: Comment[]; maxDepth: number }
 
 /**
  * How many levels of replies one read brings (docs/ui/comments.md): six on a wide screen, three on a phone, where the
@@ -55,20 +58,32 @@ export async function loadComments(
   }
 }
 
+/** A branch read: found, the comment is not there (deleted with no replies, a wrong address), or the read failed. */
+export type BranchLookup = CommentsLookup | { status: 'not-found' }
+
 /** A comment and the replies under it, `levels` levels below it. */
 export async function loadBranch(
   client: ApiClient,
   commentId: string,
   levels: number,
-): Promise<CommentsLookup> {
+): Promise<BranchLookup> {
   try {
-    const { data } = await client.GET('/api/v1/comments/{id}/branch', {
+    const { data, response } = await client.GET('/api/v1/comments/{id}/branch', {
       params: { path: { id: commentId }, query: { levels } },
     })
-    return data ? { status: 'found', tree: data } : { status: 'error' }
+    if (data) return { status: 'found', tree: data }
+    return response.status === 404 ? { status: 'not-found' } : { status: 'error' }
   } catch {
     return { status: 'error' }
   }
+}
+
+/**
+ * The screen of one branch (E09-06, docs/ui/comments.md): `<post address>/comments/<comment id>`. On a phone a branch
+ * deeper than one read opens there, its comment at the left edge, instead of narrowing the text level by level.
+ */
+export function branchPath(postPath: string, commentId: string): string {
+  return `${postPath}/comments/${commentId}`
 }
 
 /**

@@ -1,8 +1,9 @@
-import { expect, expectNoHorizontalScroll, press, test, waitForHydration } from './fixtures'
+import { expect, expectNoHorizontalScroll, isTouch, press, test, waitForHydration } from './fixtures'
 
 // The comment tree under a post (E09-02, FR-COMMENT, ADR-0054) in both profiles against the fake API
-// (e2e/fake-api.mjs): nested branches with their lines, folding a branch, the deep replies loaded by the button (six
-// levels at a time on a wide screen, three on a phone), the empty and failed states and a post with 1000 comments.
+// (e2e/fake-api.mjs): nested branches with their lines, folding a branch, the deep replies loaded by the button on a
+// wide screen, six levels at a time, the empty and failed states and a post with 1000 comments. A phone opens a deep
+// branch on its own screen instead: e2e/comment-branch.spec.ts.
 
 const titled = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
 const short = '/u/anna/0195f3a0-0000-7000-8000-0000000000c2'
@@ -46,13 +47,14 @@ test.describe('дерево комментариев', () => {
   })
 
   test('глубокие ответы подгружаются по кнопке', async ({ page }) => {
+    test.skip(isTouch(), 'на телефоне глубокая ветка открывается отдельным экраном')
     await page.goto(titled)
     await waitForHydration(page)
     const comments = page.getByTestId('comments')
     await expect(comments.getByText('Первый уровень')).toBeVisible()
     await expect(comments.getByText('Седьмой уровень')).toHaveCount(0)
 
-    // A wide screen reads six levels at a time and needs the button once; a phone reads three and needs it twice.
+    // A wide screen reads six levels at a time and needs the button once.
     const more = comments.getByRole('button', { name: 'Показать ещё' })
     for (const level of ['Шестой уровень', 'Седьмой уровень']) {
       if (await comments.getByText(level).isVisible()) continue
@@ -94,6 +96,7 @@ test.describe('дерево комментариев', () => {
     })
 
     test('ветка не загрузилась — кнопка предлагает повторить', async ({ page }) => {
+      test.skip(isTouch(), 'на телефоне глубокая ветка открывается отдельным экраном')
       let failures = 1
       await page.route(/\/api\/v1\/comments\/[^/]+\/branch\?/, async (route) => {
         if (failures-- > 0) return route.fulfill({ status: 503, json: { status: 503 } })

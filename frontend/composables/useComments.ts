@@ -5,7 +5,7 @@
 // out again and gives its text back to its form with the reason. The server puts the threads in the order the reader
 // chose (E09-04, ADR-0058), remembered in the browser; another choice reads the tree again. The person's own comments
 // (read through the site's server, ADR-0059) take «Редактировать» while the time to change them lasts and «Удалить»
-// (E09-05); a deleted comment with replies stays as their stub.
+// (E09-05); a deleted comment with replies stays as their stub. A branch's own screen (E09-06) reads only that branch.
 import { onMounted, ref, shallowRef } from 'vue'
 import {
   commentLevels,
@@ -66,7 +66,11 @@ async function ownComments(postId: string): Promise<string[]> {
   }
 }
 
-export function useComments(postId: () => string) {
+/**
+ * The comments under the post `postId`, or only the branch of the comment `branchId` on its own screen (E09-06): the
+ * same reads, sends and changes, the tree starting at that comment. A branch of another post is not found there.
+ */
+export function useComments(postId: () => string, branchId: () => string | null = () => null) {
   const { $api } = useNuxtApp()
   const account = useAccount()
   const state = shallowRef<CommentsState>({ status: 'loading' })
@@ -76,9 +80,26 @@ export function useComments(postId: () => string) {
   const failures = ref<Record<FormTarget, CommentFailure>>({})
   const own = ref<Record<string, true>>({})
   const sort = ref<CommentSort>('popular')
+  // A phone reads fewer levels and opens a deeper branch on its own screen (E09-06); known once the page is shown.
+  const phone = ref(false)
   let levels: number = commentLevels.wide
   let sent = 0
   let reads = 0
+
+  async function read(): Promise<CommentsState> {
+    const root = branchId()
+    if (root === null) {
+      const found = await loadComments($api, postId(), levels, sort.value)
+      return found.status === 'found'
+        ? { status: 'found', comments: found.tree.comments, maxDepth: found.tree.maxDepth }
+        : { status: 'error' }
+    }
+    const found = await loadBranch($api, root, levels)
+    if (found.status === 'found' && found.tree.postId !== postId()) return { status: 'not-found' }
+    return found.status === 'found'
+      ? { status: 'found', comments: found.tree.comments, maxDepth: found.tree.maxDepth }
+      : found
+  }
 
   async function addAuthors(comments: Comment[]) {
     const ids = unknownAuthors(comments, authors.value)
@@ -91,15 +112,12 @@ export function useComments(postId: () => string) {
     state.value = { status: 'loading' }
     branches.value = {}
     // Only the last read counts: a quick change of order must not let an older answer draw over a newer one.
-    const read = ++reads
-    const found = await loadComments($api, postId(), levels, sort.value)
-    if (read !== reads) return
-    state.value =
-      found.status === 'found'
-        ? { status: 'found', comments: found.tree.comments, maxDepth: found.tree.maxDepth }
-        : { status: 'error' }
+    const current = ++reads
+    const found = await read()
+    if (current !== reads) return
+    state.value = found
     if (found.status !== 'found') return
-    await Promise.all([addAuthors(found.tree.comments), addOwn()])
+    await Promise.all([addAuthors(found.comments), addOwn()])
   }
 
   async function addOwn() {
@@ -208,6 +226,7 @@ export function useComments(postId: () => string) {
   onMounted(() => {
     if (typeof window.matchMedia === 'function' && window.matchMedia(phoneQuery).matches) {
       levels = commentLevels.phone
+      phone.value = true
     }
     sort.value = readCommentSort(draftStorage())
     void load()
@@ -221,6 +240,7 @@ export function useComments(postId: () => string) {
     failures,
     own,
     sort,
+    phone,
     retry: load,
     more,
     send,

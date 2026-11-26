@@ -97,7 +97,12 @@ const inBlog = computed(() =>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
     <PostBlocks :document="found.post.body" :images="found.post.images" />
     <div id="comments" class="post__comments">
-      <PostComments v-if="found.post.status === 'published'" :key="found.post.id" :post-id="found.post.id" />
+      <PostComments
+        v-if="found.post.status === 'published'"
+        :key="found.post.id"
+        :post-id="found.post.id"
+        :post-path="found.path"
+      />
     </div>
     <PostActions :path="found.path" />
   </article>

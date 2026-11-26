@@ -127,3 +127,55 @@ describe('CommentTree', () => {
   })
   // A thousand comments in a real browser: e2e/comments.spec.ts (happy-dom is too slow to time a render).
 })
+
+// The phone's tree (E09-06): a branch deeper than one read opens on its own screen; that screen is one branch.
+describe('CommentTree on a phone', () => {
+  const onPhone = (state: CommentsState, branch = false) =>
+    mount(CommentTree, {
+      props: {
+        postId: 'p1',
+        signedIn: true,
+        state,
+        authors: new Map(),
+        branches: {},
+        branchLink: (id: string) => `/u/anna/p1-slug/comments/${id}`,
+        branch,
+      },
+      global: { stubs },
+    })
+
+  it('links the replies a read left out to the branch screen instead of reading them in place', () => {
+    const view = onPhone(tree)
+    expect(view.find('[data-testid="comment-more"]').exists()).toBe(false)
+    const open = view.get('[data-comment-id="1.1.1"] [data-testid="comment-open-branch"]')
+    expect(open.attributes('href')).toBe('/u/anna/p1-slug/comments/1.1.1')
+    expect(open.text()).toBe('Открыть ветку (1) →')
+    expect(open.attributes('aria-label')).toBe('Открыть ветку: 1 ответ')
+  })
+
+  it('draws a branch screen without the heading, the order and the form under the post', () => {
+    const branch: CommentsState = {
+      status: 'found',
+      maxDepth: 8,
+      comments: [comment('1.1', '1', 4, 1), comment('1.1.1', '1.1', 5)],
+    }
+    const view = onPhone(branch, true)
+    expect(view.find('#comments-title').exists()).toBe(false)
+    expect(view.find('[data-testid="comments-sort"]').exists()).toBe(false)
+    expect(view.find('[data-testid="comment-form"]').exists()).toBe(false)
+    expect(view.findAll('[data-testid="comment"]').map((item) => item.attributes('aria-level'))).toEqual([
+      '4',
+      '5',
+    ])
+    expect(view.get('[data-comment-id="1.1"]').element.parentElement?.dataset.testid).toBe('comment-tree')
+    expect(view.get('[data-testid="comment-reply"]').text()).toBe('Ответить')
+  })
+
+  it('says when the branch is gone', () => {
+    const view = onPhone({ status: 'not-found' }, true)
+    expect(view.get('[data-testid="comments-not-found"]').text()).toBe(
+      'Ветка не найдена: комментарий удалён или адрес набран с ошибкой.',
+    )
+    expect(view.find('[data-testid="comment-tree"]').exists()).toBe(false)
+  })
+})
