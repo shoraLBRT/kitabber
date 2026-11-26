@@ -1,8 +1,10 @@
 using MassTransit;
 using MassTransit.DependencyInjection;
+using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Platform.Messaging;
 
@@ -54,6 +56,19 @@ public static class OutboxRegistrationExtensions
             configure?.Invoke(outbox);
         });
         bus.AddScoped<IModuleOutbox<TContext>, ModuleOutbox<TContext>>();
+
+        // MassTransit's outbox notification is one per host and holds a single waiter: with two delivery services
+        // waiting on it, one disposes the other's wake-up source and that service stops delivering. Each module's
+        // delivery service and publisher get their own notification instead.
+        bus.AddSingleton<ModuleOutboxNotification<TContext>>();
+        var delivery = bus.SingleOrDefault(d => d.ServiceType == typeof(IHostedService)
+            && d.ImplementationType == typeof(BusOutboxDeliveryService<TContext>))
+            ?? throw new InvalidOperationException(
+                $"MassTransit did not register the outbox delivery service of {typeof(TContext).Name}.");
+        bus.Remove(delivery);
+        bus.AddSingleton<IHostedService>(services => ActivatorUtilities.CreateInstance<BusOutboxDeliveryService<TContext>>(
+            services,
+            services.GetRequiredService<ModuleOutboxNotification<TContext>>().Notification));
 
         var host = bus.FirstOrDefault(d => d.ServiceType == typeof(HostBusOutbox))?.ImplementationInstance as HostBusOutbox;
         if (host is null)

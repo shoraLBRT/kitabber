@@ -1,8 +1,10 @@
 using MassTransit;
 using MassTransit.DependencyInjection;
 using MassTransit.EntityFrameworkCoreIntegration;
+using MassTransit.Middleware.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Platform.Messaging;
 
@@ -23,8 +25,10 @@ internal sealed class ModuleOutbox<TContext> : IModuleOutbox<TContext>, IDisposa
     // the consume context's outbox in the same context. Created per scope, so it never leaks into another module.
     private readonly EntityFrameworkScopedBusContextProvider<IBus, TContext> _provider;
 
-    public ModuleOutbox(IServiceProvider services) =>
-        _provider = ActivatorUtilities.CreateInstance<EntityFrameworkScopedBusContextProvider<IBus, TContext>>(services);
+    public ModuleOutbox(IServiceProvider services, ModuleOutboxNotification<TContext> notification) =>
+        _provider = ActivatorUtilities.CreateInstance<EntityFrameworkScopedBusContextProvider<IBus, TContext>>(
+            services,
+            notification.Notification);
 
     internal ScopedBusContext Context => _provider.Context;
 
@@ -83,6 +87,16 @@ internal sealed class HostBusOutboxProvider<TContext>(IServiceProvider services)
 {
     public ScopedBusContext Context =>
         ((ModuleOutbox<TContext>)services.GetRequiredService<IModuleOutbox<TContext>>()).Context;
+}
+
+/// <summary>
+/// Wakes the delivery service of one module's outbox after that module saves: a publisher and a delivery service per
+/// context, never shared, since MassTransit's notification holds a single waiter.
+/// </summary>
+internal sealed class ModuleOutboxNotification<TContext>(IOptions<OutboxDeliveryServiceOptions> options)
+    where TContext : DbContext
+{
+    public IBusOutboxNotification Notification { get; } = new BusOutboxNotification(options);
 }
 
 /// <summary>Marks that the host's bus outbox is taken (by the first <c>AddModuleOutbox</c>).</summary>
