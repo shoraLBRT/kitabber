@@ -1,5 +1,5 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Platform.Messaging;
 
 namespace Platform.Modules.Identity;
 
@@ -9,7 +9,7 @@ namespace Platform.Modules.Identity;
 /// keeps by the account_id. The provider refuses the account's earlier codes and refresh tokens once it is gone
 /// (<c>AuthorizationEndpoint</c>). How a person asks for it, the waiting period and the restore are E03-11 (#170).
 /// </summary>
-public sealed class AccountDeletions(IdentityDbContext db, IPublishEndpoint publish, TimeProvider time)
+public sealed class AccountDeletions(IdentityDbContext db, IModuleOutbox<IdentityDbContext> publish, TimeProvider time)
 {
     /// <summary>Deletes the account; false when there is no such account.</summary>
     public async Task<bool> DeleteAsync(Guid accountId, CancellationToken cancellationToken)

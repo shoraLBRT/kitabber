@@ -49,7 +49,7 @@ public sealed record PasswordChangeResult(PasswordChangeStatus Status, Guid? Acc
 /// </summary>
 public sealed class AccountPasswords(
     IdentityDbContext db,
-    IMailer mailer,
+    IMailer<IdentityDbContext> mailer,
     IOpenIddictAuthorizationManager authorizations,
     IOpenIddictTokenManager tokens,
     SignIn.AccountSessions sessions,
