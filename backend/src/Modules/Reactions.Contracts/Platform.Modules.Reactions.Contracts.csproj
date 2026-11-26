@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Reactions module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such as
+      Comments choosing the best comment of a feed card, ask about likes without reading the schema `reactions`
+      (ADR-0062).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Reactions.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>

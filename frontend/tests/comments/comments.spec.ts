@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   branchPath,
   commentCount,
+  commentHash,
+  commentOfHash,
   loadAuthors,
   loadBranch,
   loadComments,
@@ -111,6 +113,21 @@ describe('branchPath', () => {
   it('puts a branch screen under its post (E09-06)', () => {
     expect(branchPath('/u/anna/p1-privet', 'c1')).toBe('/u/anna/p1-privet/comments/c1')
     expect(branchPath('/books/p1', 'c1')).toBe('/books/p1/comments/c1')
+  })
+})
+
+describe('commentHash', () => {
+  const id = '0195F3A0-0000-7000-8000-0000000000D1'
+
+  it('names a comment on its post page and reads it back (E08-15)', () => {
+    expect(commentHash('c1')).toBe('#comment-c1')
+    expect(commentOfHash(commentHash(id))).toBe(id.toLowerCase())
+  })
+
+  it('reads nothing from another fragment', () => {
+    expect(commentOfHash('')).toBeNull()
+    expect(commentOfHash('#comments')).toBeNull()
+    expect(commentOfHash('#comment-not-an-id')).toBeNull()
   })
 })
 

@@ -51,7 +51,7 @@ function item(
     publishedAt: '2026-11-20T10:05:00Z',
     images: {},
   }
-  return { post, author: anna, topic: null, ...extra }
+  return { post, author: anna, topic: null, bestComment: null, ...extra }
 }
 
 const mountCard = (feedItem: FeedPost) => mount(FeedCard, { props: { item: feedItem }, global: { stubs } })
@@ -106,5 +106,46 @@ describe('FeedCard', () => {
     expect(wrapper.findAll('.post-blocks__text')).toHaveLength(6)
     expect(wrapper.text()).toContain('Абзац 6.')
     expect(wrapper.find('[data-testid="feed-card-more"]').exists()).toBe(false)
+  })
+
+  // E08-15, ADR-0062: the best comment under the card, chosen by the server; none for a post without comments.
+  it('has no best comment block for a post without comments', () => {
+    const wrapper = mountCard(item(paragraphs(1)))
+    expect(wrapper.find('[data-testid="feed-best-comment"]').exists()).toBe(false)
+  })
+
+  it('shows the best comment with its author and leads to it on the post page', () => {
+    const boris: FeedBlog = {
+      ...anna,
+      id: '0195f3a0-0000-7000-8000-0000000000b2',
+      name: 'Борис',
+      nickname: 'boris',
+    }
+    const id = '0195f3a0-0000-7000-8000-0000000000d1'
+    const wrapper = mountCard(
+      item(paragraphs(6), { bestComment: { id, author: boris, guestName: null, text: 'Хороший пост.' } }),
+    )
+    const block = wrapper.get('[data-testid="feed-best-comment"]')
+    expect(block.get('[data-testid="feed-best-comment-author"]').text()).toBe('Борис')
+    expect(block.get('[data-testid="feed-best-comment-text"]').text()).toBe('Хороший пост.')
+    expect(block.attributes('href')).toBe(
+      `/u/anna/0195f3a0-0000-7000-8000-0000000000c1-zagolovok#comment-${id}`,
+    )
+    // The last block of the card: under the post, even a longread cut short.
+    expect(wrapper.get('article').element.lastElementChild).toBe(block.element)
+  })
+
+  it('names the outside author of a guest comment', () => {
+    const wrapper = mountCard(
+      item(paragraphs(1), {
+        bestComment: {
+          id: '0195f3a0-0000-7000-8000-0000000000d2',
+          author: null,
+          guestName: 'Гость из Telegram',
+          text: 'Привет из канала.',
+        },
+      }),
+    )
+    expect(wrapper.get('[data-testid="feed-best-comment-author"]').text()).toBe('Гость из Telegram')
   })
 })

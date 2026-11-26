@@ -1,5 +1,6 @@
 // The fresh feed (E08-01, FR-FEED, ADR-0043): every published post, newest first, page by page with the cursor the API
 // gives (`nextCursor`, ADR-0006). The client never reads the cursor; it only passes it back for the next page.
+import { commentHash } from './comments'
 import { postPath, postSegment, type Post } from './posts'
 import type { ApiClient, components } from './client'
 
@@ -10,6 +11,12 @@ export type FeedPost = components['schemas']['FeedPostView']
 
 /** The author or the topic on a card. */
 export type FeedBlog = components['schemas']['FeedBlogView']
+
+/**
+ * The best comment under a card (E08-15, ADR-0062): the most liked shown one, the earlier on a tie, chosen by the
+ * server for the whole page; `null` on the card of a post without comments.
+ */
+export type FeedComment = components['schemas']['FeedCommentView']
 
 export type FeedLookup = { status: 'found'; page: FeedPage } | { status: 'error' }
 
@@ -47,6 +54,17 @@ export function feedPostPath(post: Pick<Post, 'id' | 'slug' | 'blogId'>): string
 export function feedItemPath(item: Pick<FeedPost, 'post' | 'author' | 'topic'>): string {
   const blog = item.topic ?? (item.author?.id === item.post.blogId ? item.author : null)
   return blog ? postPath(blog, item.post) : feedPostPath(item.post)
+}
+
+/**
+ * The comment `commentId` on its post's page (ADR-0062): the post's address with `#comment-<id>`. The page reads the
+ * comments in the browser and then brings that comment into view (or opens its branch when it is deeper than a read).
+ */
+export function feedCommentPath(
+  item: Pick<FeedPost, 'post' | 'author' | 'topic'>,
+  commentId: string,
+): string {
+  return `${feedItemPath(item)}${commentHash(commentId)}`
 }
 
 // Coming back to a feed (E08-03, ADR-0051): what a feed showed is kept per history entry, so «назад» from a post

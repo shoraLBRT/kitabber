@@ -10,8 +10,8 @@ namespace Platform.Modules.Comments;
 
 /// <summary>
 /// The Comments module in the API host (ADR-0048): the comment tree, its API and its database. It needs the Posts
-/// module (<c>IPostDirectory</c>) registered in the same host, and offers other modules
-/// <see cref="ICommentDirectory"/> (ADR-0061).
+/// module (<c>IPostDirectory</c>) and the Reactions module (<c>ILikeCounts</c>, ADR-0062) registered in the same host,
+/// and offers other modules <see cref="ICommentDirectory"/> (ADR-0061).
 /// </summary>
 public static class CommentsModule
 {

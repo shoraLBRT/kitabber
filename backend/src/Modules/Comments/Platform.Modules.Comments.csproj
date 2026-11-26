@@ -3,7 +3,7 @@
     <!--
       The Comments module (FR-COMMENT, ADR-0048): the comment tree under a post, kept as materialized paths, and its API.
       Its tables live in the schema `comments`; it knows the author only by the account_id (FR-ID-1) and asks the Posts
-      module about a post through Posts.Contracts.
+      module about a post through Posts.Contracts and the Reactions module about likes through Reactions.Contracts.
     -->
     <PropertyGroup>
         <RootNamespace>Platform.Modules.Comments</RootNamespace>
@@ -21,6 +21,7 @@
         <ProjectReference Include="../Comments.Contracts/Platform.Modules.Comments.Contracts.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
+        <ProjectReference Include="../Reactions.Contracts/Platform.Modules.Reactions.Contracts.csproj" />
     </ItemGroup>
 
 </Project>
