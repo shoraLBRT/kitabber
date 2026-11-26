@@ -17,6 +17,8 @@ const books: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  subscriberCount: 0,
+  subscribed: false,
   cover: null,
   owner: { id: '0195f3a0-0000-7000-8000-0000000000b2', name: 'Борис', nickname: 'boris' },
 }
@@ -46,6 +48,14 @@ describe('TopicView', () => {
     const wrapper = mountView({ status: 'found', profile: { ...books, description: null, owner: null } })
     expect(wrapper.find('[data-testid="topic-description"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="topic-owner"]').exists()).toBe(false)
+  })
+
+  // E11-03, ADR-0085: a topic shows its subscribers and «Подписаться»; it has no «подписки» of its own.
+  it('shows the subscribers of a topic and «Подписаться», whose press goes to the page', async () => {
+    const wrapper = mountView({ status: 'found', profile: { ...books, subscriberCount: 21 } })
+    expect(wrapper.get('[data-testid="subscription-counts"]').text()).toBe('21 подписчик')
+    await wrapper.get('[data-testid="subscribe-button"]').trigger('click')
+    expect(wrapper.emitted('subscribe')).toHaveLength(1)
   })
 
   it('shows a skeleton of the header while it loads, and no posts', () => {

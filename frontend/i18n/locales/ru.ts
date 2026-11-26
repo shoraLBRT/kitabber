@@ -367,6 +367,26 @@ export default {
     noPosts: 'В этой теме пока нет постов',
     writeHere: 'Написать в тему',
   },
+  subscription: {
+    subscribe: 'Подписаться',
+    subscribed: 'Вы подписаны',
+    subscribers: {
+      one: '{shown} подписчик',
+      few: '{shown} подписчика',
+      many: '{shown} подписчиков',
+      other: '{shown} подписчика',
+    },
+    subscriptions: {
+      one: '{shown} подписка',
+      few: '{shown} подписки',
+      many: '{shown} подписок',
+      other: '{shown} подписки',
+    },
+    ownBlog: 'На свой блог подписаться нельзя.',
+    notFound: 'Блог или тема не найдены: возможно, их удалили.',
+    failed: 'Не удалось изменить подписку. Попробуйте ещё раз.',
+    signedOut: 'Войдите снова, чтобы подписаться.',
+  },
   settings: {
     title: 'Настройки',
     sections: 'Разделы настроек',
