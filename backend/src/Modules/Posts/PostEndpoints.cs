@@ -177,7 +177,7 @@ public sealed class PostEndpoints : IApiEndpoints
         IBlogDirectory blogs,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
-        FreshFeedCache feed,
+        FeedPageCache feed,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -227,7 +227,7 @@ public sealed class PostEndpoints : IApiEndpoints
         PostsDbContext db,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
-        FreshFeedCache feed,
+        FeedPageCache feed,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -259,7 +259,7 @@ public sealed class PostEndpoints : IApiEndpoints
     }
 
     private static async Task<IResult> DeleteAsync(
-        Guid id, ClaimsPrincipal user, PostsDbContext db, FreshFeedCache feed, TimeProvider time, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, PostsDbContext db, FeedPageCache feed, TimeProvider time, CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {

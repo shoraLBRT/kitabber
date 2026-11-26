@@ -2,17 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Platform.Modules.Blogs;
 using Platform.Modules.Identity;
 using Platform.Testing.Api;
 
 namespace Platform.Modules.Posts.IntegrationTests;
 
 /// <summary>
-/// E08-09: the fresh feed is given from Redis (ADR-0080) — a repeated read sends no SQL command, publishing, editing
-/// and deleting a post drop the cached pages at once, and a page is read from the database again once it is older
-/// than <see cref="FreshFeedCache.Lifetime"/>.
+/// E08-09: the fresh feed and the feed of a blog are given from Redis (ADR-0080) — a repeated read sends no SQL
+/// command, publishing, editing and deleting a post drop the cached pages at once, a page is read from the database
+/// again once it is older than <see cref="FeedPageCache.Lifetime"/>, and a blog that does not exist yet is not cached.
 /// </summary>
-public sealed class FreshFeedCacheApiTests(FeedApi api) : IClassFixture<FeedApi>, IAsyncLifetime
+public sealed class FeedCacheApiTests(FeedApi api) : IClassFixture<FeedApi>, IAsyncLifetime
 {
     private HttpClient _client = null!;
     private Guid _author;
@@ -68,7 +69,7 @@ public sealed class FreshFeedCacheApiTests(FeedApi api) : IClassFixture<FeedApi>
         var unseen = await SaveAsync(published: true);
         Assert.Equal([old], await FeedAsync());
 
-        api.Time.Advance(FreshFeedCache.Lifetime);
+        api.Time.Advance(FeedPageCache.Lifetime);
         Assert.Equal([unseen, old], await FeedAsync());
     }
 
@@ -122,10 +123,60 @@ public sealed class FreshFeedCacheApiTests(FeedApi api) : IClassFixture<FeedApi>
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    private async Task<Guid> SaveAsync(bool published)
+    [Fact]
+    public async Task BlogFeedIsCachedAndDroppedByDeletingAPost()
+    {
+        var topic = await SaveTopicAsync();
+        var kept = await SaveAsync(published: true, topic);
+        var gone = await SaveAsync(published: true, topic);
+        var first = await RawBlogFeedAsync(topic);
+
+        api.Commands.Reset();
+        var again = await RawBlogFeedAsync(topic);
+        Assert.Equal(0, api.Commands.Count);
+        Assert.Equal(first, again);
+
+        using var deleted = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{gone}", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal([kept], await BlogFeedAsync(topic));
+    }
+
+    [Fact]
+    public async Task BlogThatDoesNotExistYetIsNotCached()
+    {
+        var topic = NewTopic();
+        using (var missing = await _client.GetAsync($"/api/v1/feeds/blogs/{topic.Id}", Ct))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        }
+
+        await api.SaveAsync<BlogsDbContext>(topic);
+
+        using var found = await _client.GetAsync($"/api/v1/feeds/blogs/{topic.Id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, found.StatusCode);
+    }
+
+    private Subsite NewTopic() =>
+        Subsite.CreateTopic("Кэш", $"cache{Guid.NewGuid().ToString("N")[..8]}", _author, api.Time.GetUtcNow());
+
+    private async Task<Guid> SaveTopicAsync()
+    {
+        var topic = NewTopic();
+        await api.SaveAsync<BlogsDbContext>(topic);
+        return topic.Id;
+    }
+
+    private Task<string> RawBlogFeedAsync(Guid blog) => _client.GetStringAsync($"/api/v1/feeds/blogs/{blog}", Ct);
+
+    private async Task<List<Guid>> BlogFeedAsync(Guid blog) =>
+        [.. (await _client.GetFromJsonAsync<JsonElement>($"/api/v1/feeds/blogs/{blog}", Ct)).GetProperty("items")
+            .EnumerateArray().Select(i => i.GetProperty("post").GetProperty("id").GetGuid())];
+
+    private async Task<Guid> SaveAsync(bool published, Guid? blog = null)
     {
         api.Time.Advance(TimeSpan.FromSeconds(1));
-        var post = Post.CreateDraft(_author, _blog, "Заголовок", PostFactory.Body("Текст."), api.Time.GetUtcNow());
+        var post = Post.CreateDraft(_author, blog ?? _blog, "Заголовок", PostFactory.Body("Текст."), api.Time.GetUtcNow());
         if (published)
         {
             post.Publish(api.Time.GetUtcNow());

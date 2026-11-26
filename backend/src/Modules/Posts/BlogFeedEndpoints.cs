@@ -14,7 +14,8 @@ namespace Platform.Modules.Posts;
 /// <summary>
 /// <c>/api/v1/feeds/blogs/{blogId}</c> (FR-TOPIC, E11-01, ADR-0082): the published posts of one blog — a topic or a
 /// personal blog — newest first, page by page with the cursor of the fresh feed (ADR-0043). Drafts and deleted posts
-/// are never in it; a blog that does not exist is 404.
+/// are never in it; a blog that does not exist is 404. A page read once is given from the cache like a page of the
+/// fresh feed (E08-09, ADR-0080).
 /// </summary>
 public sealed class BlogFeedEndpoints : IApiEndpoints
 {
@@ -39,12 +40,32 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
         IMediaLibrary media,
         IBlogDirectory blogs,
         ICommentDirectory comments,
+        FeedPageCache cache,
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
+        return await cache.GetOrReadAsync(
+                FeedPageCache.BlogFeed(blogId),
+                page,
+                token => ReadAsync(blogId, page, db, media, blogs, comments, token),
+                ct) is { } result
+            ? TypedResults.Ok(result)
+            : (IResult)ApiProblems.NotFound(BlogNotFoundCode);
+    }
+
+    // Null when the blog does not exist; such a read is not cached.
+    private static async Task<CursorPage<FeedPostView>?> ReadAsync(
+        Guid blogId,
+        PageRequest<FreshFeedCursor> page,
+        PostsDbContext db,
+        IMediaLibrary media,
+        IBlogDirectory blogs,
+        ICommentDirectory comments,
+        CancellationToken ct)
+    {
         if (await blogs.FindAsync(blogId, ct) is null)
         {
-            return ApiProblems.NotFound(BlogNotFoundCode);
+            return null;
         }
 
         var posts = db.Posts.AsNoTracking()
@@ -61,7 +82,7 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
         var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
-        return TypedResults.Ok(new CursorPage<FeedPostView>(
-            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor));
+        return new CursorPage<FeedPostView>(
+            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor);
     }
 }
