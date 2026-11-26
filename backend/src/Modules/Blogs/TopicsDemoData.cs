@@ -1,11 +1,13 @@
 using Platform.Modules.Blogs.Contracts;
+using Platform.Modules.Identity.Contracts;
 using Platform.Seeding;
 
 namespace Platform.Modules.Blogs;
 
 /// <summary>
-/// The demo topics (ADR-0046): a fixed short list, so the editor has topics to choose from before topics get their
-/// own model and administration (E11-01, #76). The <c>number</c>-th topic (from 0) is <c>Id("topic", number)</c>.
+/// The demo topics (ADR-0046): a fixed short list, so the editor has topics to choose from before the administration
+/// makes them. The <c>number</c>-th topic (from 0) is <c>Id("topic", number)</c>; it is owned by the demo account of
+/// the same number (ADR-0082).
 /// </summary>
 public sealed class TopicFactory(SeedData data) : ObjectFactory<Subsite>(data)
 {
@@ -25,6 +27,7 @@ public sealed class TopicFactory(SeedData data) : ObjectFactory<Subsite>(data)
         {
             Id = IdOf(number),
             Type = SubsiteType.Topic,
+            OwnerAccountId = Data.Id(IdentityDemo.AccountKind, number % IdentityDemo.AccountCount),
             CreatedAt = Data.Now - TimeSpan.FromDays(100 + number),
         };
         topic.Rename(name);

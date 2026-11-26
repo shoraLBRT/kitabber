@@ -122,7 +122,7 @@ public sealed class FreshFeedApiTests(PostsApi api) : IClassFixture<PostsApi>, I
     {
         var own = Subsite.CreatePersonal(_author, api.Time.GetUtcNow());
         own.Rename("Анна");
-        var topic = Subsite.CreateTopic("Игры", "games", api.Time.GetUtcNow());
+        var topic = Subsite.CreateTopic("Игры", "games", Guid.CreateVersion7(api.Time.GetUtcNow()), api.Time.GetUtcNow());
         await api.SaveAsync<BlogsDbContext>(own);
         await api.SaveAsync<BlogsDbContext>(topic);
         await SaveAsync(publishedAt: api.Time.GetUtcNow(), blog: own.Id);

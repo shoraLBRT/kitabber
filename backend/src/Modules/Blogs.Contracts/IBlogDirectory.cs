@@ -15,13 +15,17 @@ public enum BlogKind
 /// <summary>A blog as other modules see it.</summary>
 /// <param name="Id">The blog's identifier.</param>
 /// <param name="Kind">A personal blog or a topic.</param>
-/// <param name="OwnerAccountId">The owner of a personal blog; <c>null</c> for a topic.</param>
+/// <param name="OwnerAccountId">
+/// The owner of the personal blog or of the topic (ADR-0082); <c>null</c> only for a topic made before owners came.
+/// </param>
 public sealed record BlogSummary(Guid Id, BlogKind Kind, Guid? OwnerAccountId);
 
 /// <summary>A blog as a card shows it, such as the author or the topic of a post in a feed (ADR-0052).</summary>
 /// <param name="Id">The blog's identifier.</param>
 /// <param name="Kind">A personal blog or a topic.</param>
-/// <param name="OwnerAccountId">The owner of a personal blog; <c>null</c> for a topic.</param>
+/// <param name="OwnerAccountId">
+/// The owner of the personal blog or of the topic (ADR-0082); <c>null</c> only for a topic made before owners came.
+/// </param>
 /// <param name="Name">The blog's name; <c>null</c> until the owner sets it.</param>
 /// <param name="Nickname">The short address without <c>@</c>; <c>null</c> until the owner sets it.</param>
 /// <param name="AvatarSources">The avatar for every screen density, narrowest first; empty without an avatar.</param>

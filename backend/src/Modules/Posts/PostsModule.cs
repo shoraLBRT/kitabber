@@ -25,6 +25,7 @@ public static class PostsModule
         builder.Services.AddScoped<IPostDirectory, PostDirectory>();
         builder.Services.AddApiEndpoints<PostEndpoints>();
         builder.Services.AddApiEndpoints<FreshFeedEndpoints>();
+        builder.Services.AddApiEndpoints<BlogFeedEndpoints>();
         builder.Services.AddSingleton<ViewSaltCache>();
         builder.Services.AddScoped<IViewCounter, DatabaseViewCounter>();
         builder.Services.AddApiEndpoints<PostViewEndpoints>();

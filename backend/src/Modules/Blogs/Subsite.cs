@@ -9,7 +9,7 @@ public enum SubsiteType
     /// <summary>The personal blog of an account: every account has exactly one.</summary>
     Personal = 1,
 
-    /// <summary>A topic (FR-SUB): many authors post into it; created by the editors.</summary>
+    /// <summary>A topic (FR-TOPIC, ADR-0082): many authors post into it; it has an owner who runs it.</summary>
     Topic = 2,
 }
 
@@ -23,7 +23,10 @@ public sealed class Subsite
 
     public SubsiteType Type { get; init; }
 
-    /// <summary>The account whose personal blog this is; <c>null</c> for a topic.</summary>
+    /// <summary>
+    /// The account whose personal blog this is, or the owner of a topic (E11-01, ADR-0082). Only a topic made before the
+    /// owners came may have none.
+    /// </summary>
     public Guid? OwnerAccountId { get; init; }
 
     public DateTimeOffset CreatedAt { get; init; }
@@ -56,12 +59,24 @@ public sealed class Subsite
     public int CoverPosition { get; private set; } = SubsiteRules.CoverPositionDefault;
 
     /// <summary>
-    /// A topic named <paramref name="name"/> at the address <paramref name="nickname"/>. Topics are made by the
-    /// administration (FR-TOPIC); until its tools come (E11-01, #76), only the demo data and the tests make them.
+    /// A topic named <paramref name="name"/> at the address <paramref name="nickname"/>, owned by
+    /// <paramref name="ownerAccountId"/> (E11-01, ADR-0082). Topics are made by the administration (FR-TOPIC) and, later,
+    /// by people (E11-11, #77); until those tools come, only the demo data and the tests make them.
     /// </summary>
-    public static Subsite CreateTopic(string name, string nickname, DateTimeOffset createdAt)
+    public static Subsite CreateTopic(string name, string nickname, Guid ownerAccountId, DateTimeOffset createdAt)
     {
-        var topic = new Subsite { Id = Guid.CreateVersion7(createdAt), Type = SubsiteType.Topic, CreatedAt = createdAt };
+        if (ownerAccountId == Guid.Empty)
+        {
+            throw new ArgumentException("A topic needs its owner's account_id.", nameof(ownerAccountId));
+        }
+
+        var topic = new Subsite
+        {
+            Id = Guid.CreateVersion7(createdAt),
+            Type = SubsiteType.Topic,
+            OwnerAccountId = ownerAccountId,
+            CreatedAt = createdAt,
+        };
         topic.Rename(name);
         topic.SetNickname(nickname);
         return topic;

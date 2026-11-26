@@ -15,6 +15,7 @@ import {
   type ProfileLookup,
   type ProfileSave,
 } from '~/api/profiles'
+import { subsitePath } from '~/api/posts'
 import { t } from '../../i18n'
 
 const route = useRoute()
@@ -42,7 +43,10 @@ if (import.meta.server) {
   const code = responseStatus(found)
   if (code) setResponseStatus(useRequestEvent()!, code)
   // One address per blog: an id, `@nick` or another case of the nickname leads to the blog's own address.
-  if (found?.status === 'found') {
+  // A topic lives at its own address (E11-01): /u/<topic> leads to /<topic>.
+  if (found?.status === 'found' && found.profile.type === 'topic')
+    await navigateTo(subsitePath(found.profile), { redirectCode: 301 })
+  else if (found?.status === 'found') {
     const canonical = blogPath(found.profile)
     if (canonical !== `/u/${segment.value}`)
       await navigateTo(tab.value === 'comments' ? `${canonical}/comments` : canonical, { redirectCode: 301 })

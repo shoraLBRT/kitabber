@@ -25,6 +25,25 @@ public sealed class SubsiteRulesTests
     public void PersonalBlogNeedsAnOwner() =>
         Assert.Throws<ArgumentException>(() => Subsite.CreatePersonal(Guid.Empty, _now));
 
+    // E11-01, ADR-0082: a topic has an owner who runs it.
+    [Fact]
+    public void TopicHasItsNameAddressAndOwner()
+    {
+        var owner = Guid.CreateVersion7(_now);
+
+        var topic = Subsite.CreateTopic(" Наука ", "@Science", owner, _now);
+
+        Assert.Equal(SubsiteType.Topic, topic.Type);
+        Assert.Equal(owner, topic.OwnerAccountId);
+        Assert.Equal("Наука", topic.Name);
+        Assert.Equal("science", topic.Nickname);
+        Assert.Equal(_now, topic.CreatedAt);
+    }
+
+    [Fact]
+    public void TopicNeedsAnOwner() =>
+        Assert.Throws<ArgumentException>(() => Subsite.CreateTopic("Наука", "science", Guid.Empty, _now));
+
     [Fact]
     public void NameIsAtMost25Characters()
     {

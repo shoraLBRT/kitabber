@@ -416,10 +416,29 @@ const blogs = [
   },
   {
     id: '0195f3a0-0000-7000-8000-0000000000b4',
-    owner: null,
+    owner: '0195f3a0-0000-7000-8000-000000000002',
     type: 'topic',
     name: 'Книги',
     nickname: 'books',
+    description: 'Что читать и как читать.',
+    registeredAt: null,
+  },
+  // Topics of the topic page (E11-01, ADR-0082): «Наука» has no posts yet, and the feed of «Сбой» fails.
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b5',
+    owner: '0195f3a0-0000-7000-8000-000000000001',
+    type: 'topic',
+    name: 'Наука',
+    nickname: 'science',
+    description: null,
+    registeredAt: null,
+  },
+  {
+    id: '0195f3a0-0000-7000-8000-0000000000b6',
+    owner: '0195f3a0-0000-7000-8000-000000000001',
+    type: 'topic',
+    name: 'Сбой',
+    nickname: 'outage',
     description: null,
     registeredAt: null,
   },
@@ -815,10 +834,19 @@ const topics = () =>
 // page so the e2e test reaches a second page. The cursor is opaque to the client, as the API's (ADR-0006).
 const feedPageSize = 2
 
-function freshFeed(response, url) {
-  const sorted = [...posts].sort(
-    (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id),
-  )
+// The feed of one blog (E11-01): GET /api/v1/feeds/blogs/{blogId}, the same pages for the posts of that blog only.
+function blogFeed(response, url) {
+  const [, blogId] = url.pathname.match(/^\/api\/v1\/feeds\/blogs\/([^/]+)$/) ?? []
+  const blog = blogs.find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'posts.blog_not_found' })
+  if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
+  return freshFeed(response, url, (post) => post.blogId === blogId)
+}
+
+function freshFeed(response, url, only = () => true) {
+  const sorted = [...posts]
+    .filter(only)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
   const cursor = url.searchParams.get('cursor')
   const start = cursor ? Number(Buffer.from(cursor, 'base64url').toString()) : 0
   if (!Number.isInteger(start) || start < 0)
@@ -1077,7 +1105,14 @@ function profile(request, response, url) {
   const reader = subject(request)
   const view = (blog) => {
     const { owner: blogOwner, registeredAt, ...rest } = edited(blog, request)
-    return { ...rest, registeredAt: blogOwner === reader ? registeredAt : null }
+    // A topic names its owner's personal blog (ADR-0082).
+    const ownersBlog =
+      blog.type === 'topic' && blogs.find((item) => item.type === 'personal' && item.owner === blogOwner)
+    return {
+      ...rest,
+      registeredAt: blogOwner === reader ? registeredAt : null,
+      owner: ownersBlog ? { id: ownersBlog.id, name: ownersBlog.name, nickname: ownersBlog.nickname } : null,
+    }
   }
   const [, kind, value] =
     url.pathname.match(/^\/api\/v1\/profiles\/(?:(by-nickname|by-account)\/)?([^/]+)$/) ?? []
@@ -1213,6 +1248,8 @@ createServer(async (request, response) => {
     return deletePost(request, response, url)
   if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
+  if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
+    return blogFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.
   if (url.pathname.startsWith('/__images/') && request.method === 'GET') {

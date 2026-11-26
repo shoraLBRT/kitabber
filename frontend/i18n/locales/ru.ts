@@ -357,6 +357,16 @@ export default {
     coverTooLarge: 'Картинка больше 20 МБ.',
     coverUnsupported: 'Этот файл не похож на картинку.',
   },
+  topic: {
+    topic: 'Тема',
+    loading: 'Загрузка темы',
+    loadFailed: 'Не удалось загрузить тему',
+    loadFailedText: 'Проверьте соединение и попробуйте ещё раз.',
+    owner: 'Владелец темы:',
+    posts: 'Посты темы',
+    noPosts: 'В этой теме пока нет постов',
+    writeHere: 'Написать в тему',
+  },
   settings: {
     title: 'Настройки',
     sections: 'Разделы настроек',

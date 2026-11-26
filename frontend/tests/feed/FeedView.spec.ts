@@ -181,6 +181,24 @@ describe('FeedView', () => {
     expect(wrapper.find('[data-testid="feed-list"]').exists()).toBe(false)
   })
 
+  // A page with its own heading (the topic page, E11-01) names the list instead and puts its own empty state.
+  it('without a title names the list and shows the page own empty text and action', () => {
+    const wrapper = mount(FeedView, {
+      props: {
+        label: 'Посты темы',
+        emptyText: 'В этой теме пока нет постов',
+        state: { status: 'found', posts: [], hasMore: false },
+      },
+      slots: { 'empty-actions': '<a href="/write">Написать в тему</a>' },
+      global: { stubs },
+    })
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="feed"]').attributes('aria-label')).toBe('Посты темы')
+    const empty = wrapper.get('[data-testid="feed-empty"]')
+    expect(empty.text()).toContain('В этой теме пока нет постов')
+    expect(empty.get('a').text()).toBe('Написать в тему')
+  })
+
   it('shows a failure with a retry', async () => {
     const wrapper = mountView({ status: 'error' })
     expect(wrapper.get('[role="alert"]').text()).toContain('Не удалось загрузить ленту')

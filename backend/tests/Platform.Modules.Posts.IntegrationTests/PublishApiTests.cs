@@ -55,7 +55,7 @@ public sealed class PublishApiTests(PostsApi api) : IClassFixture<PostsApi>, IAs
     [Fact]
     public async Task AuthorPublishesInATopic()
     {
-        var topic = Subsite.CreateTopic("Игры", "games", api.Time.GetUtcNow());
+        var topic = Subsite.CreateTopic("Игры", "games", Guid.CreateVersion7(api.Time.GetUtcNow()), api.Time.GetUtcNow());
         await api.SaveAsync<BlogsDbContext>(topic);
         var id = await CreateAsync(Body(Paragraph("Пост в теме")), title: "Про игры", topic.Id);
 
@@ -65,6 +65,25 @@ public sealed class PublishApiTests(PostsApi api) : IClassFixture<PostsApi>, IAs
         var post = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal(topic.Id, post.GetProperty("blogId").GetGuid());
         Assert.Equal("pro-igry", post.GetProperty("slug").GetString());
+    }
+
+    // E11-01, ADR-0082: a post published in a topic is in the topic's feed, and a draft is not.
+    [Fact]
+    public async Task PostPublishedInATopicIsInItsFeed()
+    {
+        var topic = Subsite.CreateTopic("Игры", $"games{_author.ToString("N")[..8]}", _stranger, api.Time.GetUtcNow());
+        await api.SaveAsync<BlogsDbContext>(topic);
+        var published = await CreateAsync(Body(Paragraph("Пост в теме")), title: "Про игры", topic.Id);
+        await CreateAsync(Body(Paragraph("Черновик в теме")), title: "Черновик", topic.Id);
+        await CreateAsync(Body(Paragraph("Пост в своём блоге")), title: "Своё");
+        (await SendAsync(HttpMethod.Post, $"/api/v1/posts/{published}/publish", null, _author)).Dispose();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/v1/feeds/blogs/{topic.Id}", null, account: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var items = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("items");
+        Assert.Equal([published], items.EnumerateArray().Select(i => i.GetProperty("post").GetProperty("id").GetGuid()));
+        Assert.Equal(topic.Id, items[0].GetProperty("topic").GetProperty("id").GetGuid());
     }
 
     [Fact]

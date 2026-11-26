@@ -31,6 +31,8 @@ const props = defineProps<{
   uploadImage?: (file: File) => Promise<ImageUpload>
   /** What the quick post above the feed hands over with «Развернуть» (E05-29, ADR-0055): the start of the post. */
   initial?: QuickPostHandoff | null
+  /** The topic chosen at the start, such as «Написать в тему» on a topic page (E11-01); the quick post's wins. */
+  topicId?: string | null
 }>()
 
 const emit = defineEmits<{ close: []; published: [path: string]; unauthorized: [] }>()
@@ -41,7 +43,7 @@ const document = ref<PostDocument>(
   props.initial ? JSON.parse(JSON.stringify(props.initial.document)) : emptyDocument(),
 )
 const title = ref('')
-const topicId = ref<string | null>(props.initial?.topicId ?? null)
+const topicId = ref<string | null>(props.initial?.topicId ?? props.topicId ?? null)
 const publishing = ref(false)
 const errors = ref<Record<string, string>>({})
 const editor = ref<InstanceType<typeof BlockEditor>>()

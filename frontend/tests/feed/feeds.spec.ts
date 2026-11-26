@@ -5,6 +5,7 @@ import {
   feedEntryKey,
   feedPostPath,
   feedSnapshotLimit,
+  loadBlogFeed,
   loadFreshFeed,
   rememberFeed,
   feedCommentPath,
@@ -53,6 +54,23 @@ describe('loadFreshFeed', () => {
       }),
     })
     expect(await loadFreshFeed(unreachable)).toEqual({ status: 'error' })
+  })
+})
+
+describe('loadBlogFeed', () => {
+  it('reads a page of one blog or topic with the cursor of the previous page (E11-01)', async () => {
+    const page = { items: [post('p1')], nextCursor: null }
+    const { client, fetch } = clientAnswering(200, page)
+    expect(await loadBlogFeed(client, 'b1', 'eyJhIjoxfQ')).toEqual({ status: 'found', page })
+    expect((fetch.mock.calls[0] as unknown as [Request])[0].url).toBe(
+      'http://api.test/api/v1/feeds/blogs/b1?cursor=eyJhIjoxfQ',
+    )
+  })
+
+  it('is an error when the blog is gone or the API fails', async () => {
+    const gone = clientAnswering(404, { code: 'posts.blog_not_found' }).client
+    expect(await loadBlogFeed(gone, 'b1')).toEqual({ status: 'error' })
+    expect(await loadBlogFeed(clientAnswering(500, {}).client, 'b1')).toEqual({ status: 'error' })
   })
 })
 

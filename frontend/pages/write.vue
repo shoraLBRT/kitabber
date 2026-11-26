@@ -11,6 +11,9 @@ import { t } from '../i18n'
 useHead({ title: t('pages.write') })
 
 const router = useRouter()
+const route = useRoute()
+// «Написать в тему» on a topic page (E11-01) opens /write?topic=<id> with that topic chosen.
+const topicId = typeof route.query.topic === 'string' ? route.query.topic : null
 const authWindow = useAuthWindow()
 const { publish, uploadImage, openPublished } = usePostPublishing()
 const { data: topics } = await useTopics()
@@ -36,6 +39,7 @@ function onUnauthorized() {
     :publish="publish"
     :upload-image="uploadImage"
     :initial="initial"
+    :topic-id="topicId"
     @close="close"
     @published="openPublished($event, true)"
     @unauthorized="onUnauthorized"

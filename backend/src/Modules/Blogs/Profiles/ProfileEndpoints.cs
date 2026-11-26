@@ -28,6 +28,10 @@ namespace Platform.Modules.Blogs.Profiles;
 /// pixels, narrowest first, for the <c>srcset</c> of the picture; empty when there is no avatar.
 /// </param>
 /// <param name="Cover">The cover of the header (E04-04, ADR-0079); <c>null</c> when there is none.</param>
+/// <param name="Owner">
+/// The owner of a topic (E11-01, ADR-0082): the personal blog of the account that runs it; <c>null</c> for a personal
+/// blog (its owner is the blog itself) and for a topic whose owner has no personal blog yet.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -38,7 +42,14 @@ public sealed record Profile(
     Guid? AvatarId,
     Uri? AvatarUrl,
     IReadOnlyList<ImageSource> AvatarSources,
-    ProfileCover? Cover);
+    ProfileCover? Cover,
+    ProfileOwner? Owner = null);
+
+/// <summary>The owner of a topic as its page shows it (ADR-0082): the owner's personal blog.</summary>
+/// <param name="Id">The owner's personal blog.</param>
+/// <param name="Name">Its name; <c>null</c> until the owner sets it.</param>
+/// <param name="Nickname">Its short address without <c>@</c>; <c>null</c> until the owner sets it.</param>
+public sealed record ProfileOwner(Guid Id, string? Name, string? Nickname);
 
 /// <summary>The cover of a blog's header (E04-04, ADR-0079): the whole picture and which part of it the header shows.</summary>
 /// <param name="Id">The image uploaded through <c>POST /api/v1/media</c>.</param>
@@ -261,7 +272,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
     private static async Task<IResult> GetByIdAsync(
         Guid id, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
         await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct) is { } blog
-            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 
     // Only finds the blog: a reader's request never creates a personal blog for someone else's account.
@@ -269,7 +280,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         Guid accountId, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
         await db.Subsites.AsNoTracking()
             .SingleOrDefaultAsync(s => s.Type == SubsiteType.Personal && s.OwnerAccountId == accountId, ct) is { } blog
-            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 
     private static async Task<IResult> GetByNicknameAsync(
@@ -284,9 +295,23 @@ public sealed class ProfileEndpoints : IApiEndpoints
         }
 
         return await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Nickname == normalized, ct) is { } blog
-            ? TypedResults.Ok(await ViewAsync(blog, AccountOf(user), media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
     }
+
+    // A reader's view of any blog: a topic also names its owner (ADR-0082).
+    private static async Task<Profile> ReadAsync(
+        Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
+        await ViewAsync(blog, viewer, media, ct) with { Owner = await TopicOwnerAsync(blog, db, ct) };
+
+    // The owner of a topic is shown by the owner's personal blog; a reader's request never creates that blog.
+    private static async Task<ProfileOwner?> TopicOwnerAsync(Subsite blog, BlogsDbContext db, CancellationToken ct) =>
+        blog is { Type: SubsiteType.Topic, OwnerAccountId: { } owner }
+            ? await db.Subsites.AsNoTracking()
+                .Where(s => s.Type == SubsiteType.Personal && s.OwnerAccountId == owner)
+                .Select(s => new ProfileOwner(s.Id, s.Name, s.Nickname))
+                .SingleOrDefaultAsync(ct)
+            : null;
 
     private static async Task<Profile> ViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct) => new(
         blog.Id,

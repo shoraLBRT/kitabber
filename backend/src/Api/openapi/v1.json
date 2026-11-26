@@ -1491,6 +1491,73 @@
         }
       }
     },
+    "/api/v1/feeds/blogs/{blogId}": {
+      "get": {
+        "tags": [
+          "Feeds"
+        ],
+        "summary": "The published posts of one blog or topic, newest first, page by page with a cursor",
+        "operationId": "GetBlogFeed",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfFeedPostView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts/{id}/open": {
       "post": {
         "tags": [
@@ -3522,6 +3589,16 @@
                 "$ref": "#/components/schemas/ProfileCover"
               }
             ]
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileOwner"
+              }
+            ]
           }
         }
       },
@@ -3581,6 +3658,32 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "ProfileOwner": {
+        "required": [
+          "id",
+          "name",
+          "nickname"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -12,7 +12,16 @@ import UiState from '../ui/UiState.vue'
 import type { FeedState } from '../../api/feeds'
 import { t } from '../../i18n'
 
-const props = defineProps<{ title: string; state: FeedState; loadingMore?: boolean; moreFailed?: boolean }>()
+// A page with its own heading (the topic page, E11-01) gives no `title` but a `label` for the list's region, and may
+// put its own words and action into the empty state.
+const props = defineProps<{
+  title?: string
+  label?: string
+  state: FeedState
+  loadingMore?: boolean
+  moreFailed?: boolean
+  emptyText?: string
+}>()
 
 const emit = defineEmits<{ retry: []; more: [] }>()
 
@@ -49,8 +58,13 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
 </script>
 
 <template>
-  <section class="feed" aria-labelledby="feed-title" data-testid="feed">
-    <h1 id="feed-title" class="feed__title">{{ title }}</h1>
+  <section
+    class="feed"
+    :aria-labelledby="title ? 'feed-title' : undefined"
+    :aria-label="title ? undefined : label"
+    data-testid="feed"
+  >
+    <h1 v-if="title" id="feed-title" class="feed__title">{{ title }}</h1>
 
     <div v-if="state.status === 'loading'" class="feed__list" aria-busy="true" data-testid="feed-loading">
       <span class="visually-hidden" role="status">{{ t('feed.loading') }}</span>
@@ -64,7 +78,10 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
       </template>
     </UiState>
 
-    <UiState v-else-if="items.length === 0" data-testid="feed-empty">{{ t('feed.empty') }}</UiState>
+    <UiState v-else-if="items.length === 0" data-testid="feed-empty">
+      {{ emptyText ?? t('feed.empty') }}
+      <template v-if="$slots['empty-actions']" #actions><slot name="empty-actions" /></template>
+    </UiState>
 
     <template v-else>
       <ol class="feed__list" data-testid="feed-list">

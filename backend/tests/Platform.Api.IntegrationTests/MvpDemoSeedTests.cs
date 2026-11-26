@@ -74,7 +74,8 @@ public sealed class MvpDemoSeedTests(PostgresFixture postgres)
         var posts = demo.Posts.ToDictionary(p => p.Id);
         var comments = demo.Comments.ToDictionary(c => c.Id);
 
-        // Each account owns one personal blog.
+        // Each account owns one personal blog; each topic is owned by a demo account (ADR-0082).
+        Assert.All(demo.Blogs.Where(b => b.Type == SubsiteType.Topic), b => Assert.Contains(b.OwnerAccountId!.Value, accounts));
         Assert.All(demo.Blogs.Where(b => b.Type == SubsiteType.Personal), b => Assert.Contains(b.OwnerAccountId!.Value, accounts));
         Assert.Equal(accounts.Count, demo.Blogs.Select(b => b.OwnerAccountId).OfType<Guid>().Distinct().Count());
 
