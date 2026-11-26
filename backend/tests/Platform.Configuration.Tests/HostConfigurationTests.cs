@@ -11,7 +11,7 @@ public sealed class HostConfigurationTests
     public void WorkersHostDoesNotStartWithoutConnectionStringsAndNamesThem()
     {
         var e = Assert.Throws<InvalidConfigurationException>(
-            () => WorkerHost.CreateBuilder(["--environment", PlatformEnvironments.Production]));
+            () => WorkerHost.CreateBuilder(HostSettings.Workers("--environment", PlatformEnvironments.Production)));
 
         Assert.Contains("ConnectionStrings:RabbitMq is required (environment variable ConnectionStrings__RabbitMq)", e.Message, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings:Redis is required (environment variable ConnectionStrings__Redis)", e.Message, StringComparison.Ordinal);
@@ -22,7 +22,7 @@ public sealed class HostConfigurationTests
     public void WorkersHostDoesNotStartWithoutSmtpSettingsAndNamesThem()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", _database]));
+            HostSettings.Workers("--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", _database)));
 
         Assert.Contains("Mail:Smtp:Host is required (environment variable Mail__Smtp__Host)", e.Message, StringComparison.Ordinal);
         Assert.Contains("Mail:From:Address is required (environment variable Mail__From__Address)", e.Message, StringComparison.Ordinal);
@@ -32,8 +32,8 @@ public sealed class HostConfigurationTests
     public void WorkersHostWithFakeMailNeedsNoSmtpSettings()
     {
         var builder = WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
-                "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory", _database]);
+            HostSettings.Workers("--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory", _database));
 
         Assert.Equal("InMemory", builder.Configuration["Mail:Provider"]);
     }
@@ -42,8 +42,8 @@ public sealed class HostConfigurationTests
     public void WorkersHostRejectsUnknownMailProvider()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
-                "--Cache:Provider", "InMemory", "--Mail:Provider", "Sendgrid", _database]));
+            HostSettings.Workers("--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory",
+                "--Cache:Provider", "InMemory", "--Mail:Provider", "Sendgrid", _database)));
 
         Assert.Contains(e.Problems, p => p.Contains("Mail:Provider", StringComparison.Ordinal));
     }
@@ -52,7 +52,7 @@ public sealed class HostConfigurationTests
     public void WorkersHostRejectsUnknownEnvironment()
     {
         var e = Assert.Throws<InvalidConfigurationException>(() => WorkerHost.CreateBuilder(
-            ["--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory", _database]));
+            HostSettings.Workers("--environment", "Prod", "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory", _database)));
 
         Assert.Contains("environment 'Prod' is unknown", Assert.Single(e.Problems), StringComparison.Ordinal);
     }
@@ -66,8 +66,8 @@ public sealed class HostConfigurationTests
         File.WriteAllText(Path.Combine(secrets.Path, "Mail__Smtp__Password"), "smtp-pass");
 
         var builder = WorkerHost.CreateBuilder(
-            ["--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path,
-                "--Mail:Smtp:Host", "smtp.example.org", "--Mail:From:Address", "noreply@example.org", _database]);
+            HostSettings.Workers("--environment", PlatformEnvironments.Production, "--Secrets:Directory", secrets.Path,
+                "--Mail:Smtp:Host", "smtp.example.org", "--Mail:From:Address", "noreply@example.org", _database));
 
         Assert.Equal("redis:6379,password=pass", builder.Configuration["ConnectionStrings:Redis"]);
         Assert.Equal("smtp-pass", builder.Configuration["Mail:Smtp:Password"]);

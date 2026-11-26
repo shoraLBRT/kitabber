@@ -12,9 +12,9 @@ namespace Platform.Configuration.Tests;
 /// <summary>E01-09 (#20) for the workers host: OpenTelemetry listens to the platform, the bus and the database.</summary>
 public sealed class WorkerObservabilityTests
 {
-    private static readonly string[] _args =
-        ["--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory",
-            "--ConnectionStrings:Platform", "Host=localhost;Database=never_contacted"];
+    private static readonly string[] _args = HostSettings.Workers(
+        "--environment", PlatformEnvironments.Production, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory", "--Mail:Provider", "InMemory",
+        "--ConnectionStrings:Platform", "Host=localhost;Database=never_contacted");
 
     [Theory]
     [InlineData("Platform.Workers.Sample")]
@@ -40,6 +40,20 @@ public sealed class WorkerObservabilityTests
 
         var console = host.Services.GetRequiredService<IOptionsMonitor<ConsoleLoggerOptions>>().CurrentValue;
         Assert.Equal(ConsoleFormatterNames.Json, console.FormatterName);
+    }
+
+    // #411: the test output folder holds whichever host's appsettings.json was built last, so the workers'
+    // settings must come from the workers' own folder, whatever the build order.
+    [Fact]
+    public void WorkersReadTheirOwnSettingsFiles()
+    {
+        using var host = WorkerHost.CreateBuilder(_args).Build();
+
+        var contentRoot = host.Services.GetRequiredService<IHostEnvironment>().ContentRootPath;
+        Assert.Equal(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(HostSettings.ContentRoot("Workers"))),
+            Path.TrimEndingDirectorySeparator(contentRoot));
+        Assert.True(File.Exists(Path.Combine(contentRoot, "appsettings.json")));
     }
 
     [Fact]
