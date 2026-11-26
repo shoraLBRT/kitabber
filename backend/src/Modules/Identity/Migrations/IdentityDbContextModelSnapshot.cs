@@ -633,6 +633,38 @@ namespace Platform.Modules.Identity.Migrations
                     b.ToTable("password_resets", "identity");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Identity.SignIn.AccountSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Device")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("device");
+
+                    b.Property<DateTimeOffset>("LastActiveAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_active_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_sessions");
+
+                    b.HasIndex("AccountId", "LastActiveAt")
+                        .HasDatabaseName("ix_account_sessions_account_id_last_active_at");
+
+                    b.ToTable("account_sessions", "identity");
+                });
+
             modelBuilder.Entity("Platform.Modules.Identity.SignIn.SignInCode", b =>
                 {
                     b.Property<string>("NormalizedEmail")
@@ -726,6 +758,16 @@ namespace Platform.Modules.Identity.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_email_confirmations_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Identity.SignIn.AccountSession", b =>
+                {
+                    b.HasOne("Platform.Modules.Identity.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_account_sessions_accounts_account_id");
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>

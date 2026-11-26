@@ -26,7 +26,8 @@ public sealed class IdentityDatabaseTests(PostgresFixture postgres)
 
         Assert.Equal(
             [
-                "identity.__ef_migrations_history", "identity.accounts", "identity.email_confirmations",
+                "identity.__ef_migrations_history", "identity.account_sessions", "identity.accounts",
+                "identity.email_confirmations",
                 "identity.inbox_state", "identity.oidc_applications", "identity.oidc_authorizations",
                 "identity.oidc_scopes", "identity.oidc_tokens", "identity.outbox_message", "identity.outbox_state",
                 "identity.password_resets", "identity.sign_in_codes",

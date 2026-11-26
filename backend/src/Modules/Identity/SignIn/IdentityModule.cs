@@ -151,6 +151,8 @@ public static class IdentityModule
                 if (string.IsNullOrWhiteSpace(authority))
                 {
                     validation.UseLocalServer();
+                    // The provider's own sessions: a signed-out device's access token stops within a minute (ADR-0078).
+                    validation.AddEventHandler(EndedSessionValidation.Descriptor);
                 }
                 else
                 {
@@ -209,6 +211,9 @@ public static class IdentityModule
         services.AddRateLimitPolicy(SignInEndpoints.CodePolicy, IdentitySettings.SignInCodePolicy);
         services.AddRateLimitPolicy(SignInEndpoints.AddressCodePolicy, IdentitySettings.SignInCodeAddressPolicy);
         services.AddApiEndpoints<SignInEndpoints>();
+        services.AddMemoryCache();
+        services.AddScoped<AccountSessions>();
+        services.AddApiEndpoints<SessionEndpoints>();
         services.AddScoped<Passwords.AccountPasswords>();
         services.AddApiEndpoints<Passwords.PasswordEndpoints>();
     }

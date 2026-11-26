@@ -20,15 +20,17 @@ internal static class AuthorizationEndpoint
     /// session the person goes to the sign-in window and comes back here; with <c>prompt=none</c> the client gets
     /// <c>login_required</c> instead.
     /// </summary>
-    public static async Task<IResult> Authorize(HttpContext context, IdentityDbContext db, AccessTokenAudience audience)
+    public static async Task<IResult> Authorize(HttpContext context, AccessTokenAudience audience)
     {
         var request = context.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request is missing.");
         var session = await context.AuthenticateAsync(IdentityModule.SessionScheme);
         var accountId = session.Succeeded ? AccountOf(session.Principal) : null;
-        if (accountId is { } id && !await ProviderSession.IsCurrentAsync(db, id, session.Principal, context.RequestAborted))
+        Guid? sessionId = null;
+        if (accountId is { } id && (sessionId = await ProviderSession.ResumeAsync(context, id, session.Principal)) is null)
         {
-            // The account is gone, or its password was reset since (ADR-0036): the session means nothing any more.
+            // The account is gone, its password was reset since (ADR-0036) or the device was signed out from another
+            // one (ADR-0078): the session means nothing any more.
             await context.SignOutAsync(IdentityModule.SessionScheme);
             accountId = null;
         }
@@ -51,6 +53,8 @@ internal static class AuthorizationEndpoint
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme, Claims.Name, Claims.Role);
         // sub is the account_id (FR-ID-2): the only thing about the person a token says.
         identity.SetClaim(Claims.Subject, accountId.Value.ToString("D"));
+        // sid is the device session (ADR-0078): ending it stops the refresh tokens at once, the access tokens soon.
+        identity.SetClaim(ProviderSession.SessionClaim, sessionId!.Value.ToString("D"));
         var principal = new ClaimsPrincipal(identity);
         // offline_access asks for a refresh token (ADR-0024); nothing else is granted.
         principal.SetScopes(request.GetScopes().Intersect([Scopes.OpenId, Scopes.OfflineAccess]));
@@ -64,7 +68,7 @@ internal static class AuthorizationEndpoint
     /// already redeemed the refresh token, issued for this client, and, when the token had been redeemed before (a
     /// stolen copy used after the leeway), revoked the whole authorization instead of running this (ADR-0024).
     /// </summary>
-    public static async Task<IResult> Exchange(HttpContext context, IdentityDbContext db)
+    public static async Task<IResult> Exchange(HttpContext context, AccountSessions sessions)
     {
         var request = context.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request is missing.");
@@ -78,10 +82,11 @@ internal static class AuthorizationEndpoint
         var result = await context.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         if (result.Principal is not { } principal
             || AccountOf(principal) is not { } id
-            || !await db.Accounts.AnyAsync(a => a.Id == id, context.RequestAborted))
+            || ProviderSession.SessionOf(principal) is not { } sessionId
+            || !await sessions.TouchAsync(id, sessionId, context.RequestAborted))
         {
             return Results.Forbid(
-                Error(Errors.InvalidGrant, "The account no longer exists."),
+                Error(Errors.InvalidGrant, "The account or its session no longer exists."),
                 [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
         }
 

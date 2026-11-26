@@ -28,6 +28,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
 
     public DbSet<Passwords.PasswordReset> PasswordResets => Set<Passwords.PasswordReset>();
 
+    public DbSet<SignIn.AccountSession> AccountSessions => Set<SignIn.AccountSession>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -76,6 +78,15 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             reset.HasKey(r => r.NormalizedEmail);
             reset.Property(r => r.NormalizedEmail).HasMaxLength(EmailAddresses.MaxLength);
             reset.HasIndex(r => r.Id).IsUnique();
+        });
+        // The devices signed in (ADR-0078): one row per session at the provider, gone when it is signed out.
+        modelBuilder.Entity<SignIn.AccountSession>(session =>
+        {
+            session.HasKey(s => s.Id);
+            session.Property(s => s.Id).ValueGeneratedNever();
+            session.Property(s => s.Device).HasMaxLength(SignIn.AccountSession.DeviceMaxLength);
+            session.HasIndex(s => new { s.AccountId, s.LastActiveAt });
+            session.HasOne<Account>().WithMany().HasForeignKey(s => s.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
