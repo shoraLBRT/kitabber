@@ -182,8 +182,8 @@ posts.MapPost("/", Create).WithRateLimit("posts.create");
 `tests/api-client.spec.ts` каждого клиента падает, если `schema.d.ts` отстал от снимка или в коде есть ручной
 `fetch` к API.
 
-Почта ([ADR-0017](adr/0017-mail.md)): код модуля вызывает `IMailer.SendAsync(адрес, "login-code", культура, значения)`
-— письмо рендерится сразу из `backend/src/Mail/Templates` и уходит в очередь сообщением `SendEmail`; воркеры
+Почта ([ADR-0017](adr/0017-mail.md)): код модуля вызывает `IMailer<TContext>.SendAsync(адрес, "login-code", культура,
+значения)` своего контекста — письмо ложится в outbox схемы модуля (ADR-0005, п. 7), рендерится сразу из `backend/src/Mail/Templates` и уходит в очередь сообщением `SendEmail`; воркеры
 доставляют его через `IEmailSender` (SMTP или фейк) с повтором шины. Новый шаблон — три файла в папке культуры и
 образцовые значения в `TemplateTests.Samples`; снимок пишет тест (`UPDATE_SNAPSHOTS=1`).
 

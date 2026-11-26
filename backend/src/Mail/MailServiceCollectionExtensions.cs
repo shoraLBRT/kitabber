@@ -53,7 +53,7 @@ public static class MailServiceCollectionExtensions
     public const int DefaultSmtpPort = 587;
 
     /// <summary>
-    /// Registers <see cref="IMailer"/> and the templates: for any host that sends mail. The host also needs the bus
+    /// Registers <see cref="IMailer"/>, <see cref="IMailer{TContext}"/> and the templates: for any host that sends mail. The host also needs the bus
     /// (<c>AddPlatformMessaging</c>), which carries the rendered letter to the workers.
     /// </summary>
     public static IServiceCollection AddPlatformMail(this IServiceCollection services)
@@ -63,6 +63,7 @@ public static class MailServiceCollectionExtensions
         services.TryAddSingleton(MailBrand.Default);
         services.TryAddSingleton<MailTemplateRenderer>();
         services.TryAddScoped<IMailer, Mailer>();
+        services.TryAdd(ServiceDescriptor.Scoped(typeof(IMailer<>), typeof(ModuleMailer<>)));
         return services;
     }
 

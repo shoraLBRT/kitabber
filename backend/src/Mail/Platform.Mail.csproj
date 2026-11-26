@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
+        <ProjectReference Include="../Messaging/Platform.Messaging.csproj" />
     </ItemGroup>
 
     <ItemGroup>

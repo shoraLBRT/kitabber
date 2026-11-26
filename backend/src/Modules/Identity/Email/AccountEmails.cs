@@ -3,6 +3,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Platform.Mail;
+using Platform.Messaging;
 using Platform.Modules.Identity.Contracts;
 
 namespace Platform.Modules.Identity.Email;
@@ -45,7 +46,7 @@ public enum EmailConfirmResult
 /// loses its confirmed email (and the right to publish) halfway. When the code replaces a confirmed email, the old address
 /// gets a letter about the change (E03-06), so its owner learns of a change they did not make.
 /// </summary>
-public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, IPublishEndpoint publish, TimeProvider time)
+public sealed class AccountEmails(IdentityDbContext db, IMailer<IdentityDbContext> mailer, IModuleOutbox<IdentityDbContext> publish, TimeProvider time)
 {
     public const string Template = "email-confirmation";
     public const string ChangedTemplate = "email-changed";

@@ -31,7 +31,7 @@ public sealed record SignInCodeResult(SignInCodeStatus Status, Guid? ChallengeId
 /// and are refused alike, and a code goes to every address asked for. The code proves the mailbox, so for an address no
 /// account has confirmed it creates the account; an account that only typed the address loses it.
 /// </summary>
-public sealed class SignIns(IdentityDbContext db, AccountEmails emails, IMailer mailer, TimeProvider time)
+public sealed class SignIns(IdentityDbContext db, AccountEmails emails, IMailer<IdentityDbContext> mailer, TimeProvider time)
 {
     public const string Template = "login-code";
 

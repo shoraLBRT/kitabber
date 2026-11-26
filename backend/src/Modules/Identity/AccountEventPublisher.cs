@@ -1,6 +1,6 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Platform.Messaging;
 using Platform.Modules.Identity.Contracts;
 
 namespace Platform.Modules.Identity;
@@ -14,7 +14,7 @@ internal static class AccountEventPublisher
 {
     public static async Task PublishAsync(
         IdentityDbContext db,
-        IPublishEndpoint publish,
+        IModuleOutbox<IdentityDbContext> publish,
         TimeProvider time,
         CancellationToken cancellationToken)
     {
