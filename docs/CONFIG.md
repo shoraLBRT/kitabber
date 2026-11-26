@@ -240,6 +240,19 @@ openssl rand -base64 32                                                         
 пауза — целое от 0 до 3600 секунд. Неверное значение при старте останавливает API; ставшее неверным на ходу —
 пропускает проходы с ошибкой в журнале, очки остаются прежними.
 
+### Подсказки поиска: модуль Search в API
+
+Подсказки поиска в шапке (`GET /api/v1/search/suggestions`, [ADR-0097](adr/0097-search-suggestions-and-history.md))
+читают те же индексы, что пишут воркеры, поэтому API читает и `Search:Provider`, и `Search:OpenSearch:Url` из
+раздела [воркеров](#поиск-модуль-search-в-воркерах) — значения в обоих хостах должны совпадать. Своя политика лимита
+частоты — сверх `Default`; значения по умолчанию — предложение, требует подтверждения владельца.
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
+| --- | --- | --- | --- | --- | --- |
+| `RateLimiting:Policies:search.suggestions:PermitLimit` | `RateLimiting__Policies__search.suggestions__PermitLimit` | нет | нет | `120` | политика `search.suggestions` — подсказки поиска при наборе запроса (`GET /api/v1/search/suggestions`, E14-02): сколько запросов за окно |
+| `RateLimiting:Policies:search.suggestions:WindowSeconds` | `RateLimiting__Policies__search.suggestions__WindowSeconds` | нет | нет | `60` | длина окна политики `search.suggestions` в секундах |
+| `RateLimiting:Policies:search.suggestions:Partition` | `RateLimiting__Policies__search.suggestions__Partition` | нет | нет | `Account` | кого считает один счётчик `search.suggestions`: `Account` (аккаунт; гостя — по IP) или `Ip` |
+
 ## Воркеры (`backend/src/Workers`)
 
 Плюс настройки наблюдаемости (выше).

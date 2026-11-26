@@ -25,4 +25,11 @@ public interface ISearchIndex
     /// </summary>
     Task<IReadOnlyList<Guid>> SearchAsync(
         SearchIndexKind index, string query, int size, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Up to <paramref name="size"/> documents of <paramref name="index"/> for a query still being typed (E14-02,
+    /// ADR-0097): every word but the last in some form, the last one as the start of a word, most relevant first.
+    /// </summary>
+    Task<IReadOnlyList<IndexedDocument>> SuggestAsync(
+        SearchIndexKind index, string query, int size, CancellationToken cancellationToken);
 }

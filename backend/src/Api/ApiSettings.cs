@@ -9,6 +9,7 @@ using Platform.Modules.Comments;
 using Platform.Modules.Identity.SignIn;
 using Platform.Modules.Media;
 using Platform.Modules.Posts;
+using Platform.Modules.Search;
 using Platform.Observability;
 
 namespace Platform.Api;
@@ -23,7 +24,7 @@ public static class ApiSettings
     [
         .. ObservabilitySettings.All, .. CacheSettings.All, .. RateLimitingSettings.All, .. IdentitySettings.All,
         .. MessagingSettings.All, .. MediaSettings.All, .. CommentsSettings.All, .. PostsSettings.All,
-        .. BlogsSettings.All,
+        .. BlogsSettings.All, .. SearchModule.ApiSettings,
     ];
 
     /// <summary>

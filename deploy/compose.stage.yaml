@@ -57,6 +57,9 @@ services:
       Media__Images__BaseUrl: ${SITE_URL:?set in the env file}/img
       Media__Images__Key: ${IMGPROXY_KEY:?set in the env file}
       Media__Images__Salt: ${IMGPROXY_SALT:?set in the env file}
+      # The search suggestions read the indexes the workers write (ADR-0097); without OpenSearch they answer 503 and
+      # the rest of the API keeps working, so the API does not wait for it.
+      Search__OpenSearch__Url: http://opensearch:9200
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

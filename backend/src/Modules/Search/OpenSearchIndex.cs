@@ -148,6 +148,62 @@ public sealed class OpenSearchIndex : ISearchIndex, IDisposable
         return [.. result!["hits"]!["hits"]!.AsArray().Select(h => Guid.Parse(h!["_id"]!.GetValue<string>()))];
     }
 
+    public async Task<IReadOnlyList<IndexedDocument>> SuggestAsync(
+        SearchIndexKind index, string query, int size, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        // bool_prefix: the words before the last one are matched as in SearchAsync, the last one as the start of a
+        // word, so «кош» already finds «кошка» while it is typed (ADR-0097).
+        var request = new JsonObject
+        {
+            ["size"] = size,
+            ["query"] = new JsonObject
+            {
+                ["multi_match"] = new JsonObject
+                {
+                    ["query"] = query,
+                    ["type"] = "bool_prefix",
+                    ["fields"] = new JsonArray([.. Fields(index).Select(f => (JsonNode)f)]),
+                    ["operator"] = "and",
+                },
+            },
+        };
+        using var response = await _http.PostAsync(
+            new Uri($"{Alias(index)}/_search", UriKind.Relative), Json(request.ToJsonString()), cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<JsonObject>(cancellationToken);
+        return [.. result!["hits"]!["hits"]!.AsArray().Select(h => Deserialize(
+            index, Guid.Parse(h!["_id"]!.GetValue<string>()), h["_source"]!.AsObject()))];
+    }
+
+    /// <summary>The document <paramref name="id"/> of <paramref name="index"/> from the JSON <see cref="Serialize"/> wrote.</summary>
+    public static IndexedDocument Deserialize(SearchIndexKind index, Guid id, JsonObject source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return index switch
+        {
+            SearchIndexKind.Posts => new IndexedPost(
+                id,
+                source["blogId"]!.GetValue<Guid>(),
+                source["authorAccountId"]!.GetValue<Guid>(),
+                source["title"]?.GetValue<string>(),
+                source["text"]?.GetValue<string>() ?? string.Empty,
+                source["publishedAt"]!.GetValue<DateTimeOffset>()),
+            _ => new IndexedBlog(
+                id,
+                source["kind"]!.GetValue<string>(),
+                source["ownerAccountId"]?.GetValue<Guid>(),
+                source["name"]?.GetValue<string>(),
+                source["nickname"]?.GetValue<string>(),
+                source["description"]?.GetValue<string>()),
+        };
+    }
+
     // The fields a query searches, the most telling first.
     private static string[] Fields(SearchIndexKind index) => index switch
     {

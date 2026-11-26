@@ -69,6 +69,29 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
     }
 
     [Fact]
+    public async Task SuggestionsFindTheStartOfTheLastWordWithTheDocument()
+    {
+        using var index = NewIndex();
+        var post = Post("Как воспитывать котов", "Коты любят спать.");
+        var topic = new IndexedBlog(Guid.CreateVersion7(_at), IndexedBlog.TopicKind, null, "Астрономия", "astro", null);
+        await index.PutAsync(post, Ct);
+        await index.PutAsync(topic, Ct);
+
+        var deadline = DateTime.UtcNow + _timeout;
+        while ((await index.SuggestAsync(SearchIndexKind.Posts, "воспитывать ко", 5, Ct)).Count == 0)
+        {
+            Assert.True(DateTime.UtcNow < deadline, "the post was never suggested");
+            await Task.Delay(200, Ct);
+        }
+
+        Assert.Equal([post], await index.SuggestAsync(SearchIndexKind.Posts, "воспитывать ко", 5, Ct));
+        Assert.Equal([topic], await index.SuggestAsync(SearchIndexKind.Blogs, "астр", 5, Ct));
+        Assert.Empty(await index.SuggestAsync(SearchIndexKind.Posts, "собаки ко", 5, Ct));
+        using var empty = NewIndex();
+        Assert.Empty(await empty.SuggestAsync(SearchIndexKind.Blogs, "астр", 5, Ct));
+    }
+
+    [Fact]
     public async Task SearchingAnIndexThatWasNeverWrittenFindsNothing()
     {
         using var index = NewIndex();

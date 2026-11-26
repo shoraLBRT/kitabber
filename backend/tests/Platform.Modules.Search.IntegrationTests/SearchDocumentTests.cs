@@ -27,4 +27,21 @@ public sealed class SearchDocumentTests
 
         Assert.Equal(["description", "kind", "name", "nickname", "ownerAccountId"], json.Select(p => p.Key).Order());
     }
+
+    [Fact]
+    public void DocumentsReadBackAsTheyWereWritten()
+    {
+        IndexedDocument[] documents =
+        [
+            new IndexedPost(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, "Короткий пост", _at),
+            new IndexedBlog(Guid.NewGuid(), IndexedBlog.PersonalKind, Guid.NewGuid(), "Анна", "anna", "О кошках"),
+            new IndexedBlog(Guid.NewGuid(), IndexedBlog.TopicKind, null, "Тема", null, null),
+        ];
+
+        foreach (var document in documents)
+        {
+            var source = JsonNode.Parse(OpenSearchIndex.Serialize(document))!.AsObject();
+            Assert.Equal(document, OpenSearchIndex.Deserialize(document.Index, document.Id, source));
+        }
+    }
 }

@@ -45,15 +45,26 @@ public sealed class InMemorySearchIndex : ISearchIndex
         SearchIndexKind index, string query, int size, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        IReadOnlyList<Guid> found = words.Length == 0
-            ? []
-            : [.. Of(index).Values
-                .Where(d => words.All(w => d.SearchableText()
-                    .Any(t => t?.Contains(w, StringComparison.OrdinalIgnoreCase) == true)))
-                .Select(d => d.Id)
-                .Take(size)];
+        IReadOnlyList<Guid> found = [.. Matching(index, query).Select(d => d.Id).Take(size)];
         return Task.FromResult(found);
+    }
+
+    /// <summary>The same words as <see cref="SearchAsync"/>, a part of a word being enough; in the order of the ids.</summary>
+    public Task<IReadOnlyList<IndexedDocument>> SuggestAsync(
+        SearchIndexKind index, string query, int size, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        IReadOnlyList<IndexedDocument> found = [.. Matching(index, query).OrderBy(d => d.Id).Take(size)];
+        return Task.FromResult(found);
+    }
+
+    private IEnumerable<IndexedDocument> Matching(SearchIndexKind index, string query)
+    {
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return words.Length == 0
+            ? []
+            : Of(index).Values.Where(d => words.All(w => d.SearchableText()
+                .Any(t => t?.Contains(w, StringComparison.OrdinalIgnoreCase) == true)));
     }
 
     private ConcurrentDictionary<Guid, IndexedDocument> Of(SearchIndexKind index) => _indexes.GetOrAdd(index, _ => new());
