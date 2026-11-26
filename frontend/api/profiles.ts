@@ -119,6 +119,33 @@ export async function saveOwnProfile(client: ApiClient, input: ProfileInput): Pr
   }
 }
 
+// The nickname (E04-05, ADR-0090): free among blogs and topics, not a reserved address, changed once in 30 days. The
+// API checks all of it; the form only checks the shape as the person types.
+export type NicknameSave = ProfileSave | { status: 'too-soon'; message: string }
+
+/** Field error of a nickname before it is sent, as the API would give it; null when the shape fits. */
+export function nicknameInputError(value: string): string | null {
+  const nick = value.trim().replace(/^@/, '')
+  if (!nick) return t('settings.nicknameRequired')
+  const key = blogKey(nick)
+  return key && 'nickname' in key ? null : t('settings.nicknameForm')
+}
+
+/** Changes the own nickname (PUT /profiles/me/nickname); a change sooner than 30 days after the last is `too-soon`. */
+export async function saveOwnNickname(client: ApiClient, nickname: string): Promise<NicknameSave> {
+  try {
+    const { data, error, response } = await client.PUT('/api/v1/profiles/me/nickname', { body: { nickname } })
+    if (data) return { status: 'saved', profile: data }
+    if (response.status === 400) return { status: 'invalid', errors: fieldErrors(error) }
+    if (response.status === 401) return { status: 'unauthorized' }
+    if (response.status === 409)
+      return { status: 'too-soon', message: (error as { detail?: string } | undefined)?.detail ?? '' }
+    return { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
 // The cover (E04-04, ADR-0079): an uploaded image and the vertical position, in percent, of the band the header shows.
 export type ProfileCover = components['schemas']['ProfileCover']
 export type CoverInput = components['schemas']['CoverInput']

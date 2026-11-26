@@ -241,6 +241,30 @@ namespace Platform.Modules.Blogs.Migrations
                     b.ToTable("outbox_state", "blogs");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Blogs.FormerNickname", b =>
+                {
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("nickname");
+
+                    b.Property<DateTimeOffset>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<Guid>("SubsiteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subsite_id");
+
+                    b.HasKey("Nickname")
+                        .HasName("pk_former_nicknames");
+
+                    b.HasIndex("SubsiteId")
+                        .HasDatabaseName("ix_former_nicknames_subsite_id");
+
+                    b.ToTable("former_nicknames", "blogs");
+                });
+
             modelBuilder.Entity("Platform.Modules.Blogs.Subscriptions.Subscription", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -301,6 +325,10 @@ namespace Platform.Modules.Blogs.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("nickname");
 
+                    b.Property<DateTimeOffset?>("NicknameChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("nickname_changed_at");
+
                     b.Property<Guid?>("OwnerAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("owner_account_id");
@@ -338,6 +366,16 @@ namespace Platform.Modules.Blogs.Migrations
                         .HasForeignKey("InboxMessageId", "InboxConsumerId")
                         .HasPrincipalKey("MessageId", "ConsumerId")
                         .HasConstraintName("fk_outbox_message_inbox_state_inbox_message_id_inbox_consumer_");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Blogs.FormerNickname", b =>
+                {
+                    b.HasOne("Platform.Modules.Blogs.Subsite", null)
+                        .WithMany()
+                        .HasForeignKey("SubsiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_former_nicknames_subsites_subsite_id");
                 });
 
             modelBuilder.Entity("Platform.Modules.Blogs.Subscriptions.Subscription", b =>

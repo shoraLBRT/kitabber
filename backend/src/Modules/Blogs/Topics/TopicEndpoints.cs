@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Platform.Http;
 using Platform.Http.Problems;
 
@@ -96,7 +95,8 @@ public sealed class TopicEndpoints : IApiEndpoints
             errors["name"] = ["Тема с таким названием уже есть."];
         }
 
-        if (!errors.ContainsKey("nickname") && await db.Subsites.AnyAsync(s => s.Nickname == nickname, ct))
+        var now = time.GetUtcNow();
+        if (!errors.ContainsKey("nickname") && await BlogAddresses.IsTakenAsync(db, nickname!, null, now, ct))
         {
             errors["nickname"] = [_addressTaken];
         }
@@ -106,17 +106,16 @@ public sealed class TopicEndpoints : IApiEndpoints
             return ApiProblems.Validation(errors);
         }
 
-        var topic = Subsite.CreateTopic(name!, nickname!, accountId, time.GetUtcNow());
+        var topic = Subsite.CreateTopic(name!, nickname!, accountId, now);
         topic.Describe(input.Description);
+        // A nickname a blog gave up long ago stops leading to that blog (ADR-0090).
+        await BlogAddresses.ClaimAsync(db, nickname!, ct);
         db.Subsites.Add(topic);
         try
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: BlogsDbContext.NicknameIndex,
-        })
+        catch (DbUpdateException e) when (BlogAddresses.IsAddressRace(e))
         {
             // Someone took the address between the check and the save.
             return ApiProblems.Validation(new Dictionary<string, string[]> { ["nickname"] = [_addressTaken] });
@@ -154,10 +153,7 @@ public sealed class TopicEndpoints : IApiEndpoints
                 : "Адрес — от 3 до 32 латинских букв, цифр и _, начинается с буквы.";
         }
 
-        return TopicCreationRules.IsReservedAddress(nickname)
-            || TopicCreationRules.StopWordIn(nickname, limits.StopWords) is not null
-                ? "Такой адрес выбрать нельзя."
-                : null;
+        return BlogAddresses.IsRefused(nickname, limits) ? "Такой адрес выбрать нельзя." : null;
     }
 
     // The same name in another case is a duplicate. Without a unique index two topics with one name could still be made

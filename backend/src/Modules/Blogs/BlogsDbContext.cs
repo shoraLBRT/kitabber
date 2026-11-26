@@ -25,7 +25,13 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
     /// <summary>The subscribers of a blog, counted for its profile (ADR-0085).</summary>
     public const string SubscriptionBlogIndex = "ix_subscriptions_subsite";
 
+    /// <summary>The primary key of the nicknames blogs gave up: one record per nickname (ADR-0090).</summary>
+    public const string FormerNicknameKey = "pk_former_nicknames";
+
     public DbSet<Subsite> Subsites => Set<Subsite>();
+
+    /// <summary>The nicknames blogs gave up and whose addresses lead to the blogs' new ones (E04-05, ADR-0090).</summary>
+    public DbSet<FormerNickname> FormerNicknames => Set<FormerNickname>();
 
     /// <summary>Who follows which blog or topic (E11-03, ADR-0085).</summary>
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
@@ -47,6 +53,13 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
             subsite.HasIndex(s => s.Nickname).IsUnique().HasDatabaseName(NicknameIndex);
             subsite.HasIndex(s => s.OwnerAccountId).IsUnique().HasDatabaseName(PersonalBlogIndex)
                 .HasFilter("type = 'Personal'");
+        });
+        modelBuilder.Entity<FormerNickname>(former =>
+        {
+            former.HasKey(f => f.Nickname).HasName(FormerNicknameKey);
+            former.Property(f => f.Nickname).HasMaxLength(SubsiteRules.NicknameMaxLength);
+            former.HasIndex(f => f.SubsiteId);
+            former.HasOne<Subsite>().WithMany().HasForeignKey(f => f.SubsiteId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Subscription>(subscription =>
         {

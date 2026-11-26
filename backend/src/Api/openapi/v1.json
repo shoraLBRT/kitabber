@@ -896,6 +896,67 @@
         }
       }
     },
+    "/api/v1/profiles/me/nickname": {
+      "put": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Changes the nickname of the signed-in account's personal blog: free, not reserved, once in 30 days",
+        "operationId": "ChangeOwnNickname",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NicknameInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/profiles/me/cover": {
       "put": {
         "tags": [
@@ -3583,6 +3644,20 @@
           }
         }
       },
+      "NicknameInput": {
+        "required": [
+          "nickname"
+        ],
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "OwnCommentsView": {
         "required": [
           "postId",
@@ -3999,6 +4074,13 @@
           "subscribed": {
             "type": "boolean",
             "default": false
+          },
+          "nicknameChangeableFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

@@ -167,8 +167,8 @@ public sealed class Subsite
     }
 
     /// <summary>
-    /// Sets the nickname. Only its form is checked here; whether it is taken or reserved, and how often it may change,
-    /// is E04-05.
+    /// Sets the nickname without counting it as a change: for topics, the demo data and the tests. Only its form is
+    /// checked here; whether it is taken or reserved is checked by the caller (<see cref="BlogAddresses"/>).
     /// </summary>
     public void SetNickname(string? nickname)
     {
@@ -176,6 +176,70 @@ public sealed class Subsite
             ?? throw new ArgumentException("Not a nickname the platform accepts.", nameof(nickname));
         Nickname = value;
     }
+
+    /// <summary>
+    /// When the owner last changed the nickname (E04-05, ADR-0090); <c>null</c> until the first change. Setting the first
+    /// nickname of a blog that had none is not a change.
+    /// </summary>
+    public DateTimeOffset? NicknameChangedAt { get; private set; }
+
+    /// <summary>
+    /// From when the owner may change the nickname again: <see cref="SubsiteRules.NicknameChangeInterval"/> after the last
+    /// change; <c>null</c> when it was never changed.
+    /// </summary>
+    public DateTimeOffset? NicknameChangeableFrom => NicknameChangedAt + SubsiteRules.NicknameChangeInterval;
+
+    /// <summary>Whether the owner may change the nickname at <paramref name="now"/> (ADR-0090: once in 30 days).</summary>
+    public bool CanChangeNicknameAt(DateTimeOffset now) => NicknameChangeableFrom is not { } from || now >= from;
+
+    /// <summary>
+    /// The owner's change of the nickname (E04-05, ADR-0090) at <paramref name="now"/>. The first nickname of a blog that
+    /// had none is free; any later change starts <see cref="SubsiteRules.NicknameChangeInterval"/> again and throws
+    /// <see cref="InvalidOperationException"/> before it has passed. Whether the nickname is taken or reserved is checked
+    /// by the caller. Returns the nickname the blog had before, or <c>null</c> when it had none or nothing changed.
+    /// </summary>
+    public string? ChangeNickname(string nickname, DateTimeOffset now)
+    {
+        var value = SubsiteRules.NormalizeNickname(nickname)
+            ?? throw new ArgumentException("Not a nickname the platform accepts.", nameof(nickname));
+        if (value == Nickname)
+        {
+            return null;
+        }
+
+        var former = Nickname;
+        if (former is not null)
+        {
+            if (!CanChangeNicknameAt(now))
+            {
+                throw new InvalidOperationException($"The nickname may change again from {NicknameChangeableFrom:O}.");
+            }
+
+            NicknameChangedAt = now;
+        }
+
+        Nickname = value;
+        return former;
+    }
+}
+
+/// <summary>
+/// A nickname a blog gave up (E04-05, ADR-0090). Its address leads to the blog's new one until another blog or topic takes
+/// it; for <see cref="SubsiteRules.FormerNicknameHold"/> after <see cref="ReleasedAt"/> nobody else may.
+/// </summary>
+public sealed class FormerNickname
+{
+    /// <summary>The nickname in its stored form; one record per nickname.</summary>
+    public required string Nickname { get; init; }
+
+    /// <summary>The blog that had it.</summary>
+    public Guid SubsiteId { get; init; }
+
+    /// <summary>When the blog gave it up.</summary>
+    public DateTimeOffset ReleasedAt { get; init; }
+
+    /// <summary>Whether another blog may take it at <paramref name="now"/>.</summary>
+    public bool IsFreeAt(DateTimeOffset now) => now >= ReleasedAt + SubsiteRules.FormerNicknameHold;
 }
 
 /// <summary>The rules of a blog's profile (FR-PROFILE).</summary>
@@ -192,6 +256,15 @@ public static partial class SubsiteRules
 
     /// <summary>The middle of the picture: where a new cover starts.</summary>
     public const int CoverPositionDefault = 50;
+
+    /// <summary>How often the owner may change the nickname (FR-PROFILE: not more than once in 30 days).</summary>
+    public static readonly TimeSpan NicknameChangeInterval = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// How long a nickname a blog gave up stays its own (ADR-0090, a proposal awaiting the owner's confirmation): no
+    /// other blog or topic may take it in that time.
+    /// </summary>
+    public static readonly TimeSpan FormerNicknameHold = TimeSpan.FromDays(90);
 
     public const int NicknameMinLength = 3;
     public const int NicknameMaxLength = 32;
