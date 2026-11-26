@@ -80,6 +80,7 @@ const owner = computed(() => topic.value?.owner ?? null)
           v-if="shownSubscription"
           :state="shownSubscription"
           :busy="props.subscription?.busy"
+          :blog-id="topic.id"
           @toggle="$emit('subscribe')"
         />
       </div>

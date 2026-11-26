@@ -1260,6 +1260,67 @@ function changeSubscription(request, response, blogId) {
   return send(response, 200, { subscriberCount, subscribed })
 }
 
+// The lists behind the numbers (E04-06, ADR-0099): GET /api/v1/blogs/{id}/subscribers and …/subscriptions, page by
+// page with a cursor (here the offset), exactly as many rows as subscriptionFields counts. The 41 others of «Книги» are
+// readers «Читатель 1…41»; the person's own subscription comes first, as the newest. Only the person's own blog lists
+// its subscriptions (the others follow no one here). The subscribers of «Сбой» fail as an unavailable API would.
+function listCard(blog, request, reader) {
+  return {
+    id: blog.id,
+    type: blog.type,
+    name: blog.name,
+    nickname: blog.nickname,
+    avatarSources: [],
+    subscribed: Boolean(reader) && subscribedBy(request).has(blog.id),
+    own: Boolean(reader) && blog.type === 'personal' && blog.owner === reader,
+  }
+}
+
+function sendListPage(response, url, cards) {
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  const offset = Number(url.searchParams.get('cursor') ?? 0)
+  const items = cards.slice(offset, offset + limit)
+  const nextCursor = offset + limit < cards.length ? String(offset + limit) : null
+  return send(response, 200, { items, nextCursor })
+}
+
+function subscriberList(request, response, url, blogId) {
+  const blog = blogs.find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'blogs.blog_not_found' })
+  if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
+  const reader = subject(request)
+  const cards = []
+  const mine = reader && blogs.find((item) => item.type === 'personal' && item.owner === reader)
+  if (mine && subscribedBy(request).has(blog.id)) cards.push(listCard(mine, request, reader))
+  for (let i = 1; i <= (othersSubscribers[blog.nickname] ?? 0); i++) {
+    const id = `0195f3a0-0000-7000-8000-${String(900000000000 + i)}`
+    cards.push({
+      id,
+      type: 'personal',
+      name: `Читатель ${i}`,
+      nickname: `reader${i}`,
+      avatarSources: [],
+      subscribed: false,
+      own: false,
+    })
+  }
+  return sendListPage(response, url, cards)
+}
+
+function subscriptionList(request, response, url, blogId) {
+  const blog = blogs.find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'blogs.blog_not_found' })
+  if (blog.type !== 'personal')
+    return send(response, 404, { status: 404, code: 'blogs.topic_has_no_subscriptions' })
+  const reader = subject(request)
+  const followed = reader && blog.owner === reader ? [...subscribedBy(request)].reverse() : []
+  const cards = followed
+    .map((id) => blogs.find((item) => item.id === id))
+    .filter(Boolean)
+    .map((item) => listCard(item, request, reader))
+  return sendListPage(response, url, cards)
+}
+
 function readBytes(request) {
   return new Promise((resolve) => {
     const chunks = []
@@ -1548,6 +1609,12 @@ createServer(async (request, response) => {
   const [, subscriptionBlog] = url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/subscription$/) ?? []
   if (subscriptionBlog && ['PUT', 'DELETE'].includes(request.method))
     return changeSubscription(request, response, subscriptionBlog)
+  const [, listedBlog, listKind] =
+    url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/(subscribers|subscriptions)$/) ?? []
+  if (listedBlog && request.method === 'GET')
+    return listKind === 'subscribers'
+      ? subscriberList(request, response, url, listedBlog)
+      : subscriptionList(request, response, url, listedBlog)
   const [, likedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/likes$/) ?? []
   if (likedPost && request.method === 'GET') return postLikes(request, response, likedPost)
   const [, likeTarget, likeId] = url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/like$/) ?? []
