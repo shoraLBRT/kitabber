@@ -13,6 +13,7 @@
 // (E03-12): GET /api/v1/sign-in/captcha.
 // Password (E03-05): POST /api/v1/password-reset and /{id}/confirmation, PUT /api/v1/account/password.
 // Email (E03-06): GET/PUT /api/v1/account/email and POST /api/v1/account/email/confirmation; see accountEmailRoute.
+// Devices (E03-09): GET /api/v1/account/sessions, DELETE /{id}, POST /sign-out-others; see accountSessionsRoute.
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 
@@ -254,6 +255,62 @@ async function accountEmailRoute(request, response, url) {
   entry.code = String(Math.floor(100000 + Math.random() * 900000))
   letters.push({ to: email, code: entry.code })
   return send(response, 202)
+}
+
+// The devices of the account (E03-09): GET /api/v1/account/sessions, DELETE /api/v1/account/sessions/{id} and
+// POST /api/v1/account/sessions/sign-out-others with the API's answers. Kept per client address (`x-forwarded-for`),
+// as the email is: the fake provider's account starts signed in on this device and on two others.
+const accountSessions = new Map() // client address -> sessions, the current one first
+
+function sessionsOf(request) {
+  const client = clientOf(request)
+  if (!accountSessions.has(client))
+    accountSessions.set(client, [
+      {
+        id: randomUUID(),
+        device: 'Chrome, Windows',
+        createdAt: '2026-11-20T10:00:00Z',
+        lastActiveAt: new Date().toISOString(),
+        current: true,
+      },
+      {
+        id: randomUUID(),
+        device: 'Safari, iOS',
+        createdAt: '2026-11-18T08:00:00Z',
+        lastActiveAt: '2026-11-25T21:15:00Z',
+        current: false,
+      },
+      {
+        id: randomUUID(),
+        device: 'Firefox, Linux',
+        createdAt: '2026-11-02T12:00:00Z',
+        lastActiveAt: '2026-11-10T07:40:00Z',
+        current: false,
+      },
+    ])
+  return accountSessions.get(client)
+}
+
+function accountSessionsRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const client = clientOf(request)
+  const sessions = sessionsOf(request)
+  if (request.method === 'GET') return send(response, 200, sessions)
+  if (url.pathname.endsWith('/sign-out-others')) {
+    accountSessions.set(
+      client,
+      sessions.filter((s) => s.current),
+    )
+    return send(response, 200, { ended: sessions.length - 1 })
+  }
+  const id = decodeURIComponent(url.pathname.split('/').at(-1))
+  if (!sessions.some((s) => s.id === id && !s.current))
+    return send(response, 404, { status: 404, code: 'session_not_found' })
+  accountSessions.set(
+    client,
+    sessions.filter((s) => s.id !== id),
+  )
+  return send(response, 204)
 }
 
 function send(response, status, body, type = 'application/json') {
@@ -1105,7 +1162,12 @@ createServer(async (request, response) => {
     (url.pathname === '/api/v1/account/email/confirmation' && request.method === 'POST')
   )
     return accountEmailRoute(request, response, url)
-
+  if (
+    (url.pathname === '/api/v1/account/sessions' && request.method === 'GET') ||
+    (url.pathname === '/api/v1/account/sessions/sign-out-others' && request.method === 'POST') ||
+    (url.pathname.startsWith('/api/v1/account/sessions/') && request.method === 'DELETE')
+  )
+    return accountSessionsRoute(request, response, url)
   if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
     return ownPreferences(request, response)
   if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')

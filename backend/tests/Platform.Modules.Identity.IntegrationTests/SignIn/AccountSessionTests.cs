@@ -13,10 +13,10 @@ namespace Platform.Modules.Identity.IntegrationTests.SignIn;
 /// </summary>
 public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<IdentityApi>, IAsyncLifetime
 {
-    private const string SessionsPath = "/api/v1/account/sessions";
-    private const string Chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
-    private const string Safari = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
-    private const string Firefox = "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0";
+    private const string _sessionsPath = "/api/v1/account/sessions";
+    private const string _chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
+    private const string _safari = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+    private const string _firefox = "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0";
 
     private readonly List<HttpClient> _browsers = [];
 
@@ -34,9 +34,9 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
     public async Task DevicesAreListedWithTheirLastActivityAndTheCurrentOneIsMarked()
     {
         var account = await api.CreateAccountAsync();
-        var laptop = await SignInDeviceAsync(account.Id, Chrome);
+        var laptop = await SignInDeviceAsync(account.Id, _chrome);
         api.Time.Advance(TimeSpan.FromMinutes(5));
-        var phone = await SignInDeviceAsync(account.Id, Safari);
+        var phone = await SignInDeviceAsync(account.Id, _safari);
         api.Time.Advance(TimeSpan.FromMinutes(5));
         var refreshedAt = api.Time.GetUtcNow();
         var (status, _) = await RefreshAsync(laptop.Browser, laptop.RefreshToken);
@@ -64,8 +64,8 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
     public async Task SignedOutDeviceStopsWorkingAndTheOthersKeepGoing()
     {
         var account = await api.CreateAccountAsync();
-        var laptop = await SignInDeviceAsync(account.Id, Chrome);
-        var phone = await SignInDeviceAsync(account.Id, Safari);
+        var laptop = await SignInDeviceAsync(account.Id, _chrome);
+        var phone = await SignInDeviceAsync(account.Id, _safari);
         var phoneId = (await ListAsync(phone.AccessToken)).Single(s => s.GetProperty("current").GetBoolean())
             .GetProperty("id").GetGuid();
         using (var check = await WhoAmIAsync(phone.Browser, phone.AccessToken))
@@ -73,7 +73,7 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
             Assert.Equal(HttpStatusCode.OK, check.StatusCode);
         }
 
-        using (var ended = await SendAsync(HttpMethod.Delete, $"{SessionsPath}/{phoneId}", laptop.AccessToken))
+        using (var ended = await SendAsync(HttpMethod.Delete, $"{_sessionsPath}/{phoneId}", laptop.AccessToken))
         {
             Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
         }
@@ -87,12 +87,12 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
     public async Task SignOutOthersEndsEveryDeviceButTheCurrentOne()
     {
         var account = await api.CreateAccountAsync();
-        var laptop = await SignInDeviceAsync(account.Id, Chrome);
-        var phone = await SignInDeviceAsync(account.Id, Safari);
-        var desktop = await SignInDeviceAsync(account.Id, Firefox);
-        var stranger = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, Chrome);
+        var laptop = await SignInDeviceAsync(account.Id, _chrome);
+        var phone = await SignInDeviceAsync(account.Id, _safari);
+        var desktop = await SignInDeviceAsync(account.Id, _firefox);
+        var stranger = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, _chrome);
 
-        using var response = await SendAsync(HttpMethod.Post, $"{SessionsPath}/sign-out-others", laptop.AccessToken);
+        using var response = await SendAsync(HttpMethod.Post, $"{_sessionsPath}/sign-out-others", laptop.AccessToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("ended").GetInt32());
@@ -107,29 +107,29 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
     [Fact]
     public async Task OnlyTheOwnerSeesAndEndsTheirDevices()
     {
-        var owner = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, Chrome);
-        var other = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, Safari);
+        var owner = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, _chrome);
+        var other = await SignInDeviceAsync((await api.CreateAccountAsync()).Id, _safari);
         var ownerSession = Assert.Single(await ListAsync(owner.AccessToken)).GetProperty("id").GetGuid();
 
-        using (var guest = await SendAsync(HttpMethod.Get, SessionsPath, accessToken: null))
+        using (var guest = await SendAsync(HttpMethod.Get, _sessionsPath, accessToken: null))
         {
             Assert.Equal(HttpStatusCode.Unauthorized, guest.StatusCode);
         }
 
-        using (var guestEnd = await SendAsync(HttpMethod.Post, $"{SessionsPath}/sign-out-others", accessToken: null))
+        using (var guestEnd = await SendAsync(HttpMethod.Post, $"{_sessionsPath}/sign-out-others", accessToken: null))
         {
             Assert.Equal(HttpStatusCode.Unauthorized, guestEnd.StatusCode);
         }
 
         // Another account's device is answered as a missing one, and stays signed in.
-        using (var foreign = await SendAsync(HttpMethod.Delete, $"{SessionsPath}/{ownerSession}", other.AccessToken))
+        using (var foreign = await SendAsync(HttpMethod.Delete, $"{_sessionsPath}/{ownerSession}", other.AccessToken))
         {
             Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
             Assert.Equal("session_not_found",
                 (await foreign.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString());
         }
 
-        using (var malformed = await SendAsync(HttpMethod.Delete, $"{SessionsPath}/not-a-session", owner.AccessToken))
+        using (var malformed = await SendAsync(HttpMethod.Delete, $"{_sessionsPath}/not-a-session", owner.AccessToken))
         {
             Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
         }
@@ -167,7 +167,7 @@ public sealed class AccountSessionTests(IdentityApi api) : IClassFixture<Identit
 
     private async Task<JsonElement[]> ListAsync(string accessToken)
     {
-        using var response = await SendAsync(HttpMethod.Get, SessionsPath, accessToken);
+        using var response = await SendAsync(HttpMethod.Get, _sessionsPath, accessToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return [.. (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).EnumerateArray()];
     }
