@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Platform.Messaging;
 using Platform.Persistence;
 
 namespace Platform.Modules.Posts;
@@ -47,6 +48,8 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        // The outbox of the post events (ADR-0094): an event leaves only with the change it announces.
+        modelBuilder.AddOutboxTables();
         modelBuilder.Entity<Post>(post =>
         {
             post.HasKey(p => p.Id);

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The Search module (FR-SEARCH, ADR-0094): keeps the search indexes of posts, blogs and topics in OpenSearch, in the
+      workers host. It learns about changes only from the events in Posts.Contracts and Blogs.Contracts and reads the
+      current state through their search sources; its schema `search` holds only the inbox of its consumers.
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Search</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Configuration/Platform.Configuration.csproj" />
+        <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />
+        <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../Blogs.Contracts/Platform.Modules.Blogs.Contracts.csproj" />
+        <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -263,6 +263,16 @@ openssl rand -base64 32                                                         
 Письма в Development ловит Mailpit из `compose.yaml`: веб-интерфейс — `http://localhost:8025` (порт
 `MAILPIT_UI_PORT` из `.env`).
 
+### Поиск: модуль Search в воркерах
+
+Индексы постов, блогов и тем ([ADR-0094](adr/0094-search-indexing.md)). Полная переиндексация —
+`dotnet run --project backend/src/Workers -- search-reindex` (на стенде — `docker compose run --rm workers search-reindex`).
+
+| Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Описание |
+| --- | --- | --- | --- | --- | --- |
+| `Search:Provider` | `Search__Provider` | нет | нет | `OpenSearch` | поисковый движок: `OpenSearch` или `InMemory` (фейк для тестов, индексы в памяти) |
+| `Search:OpenSearch:Url` | `Search__OpenSearch__Url` | нет | нет | `http://localhost:9200` | REST API OpenSearch: по умолчанию — сервис `opensearch` из `compose.yaml`; на стенде — `http://opensearch:9200` |
+
 ## Мигратор (`backend/src/Migrator`)
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |

@@ -81,9 +81,12 @@ services:
       Mail__Smtp__Username: ${SMTP_USERNAME:?set in the env file}
       Mail__Smtp__Password: ${SMTP_PASSWORD:?set in the env file}
       Mail__From__Address: ${MAIL_FROM:?set in the env file}
+      # The search indexes (ADR-0094); `docker compose run --rm workers search-reindex` rebuilds them.
+      Search__OpenSearch__Url: http://opensearch:9200
     depends_on:
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
+      opensearch: { condition: service_healthy }
 
   frontend:
     image: ${IMAGE_REGISTRY:?set in the env file}/frontend:${IMAGE_TAG:?set in the env file}
@@ -192,6 +195,28 @@ services:
       timeout: 10s
       retries: 20
       start_period: 20s
+
+  # The search engine (ADR-0001, ADR-0094): one node inside the stand's network only, no port is published, so it runs
+  # without the security plugin, as in compose.yaml.
+  opensearch:
+    image: opensearchproject/opensearch:2.19.3@sha256:acc1f30665727eb5d186fd15f40079615e1c9a0ee9fd3db3a8180f41d9982f51
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: 'true'
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - opensearch:/usr/share/opensearch/data
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" > /dev/null']
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
 
   # ---- Telemetry of the stand (E01-xx #318, ADR-0069): the collector takes OTLP from the API and the workers and
   # hands traces to Tempo, logs to Loki and metrics to Prometheus; Grafana shows them at GRAFANA_ADDRESS behind
@@ -598,6 +623,7 @@ volumes:
   postgres:
   redis:
   rabbitmq:
+  opensearch:
   caddy:
   prometheus:
   loki:

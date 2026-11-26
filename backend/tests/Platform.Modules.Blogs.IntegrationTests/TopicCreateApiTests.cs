@@ -71,6 +71,19 @@ public sealed class TopicCreateApiTests(TopicCreateApi api) : IClassFixture<Topi
         Assert.Equal("topic", profile.GetProperty("type").GetString());
     }
 
+    // E14-01, ADR-0094: a new topic is announced, so search finds it.
+    [Fact]
+    public async Task NewTopicIsAnnounced()
+    {
+        var owner = await SaveConfirmedAccountAsync(3, "topic-announced@example.com");
+        await using var probe = await BlogChangedProbe.StartAsync(api.Services);
+
+        using var response = await CreateAsync(owner, new { name = "Астрономия", nickname = "astro_announced" });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await probe.WaitForAsync((await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid());
+    }
+
     [Fact]
     public async Task OnlyASignedInAccountWithAConfirmedEmailCreatesATopic()
     {

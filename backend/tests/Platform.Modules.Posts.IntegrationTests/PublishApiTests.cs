@@ -2,9 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
 using Platform.Modules.Blogs;
 using Platform.Modules.Identity;
+using Platform.Modules.Posts.Contracts;
 using Platform.Testing.Api;
 
 namespace Platform.Modules.Posts.IntegrationTests;
@@ -50,6 +53,53 @@ public sealed class PublishApiTests(PostsApi api) : IClassFixture<PostsApi>, IAs
 
         using var read = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{id}", null, account: null);
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+    }
+
+    // E14-01, ADR-0094: publishing, editing a published post and deleting it each announce PostChanged, so search
+    // follows; editing a draft announces nothing.
+    [Fact]
+    public async Task PublishEditAndDeleteAnnounceThePostChange()
+    {
+        var events = new System.Collections.Concurrent.ConcurrentQueue<PostChanged>();
+        var endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
+            $"posts-tests-post-changed-{Guid.NewGuid():N}",
+            (_, e) => e.Handler<PostChanged>(c =>
+            {
+                events.Enqueue(c.Message);
+                return Task.CompletedTask;
+            }));
+        await endpoint.Ready;
+        try
+        {
+            var id = await CreateAsync(Body(Paragraph("Черновик")), title: "Черновик");
+            (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{id}", Input(Body(Paragraph("Ещё черновик")), "Черновик"),
+                _author)).Dispose();
+            (await SendAsync(HttpMethod.Post, $"/api/v1/posts/{id}/publish", null, _author)).Dispose();
+            await WaitForAsync(events, id, 1);
+            (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{id}", Input(Body(Paragraph("Правка")), "Пост"),
+                _author)).Dispose();
+            await WaitForAsync(events, id, 2);
+            using var deleted = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{id}", null, _author);
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+            await WaitForAsync(events, id, 3);
+
+            await Task.Delay(500, Ct);
+            Assert.Equal(3, events.Count(e => e.PostId == id));
+        }
+        finally
+        {
+            await endpoint.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static async Task WaitForAsync(IEnumerable<PostChanged> events, Guid id, int count)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (events.Count(e => e.PostId == id) < count)
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"PostChanged #{count} was not published in 30s");
+            await Task.Delay(100, Ct);
+        }
     }
 
     [Fact]

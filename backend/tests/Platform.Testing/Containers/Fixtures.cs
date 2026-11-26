@@ -82,6 +82,30 @@ public sealed class PostgresFixture : ContainerFixture<PostgreSqlContainer>
 }
 
 /// <summary>
+/// OpenSearch, the search engine of compose.yaml (ADR-0094), single node without the security plugin, as locally.
+/// Tests share it: each gives its indexes a prefix of its own.
+/// </summary>
+public sealed class OpenSearchFixture : ContainerFixture<IContainer>
+{
+    private const ushort _port = 9200;
+
+    protected override string ImageName => "opensearchproject/opensearch";
+
+    /// <summary>The REST API of the running container.</summary>
+    public Uri Url => new($"http://{Container.Hostname}:{Container.GetMappedPublicPort(_port)}/");
+
+    protected override IContainer Build(string image) => new ContainerBuilder(image)
+        .WithPortBinding(_port, assignRandomHostPort: true)
+        .WithEnvironment("discovery.type", "single-node")
+        .WithEnvironment("DISABLE_SECURITY_PLUGIN", "true")
+        .WithEnvironment("DISABLE_INSTALL_DEMO_CONFIG", "true")
+        .WithEnvironment("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r
+            .ForPort(_port).ForPath("/_cluster/health")))
+        .Build();
+}
+
+/// <summary>
 /// Mailpit, the mail catcher of compose.yaml: the application sends to its SMTP port, a test reads the letter through
 /// its API (<see cref="MailpitClient"/>). Accepts any SMTP login, so the authenticated path is tested too.
 /// </summary>

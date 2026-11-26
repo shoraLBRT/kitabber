@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Editor.Contracts;
 using Platform.Modules.Media.Contracts;
+using Platform.Modules.Posts.Contracts;
 
 namespace Platform.Modules.Posts;
 
@@ -174,6 +176,7 @@ public sealed class PostEndpoints : IApiEndpoints
         PostInput input,
         ClaimsPrincipal user,
         PostsDbContext db,
+        IModuleOutbox<PostsDbContext> outbox,
         IBlogDirectory blogs,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
@@ -212,6 +215,12 @@ public sealed class PostEndpoints : IApiEndpoints
         }
 
         post.Edit(input.BlogId ?? post.BlogId, input.Title, body, time.GetUtcNow());
+        if (post.Status == PostStatus.Published)
+        {
+            // What readers find the post by changed (ADR-0094); a draft is not in search.
+            await outbox.Publish(new PostChanged(post.Id, post.UpdatedAt), ct);
+        }
+
         await db.SaveChangesAsync(ct);
         if (post.Status == PostStatus.Published)
         {
@@ -225,6 +234,7 @@ public sealed class PostEndpoints : IApiEndpoints
         Guid id,
         ClaimsPrincipal user,
         PostsDbContext db,
+        IModuleOutbox<PostsDbContext> outbox,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
         FeedPageCache feed,
@@ -253,13 +263,21 @@ public sealed class PostEndpoints : IApiEndpoints
         }
 
         post.Publish(time.GetUtcNow());
+        // The post and its event are one change (ADR-0094): search finds it from then on.
+        await outbox.Publish(new PostChanged(post.Id, post.UpdatedAt), ct);
         await db.SaveChangesAsync(ct);
         await feed.InvalidateAsync(ct);
         return TypedResults.Ok(await ViewAsync(post, media, ct));
     }
 
     private static async Task<IResult> DeleteAsync(
-        Guid id, ClaimsPrincipal user, PostsDbContext db, FeedPageCache feed, TimeProvider time, CancellationToken ct)
+        Guid id,
+        ClaimsPrincipal user,
+        PostsDbContext db,
+        IModuleOutbox<PostsDbContext> outbox,
+        FeedPageCache feed,
+        TimeProvider time,
+        CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {
@@ -274,6 +292,12 @@ public sealed class PostEndpoints : IApiEndpoints
 
         var shownInFeed = post!.Status == PostStatus.Published && post.DeletedAt is null;
         post.Delete(time.GetUtcNow());
+        if (shownInFeed)
+        {
+            // A deleted post leaves search (ADR-0094).
+            await outbox.Publish(new PostChanged(post.Id, post.DeletedAt!.Value), ct);
+        }
+
         await db.SaveChangesAsync(ct);
         if (shownInFeed)
         {

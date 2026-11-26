@@ -76,6 +76,9 @@
   <Folder Name="/src/Modules/Reactions.Contracts/">
     <Project Path="src/Modules/Reactions.Contracts/Platform.Modules.Reactions.Contracts.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Search/">
+    <Project Path="src/Modules/Search/Platform.Modules.Search.csproj" />
+  </Folder>
   <Folder Name="/src/Observability/">
     <Project Path="src/Observability/Platform.Observability.csproj" />
   </Folder>
@@ -108,6 +111,7 @@
     <Project Path="tests/Platform.Modules.Posts.IntegrationTests/Platform.Modules.Posts.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Preferences.IntegrationTests/Platform.Modules.Preferences.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Reactions.IntegrationTests/Platform.Modules.Reactions.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Modules.Search.IntegrationTests/Platform.Modules.Search.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Media.IntegrationTests/Platform.Modules.Media.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />

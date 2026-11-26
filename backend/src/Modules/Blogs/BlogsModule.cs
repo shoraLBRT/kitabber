@@ -86,5 +86,6 @@ public static class BlogsModule
         services.AddScoped<PersonalBlogs>();
         services.AddScoped<IBlogDirectory, BlogDirectory>();
         services.AddScoped<IBlogSubscriptions, BlogSubscriptions>();
+        services.AddScoped<IBlogSearchSource, BlogSearchSource>();
     }
 }
