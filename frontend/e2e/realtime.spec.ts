@@ -46,9 +46,10 @@ test.describe('канал реального времени', () => {
       .toBe(1)
     const [first] = await connections(request, client)
 
-    // Nothing a script can read holds the ticket's source, the access token; the ticket itself is short-lived.
+    // Nothing a script can read holds the ticket's source, the access token; the ticket itself is short-lived. The
+    // only cookie a script sees is the cookie choice (E02-13, ADR-0066), which holds no secret.
     const cookies = await page.evaluate(() => document.cookie)
-    expect(cookies).toBe('')
+    expect(cookies).toBe('cookie_consent=v1.analytics-0')
 
     await request.post(`${api}/__realtime/drop?client=${client}`)
 
