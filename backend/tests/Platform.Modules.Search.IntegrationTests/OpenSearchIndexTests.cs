@@ -77,15 +77,9 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
         await index.PutAsync(post, Ct);
         await index.PutAsync(topic, Ct);
 
-        var deadline = DateTime.UtcNow + _timeout;
-        while ((await index.SuggestAsync(SearchIndexKind.Posts, "воспитывать ко", 5, Ct)).Count == 0)
-        {
-            Assert.True(DateTime.UtcNow < deadline, "the post was never suggested");
-            await Task.Delay(200, Ct);
-        }
-
-        Assert.Equal([post], await index.SuggestAsync(SearchIndexKind.Posts, "воспитывать ко", 5, Ct));
-        Assert.Equal([topic], await index.SuggestAsync(SearchIndexKind.Blogs, "астр", 5, Ct));
+        // Each index refreshes on its own schedule: wait for both, not only for the first one written.
+        await WaitForSuggestionsAsync(index, SearchIndexKind.Posts, "воспитывать ко", [post]);
+        await WaitForSuggestionsAsync(index, SearchIndexKind.Blogs, "астр", [topic]);
         Assert.Empty(await index.SuggestAsync(SearchIndexKind.Posts, "собаки ко", 5, Ct));
         using var empty = NewIndex();
         Assert.Empty(await empty.SuggestAsync(SearchIndexKind.Blogs, "астр", 5, Ct));
@@ -111,6 +105,24 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
         {
             await Task.Yield();
             yield return document;
+        }
+    }
+
+    // A write is suggested after the next refresh of the index (a second by default).
+    private static async Task WaitForSuggestionsAsync(
+        OpenSearchIndex index, SearchIndexKind kind, string query, IReadOnlyList<IndexedDocument> expected)
+    {
+        var deadline = DateTime.UtcNow + _timeout;
+        while (true)
+        {
+            var found = await index.SuggestAsync(kind, query, 10, Ct);
+            if (found.SequenceEqual(expected))
+            {
+                return;
+            }
+
+            Assert.True(DateTime.UtcNow < deadline, $"«{query}» suggested [{string.Join(", ", found)}]");
+            await Task.Delay(200, Ct);
         }
     }
 
