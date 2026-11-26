@@ -65,6 +65,7 @@ export class HeaderTool implements BlockTool {
     this.element.dataset.level = String(this.level)
     this.element.dataset.placeholder = headerPlaceholders[this.level]
     this.element.contentEditable = readOnly ? 'false' : 'true'
+    this.element.dir = 'auto'
     this.element.innerHTML = typeof data?.text === 'string' ? data.text : ''
     if (block?.id) this.element.id = headerAnchor(block.id)
   }

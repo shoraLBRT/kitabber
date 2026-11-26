@@ -367,6 +367,34 @@ const posts = [
   imagePreviews: {},
 }))
 
+// A post of Arabic quotes (E02-14, ADR-0068): an Arabic block with harakat, an Arabic block with a Russian word, a
+// Russian block with an Arabic quote and digits after it, an Arabic quote and list. It stays out of the feed: it is one
+// of the `written` posts below (found by its id, no slug), so the seeded feed and blog tests do not see it.
+const arabicPost = {
+  id: '0195f3a0-0000-7000-8000-0000000000c9',
+  blogId: blogs[0].id,
+  authorAccountId: blogs[0].owner,
+  title: 'Цитаты: «الحمد لله» 2 раза',
+  slug: null,
+  body: {
+    version: 1,
+    blocks: [
+      { id: 'a1', type: 'paragraph', data: { text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' } },
+      { id: 'a2', type: 'paragraph', data: { text: 'قال: «Привет»، ثم ذهب.' } },
+      { id: 'a3', type: 'paragraph', data: { text: 'Скажи «<b>سبحان</b> الله» 33 раза, да.' } },
+      { id: 'a4', type: 'quote', data: { text: 'العِلْمُ نُورٌ', caption: 'Пословица' } },
+      { id: 'a5', type: 'list', data: { style: 'ordered', items: ['واحد', 'اثنان'], levels: [0, 0] } },
+    ],
+  },
+  status: 'published',
+  origin: 'native',
+  source: null,
+  createdAt: '2026-11-20T10:00:00Z',
+  updatedAt: '2026-11-20T10:00:00Z',
+  publishedAt: '2026-11-20T10:00:00Z',
+  images: {},
+}
+
 function post(response, url) {
   const [, id] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)$/) ?? []
   const found = posts.find((item) => item.id === id) ?? written.get(id)
@@ -426,6 +454,8 @@ const comments = (() => {
       parent = add(bigPost, parent, `Комментарий ${n + 1}.${level + 1}`, level % 2 ? anna : boris)
     }
   }
+  // The Arabic post (E02-14): a Russian comment with an Arabic quote and digits after it.
+  add(arabicPost.id, null, 'Согласен: «جزاك الله خيرا» 100 раз.', boris)
   return list
 })()
 
@@ -570,6 +600,7 @@ async function changeComment(request, response, id) {
 // than 120 characters. A post whose text is «сбой» fails as an unavailable API would. Written posts stay out of the
 // feed (tests run in parallel against this one fake), are found by GET /api/v1/posts/{id} and have no slug.
 const written = new Map() // id -> post
+written.set(arabicPost.id, arabicPost)
 const titleMaxLength = 120
 const hasText = (body) =>
   (body?.blocks ?? []).some(

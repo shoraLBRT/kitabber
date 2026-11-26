@@ -146,6 +146,7 @@ export class ImageTool implements BlockTool {
     this.caption.classList.add('ce-image__caption')
     this.caption.dataset.placeholder = imageMessages.caption
     this.caption.contentEditable = readOnly ? 'false' : 'true'
+    this.caption.dir = 'auto'
     this.caption.innerHTML = typeof data?.caption === 'string' ? data.caption : ''
     if (!readOnly) {
       this.caption.addEventListener('beforeinput', (event) => this.limitCaption(event))

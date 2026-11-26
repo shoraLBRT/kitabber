@@ -7,6 +7,7 @@ import UiAvatar from '../ui/UiAvatar.vue'
 import type { FeedComment } from '../../api/feeds'
 import { blogTitle } from '../../api/profiles'
 import { t } from '../../i18n'
+import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{ comment: FeedComment; to: string }>()
 
@@ -23,7 +24,9 @@ const name = computed(() =>
     <UiAvatar :name="name" :sources="comment.author?.avatarSources ?? []" size="sm" decorative />
     <span class="feed-comment__body">
       <span class="feed-comment__author" data-testid="feed-best-comment-author">{{ name }}</span>
-      <span class="feed-comment__text" data-testid="feed-best-comment-text">{{ comment.text }}</span>
+      <span class="feed-comment__text" data-testid="feed-best-comment-text" dir="auto">{{
+        isolateRtlText(comment.text)
+      }}</span>
     </span>
   </NuxtLink>
 </template>

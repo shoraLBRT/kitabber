@@ -84,6 +84,31 @@ describe('PostBlocks: a snapshot of each block type', () => {
     ).toMatchSnapshot()
     expect(await serverHtml(doc())).toMatchSnapshot()
   })
+
+  // E02-14 (#67, ADR-0068): every text is dir="auto"; an Arabic block is left as it is, the Arabic runs of a Russian
+  // block are isolated (RLI…PDI, written here as [ and ]) so the punctuation and digits around them keep their places.
+  it('Arabic and mixed Russian and Arabic text', async () => {
+    const html = await serverHtml(
+      doc(
+        { id: 'r1', type: 'paragraph', data: { text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ، قال: «Привет»!' } },
+        {
+          id: 'r2',
+          type: 'paragraph',
+          data: { text: 'Он сказал: «<b>السلام</b> عليكم», и повторил 3 раза.' },
+        },
+        { id: 'r3', type: 'header', data: { text: 'Глава «كتاب»', level: 2 } },
+        {
+          id: 'r4',
+          type: 'list',
+          data: { style: 'unordered', items: ['واحد', 'Два: اثنان.'], levels: [0, 0] },
+        },
+        { id: 'r5', type: 'quote', data: { text: 'العلم نور', caption: 'Пословица, «مثل»' } },
+      ),
+    )
+    expect(
+      html.replaceAll(String.fromCharCode(0x2067), '[').replaceAll(String.fromCharCode(0x2069), ']'),
+    ).toMatchSnapshot()
+  })
 })
 
 describe('PostBlocks: semantic markup', () => {

@@ -11,8 +11,12 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
   },
-  // Design tokens as CSS custom properties, generated from brand/ (ADR-0012).
-  css: [fileURLToPath(new URL('../brand/tokens.css', import.meta.url)), '~/assets/base.css'],
+  // Design tokens as CSS custom properties, generated from brand/ (ADR-0012); the Arabic face of content (ADR-0068).
+  css: [
+    fileURLToPath(new URL('../brand/tokens.css', import.meta.url)),
+    '~/assets/fonts.css',
+    '~/assets/base.css',
+  ],
   app: {
     head: {
       // The language of the page is the locale of the dictionaries (E02-10, ADR-0063).

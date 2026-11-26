@@ -92,6 +92,7 @@ export class TextTool implements BlockTool {
     element.dataset.placeholderActive = this.api.i18n.t(this.placeholder)
     element.innerHTML = this.data.text
     element.contentEditable = this.readOnly ? 'false' : 'true'
+    element.dir = 'auto'
     if (!this.readOnly) element.addEventListener('keyup', this.onKeyUp)
     this.element = element
     return element

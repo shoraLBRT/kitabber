@@ -102,6 +102,7 @@ export class QuoteTool implements BlockTool {
     element.classList.add(className)
     element.dataset.placeholder = placeholder
     element.contentEditable = readOnly ? 'false' : 'true'
+    element.dir = 'auto'
     element.innerHTML = typeof html === 'string' ? html : ''
     return element
   }

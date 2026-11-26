@@ -56,6 +56,7 @@ onMounted(() => field.value?.focus())
       :id="fieldId"
       ref="field"
       v-model="text"
+      dir="auto"
       class="comment-edit__field"
       :maxlength="maxLength"
       rows="3"

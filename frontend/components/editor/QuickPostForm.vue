@@ -183,6 +183,7 @@ function onTextKeydown(event: KeyboardEvent) {
       <textarea
         :id="textId"
         v-model="text"
+        dir="auto"
         class="quick-post__text"
         rows="2"
         :placeholder="t('editor.quickPostPlaceholder')"

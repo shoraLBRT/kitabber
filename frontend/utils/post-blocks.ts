@@ -1,8 +1,9 @@
 // The blocks of a post read for drawing (E07-03, ADR-0045): the stored document (ADR-0023, schema version 1) turned
 // into what the renderer draws. A block of a type the renderer does not know, or with data it cannot read, becomes an
 // `unknown` block drawn as a placeholder, so a document from a newer schema never breaks the page. Text fields go
-// through cleanInlineHtml before v-html.
+// through cleanInlineHtml before v-html, then through isolateRtlHtml (utils/bidi.ts).
 import { headerAnchor } from '../editor/document'
+import { isolateRtlHtml } from './bidi'
 import { cleanInlineHtml } from './inline-html'
 
 export interface ListNode {
@@ -23,12 +24,15 @@ type Data = Record<string, unknown>
 
 const isString = (value: unknown): value is string => typeof value === 'string'
 
+/** A text field cleaned against the whitelist, its right-to-left runs isolated (E02-14, ADR-0068). */
+const inlineHtml = (text: string) => isolateRtlHtml(cleanInlineHtml(text))
+
 /** Flat items with levels (ADR-0033) as a tree: an item of level n + 1 goes under the closest item above it. */
 export function listTree(items: string[], levels: number[]): ListNode[] {
   const top: ListNode[] = []
   const path: ListNode[] = []
   items.forEach((text, index) => {
-    const node: ListNode = { html: cleanInlineHtml(text), children: [] }
+    const node: ListNode = { html: inlineHtml(text), children: [] }
     const level = Math.min(Math.max(0, levels[index] ?? 0), path.length)
     path.length = level
     ;(level === 0 ? top : path[level - 1]!.children).push(node)
@@ -41,14 +45,14 @@ function readBlock(type: string, data: Data, key: string): ViewBlock | null {
   switch (type) {
     case 'paragraph':
       if (!isString(data.text)) return null
-      return { kind: 'paragraph', key, html: cleanInlineHtml(data.text) }
+      return { kind: 'paragraph', key, html: inlineHtml(data.text) }
     case 'header':
       if (!isString(data.text) || (data.level !== 2 && data.level !== 3)) return null
       return {
         kind: 'header',
         key,
         level: data.level,
-        html: cleanInlineHtml(data.text),
+        html: inlineHtml(data.text),
         anchor: headerAnchor(key),
       }
     case 'list': {
@@ -63,8 +67,8 @@ function readBlock(type: string, data: Data, key: string): ViewBlock | null {
       return {
         kind: 'quote',
         key,
-        html: cleanInlineHtml(data.text),
-        caption: isString(data.caption) ? cleanInlineHtml(data.caption) : '',
+        html: inlineHtml(data.text),
+        caption: isString(data.caption) ? inlineHtml(data.caption) : '',
       }
     case 'delimiter':
       return { kind: 'delimiter', key }
@@ -77,7 +81,7 @@ function readBlock(type: string, data: Data, key: string): ViewBlock | null {
         media,
         width,
         height,
-        caption: isString(caption) ? cleanInlineHtml(caption) : '',
+        caption: isString(caption) ? inlineHtml(caption) : '',
       }
     }
     default:
