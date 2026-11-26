@@ -249,6 +249,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/me/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets the cover of the signed-in account's personal blog, or moves it to a new position */
+        put: operations["SetOwnCover"];
+        post?: never;
+        /** Removes the cover of the signed-in account's personal blog */
+        delete: operations["RemoveOwnCover"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/{id}": {
         parameters: {
             query?: never;
@@ -706,6 +724,15 @@ export interface components {
         ConfirmRegistrationRequest: {
             code: null | string;
         };
+        CoverInput: {
+            /** Format: uuid */
+            mediaId: string;
+            /**
+             * Format: int32
+             * @default 50
+             */
+            position: number;
+        };
         CursorPageOfFeedPostView: {
             items: components["schemas"]["FeedPostView"][];
             nextCursor: null | string;
@@ -867,6 +894,15 @@ export interface components {
             /** Format: uri */
             avatarUrl: null | string;
             avatarSources: components["schemas"]["ImageSource"][];
+            cover: null | components["schemas"]["ProfileCover"];
+        };
+        ProfileCover: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            position: number;
+            sources: components["schemas"]["ImageSource"][];
+            preview: null | components["schemas"]["ImagePreview"];
         };
         ProfileInput: {
             name?: null | string;
@@ -1586,6 +1622,77 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetOwnCover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOwnCover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
                 };
             };
             /** @description Unauthorized */

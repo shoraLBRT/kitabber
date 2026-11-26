@@ -27,6 +27,7 @@ namespace Platform.Modules.Blogs.Profiles;
 /// The same avatar for every screen density (ADR-0040): WebP squares of <see cref="ProfileEndpoints.AvatarSides"/>
 /// pixels, narrowest first, for the <c>srcset</c> of the picture; empty when there is no avatar.
 /// </param>
+/// <param name="Cover">The cover of the header (E04-04, ADR-0079); <c>null</c> when there is none.</param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -36,7 +37,25 @@ public sealed record Profile(
     DateTimeOffset? RegisteredAt,
     Guid? AvatarId,
     Uri? AvatarUrl,
-    IReadOnlyList<ImageSource> AvatarSources);
+    IReadOnlyList<ImageSource> AvatarSources,
+    ProfileCover? Cover);
+
+/// <summary>The cover of a blog's header (E04-04, ADR-0079): the whole picture and which part of it the header shows.</summary>
+/// <param name="Id">The image uploaded through <c>POST /api/v1/media</c>.</param>
+/// <param name="Position">
+/// The vertical offset of the shown part in percent, 0 (the top edge of the picture) to 100 (the bottom edge), for CSS
+/// <c>object-position: 50% {Position}%</c>; the header keeps one proportion on every screen, so it shows the same part.
+/// </param>
+/// <param name="Sources">
+/// The whole picture scaled to the widths of <see cref="ProfileEndpoints.CoverWidths"/> (WebP, ADR-0040), narrowest first.
+/// </param>
+/// <param name="Preview">The dominant colour and the blurred stand-in until it loads (ADR-0067); <c>null</c> when it has none.</param>
+public sealed record ProfileCover(Guid Id, int Position, IReadOnlyList<ImageSource> Sources, ImagePreview? Preview);
+
+/// <summary>A new cover or a new position of the cover (E04-04, ADR-0079).</summary>
+/// <param name="MediaId">An image the owner uploaded through <c>POST /api/v1/media</c>.</param>
+/// <param name="Position">The vertical offset in percent, 0 to 100; 50 when it is missing.</param>
+public sealed record CoverInput(Guid MediaId, int Position = SubsiteRules.CoverPositionDefault);
 
 /// <summary>What the owner edits in the profile (E04-03). Every field is replaced: missing or empty clears it.</summary>
 /// <param name="Name">The name, at most 25 characters.</param>
@@ -67,6 +86,15 @@ public sealed class ProfileEndpoints : IApiEndpoints
     internal static readonly IReadOnlyList<ImageVariant> AvatarSourceVariants =
         [.. AvatarSides.Select(side => ImageVariant.Square(side, ImageFormat.WebP))];
 
+    /// <summary>
+    /// The widths of the cover sources (ADR-0079): the header at a phone's width and at the feed column's width, at one,
+    /// two and three device pixels per CSS pixel. The picture is kept whole, so the header picks the part it shows.
+    /// </summary>
+    public static readonly IReadOnlyList<int> CoverWidths = [400, 640, 800, 1280, 1920];
+
+    internal static readonly IReadOnlyList<ImageVariant> CoverSourceVariants =
+        [.. CoverWidths.Select(width => ImageVariant.ToWidth(width, ImageFormat.WebP))];
+
     public void MapV1(IEndpointRouteBuilder v1)
     {
         var profiles = v1.MapGroup("/profiles").WithTags("Profiles");
@@ -83,6 +111,19 @@ public sealed class ProfileEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("UpdateOwnProfile")
             .WithSummary("Replaces the name, the description and the avatar of the signed-in account's personal blog");
+        profiles.MapPut("/me/cover", SetOwnCoverAsync)
+            .RequireAuthorization()
+            .Produces<Profile>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithName("SetOwnCover")
+            .WithSummary("Sets the cover of the signed-in account's personal blog, or moves it to a new position");
+        profiles.MapDelete("/me/cover", RemoveOwnCoverAsync)
+            .RequireAuthorization()
+            .Produces<Profile>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithName("RemoveOwnCover")
+            .WithSummary("Removes the cover of the signed-in account's personal blog");
         profiles.MapGet("/{id:guid}", GetByIdAsync)
             .Produces<Profile>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -154,14 +195,66 @@ public sealed class ProfileEndpoints : IApiEndpoints
         return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
     }
 
+    private static async Task<IResult> SetOwnCoverAsync(
+        CoverInput input,
+        ClaimsPrincipal user,
+        PersonalBlogs blogs,
+        BlogsDbContext db,
+        IMediaLibrary media,
+        CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } accountId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var errors = new Dictionary<string, string[]>();
+        if (await ImageProblemAsync(input.MediaId, accountId, "Обложка — это изображение.", media, ct) is { } coverProblem)
+        {
+            errors["mediaId"] = [coverProblem];
+        }
+
+        if (!SubsiteRules.IsValidCoverPosition(input.Position))
+        {
+            errors["position"] = [$"Положение обложки — от 0 до {SubsiteRules.CoverPositionMax}."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return ApiProblems.Validation(errors);
+        }
+
+        var blog = await blogs.EnsureAsync(accountId, ct);
+        blog.SetCover(input.MediaId, input.Position);
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
+    }
+
+    private static async Task<IResult> RemoveOwnCoverAsync(
+        ClaimsPrincipal user, PersonalBlogs blogs, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } accountId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var blog = await blogs.EnsureAsync(accountId, ct);
+        blog.RemoveCover();
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(await ViewAsync(blog, accountId, media, ct));
+    }
+
+    private static Task<string?> AvatarProblemAsync(Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
+        ImageProblemAsync(avatarId, accountId, "Аватар — это изображение.", media, ct);
+
     // Someone else's file is answered as a missing one, so the owner of a file is not given away (ADR-0034).
-    private static async Task<string?> AvatarProblemAsync(
-        Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
-        await media.FindAsync(avatarId, ct) switch
+    private static async Task<string?> ImageProblemAsync(
+        Guid mediaId, Guid accountId, string notImage, IMediaLibrary media, CancellationToken ct) =>
+        await media.FindAsync(mediaId, ct) switch
         {
             null => "Такого загруженного файла нет.",
             { } file when file.OwnerAccountId != accountId => "Такого загруженного файла нет.",
-            { Kind: not MediaFileKind.Image } => "Аватар — это изображение.",
+            { Kind: not MediaFileKind.Image } => notImage,
             _ => null,
         };
 
@@ -204,7 +297,21 @@ public sealed class ProfileEndpoints : IApiEndpoints
         viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null,
         blog.AvatarMediaId,
         await AvatarUrlAsync(blog.AvatarMediaId, media, ct),
-        await AvatarSourcesAsync(blog.AvatarMediaId, media, ct));
+        await AvatarSourcesAsync(blog.AvatarMediaId, media, ct),
+        await CoverAsync(blog, media, ct));
+
+    // A file that is no longer an image of the media library shows no cover rather than a broken picture.
+    private static async Task<ProfileCover?> CoverAsync(Subsite blog, IMediaLibrary media, CancellationToken ct)
+    {
+        if (blog.CoverMediaId is not { } id
+            || !(await media.ImageSourcesAsync([id], CoverSourceVariants, ct)).TryGetValue(id, out var sources))
+        {
+            return null;
+        }
+
+        var previews = await media.ImagePreviewsAsync([id], ct);
+        return new ProfileCover(id, blog.CoverPosition, sources, previews.GetValueOrDefault(id));
+    }
 
     // A file that is no longer an image of the media library shows no avatar rather than a broken picture.
     private static async Task<Uri?> AvatarUrlAsync(Guid? avatarId, IMediaLibrary media, CancellationToken ct) =>

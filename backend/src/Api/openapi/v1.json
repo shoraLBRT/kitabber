@@ -786,6 +786,86 @@
         }
       }
     },
+    "/api/v1/profiles/me/cover": {
+      "put": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Sets the cover of the signed-in account's personal blog, or moves it to a new position",
+        "operationId": "SetOwnCover",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Removes the cover of the signed-in account's personal blog",
+        "operationId": "RemoveOwnCover",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/profiles/{id}": {
       "get": {
         "tags": [
@@ -2582,6 +2662,23 @@
           }
         }
       },
+      "CoverInput": {
+        "required": [
+          "mediaId"
+        ],
+        "type": "object",
+        "properties": {
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "default": 50
+          }
+        }
+      },
       "CursorPageOfFeedPostView": {
         "required": [
           "items",
@@ -3204,7 +3301,8 @@
           "registeredAt",
           "avatarId",
           "avatarUrl",
-          "avatarSources"
+          "avatarSources",
+          "cover"
         ],
         "type": "object",
         "properties": {
@@ -3259,6 +3357,51 @@
             "items": {
               "$ref": "#/components/schemas/ImageSource"
             }
+          },
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileCover"
+              }
+            ]
+          }
+        }
+      },
+      "ProfileCover": {
+        "required": [
+          "id",
+          "position",
+          "sources",
+          "preview"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageSource"
+            }
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImagePreview"
+              }
+            ]
           }
         }
       },
