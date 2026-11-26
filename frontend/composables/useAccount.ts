@@ -1,9 +1,12 @@
 // Whether the person is signed in (E18-02). The server fills it from its session (plugins/account.server.ts); the
-// page gets a yes or no only, never a token and never the account_id (FR-ID: identifiers are not shown).
+// page gets a yes or no only, never a token and never the account_id (FR-ID: identifiers are not shown). The search
+// history's key (ADR-0097) is a keyed hash of the account: it tells accounts apart without naming one.
 import { t } from '../i18n'
 
 export interface AccountState {
   signedIn: boolean
+  /** Where this account's search history lives in the browser (utils/search-history.ts); absent for a guest. */
+  historyKey?: string
 }
 
 export function useAccount() {

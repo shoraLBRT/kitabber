@@ -69,6 +69,23 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
     }
 
     [Fact]
+    public async Task SuggestionsFindTheStartOfTheLastWordWithTheDocument()
+    {
+        using var index = NewIndex();
+        var post = Post("Как воспитывать котов", "Коты любят спать.");
+        var topic = new IndexedBlog(Guid.CreateVersion7(_at), IndexedBlog.TopicKind, null, "Астрономия", "astro", null);
+        await index.PutAsync(post, Ct);
+        await index.PutAsync(topic, Ct);
+
+        // Each index refreshes on its own schedule: wait for both, not only for the first one written.
+        await WaitForSuggestionsAsync(index, SearchIndexKind.Posts, "воспитывать ко", [post]);
+        await WaitForSuggestionsAsync(index, SearchIndexKind.Blogs, "астр", [topic]);
+        Assert.Empty(await index.SuggestAsync(SearchIndexKind.Posts, "собаки ко", 5, Ct));
+        using var empty = NewIndex();
+        Assert.Empty(await empty.SuggestAsync(SearchIndexKind.Blogs, "астр", 5, Ct));
+    }
+
+    [Fact]
     public async Task SearchingAnIndexThatWasNeverWrittenFindsNothing()
     {
         using var index = NewIndex();
@@ -88,6 +105,24 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
         {
             await Task.Yield();
             yield return document;
+        }
+    }
+
+    // A write is suggested after the next refresh of the index (a second by default).
+    private static async Task WaitForSuggestionsAsync(
+        OpenSearchIndex index, SearchIndexKind kind, string query, IReadOnlyList<IndexedDocument> expected)
+    {
+        var deadline = DateTime.UtcNow + _timeout;
+        while (true)
+        {
+            var found = await index.SuggestAsync(kind, query, 10, Ct);
+            if (found.SequenceEqual(expected))
+            {
+                return;
+            }
+
+            Assert.True(DateTime.UtcNow < deadline, $"«{query}» suggested [{string.Join(", ", found)}]");
+            await Task.Delay(200, Ct);
         }
     }
 

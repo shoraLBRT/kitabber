@@ -921,6 +921,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Blogs, topics and posts for a query being typed, its last word as the start of a word */
+        get: operations["GetSearchSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1291,6 +1308,11 @@ export interface components {
             /** Format: int32 */
             resendAfterSeconds: number;
         };
+        SearchSuggestionsView: {
+            query: string;
+            blogs: components["schemas"]["SuggestedBlogView"][];
+            posts: components["schemas"]["SuggestedPostView"][];
+        };
         SignInCodeConfirmation: {
             code: null | string;
             captcha?: null | string;
@@ -1308,6 +1330,24 @@ export interface components {
             /** Format: int32 */
             subscriberCount: number;
             subscribed: boolean;
+        };
+        SuggestedBlogView: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            name: null | string;
+            nickname: null | string;
+            avatarSources: components["schemas"]["ImageSource"][];
+        };
+        SuggestedPostView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            blogId: string;
+            title: null | string;
+            excerpt: string;
+            /** Format: date-time */
+            publishedAt: string;
         };
         TopicCard: {
             /** Format: uuid */
@@ -3951,6 +3991,55 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSearchSuggestions: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchSuggestionsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

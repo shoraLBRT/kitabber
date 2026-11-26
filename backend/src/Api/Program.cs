@@ -12,6 +12,7 @@ using Platform.Modules.Notifications;
 using Platform.Modules.Posts;
 using Platform.Modules.Preferences;
 using Platform.Modules.Reactions;
+using Platform.Modules.Search;
 using Platform.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,7 @@ builder.AddReactionsModule();
 builder.AddPreferencesModule();
 builder.AddNotificationsModule();
 builder.AddMediaModule();
+builder.AddSearchModule();
 builder.Services.AddPlatformMessaging(
     builder.Configuration,
     bus => bus.AddIdentityOutbox().AddBlogsOutbox().AddCommentsOutbox().AddReactionsOutbox().AddPostsOutbox());
