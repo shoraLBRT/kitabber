@@ -177,6 +177,7 @@ public sealed class PostEndpoints : IApiEndpoints
         IBlogDirectory blogs,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
+        FreshFeedCache feed,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -212,6 +213,11 @@ public sealed class PostEndpoints : IApiEndpoints
 
         post.Edit(input.BlogId ?? post.BlogId, input.Title, body, time.GetUtcNow());
         await db.SaveChangesAsync(ct);
+        if (post.Status == PostStatus.Published)
+        {
+            await feed.InvalidateAsync(ct);
+        }
+
         return TypedResults.Ok(await ViewAsync(post, media, ct));
     }
 
@@ -221,6 +227,7 @@ public sealed class PostEndpoints : IApiEndpoints
         PostsDbContext db,
         IBlockDocumentValidator validator,
         IMediaLibrary media,
+        FreshFeedCache feed,
         TimeProvider time,
         CancellationToken ct)
     {
@@ -247,11 +254,12 @@ public sealed class PostEndpoints : IApiEndpoints
 
         post.Publish(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
+        await feed.InvalidateAsync(ct);
         return TypedResults.Ok(await ViewAsync(post, media, ct));
     }
 
     private static async Task<IResult> DeleteAsync(
-        Guid id, ClaimsPrincipal user, PostsDbContext db, TimeProvider time, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, PostsDbContext db, FreshFeedCache feed, TimeProvider time, CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {
@@ -264,8 +272,14 @@ public sealed class PostEndpoints : IApiEndpoints
             return refused;
         }
 
-        post!.Delete(time.GetUtcNow());
+        var shownInFeed = post!.Status == PostStatus.Published && post.DeletedAt is null;
+        post.Delete(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
+        if (shownInFeed)
+        {
+            await feed.InvalidateAsync(ct);
+        }
+
         return TypedResults.NoContent();
     }
 
