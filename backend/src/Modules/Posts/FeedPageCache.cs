@@ -29,6 +29,9 @@ public sealed partial class FeedPageCache(IDistributedCache cache, TimeProvider 
 
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>The name of the popular feed in the keys of its pages (ADR-0086).</summary>
+    public const string PopularFeed = "popular";
+
     /// <summary>The name of the feed of one blog in the keys of its pages.</summary>
     public static string BlogFeed(Guid blogId) => $"blog:{blogId:N}";
 
@@ -44,14 +47,32 @@ public sealed partial class FeedPageCache(IDistributedCache cache, TimeProvider 
         Func<CancellationToken, Task<CursorPage<FeedPostView>?>> read,
         CancellationToken ct)
     {
-        ArgumentException.ThrowIfNullOrEmpty(feed);
         ArgumentNullException.ThrowIfNull(page);
+        var position = page.After is { } after
+            ? string.Create(CultureInfo.InvariantCulture, $"{after.PublishedAt.UtcTicks}:{after.Id:N}")
+            : null;
+        return await GetOrReadAsync(feed, page.Limit, position, read, ct);
+    }
+
+    /// <summary>
+    /// The page of <paramref name="feed"/> after <paramref name="position"/> (<c>null</c> for the first page), as the
+    /// overload above, for a feed with its own cursor (the popular feed, ADR-0086): the position is the cursor written
+    /// so that two cursors give the same text only when they are the same.
+    /// </summary>
+    public async Task<CursorPage<FeedPostView>?> GetOrReadAsync(
+        string feed,
+        int limit,
+        string? position,
+        Func<CancellationToken, Task<CursorPage<FeedPostView>?>> read,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(feed);
         ArgumentNullException.ThrowIfNull(read);
 
         string? key = null;
         try
         {
-            key = PageKey(await GenerationAsync(ct), feed, page);
+            key = PageKey(await GenerationAsync(ct), feed, limit, position);
             if (await cache.GetAsync(key, ct) is { } bytes
                 && JsonSerializer.Deserialize<StoredPage>(bytes, _json) is { } stored
                 && stored.ExpiresAt > time.GetUtcNow())
@@ -115,10 +136,8 @@ public sealed partial class FeedPageCache(IDistributedCache cache, TimeProvider 
 
     private static string NewGeneration() => Guid.NewGuid().ToString("N");
 
-    private static string PageKey(string generation, string feed, PageRequest<FreshFeedCursor> page) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"feeds:page:{generation}:{feed}:{page.Limit}:{(page.After is { } after ? $"{after.PublishedAt.UtcTicks}:{after.Id:N}" : "top")}");
+    private static string PageKey(string generation, string feed, int limit, string? position) =>
+        string.Create(CultureInfo.InvariantCulture, $"feeds:page:{generation}:{feed}:{limit}:{position ?? "top"}");
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The feed cache did not answer; the page is read from the database")]
     private static partial void LogCacheFailed(ILogger logger, Exception exception);

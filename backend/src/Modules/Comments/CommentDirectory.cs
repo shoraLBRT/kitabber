@@ -73,4 +73,22 @@ internal sealed class CommentDirectory(
                 counts.GetValueOrDefault(c.Id),
                 c.CreatedAt));
     }
+
+    // One grouped query over the tree index, which starts with the post id (E08-05, ADR-0086).
+    public async Task<IReadOnlyDictionary<Guid, int>> ShownCountsAsync(
+        IReadOnlyCollection<Guid> postIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(postIds);
+        var ids = postIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await db.Comments.AsNoTracking()
+            .Where(c => ids.Contains(c.PostId) && c.DeletedAt == null)
+            .GroupBy(c => c.PostId)
+            .Select(g => new { PostId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.PostId, g => g.Count, cancellationToken);
+    }
 }

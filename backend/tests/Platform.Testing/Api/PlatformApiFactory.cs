@@ -87,6 +87,8 @@ public class PlatformApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(MediaSettings.ImagesBaseUrlKey, ImgproxyBaseUrl);
         builder.UseSetting(MediaSettings.ImagesKeyKey, ImgproxyKey);
         builder.UseSetting(MediaSettings.ImagesSaltKey, ImgproxySalt);
+        // Hotness passes (ADR-0086) would run whenever a test moves the clock; a test of hotness runs them itself.
+        builder.UseSetting(Platform.Modules.Posts.PostsSettings.HotnessIntervalSecondsKey, "0");
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);

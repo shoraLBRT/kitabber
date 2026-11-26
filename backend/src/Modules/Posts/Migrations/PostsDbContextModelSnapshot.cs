@@ -23,6 +23,24 @@ namespace Platform.Modules.Posts.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Platform.Modules.Posts.HotnessFormulaState", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Formula")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("formula");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hotness_formula");
+
+                    b.ToTable("hotness_formula", "posts");
+                });
+
             modelBuilder.Entity("Platform.Modules.Posts.Post", b =>
                 {
                     b.Property<Guid>("Id")
@@ -117,6 +135,52 @@ namespace Platform.Modules.Posts.Migrations
                         .HasFilter("source_channel IS NOT NULL");
 
                     b.ToTable("posts", "posts");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Posts.PostHotness", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<int>("Comments")
+                        .HasColumnType("integer")
+                        .HasColumnName("comments");
+
+                    b.Property<DateTimeOffset>("ComputedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("computed_at");
+
+                    b.Property<string>("Formula")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("formula");
+
+                    b.Property<DateTimeOffset>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("double precision")
+                        .HasColumnName("score");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("integer")
+                        .HasColumnName("views");
+
+                    b.HasKey("PostId")
+                        .HasName("pk_post_hotness");
+
+                    b.HasIndex("Score", "PostId")
+                        .IsDescending()
+                        .HasDatabaseName("ix_post_hotness_popular_feed");
+
+                    b.ToTable("post_hotness", "posts");
                 });
 
             modelBuilder.Entity("Platform.Modules.Posts.PostViewMark", b =>

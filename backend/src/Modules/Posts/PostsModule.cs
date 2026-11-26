@@ -34,6 +34,9 @@ public static class PostsModule
         builder.Services.AddSingleton<ViewFlusher>();
         builder.Services.AddHostedService<ViewFlushService>();
         builder.Services.AddApiEndpoints<PostViewEndpoints>();
+        builder.Services.AddScoped<HotnessCalculator>();
+        builder.Services.AddHostedService<HotnessService>();
+        builder.Services.AddApiEndpoints<PopularFeedEndpoints>();
         return builder;
     }
 }

@@ -54,4 +54,12 @@ public interface ICommentDirectory
     /// </summary>
     Task<IReadOnlyDictionary<Guid, BestComment>> BestShownAsync(
         IReadOnlyCollection<Guid> postIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The number of shown comments under each of the posts <paramref name="postIds"/>, by the post's id, read with one
+    /// query (E08-05, ADR-0086): every comment that is not deleted, replies and guest comments among them. A post with
+    /// no shown comment is not in the result. The caller gives posts it already knows are published.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> ShownCountsAsync(
+        IReadOnlyCollection<Guid> postIds, CancellationToken cancellationToken);
 }
