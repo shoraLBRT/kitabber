@@ -365,6 +365,7 @@ const posts = [
   publishedAt: '2026-11-20T10:00:00Z',
   images: {},
   imagePreviews: {},
+  viewCount: id.endsWith('c1') ? 1234 : 0,
 }))
 
 // A post of Arabic quotes (E02-14, ADR-0068): an Arabic block with harakat, an Arabic block with a Russian word, a
@@ -393,6 +394,7 @@ const arabicPost = {
   updatedAt: '2026-11-20T10:00:00Z',
   publishedAt: '2026-11-20T10:00:00Z',
   images: {},
+  viewCount: 0,
 }
 
 function post(response, url) {
@@ -667,6 +669,7 @@ async function writePost(request, response, url) {
         source: null,
         createdAt: now,
         publishedAt: null,
+        viewCount: 0,
         ...fields,
       }
   written.set(saved.id, saved)
@@ -1035,6 +1038,13 @@ createServer(async (request, response) => {
   const [, changed] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)$/) ?? []
   if (changed && ['PATCH', 'DELETE'].includes(request.method))
     return changeComment(request, response, changed)
+  // The view counter (E07-06, ADR-0071): reports are taken and not counted; the counts are the seeded viewCount.
+  // e2e/views.spec.ts checks what the browser reports to the site's server.
+  if (
+    /^\/api\/v1\/posts\/([^/]+\/(open|reading)|impressions)$/.test(url.pathname) &&
+    request.method === 'POST'
+  )
+    return send(response, 204)
   if (url.pathname.startsWith('/api/v1/posts/') && request.method === 'GET') return post(response, url)
   if (url.pathname.startsWith('/api/v1/posts') && ['POST', 'PUT'].includes(request.method))
     return writePost(request, response, url)

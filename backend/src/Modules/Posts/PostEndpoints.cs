@@ -52,6 +52,9 @@ public sealed record PostSourceView(string Channel, string Message, string? Url)
 /// What each picture of <paramref name="Images"/> is shown as until it loads (ADR-0067): the dominant colour and a
 /// tiny blurred stand-in, by the same key. A picture without a preview has no entry.
 /// </param>
+/// <param name="ViewCount">
+/// How many people opened the post, each counted once a day; bots and the author are not counted (E07-06, ADR-0071).
+/// </param>
 public sealed record PostView(
     Guid Id,
     Guid BlogId,
@@ -66,7 +69,8 @@ public sealed record PostView(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? PublishedAt,
     IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> Images,
-    IReadOnlyDictionary<Guid, ImagePreview> ImagePreviews);
+    IReadOnlyDictionary<Guid, ImagePreview> ImagePreviews,
+    int ViewCount);
 
 /// <summary>
 /// <c>/api/v1/posts</c> (FR-POST, ADR-0029): create a draft, read, edit and softly delete a post. A draft is seen only
@@ -348,7 +352,8 @@ public sealed class PostEndpoints : IApiEndpoints
             .Select(m => m.MediaId)
             .Distinct()
             .Where(previews.ContainsKey)
-            .ToDictionary(id => id, id => previews[id]));
+            .ToDictionary(id => id, id => previews[id]),
+        post.ViewCount);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>
