@@ -11,7 +11,10 @@ using Platform.Testing.Containers;
 
 namespace Platform.Modules.Blogs.IntegrationTests;
 
-/// <summary>The Api host with at most <see cref="MaxTopics"/> topics per account, on PostgreSQL and Redis in Testcontainers.</summary>
+/// <summary>
+/// The Api host with at most <see cref="MaxTopics"/> topics per account and a short stop list, signed in by the test
+/// scheme, on PostgreSQL and Redis in Testcontainers.
+/// </summary>
 public sealed class TopicCreateApi : IntegrationApiFactory
 {
     public const int MaxTopics = 2;
@@ -21,6 +24,7 @@ public sealed class TopicCreateApi : IntegrationApiFactory
     {
         WithSetting(BlogsSettings.MaxTopicsPerAccountKey, MaxTopics.ToString(System.Globalization.CultureInfo.InvariantCulture));
         WithSetting(BlogsSettings.StopWordsKey, "official,официальн");
+        WithModule(services => services.AddTestAuthentication());
     }
 }
 
