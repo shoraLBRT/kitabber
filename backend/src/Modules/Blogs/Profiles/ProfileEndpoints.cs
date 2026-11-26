@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Modules.Blogs.Subscriptions;
+using Platform.Modules.Blogs.Topics;
 using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Blogs.Profiles;
@@ -38,6 +39,10 @@ namespace Platform.Modules.Blogs.Profiles;
 /// How many blogs and topics the owner of a personal blog follows (ADR-0085); <c>null</c> for a topic.
 /// </param>
 /// <param name="Subscribed">The reader follows the blog (ADR-0085); <c>false</c> for a guest.</param>
+/// <param name="NicknameChangeableFrom">
+/// From when the owner may change the nickname again (E04-05, ADR-0090): 30 days after the last change; <c>null</c> when it
+/// was never changed and for everyone but the owner of a personal blog.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -52,7 +57,14 @@ public sealed record Profile(
     ProfileOwner? Owner = null,
     int SubscriberCount = 0,
     int? SubscriptionCount = null,
-    bool Subscribed = false);
+    bool Subscribed = false,
+    DateTimeOffset? NicknameChangeableFrom = null);
+
+/// <summary>A new nickname of the own personal blog (E04-05, ADR-0090).</summary>
+/// <param name="Nickname">
+/// 3 to 32 Latin letters, digits and <c>_</c>, starting with a letter; with or without <c>@</c>, any case.
+/// </param>
+public sealed record NicknameInput(string? Nickname);
 
 /// <summary>The owner of a topic as its page shows it (ADR-0082): the owner's personal blog.</summary>
 /// <param name="Id">The owner's personal blog.</param>
@@ -85,12 +97,17 @@ public sealed record ProfileInput(string? Name = null, string? Description = nul
 
 /// <summary>
 /// <c>/api/v1/profiles</c> (FR-PROFILE, ADR-0025): a blog's profile by its identifier or by its nickname, and the
-/// personal blog of an account (the author of a post, ADR-0050), open to everyone, and the signed-in account's own profile, which its owner edits (E04-03: name, description, avatar). The
-/// nickname rules are E04-05.
+/// personal blog of an account (the author of a post, ADR-0050), open to everyone, and the signed-in account's own profile, which its owner edits (E04-03: name, description, avatar; E04-05,
+/// ADR-0090: the nickname, once in 30 days).
 /// </summary>
 public sealed class ProfileEndpoints : IApiEndpoints
 {
     public const string ProfileNotFoundCode = "profile_not_found";
+
+    /// <summary>The problem code of a nickname change sooner than 30 days after the last one (ADR-0090).</summary>
+    public const string NicknameChangeTooSoonCode = "blogs.nickname_change_too_soon";
+
+    private const string _nicknameForm = "Никнейм — от 3 до 32 латинских букв, цифр и _, начинается с буквы.";
 
     /// <summary>The side of the delivered avatar: twice the largest avatar on the site (64 px), for dense screens.</summary>
     public const int AvatarSide = 128;
@@ -131,6 +148,14 @@ public sealed class ProfileEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("UpdateOwnProfile")
             .WithSummary("Replaces the name, the description and the avatar of the signed-in account's personal blog");
+        profiles.MapPut("/me/nickname", ChangeOwnNicknameAsync)
+            .RequireAuthorization()
+            .Produces<Profile>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithName("ChangeOwnNickname")
+            .WithSummary("Changes the nickname of the signed-in account's personal blog: free, not reserved, once in 30 days");
         profiles.MapPut("/me/cover", SetOwnCoverAsync)
             .RequireAuthorization()
             .Produces<Profile>()
@@ -215,6 +240,78 @@ public sealed class ProfileEndpoints : IApiEndpoints
         return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
 
+    // E04-05, ADR-0090: the form, the reserved addresses and the stop list, then the 30 days, then whether another blog or
+    // topic has the nickname or gave it up lately. The nickname the blog gives up leads to the new one from then on.
+    private static async Task<IResult> ChangeOwnNicknameAsync(
+        NicknameInput input,
+        ClaimsPrincipal user,
+        PersonalBlogs blogs,
+        BlogsDbContext db,
+        IMediaLibrary media,
+        TopicLimits limits,
+        TimeProvider time,
+        CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } accountId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var nickname = SubsiteRules.NormalizeNickname(input.Nickname);
+        if (nickname is null)
+        {
+            return NicknameProblem(string.IsNullOrWhiteSpace(input.Nickname) ? "Укажите никнейм." : _nicknameForm);
+        }
+
+        if (BlogAddresses.IsRefused(nickname, limits))
+        {
+            return NicknameProblem("Такой никнейм выбрать нельзя.");
+        }
+
+        var blog = await blogs.EnsureAsync(accountId, ct);
+        if (nickname == blog.Nickname)
+        {
+            return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
+        }
+
+        var now = time.GetUtcNow();
+        if (blog.Nickname is not null && !blog.CanChangeNicknameAt(now))
+        {
+            return ApiProblems.Conflict(
+                NicknameChangeTooSoonCode,
+                $"Никнейм можно менять раз в {SubsiteRules.NicknameChangeInterval.Days} дней; "
+                + $"следующая смена — с {blog.NicknameChangeableFrom:yyyy-MM-dd}.");
+        }
+
+        if (await BlogAddresses.IsTakenAsync(db, nickname, blog.Id, now, ct))
+        {
+            return NicknameProblem(_nicknameTaken);
+        }
+
+        await BlogAddresses.ClaimAsync(db, nickname, ct);
+        if (blog.ChangeNickname(nickname, now) is { } former)
+        {
+            BlogAddresses.Release(db, former, blog.Id, now);
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException e) when (BlogAddresses.IsAddressRace(e))
+        {
+            // Someone took the nickname between the check and the save.
+            return NicknameProblem(_nicknameTaken);
+        }
+
+        return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
+    }
+
+    private const string _nicknameTaken = "Этот никнейм уже занят блогом или темой.";
+
+    private static IResult NicknameProblem(string message) =>
+        ApiProblems.Validation(new Dictionary<string, string[]> { ["nickname"] = [message] });
+
     private static async Task<IResult> SetOwnCoverAsync(
         CoverInput input,
         ClaimsPrincipal user,
@@ -297,13 +394,18 @@ public sealed class ProfileEndpoints : IApiEndpoints
     {
         if (SubsiteRules.NormalizeNickname(nickname) is not { } normalized)
         {
-            return ApiProblems.Validation(new Dictionary<string, string[]>
-            {
-                ["nickname"] = ["Никнейм — от 3 до 32 латинских букв, цифр и _, начинается с буквы."],
-            });
+            return NicknameProblem(_nicknameForm);
         }
 
-        return await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Nickname == normalized, ct) is { } blog
+        // A nickname the blog gave up answers with the blog as it is now (ADR-0090): its nickname differs from the one
+        // asked for, and the site leads to the blog's own address the way it does for another case of the nickname.
+        var blog = await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Nickname == normalized, ct);
+        if (blog is null && await BlogAddresses.FormerOwnerAsync(db, normalized, ct) is { } formerOwner)
+        {
+            blog = await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == formerOwner, ct);
+        }
+
+        return blog is not null
             ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
     }
@@ -334,17 +436,22 @@ public sealed class ProfileEndpoints : IApiEndpoints
         };
     }
 
-    private static async Task<Profile> BareViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct) => new(
-        blog.Id,
-        blog.Type == SubsiteType.Personal ? "personal" : "topic",
-        blog.Name,
-        blog.Nickname,
-        blog.Description,
-        viewer is not null && blog.OwnerAccountId == viewer ? blog.CreatedAt : null,
-        blog.AvatarMediaId,
-        await AvatarUrlAsync(blog.AvatarMediaId, media, ct),
-        await AvatarSourcesAsync(blog.AvatarMediaId, media, ct),
-        await CoverAsync(blog, media, ct));
+    private static async Task<Profile> BareViewAsync(Subsite blog, Guid? viewer, IMediaLibrary media, CancellationToken ct)
+    {
+        var own = viewer is not null && blog.OwnerAccountId == viewer;
+        return new(
+            blog.Id,
+            blog.Type == SubsiteType.Personal ? "personal" : "topic",
+            blog.Name,
+            blog.Nickname,
+            blog.Description,
+            own ? blog.CreatedAt : null,
+            blog.AvatarMediaId,
+            await AvatarUrlAsync(blog.AvatarMediaId, media, ct),
+            await AvatarSourcesAsync(blog.AvatarMediaId, media, ct),
+            await CoverAsync(blog, media, ct),
+            NicknameChangeableFrom: own && blog.Type == SubsiteType.Personal ? blog.NicknameChangeableFrom : null);
+    }
 
     // A file that is no longer an image of the media library shows no cover rather than a broken picture.
     private static async Task<ProfileCover?> CoverAsync(Subsite blog, IMediaLibrary media, CancellationToken ct)

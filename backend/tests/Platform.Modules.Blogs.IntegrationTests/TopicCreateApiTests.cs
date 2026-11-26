@@ -103,6 +103,33 @@ public sealed class TopicCreateApiTests(TopicCreateApi api) : IClassFixture<Topi
         Assert.Equal(1, await CountTopicsAsync());
     }
 
+    // ADR-0090: a nickname a blog gave up is held for 90 days; then a topic takes it and it stops leading to the blog.
+    [Fact]
+    public async Task ANicknameABlogGaveUpIsHeldThenATopicTakesIt()
+    {
+        var now = api.Time.GetUtcNow();
+        var blog = Subsite.CreatePersonal(Guid.CreateVersion7(now), now);
+        blog.SetNickname("kino_now");
+        await api.SaveAsync<BlogsDbContext>(blog);
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BlogsDbContext>();
+            db.FormerNicknames.Add(new FormerNickname { Nickname = "kino", SubsiteId = blog.Id, ReleasedAt = now });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var owner = await SaveConfirmedAccountAsync(3, "held-address@example.com");
+
+        using var held = await CreateAsync(owner, new { name = "Кино", nickname = "kino" });
+        api.Time.Advance(TimeSpan.FromDays(90));
+        using var free = await CreateAsync(owner, new { name = "Кино", nickname = "kino" });
+
+        Assert.Equal(["nickname"], await ErrorFieldsOf(held));
+        Assert.Equal(HttpStatusCode.Created, free.StatusCode);
+        var profile = await _client.GetFromJsonAsync<JsonElement>("/api/v1/profiles/by-nickname/kino", Ct);
+        Assert.Equal("topic", profile.GetProperty("type").GetString());
+    }
+
     [Theory]
     [InlineData("Официальный клуб", "club", "name")]
     [InlineData("Клуб", "official_club", "nickname")]
