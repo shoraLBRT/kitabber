@@ -3,7 +3,7 @@
 # - a failing step (a failed test or linter) makes verify exit non-zero and shows up in the run summary;
 # - test reports (TRX, JUnit) reach the run summary;
 # - the linters really reject bad code;
-# - the CI workflow runs verify.ps1 within 10 minutes, with caches and test reports;
+# - the CI workflow runs verify.ps1 within 20 minutes (10 on the empty skeleton, E01-02; raised in #375), with caches and test reports;
 # - the screen-spec check (scripts/ui-specs-test.ps1) rejects broken specs.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -101,7 +101,7 @@ exit (Complete-Verify '$reports')
     $ci = Get-Content -Raw -Encoding utf8 (Join-Path $root '.github/workflows/ci.yml')
     Assert ($ci -match '(?m)^\s+run: \./scripts/verify\.ps1\s*$') 'ci.yml: job verify must run ./scripts/verify.ps1'
     $timeout = [regex]::Match($ci, 'timeout-minutes:\s*(\d+)')
-    Assert ($timeout.Success -and [int]$timeout.Groups[1].Value -le 10) 'ci.yml: verify must time out within 10 minutes'
+    Assert ($timeout.Success -and [int]$timeout.Groups[1].Value -le 20) 'ci.yml: verify must time out within 20 minutes'
     Assert ($ci -match 'cache:\s*pnpm') 'ci.yml: pnpm store must be cached'
     Assert ($ci -match '\.nuget/packages') 'ci.yml: NuGet packages must be cached'
     Assert ($ci -match 'artifacts/test-results') 'ci.yml: test reports must be uploaded'
