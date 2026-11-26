@@ -119,7 +119,8 @@ test.describe('страница поста: шапка и панель дейс�
     await page.goto(address)
     await waitForHydration(page)
     const panel = page.getByRole('toolbar', { name: 'Действия с постом' })
-    await expect(panel.getByRole('button', { name: 'Нравится' })).toBeDisabled()
+    // A guest may press it: the sign-in window opens (E10-01, e2e/likes.spec.ts).
+    await expect(panel.getByRole('button', { name: 'Нравится' })).toBeEnabled()
     await expect(panel.getByRole('link', { name: 'Комментарии' })).toHaveAttribute('href', '#comments')
     await expect(panel.getByRole('button', { name: 'Поделиться' })).toBeVisible()
 

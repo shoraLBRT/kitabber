@@ -14,6 +14,7 @@ import PostMenu from './PostMenu.vue'
 import type { PostMenuFeatures } from '../../utils/post-menu'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
+import type { Likes } from '../../composables/useLikes'
 
 const props = defineProps<{
   state: PostLookup | { status: 'loading' }
@@ -21,6 +22,11 @@ const props = defineProps<{
   features?: PostMenuFeatures
   /** Deletes the post from the author's menu; see PostMenu. */
   remove?: () => Promise<boolean>
+  /**
+   * The likes of the published post and of its comments (E10-01), read once by the page for the action panel and the
+   * tree; without them «Нравится» is shown and disabled.
+   */
+  likes?: Likes | null
 }>()
 
 defineEmits<{ retry: [] }>()
@@ -36,6 +42,8 @@ const dateFormat = new Intl.DateTimeFormat('ru', {
 })
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
+
+const publishedId = computed(() => (found.value?.post.status === 'published' ? found.value.post.id : null))
 
 // The blog is named apart from the author only when it is not the author's own: a topic.
 const inBlog = computed(() =>
@@ -102,9 +110,10 @@ const inBlog = computed(() =>
         :key="found.post.id"
         :post-id="found.post.id"
         :post-path="found.path"
+        :likes="likes"
       />
     </div>
-    <PostActions :path="found.path" />
+    <PostActions :path="found.path" :post-id="publishedId" :own="found.own" :likes="likes" />
   </article>
 </template>
 

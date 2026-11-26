@@ -1,10 +1,11 @@
 // What every comment of a tree shares (E09-02, E09-03): the authors read so far, where each branch's reading stands and
 // how to read the rest of a branch, and what the forms need: who writes, which comments are still being sent, why a send
-// failed and how to send, the person's own comments with how to change and delete them (E09-05), and where a deep
-// branch opens on a phone (E09-06). CommentTree
+// failed and how to send, the person's own comments with how to change and delete them (E09-05), where a deep
+// branch opens on a phone (E09-06), and the comments' likes (E10-01). CommentTree
 // provides it once, so the nested CommentItems do not pass it down level by level.
 import type { InjectionKey, Ref } from 'vue'
 import type { Profile } from '../../api/profiles'
+import type { Likes } from '../../composables/useLikes'
 
 export type BranchStatus = 'loading' | 'error'
 
@@ -33,6 +34,8 @@ export type CommentTreeContext = {
   failures: Readonly<Ref<Readonly<Record<FormTarget, CommentFailure>>>>
   /** The person's own comments: they take «Редактировать» (while the time lasts) and «Удалить». */
   own: Readonly<Ref<Readonly<Record<string, true>>>>
+  /** The likes of the comments (E10-01): their counts, the person's marks and the press; `null` shows none. */
+  likes: Readonly<Ref<Likes | null>>
   /** The time the menus compare `editableUntil` with, moved on by the tree every half minute. */
   now: Readonly<Ref<number>>
   /** The form to open on arrival: the person came back signed in from the window its button opened. */

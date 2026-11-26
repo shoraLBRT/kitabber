@@ -20,6 +20,7 @@ import {
   type CommentsState,
 } from '../../api/comments'
 import type { Profile } from '../../api/profiles'
+import type { Likes } from '../../composables/useLikes'
 import { commentTreeKey, type BranchStatus, type CommentFailure, type FormTarget } from './context'
 
 const props = withDefaults(
@@ -40,6 +41,8 @@ const props = withDefaults(
     branchLink?: ((commentId: string) => string) | null
     /** The tree is one branch on its own screen (E09-06): no heading, no order, no form under the post. */
     branch?: boolean
+    /** The comments' likes (E10-01); `null` shows no «Нравится». */
+    likes?: Likes | null
   }>(),
   {
     pending: () => ({}),
@@ -51,6 +54,7 @@ const props = withDefaults(
     remove: async () => false,
     branchLink: null,
     branch: false,
+    likes: null,
   },
 )
 
@@ -83,6 +87,7 @@ provide(commentTreeKey, {
   resume: toRef(props, 'resume'),
   branchLink: toRef(props, 'branchLink'),
   own: toRef(props, 'own'),
+  likes: toRef(props, 'likes'),
   now,
   edit: (id, text) => props.edit(id, text),
   remove: (id) => props.remove(id),
