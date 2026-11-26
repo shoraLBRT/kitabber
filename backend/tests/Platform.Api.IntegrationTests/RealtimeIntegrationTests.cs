@@ -188,16 +188,6 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
         Assert.False(client.HasMore);
     }
 
-    public static TheoryData<int> Runs => [.. Enumerable.Range(1, 50)];
-
-    [Theory]
-    [MemberData(nameof(Runs))]
-    public async Task RedisBackplaneDeliversAcrossInstancesRepeated(int run)
-    {
-        Assert.True(run > 0);
-        await RedisBackplaneDeliversAcrossInstances();
-    }
-
     [Fact]
     public async Task NewConnectionOfTheSameAccountRejoinsItsTopic()
     {
