@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Configuration;
 using Platform.Http;
 using Platform.Messaging;
@@ -40,6 +41,7 @@ public static class BlogsModule
         ArgumentNullException.ThrowIfNull(builder);
         AddServices(builder.Services, builder.Configuration);
         builder.Services.AddApiEndpoints<ProfileEndpoints>();
+        builder.Services.TryAddSingleton(BlogsSettings.ReadLimits(builder.Configuration));
         builder.Services.AddApiEndpoints<TopicEndpoints>();
         builder.Services.AddApiEndpoints<SubscriptionEndpoints>();
         return builder;

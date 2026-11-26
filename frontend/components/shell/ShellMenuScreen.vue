@@ -4,7 +4,15 @@
 // colour theme switch and the service links. "Коллекция", "подписка" and donations are not shown.
 import { ChevronRight, LogIn, LogOut } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { accountNav, isActive, loginPath, serviceNav, topicsPath, type NavItem } from '../../utils/navigation'
+import {
+  accountNav,
+  isActive,
+  loginPath,
+  newTopicPath,
+  serviceNav,
+  topicsPath,
+  type NavItem,
+} from '../../utils/navigation'
 import UiAvatar from '../ui/UiAvatar.vue'
 import type { ShellUser } from './ShellHeader.vue'
 import ShellThemeSwitch from './ShellThemeSwitch.vue'
@@ -74,6 +82,9 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
       </ul>
       <NuxtLink :to="topicsPath" class="menu-screen__row" data-nav="topics">{{
         t('common.showAll')
+      }}</NuxtLink>
+      <NuxtLink v-if="user" :to="newTopicPath" class="menu-screen__row" data-nav="new-topic">{{
+        t('topicCreate.create')
       }}</NuxtLink>
     </section>
 
