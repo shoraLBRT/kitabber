@@ -31,6 +31,23 @@ internal sealed class MediaLibrary(MediaDbContext db, ImgproxyUrls images) : IMe
             f => (IReadOnlyList<ImageSource>)[.. variants.Select(v => new ImageSource(images.Build(f.Value, v), v.Width))]);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, ImagePreview>> ImagePreviewsAsync(
+        IReadOnlyCollection<Guid> mediaIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(mediaIds);
+        if (mediaIds.Count == 0)
+        {
+            return new Dictionary<Guid, ImagePreview>();
+        }
+
+        var ids = mediaIds.Distinct().ToList();
+        var previews = await db.Files.AsNoTracking()
+            .Where(f => ids.Contains(f.Id) && f.Kind == MediaKind.Image && f.PreviewColor != null && f.PreviewImage != null)
+            .Select(f => new { f.Id, f.PreviewColor, f.PreviewImage })
+            .ToListAsync(cancellationToken);
+        return previews.ToDictionary(f => f.Id, f => ImagePreview.FromWebP(f.PreviewColor!, f.PreviewImage!));
+    }
+
     // The storage keys of the images among the identifiers: one query for a whole feed.
     private async Task<Dictionary<Guid, string>> StorageKeysAsync(
         IReadOnlyCollection<Guid> mediaIds, CancellationToken cancellationToken)

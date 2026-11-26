@@ -4,11 +4,11 @@
 // anchor (ADR-0031; the post's title is the page's `h1`), a list `ul` or `ol` with nested lists, a quote a `figure`
 // with `blockquote` and `figcaption`, a delimiter `hr`. A block the renderer does not know is a placeholder.
 // An image (E05-06, ADR-0049) is a `figure` with the picture (UiImage: its place held by the block's size, the
-// sources from PostView.images) and its caption.
+// sources from PostView.images, the blurred stand-in from PostView.imagePreviews, ADR-0067) and its caption.
 import { computed } from 'vue'
 import PostList from './PostList.vue'
 import UiImage from '../ui/UiImage.vue'
-import type { ImageSource } from '../../types/ui'
+import type { ImagePreview, ImageSource } from '../../types/ui'
 import { viewBlocks } from '../../utils/post-blocks'
 import { t } from '../../i18n'
 
@@ -17,8 +17,10 @@ const props = withDefaults(
     document: unknown
     /** The sources of the post's pictures by file id (PostView.images). */
     images?: Readonly<Record<string, readonly ImageSource[]>>
+    /** The blurred stand-ins of the pictures by file id (PostView.imagePreviews). */
+    previews?: Readonly<Record<string, ImagePreview>>
   }>(),
-  { images: () => ({}) },
+  { images: () => ({}), previews: () => ({}) },
 )
 
 /** The text column is at most --size-measure (680 px) wide; on a phone the picture takes the screen's width. */
@@ -57,6 +59,7 @@ const blocks = computed(() => viewBlocks(props.document))
         <UiImage
           class="post-blocks__picture"
           :sources="images[block.media] ?? []"
+          :preview="previews[block.media]"
           :sizes="imageSizes"
           :width="block.width"
           :height="block.height"

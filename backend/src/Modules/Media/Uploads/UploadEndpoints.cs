@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Media.Uploads;
 
@@ -17,7 +18,12 @@ namespace Platform.Modules.Media.Uploads;
 /// <param name="Size">The size in bytes.</param>
 /// <param name="FileName">The name the file had on the device, or <c>null</c>.</param>
 /// <param name="CreatedAt">When it was uploaded.</param>
-public sealed record UploadedMedia(Guid Id, string Kind, string ContentType, long Size, string? FileName, DateTimeOffset CreatedAt);
+/// <param name="Preview">
+/// For an image, its dominant colour and tiny blurred stand-in (ADR-0067); <c>null</c> for other files and for an
+/// image that could not be decoded.
+/// </param>
+public sealed record UploadedMedia(
+    Guid Id, string Kind, string ContentType, long Size, string? FileName, DateTimeOffset CreatedAt, ImagePreview? Preview);
 
 /// <summary>
 /// <c>POST /api/v1/media</c> (FR-MEDIA, ADR-0030): a signed-in account uploads one file as <c>multipart/form-data</c>
@@ -109,7 +115,8 @@ public sealed class UploadEndpoints(MediaLimits limits) : IApiEndpoints
         file.ContentType,
         file.Size,
         file.FileName,
-        file.CreatedAt);
+        file.CreatedAt,
+        file is { PreviewColor: { } color, PreviewImage: { } image } ? ImagePreview.FromWebP(color, image) : null);
 
     private static string MegabytesOf(long bytes) =>
         Math.Round(bytes / (double)MediaLimits.Megabyte, 1).ToString("0.#", CultureInfo.InvariantCulture);

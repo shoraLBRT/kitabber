@@ -6,7 +6,7 @@ import { Bookmark, FileText, LogOut, Pencil, Settings, Trash2, User } from 'luci
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { faviconHref } from '../../brand/favicon'
 import { useToast } from '../composables/useToast'
-import type { ImageSource, MenuItem, TabItem } from '../types/ui'
+import type { ImagePreview, ImageSource, MenuItem, TabItem } from '../types/ui'
 import UiAvatar from './ui/UiAvatar.vue'
 import UiButton from './ui/UiButton.vue'
 import UiField from './ui/UiField.vue'
@@ -23,6 +23,14 @@ const landscape: ImageSource[] = [320, 640, 1280].map((width) => ({
   url: `/showcase/landscape-${width}.svg`,
   width,
 }))
+
+// What the API gives with such a picture (E06-03, ADR-0067): its average colour and a 16 by 10 PNG of it, both drawn
+// from the same brand colours as the picture.
+const landscapePreview: ImagePreview = {
+  color: '#1a3936',
+  image:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAKCAIAAAAy3EnLAAAAOklEQVR42mOQVVAhCTFQX4PNyWUQRDMNBJzEnRdNggbuvGgIwmMEA6ZqZD2YRjBgVY0VITQQoxquBwBvLVXiEq0FXQAAAABJRU5ErkJggg==',
+}
 
 const themeTabs: TabItem[] = [
   { id: 'system', label: 'Системная' },
@@ -190,6 +198,17 @@ function save() {
             data-testid="showcase-image"
           />
           <figcaption>Загружено</figcaption>
+        </figure>
+        <figure class="showcase__figure">
+          <UiImage
+            src="/showcase/landscape-640.svg?preview"
+            :preview="landscapePreview"
+            :width="320"
+            :height="200"
+            alt="Горы у озера"
+            data-testid="showcase-image-preview"
+          />
+          <figcaption>Размытое превью до загрузки</figcaption>
         </figure>
         <figure class="showcase__figure">
           <UiImage :width="320" :height="200" alt="Нет изображения" data-testid="showcase-image-empty" />

@@ -104,7 +104,11 @@ const inBlog = computed(() =>
       <PostMenu :own="found.own" :path="found.path" :features="features" :remove="remove" />
     </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title">{{ found.post.title }}</h1>
-    <PostBlocks :document="found.post.body" :images="found.post.images" />
+    <PostBlocks
+      :document="found.post.body"
+      :images="found.post.images"
+      :previews="found.post.imagePreviews"
+    />
     <div id="comments" class="post__comments">
       <PostComments
         v-if="found.post.status === 'published'"

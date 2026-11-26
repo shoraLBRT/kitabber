@@ -31,6 +31,7 @@ function postView(id: string, title: string | null, text: string): Post {
     updatedAt: '2026-11-20T10:00:00Z',
     publishedAt: '2026-11-20T10:05:00Z',
     images: {},
+    imagePreviews: {},
   }
 }
 

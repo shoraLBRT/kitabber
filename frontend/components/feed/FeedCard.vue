@@ -66,7 +66,7 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
       <h2 class="feed-card__title">{{ item.post.title }}</h2>
     </NuxtLink>
 
-    <PostBlocks :document="shown" :images="item.post.images" />
+    <PostBlocks :document="shown" :images="item.post.images" :previews="item.post.imagePreviews" />
 
     <button
       v-if="preview.cut && !expanded"

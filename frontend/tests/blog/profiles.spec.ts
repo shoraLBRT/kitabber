@@ -152,6 +152,7 @@ describe('editing the own profile (E04-03)', () => {
       size: 3,
       fileName: 'avatar.jpg',
       createdAt: '',
+      preview: null,
     }
     const uploaded = clientAnswering(201, media)
     expect(

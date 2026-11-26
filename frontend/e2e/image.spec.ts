@@ -25,7 +25,9 @@ async function openWithPicturesFarBelow(page: Page) {
 test('картинка вне экрана не загружается, пока до неё не дошла прокрутка', async ({ page }) => {
   const fetched: string[] = []
   page.on('request', (request) => {
-    if (request.url().includes('/showcase/landscape-')) fetched.push(request.url())
+    // The preview example (E06-03) has its own link and is checked by its own test.
+    const url = request.url()
+    if (url.includes('/showcase/landscape-') && !url.endsWith('?preview')) fetched.push(url)
   })
   await openWithPicturesFarBelow(page)
   const image = page.getByTestId('showcase-image')
@@ -100,4 +102,38 @@ test('пустая и сломанная картинки оставляют з�
     expect(rect.width).toBeCloseTo(size.width, 0)
     expect(rect.height).toBeCloseTo(size.height, 0)
   }
+})
+
+// Acceptance of E06-03 (#68, ADR-0067): until the picture arrives its box shows the dominant colour and the blurred
+// tiny picture the API keeps with the file, and they go once the picture has painted.
+test('до загрузки картинки виден размытый фон её цвета', async ({ page }) => {
+  let release: () => void = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route(
+    (url) => url.pathname === '/showcase/landscape-640.svg' && url.search === '?preview',
+    async (route: Route) => {
+      await held
+      await route.continue()
+    },
+  )
+  await page.goto('/ui')
+  await waitForHydration(page)
+  const image = page.getByTestId('showcase-image-preview')
+  await image.scrollIntoViewIfNeeded()
+  await expect(image).toHaveAttribute('data-state', 'loading')
+
+  await expect(image).toHaveAttribute('data-preview', '')
+  const painted = await image.evaluate((img) => {
+    const style = getComputedStyle(img)
+    return { color: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize }
+  })
+  expect(painted.color).toBe('rgb(26, 57, 54)')
+  expect(decodeURIComponent(painted.image)).toContain('feGaussianBlur')
+  expect(decodeURIComponent(painted.image)).toContain('data:image/png;base64,')
+  expect(painted.size).toBe('100% 100%')
+
+  release()
+  await expect(image).toHaveAttribute('data-state', 'loaded')
+  await expect(image).not.toHaveAttribute('data-preview')
+  expect(await image.evaluate((img) => getComputedStyle(img).backgroundImage)).toBe('none')
 })

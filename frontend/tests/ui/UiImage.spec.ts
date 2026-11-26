@@ -1,5 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { createSSRApp, h } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 
 import UiImage from '../../components/ui/UiImage.vue'
 import { hydrate } from './fixtures/hydrate'
@@ -108,5 +110,61 @@ describe('UiImage', () => {
     const lazy = await hydrate(UiImage, { src: '/p.webp', width: 1, height: 1, alt: '' })
     current.mockRestore()
     expect(lazy.getAttribute('data-state')).toBe('loading')
+  })
+})
+
+// E06-03 (ADR-0067): the blurred stand-in and the dominant colour until the picture arrives.
+describe('UiImage preview', () => {
+  const preview = { color: '#2080c0', image: 'data:image/webp;base64,UklGRgAAAABXRUJQ' }
+
+  it('fills the box with the colour and the blurred tiny picture in the server HTML', async () => {
+    // The server's HTML, as the browser gets it before any script: jsdom's style parser would drop the SVG link.
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(UiImage, { src: '/p.webp', width: 320, height: 200, alt: '', preview }),
+      }),
+    )
+    const container = document.createElement('div')
+    container.innerHTML = html
+    const img = container.querySelector('img')!
+    expect(img.hasAttribute('data-preview')).toBe(true)
+    const style = decodeURIComponent(img.getAttribute('style') ?? '')
+    expect(style).toContain('background-color:#2080c0')
+    expect(style).toContain('url("data:image/svg+xml,')
+    expect(style).toContain('feGaussianBlur')
+    // Blurred by about one of the tiny picture's 16 pixels, over the box's own proportions.
+    expect(style).toContain("stdDeviation='20'")
+    expect(style).toContain("viewBox='0 0 320 200'")
+    expect(style).toContain(preview.image)
+  })
+
+  it('drops the stand-in once the picture has painted, and after an error', async () => {
+    const loaded = mount(UiImage, { props: { src: '/p.webp', width: 4, height: 3, alt: '', preview } })
+    await loaded.get('img').trigger('load')
+    expect(loaded.get('img').attributes('data-preview')).toBeUndefined()
+    expect(loaded.get('img').attributes('style')).not.toContain('background')
+
+    const broken = mount(UiImage, { props: { src: '/p.webp', width: 4, height: 3, alt: '', preview } })
+    await broken.get('img').trigger('error')
+    expect(broken.get('[data-state="error"]').attributes('style')).not.toContain('background')
+  })
+
+  it('keeps the neutral surface without a preview, and takes only a colour and a base64 picture', () => {
+    const plain = mount(UiImage, { props: { src: '/p.webp', width: 4, height: 3, alt: '' } }).get('img')
+    expect(plain.attributes('data-preview')).toBeUndefined()
+    expect(plain.attributes('style')).not.toContain('background')
+
+    const hostile = mount(UiImage, {
+      props: {
+        src: '/p.webp',
+        width: 4,
+        height: 3,
+        alt: '',
+        preview: { color: 'red; position: fixed', image: "https://evil.example/x.png') ; x: url('" },
+      },
+    }).get('img')
+    expect(hostile.attributes('data-preview')).toBeUndefined()
+    expect(hostile.attributes('style')).not.toContain('evil')
+    expect(hostile.attributes('style')).not.toContain('fixed')
   })
 })

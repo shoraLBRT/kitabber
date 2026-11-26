@@ -45,7 +45,15 @@ function mountForm(
   }),
   upload: (avatar: Blob, fileName: string) => Promise<MediaUpload> = async (_, fileName) => ({
     status: 'uploaded',
-    media: { id: 'media-1', kind: 'image', contentType: 'image/jpeg', size: 4, fileName, createdAt: '' },
+    media: {
+      id: 'media-1',
+      kind: 'image',
+      contentType: 'image/jpeg',
+      size: 4,
+      fileName,
+      createdAt: '',
+      preview: null,
+    },
   }),
   profile: Profile = anna,
 ) {

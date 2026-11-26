@@ -57,6 +57,7 @@ const post: Post = {
   updatedAt: '2026-11-20T10:00:00Z',
   publishedAt: '2026-11-20T10:00:00Z',
   images: {},
+  imagePreviews: {},
 }
 
 describe('post address', () => {

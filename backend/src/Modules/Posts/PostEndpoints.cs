@@ -48,6 +48,10 @@ public sealed record PostSourceView(string Channel, string Message, string? Url)
 /// The pictures of the image blocks (ADR-0049), keyed by the file id the block names: signed sources of a responsive
 /// picture (ADR-0040), widest last. A file that is no longer an uploaded image has no entry.
 /// </param>
+/// <param name="ImagePreviews">
+/// What each picture of <paramref name="Images"/> is shown as until it loads (ADR-0067): the dominant colour and a
+/// tiny blurred stand-in, by the same key. A picture without a preview has no entry.
+/// </param>
 public sealed record PostView(
     Guid Id,
     Guid BlogId,
@@ -61,7 +65,8 @@ public sealed record PostView(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? PublishedAt,
-    IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> Images);
+    IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> Images,
+    IReadOnlyDictionary<Guid, ImagePreview> ImagePreviews);
 
 /// <summary>
 /// <c>/api/v1/posts</c> (FR-POST, ADR-0029): create a draft, read, edit and softly delete a post. A draft is seen only
@@ -313,11 +318,15 @@ public sealed class PostEndpoints : IApiEndpoints
     {
         var bodies = posts.Select(p => JsonNode.Parse(p.Body)!.AsObject()).ToList();
         var sources = await PostImages.SourcesAsync(bodies, media, ct);
-        return [.. posts.Select((post, i) => View(post, bodies[i], sources))];
+        var previews = await PostImages.PreviewsAsync(bodies, media, ct);
+        return [.. posts.Select((post, i) => View(post, bodies[i], sources, previews))];
     }
 
     private static PostView View(
-        Post post, JsonObject body, IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> sources) => new(
+        Post post,
+        JsonObject body,
+        IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> sources,
+        IReadOnlyDictionary<Guid, ImagePreview> previews) => new(
         post.Id,
         post.BlogId,
         post.AuthorAccountId,
@@ -334,7 +343,12 @@ public sealed class PostEndpoints : IApiEndpoints
             .Select(m => m.MediaId)
             .Distinct()
             .Where(sources.ContainsKey)
-            .ToDictionary(id => id, id => sources[id]));
+            .ToDictionary(id => id, id => sources[id]),
+        PostImages.MediaIds(body)
+            .Select(m => m.MediaId)
+            .Distinct()
+            .Where(previews.ContainsKey)
+            .ToDictionary(id => id, id => previews[id]));
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

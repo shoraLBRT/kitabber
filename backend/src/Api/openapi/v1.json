@@ -2579,6 +2579,21 @@
         "type": "string",
         "format": "binary"
       },
+      "ImagePreview": {
+        "required": [
+          "color",
+          "image"
+        ],
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          }
+        }
+      },
       "ImageSource": {
         "required": [
           "url",
@@ -2798,7 +2813,8 @@
           "createdAt",
           "updatedAt",
           "publishedAt",
-          "images"
+          "images",
+          "imagePreviews"
         ],
         "type": "object",
         "properties": {
@@ -2867,6 +2883,12 @@
               "items": {
                 "$ref": "#/components/schemas/ImageSource"
               }
+            }
+          },
+          "imagePreviews": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImagePreview"
             }
           }
         }
@@ -3131,7 +3153,8 @@
           "contentType",
           "size",
           "fileName",
-          "createdAt"
+          "createdAt",
+          "preview"
         ],
         "type": "object",
         "properties": {
@@ -3158,6 +3181,16 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImagePreview"
+              }
+            ]
           }
         }
       }

@@ -50,6 +50,7 @@ function item(
     updatedAt: '2026-11-20T10:00:00Z',
     publishedAt: '2026-11-20T10:05:00Z',
     images: {},
+    imagePreviews: {},
   }
   return { post, author: anna, topic: null, bestComment: null, ...extra }
 }

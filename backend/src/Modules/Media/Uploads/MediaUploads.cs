@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Platform.Modules.Media.Images;
 using Platform.Modules.Media.Storage;
 
 namespace Platform.Modules.Media.Uploads;
@@ -8,7 +9,8 @@ public sealed record UploadResult(MediaFile? File, UploadCheck Check);
 
 /// <summary>
 /// Accepting an upload (ADR-0030): check it by <see cref="UploadRules"/>, put the original into the storage under a new
-/// random key, then record it with its owner. When the record cannot be saved, the object is removed again.
+/// random key, then record it with its owner; an image
+/// gets its blurred preview and dominant colour first (ADR-0067). When the record cannot be saved, the object is removed again.
 /// </summary>
 public sealed partial class MediaUploads(
     MediaDbContext db, IObjectStorage storage, MediaLimits limits, TimeProvider time, ILogger<MediaUploads> logger)
@@ -29,10 +31,11 @@ public sealed partial class MediaUploads(
             return new UploadResult(null, check);
         }
 
+        var preview = check.Format!.Kind == MediaKind.Image ? Preview(content) : null;
         content.Position = 0;
         var key = StorageKeys.NewOriginal();
-        await storage.PutAsync(key, content, check.Format!.ContentType, cancellationToken);
-        var file = MediaFile.Create(ownerAccountId, check.Format, size, key, fileName, time.GetUtcNow());
+        await storage.PutAsync(key, content, check.Format.ContentType, cancellationToken);
+        var file = MediaFile.Create(ownerAccountId, check.Format, size, key, fileName, time.GetUtcNow(), preview);
         db.Files.Add(file);
         try
         {
@@ -45,6 +48,29 @@ public sealed partial class MediaUploads(
         }
 
         return new UploadResult(file, check);
+    }
+
+    // The blurred preview and the dominant colour (ADR-0067); an image Skia cannot read is kept without them.
+    private ImagePreviewData? Preview(Stream content)
+    {
+        content.Position = 0;
+        try
+        {
+            var preview = ImagePreviews.Compute(content);
+            if (preview is null)
+            {
+                LogNoPreview(logger);
+            }
+
+            return preview;
+        }
+#pragma warning disable CA1031 // A preview is an extra: a decoder failure never refuses an accepted upload.
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            LogPreviewFailed(logger, e);
+            return null;
+        }
     }
 
     private async Task RemoveOrphanAsync(string key)
@@ -60,6 +86,12 @@ public sealed partial class MediaUploads(
             LogOrphan(logger, e, key);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An uploaded image could not be decoded for its preview")]
+    private static partial void LogNoPreview(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The preview of an uploaded image failed")]
+    private static partial void LogPreviewFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The original {StorageKey} was stored but not recorded and could not be removed")]
     private static partial void LogOrphan(ILogger logger, Exception exception, string storageKey);
