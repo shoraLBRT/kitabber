@@ -3996,6 +3996,7 @@
       "NotificationActorView": {
         "required": [
           "accountId",
+          "blogId",
           "name",
           "nickname",
           "avatarSources"
@@ -4004,6 +4005,13 @@
         "properties": {
           "accountId": {
             "type": "string",
+            "format": "uuid"
+          },
+          "blogId": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "name": {

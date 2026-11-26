@@ -313,6 +313,62 @@ function blocksRoute(request, response, url) {
   return send(response, 204)
 }
 
+// The notifications (E12-02, ADR-0093): GET /api/v1/notifications/me?cursor=, GET …/unread and POST …/read. Kept per
+// client address; the fake provider's account starts with five from Борис, the newest first, the second and the fifth
+// already read, three to a page.
+const notificationPageSize = 3
+const ownNotifications = new Map() // client address -> notifications, the newest first
+
+function notificationsOf(request) {
+  const client = clientOf(request)
+  if (!ownNotifications.has(client)) {
+    const actor = {
+      accountId: '0195f3a0-0000-7000-8000-000000000002',
+      blogId: '0195f3a0-0000-7000-8000-0000000000b2',
+      name: 'Борис',
+      nickname: 'boris',
+      avatarSources: [],
+    }
+    const post = '0195f3a0-0000-7000-8000-00000000a001'
+    const types = ['comment_reply', 'new_subscriber', 'reaction', 'post_comment', 'mention']
+    ownNotifications.set(
+      client,
+      types.map((type, i) => ({
+        id: `0195f3a0-0000-7000-8000-00000000e00${i + 1}`,
+        type,
+        actor,
+        postId: type === 'new_subscriber' ? null : post,
+        commentId: null,
+        reactionKind: type === 'reaction' ? 'like' : null,
+        createdAt: new Date(Date.UTC(2026, 10, 26, 12 - i)).toISOString(),
+        read: i === 1 || i === 4,
+      })),
+    )
+  }
+  return ownNotifications.get(client)
+}
+
+async function notificationsRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const list = notificationsOf(request)
+  const unread = () => ({ unread: list.filter((n) => !n.read).length })
+  if (url.pathname.endsWith('/unread')) return send(response, 200, unread())
+  if (url.pathname.endsWith('/read')) {
+    const { ids } = JSON.parse((await readBody(request)) || '{}')
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100)
+      return send(response, 400, { status: 400, code: 'validation_failed', errors: { ids: ['invalid'] } })
+    for (const n of list) if (ids.includes(n.id)) n.read = true
+    return send(response, 200, unread())
+  }
+  const cursor = url.searchParams.get('cursor')
+  const start = cursor ? Number(Buffer.from(cursor, 'base64url').toString()) : 0
+  if (!Number.isInteger(start) || start < 0)
+    return send(response, 400, { status: 400, code: 'invalid_cursor' })
+  const end = start + notificationPageSize
+  const nextCursor = end < list.length ? Buffer.from(String(end)).toString('base64url') : null
+  return send(response, 200, { items: list.slice(start, end).map((n) => ({ ...n })), nextCursor })
+}
+
 function accountSessionsRoute(request, response, url) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const client = clientOf(request)
@@ -1427,6 +1483,12 @@ createServer(async (request, response) => {
     (url.pathname.startsWith('/api/v1/preferences/me/blocks/') && ['PUT', 'DELETE'].includes(request.method))
   )
     return blocksRoute(request, response, url)
+  if (
+    (url.pathname === '/api/v1/notifications/me' && request.method === 'GET') ||
+    (url.pathname === '/api/v1/notifications/me/unread' && request.method === 'GET') ||
+    (url.pathname === '/api/v1/notifications/me/read' && request.method === 'POST')
+  )
+    return notificationsRoute(request, response, url)
   if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
     return ownPreferences(request, response)
   if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')

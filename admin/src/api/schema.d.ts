@@ -1104,6 +1104,8 @@ export interface components {
         NotificationActorView: {
             /** Format: uuid */
             accountId: string;
+            /** Format: uuid */
+            blogId: null | string;
             name: null | string;
             nickname: null | string;
             avatarSources: components["schemas"]["ImageSource"][];

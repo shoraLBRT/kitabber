@@ -13,11 +13,12 @@ namespace Platform.Modules.Notifications;
 
 /// <summary>The person who acted, as a notification's row shows them: their personal blog (ADR-0093).</summary>
 /// <param name="AccountId">The account of the person.</param>
+/// <param name="BlogId">Their personal blog, the address of the row; <c>null</c> when they have none yet.</param>
 /// <param name="Name">The blog's name; <c>null</c> until the owner sets it or when the person has no blog yet.</param>
 /// <param name="Nickname">The short address without <c>@</c>; <c>null</c> until the owner sets it.</param>
 /// <param name="AvatarSources">The avatar for every screen density, narrowest first; empty without an avatar.</param>
 public sealed record NotificationActorView(
-    Guid AccountId, string? Name, string? Nickname, IReadOnlyList<ImageSource> AvatarSources);
+    Guid AccountId, Guid? BlogId, string? Name, string? Nickname, IReadOnlyList<ImageSource> AvatarSources);
 
 /// <summary>A notification in the feed of the signed-in account (E12-02, FR-NOTIFY, ADR-0093).</summary>
 /// <param name="Id">The notification's identifier; the client marks it read by it.</param>
@@ -141,8 +142,8 @@ public sealed class NotificationEndpoints : IApiEndpoints
             n.Id,
             TypeName(n.Type),
             byOwner.TryGetValue(n.ActorAccountId, out var card)
-                ? new NotificationActorView(n.ActorAccountId, card.Name, card.Nickname, card.AvatarSources)
-                : new NotificationActorView(n.ActorAccountId, null, null, []),
+                ? new NotificationActorView(n.ActorAccountId, card.Id, card.Name, card.Nickname, card.AvatarSources)
+                : new NotificationActorView(n.ActorAccountId, null, null, null, []),
             n.PostId,
             n.CommentId,
             n.ReactionKind,
