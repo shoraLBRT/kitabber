@@ -83,8 +83,8 @@ test.describe('создание темы', () => {
     )
   })
 
-  test('меню ведёт к форме новой темы', async ({ page }) => {
-    await asOwnClient(page)
+  test('меню вошедшего ведёт к форме новой темы', async ({ page }) => {
+    await openForm(page)
     await page.goto(isTouch() ? '/menu' : '/')
     const nav = isTouch() ? page.getByTestId('menu-screen') : page.getByTestId('shell-nav')
     await press(nav.getByRole('link', { name: 'Создать тему' }))

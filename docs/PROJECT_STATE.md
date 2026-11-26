@@ -444,7 +444,7 @@
   (`TopicCreationRules.StopWordIn`). Клиент: `/topics/new` (`pages/topics/new.vue`,
   `components/topic/TopicCreateForm.vue`, `server/routes/bff/topics.post.ts`) — длины и вид адреса проверяются при
   вводе, ошибки API под полями, лимит, неподтверждённая почта со ссылкой и сбой — над кнопкой; созданная тема
-  открывается по адресу; «Создать тему» в блоке «Темы» левого меню и на экране «Меню». Тесты:
+  открывается по адресу; «Создать тему» в блоке «Темы» левого меню и, для вошедшего, на экране «Меню». Тесты:
   `TopicCreationRulesTests`, `TopicCreateApiTests`, `tests/topic/TopicCreateForm.spec.ts`,
   `e2e/topic-create.spec.ts`. Нет здесь: каталога `/topics` (#78), управления темой (#114), создания тем
   администрацией, уникального индекса по названию.

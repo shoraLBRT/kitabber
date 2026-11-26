@@ -83,7 +83,7 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
       <NuxtLink :to="topicsPath" class="menu-screen__row" data-nav="topics">{{
         t('common.showAll')
       }}</NuxtLink>
-      <NuxtLink :to="newTopicPath" class="menu-screen__row" data-nav="new-topic">{{
+      <NuxtLink v-if="user" :to="newTopicPath" class="menu-screen__row" data-nav="new-topic">{{
         t('topicCreate.create')
       }}</NuxtLink>
     </section>
