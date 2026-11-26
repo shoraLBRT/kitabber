@@ -1,12 +1,15 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
+using Platform.Realtime;
 using Platform.Testing.Api;
 using Platform.Testing.Containers;
 
@@ -16,7 +19,31 @@ namespace Platform.Modules.Reactions.IntegrationTests;
 public sealed class ReactionsApi : IntegrationApiFactory
 {
     public ReactionsApi(PostgresFixture postgres, RedisFixture redis)
-        : base(postgres, redis) => WithModule(services => services.AddTestAuthentication());
+        : base(postgres, redis) => WithModule(services =>
+        {
+            services.AddTestAuthentication();
+            services.RemoveAll<IRealtimePublisher>();
+            services.AddSingleton<IRealtimePublisher>(Events);
+        });
+
+    /// <summary>What the module published to the realtime channel (ADR-0072).</summary>
+    public RecordingPublisher Events { get; } = new();
+}
+
+/// <summary>Keeps every published event instead of sending it.</summary>
+public sealed class RecordingPublisher : IRealtimePublisher
+{
+    private readonly ConcurrentQueue<(RealtimeTopic Topic, string Type, object? Data)> _events = new();
+
+    public IReadOnlyList<(RealtimeTopic Topic, string Type, object? Data)> Published => [.. _events];
+
+    public void Clear() => _events.Clear();
+
+    public Task PublishAsync(RealtimeTopic topic, string type, object? data, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue((topic, type, data));
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>
@@ -36,6 +63,7 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
     public async ValueTask InitializeAsync()
     {
         await api.ResetAsync();
+        api.Events.Clear();
         _client = api.CreateClient();
         _author = await SaveAccountAsync(1, "author@example.com", confirmed: true);
         _reader = await SaveAccountAsync(2, "reader@example.com", confirmed: true);
@@ -92,6 +120,51 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         Assert.Equal((1, false), await StateOf(neverLiked));
         Assert.Equal(1, await CountAsync());
     }
+
+    [Fact]
+    public async Task EveryChangeSendsTheNewCountsToTheReadersOfThePost()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await SaveCommentAsync(post.Id, _author);
+
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+
+        var events = api.Events.Published;
+        Assert.All(events, e =>
+        {
+            Assert.Equal(RealtimeTopic.Post(post.Id), e.Topic);
+            Assert.Equal("reactions.changed", e.Type);
+        });
+        Assert.Equal(
+            [
+                ("post", post.Id, "like:1"),
+                ("post", post.Id, "like:2"),
+                ("comment", comment.Id, "like:1"),
+                ("comment", comment.Id, ""),
+            ],
+            events.Select(e => Shown((ReactionsChangedEvent)e.Data!)));
+    }
+
+    [Fact]
+    public async Task ARepeatOrARefusalSendsNothing()
+    {
+        var post = await SavePostAsync(publish: true);
+
+        using var first = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        api.Events.Clear();
+        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var own = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _author);
+        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _other);
+
+        Assert.Equal(HttpStatusCode.Forbidden, own.StatusCode);
+        Assert.Empty(api.Events.Published);
+    }
+
+    private static (string Target, Guid TargetId, string Counts) Shown(ReactionsChangedEvent e) =>
+        (e.Target, e.TargetId, string.Join(',', e.Reactions.Select(r => $"{r.Kind}:{r.Count}")));
 
     [Fact]
     public async Task OwnPostAndOwnCommentAreNotLiked()

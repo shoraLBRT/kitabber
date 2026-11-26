@@ -2,16 +2,19 @@
 // The floating action panel of the post page (E07-04, FR-POST, docs/ui/post.md, ADR-0050): «Нравится», «Комментарии»
 // and «Поделиться» in a toolbar that sticks to the bottom of the window within the post's column while the post is
 // read, and on a phone (below 925 px, where the bottom bar is) right above the bottom bar. «Нравится» (E10-01,
-// ADR-0061) puts and takes back the like, with the count beside it; on one's own post and on a draft it only shows the
+// ADR-0061) puts and takes back the like, with the count beside it, as the first chip of the row of reactions (E10-03,
+// ReactionRow: most popular first, the own one marked, live counts); on one's own post and on a draft it only shows the
 // count. A guest's press opens the sign-in window (useLikes). «Комментарии» leads to the comments under the post
 // (#comments; the tree is E09-02). «Поделиться» copies the post's link; the phone's system menu and the social
 // networks are E07-07 (#97). The arrow keys move between the buttons, as in a toolbar.
 import { computed } from 'vue'
-import { Heart, MessageCircle, Share2 } from 'lucide-vue-next'
+import { MessageCircle, Share2 } from 'lucide-vue-next'
 import { useToast } from '../../composables/useToast'
 import type { Likes } from '../../composables/useLikes'
+import ReactionRow from '../reactions/ReactionRow.vue'
+import { reactionsOfLikes } from '../../api/reactions'
 import { copyPostLink } from '../../utils/post-menu'
-import { formatNumber, t } from '../../i18n'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -25,7 +28,7 @@ const props = withDefaults(
   { postId: null, own: false, likes: null },
 )
 
-const like = computed(() => props.likes?.post.value ?? { count: 0, liked: false })
+const reactions = computed(() => reactionsOfLikes(props.likes?.post.value ?? { count: 0, liked: false }))
 const likable = computed(() => props.likes !== null && props.postId !== null && !props.own)
 const likeBusy = computed(() => props.postId !== null && props.likes?.isBusy('post', props.postId) === true)
 
@@ -57,23 +60,15 @@ function move(event: KeyboardEvent) {
     data-testid="post-actions"
     @keydown="move"
   >
-    <button
-      type="button"
-      class="post-actions__item"
-      :class="{ 'post-actions__item--on': like.liked }"
-      :disabled="!likable"
-      :aria-pressed="likable ? (like.liked ? 'true' : 'false') : undefined"
-      :aria-busy="likeBusy ? 'true' : undefined"
-      :title="own ? t('post.ownLike') : undefined"
-      data-testid="post-like"
-      @click="toggleLike"
-    >
-      <Heart class="post-actions__icon" aria-hidden="true" />
-      <span>{{ t('actions.like') }}</span>
-      <b v-if="like.count > 0" class="post-actions__count" data-testid="post-like-count">{{
-        formatNumber(like.count)
-      }}</b>
-    </button>
+    <ReactionRow
+      :reactions="reactions"
+      :pressable="likable"
+      :busy="likeBusy"
+      :hint="own ? t('post.ownLike') : undefined"
+      variant="panel"
+      testid="post-like"
+      @toggle="toggleLike"
+    />
     <a href="#comments" class="post-actions__item" data-testid="post-comments">
       <MessageCircle class="post-actions__icon" aria-hidden="true" />
       <span>{{ t('comments.title') }}</span>
@@ -120,25 +115,6 @@ function move(event: KeyboardEvent) {
 .post-actions__item:hover:not(:disabled) {
   background: var(--color-surface-subtle);
   color: var(--color-text);
-}
-
-.post-actions__item--on,
-.post-actions__item--on:hover:not(:disabled) {
-  color: var(--color-accent);
-}
-
-.post-actions__item--on .post-actions__icon {
-  fill: currentcolor;
-}
-
-.post-actions__count {
-  font-weight: var(--font-weight-bold);
-  font-variant-numeric: tabular-nums;
-}
-
-.post-actions__item:disabled {
-  color: var(--color-muted);
-  cursor: default;
 }
 
 .post-actions__icon {

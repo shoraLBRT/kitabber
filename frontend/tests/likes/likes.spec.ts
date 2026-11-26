@@ -197,6 +197,6 @@ describe('the likes of the comment tree', () => {
     const { likes } = fakeLikes({ count: 0, liked: false }, { '1': { count: 1, liked: true } })
     const like = likeOf(mountTree(likes), '1')
     expect(like.attributes('aria-pressed')).toBe('true')
-    expect(like.classes()).toContain('comment__like--on')
+    expect(like.classes()).toContain('reaction--mine')
   })
 })

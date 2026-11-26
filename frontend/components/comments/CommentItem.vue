@@ -9,16 +9,17 @@
 // «Комментарий удалён», with no author, no text and no actions, over its replies. «Нравится» with the count stands
 // before «Ответить» (E10-01).
 import { computed, inject, ref, watch } from 'vue'
-import { Heart } from 'lucide-vue-next'
 import UiAvatar from '../ui/UiAvatar.vue'
 import CommentEdit from './CommentEdit.vue'
+import ReactionRow from '../reactions/ReactionRow.vue'
+import { reactionsOfLikes } from '../../api/reactions'
 import CommentForm from './CommentForm.vue'
 import CommentMenu from './CommentMenu.vue'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { canReply, repliesText, type CommentNode } from '../../api/comments'
 import { commentMenuItems } from '../../utils/comment-menu'
 import { commentTreeKey } from './context'
-import { formatNumber, locale, t } from '../../i18n'
+import { locale, t } from '../../i18n'
 import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{ node: CommentNode }>()
@@ -58,7 +59,10 @@ const likeShown = computed(
   () =>
     tree.likes.value !== null && !sending.value && !comment.value.deleted && comment.value.kind === 'native',
 )
-const like = computed(() => tree.likes.value?.of('comment', comment.value.id) ?? { count: 0, liked: false })
+// The row of reactions (E10-03, ReactionRow): only likes so far, with live counts from the post's topic.
+const reactions = computed(() =>
+  reactionsOfLikes(tree.likes.value?.of('comment', comment.value.id) ?? { count: 0, liked: false }),
+)
 const likeBusy = computed(() => tree.likes.value?.isBusy('comment', comment.value.id) === true)
 
 function startReply() {
@@ -159,22 +163,16 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
       {{ isolateRtlText(comment.text) }}
     </p>
     <div v-if="(likeShown || (replyable && !replying)) && !editing" class="comment__actions">
-      <button
+      <ReactionRow
         v-if="likeShown"
-        type="button"
-        class="comment__like"
-        :class="{ 'comment__like--on': like.liked }"
-        :disabled="ownComment"
-        :aria-pressed="ownComment ? undefined : like.liked ? 'true' : 'false'"
-        :aria-busy="likeBusy ? 'true' : undefined"
-        :title="ownComment ? t('comments.ownLike') : undefined"
-        data-testid="comment-like"
-        @click="tree.likes.value?.toggle('comment', comment.id)"
-      >
-        <Heart class="comment__like-icon" aria-hidden="true" />
-        <span class="visually-hidden">{{ t('actions.like') }}</span>
-        <span v-if="like.count > 0" data-testid="comment-like-count">{{ formatNumber(like.count) }}</span>
-      </button>
+        :reactions="reactions"
+        :pressable="!ownComment"
+        :busy="likeBusy"
+        :hint="ownComment ? t('comments.ownLike') : undefined"
+        variant="compact"
+        testid="comment-like"
+        @toggle="tree.likes.value?.toggle('comment', comment.id)"
+      />
       <button
         v-if="replyable && !replying"
         type="button"
@@ -293,38 +291,6 @@ a.comment__author:hover {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-}
-
-.comment__like {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-muted);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.comment__like:hover:not(:disabled),
-.comment__like--on {
-  color: var(--color-accent);
-}
-
-.comment__like:disabled {
-  cursor: default;
-}
-
-.comment__like-icon {
-  width: var(--size-icon-sm);
-  height: var(--size-icon-sm);
-}
-
-.comment__like--on .comment__like-icon {
-  fill: currentcolor;
 }
 
 .comment__text {

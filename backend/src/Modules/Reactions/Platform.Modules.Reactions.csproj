@@ -20,6 +20,7 @@
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
         <ProjectReference Include="../Reactions.Contracts/Platform.Modules.Reactions.Contracts.csproj" />
+        <ProjectReference Include="../../Realtime/Platform.Realtime.csproj" />
     </ItemGroup>
 
 </Project>

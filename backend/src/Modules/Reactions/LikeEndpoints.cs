@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Posts.Contracts;
+using Platform.Realtime;
 
 namespace Platform.Modules.Reactions;
 
@@ -118,6 +120,8 @@ public sealed class LikeEndpoints : IApiEndpoints
         ReactionsDbContext db,
         IPostDirectory posts,
         TimeProvider time,
+        IRealtimePublisher realtime,
+        ILogger<LikeEndpoints> logger,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
@@ -131,11 +135,18 @@ public sealed class LikeEndpoints : IApiEndpoints
         }
 
         return Refused(LikeRules.Refusal(account, post.AuthorAccountId))
-            ?? await LikeAsync(db, Reaction.Like(ReactionTarget.Post, postId, postId, account, time.GetUtcNow()), ct);
+            ?? await LikeAsync(
+                db, Reaction.Like(ReactionTarget.Post, postId, postId, account, time.GetUtcNow()), realtime, logger, ct);
     }
 
     private static async Task<IResult> UnlikePostAsync(
-        Guid postId, ClaimsPrincipal user, ReactionsDbContext db, IPostDirectory posts, CancellationToken ct)
+        Guid postId,
+        ClaimsPrincipal user,
+        ReactionsDbContext db,
+        IPostDirectory posts,
+        IRealtimePublisher realtime,
+        ILogger<LikeEndpoints> logger,
+        CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {
@@ -144,7 +155,7 @@ public sealed class LikeEndpoints : IApiEndpoints
 
         return await posts.FindPublishedAsync(postId, ct) is null
             ? ApiProblems.NotFound(PostNotFoundCode)
-            : await UnlikeAsync(db, ReactionTarget.Post, postId, account, ct);
+            : await UnlikeAsync(db, ReactionTarget.Post, postId, postId, account, realtime, logger, ct);
     }
 
     private static async Task<IResult> LikeCommentAsync(
@@ -153,6 +164,8 @@ public sealed class LikeEndpoints : IApiEndpoints
         ReactionsDbContext db,
         ICommentDirectory comments,
         TimeProvider time,
+        IRealtimePublisher realtime,
+        ILogger<LikeEndpoints> logger,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
@@ -167,26 +180,42 @@ public sealed class LikeEndpoints : IApiEndpoints
 
         return Refused(LikeRules.Refusal(account, comment.AuthorAccountId))
             ?? await LikeAsync(
-                db, Reaction.Like(ReactionTarget.Comment, id, comment.PostId, account, time.GetUtcNow()), ct);
+                db,
+                Reaction.Like(ReactionTarget.Comment, id, comment.PostId, account, time.GetUtcNow()),
+                realtime,
+                logger,
+                ct);
     }
 
     private static async Task<IResult> UnlikeCommentAsync(
-        Guid id, ClaimsPrincipal user, ReactionsDbContext db, ICommentDirectory comments, CancellationToken ct)
+        Guid id,
+        ClaimsPrincipal user,
+        ReactionsDbContext db,
+        ICommentDirectory comments,
+        IRealtimePublisher realtime,
+        ILogger<LikeEndpoints> logger,
+        CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {
             return TypedResults.Unauthorized();
         }
 
-        return await comments.FindShownAsync(id, ct) is null
+        return await comments.FindShownAsync(id, ct) is not { } comment
             ? ApiProblems.NotFound(CommentNotFoundCode)
-            : await UnlikeAsync(db, ReactionTarget.Comment, id, account, ct);
+            : await UnlikeAsync(db, ReactionTarget.Comment, id, comment.PostId, account, realtime, logger, ct);
     }
 
     // The key is the person and the target: a like already there, even one written by a request at the same moment,
-    // is the same like (ADR-0061).
-    private static async Task<IResult> LikeAsync(ReactionsDbContext db, Reaction like, CancellationToken ct)
+    // is the same like (ADR-0061). Only a change reaches the readers of the post (ADR-0072).
+    private static async Task<IResult> LikeAsync(
+        ReactionsDbContext db,
+        Reaction like,
+        IRealtimePublisher realtime,
+        ILogger logger,
+        CancellationToken ct)
     {
+        var changed = false;
         var there = await db.Reactions.AnyAsync(
             r => r.TargetKind == like.TargetKind && r.TargetId == like.TargetId && r.AccountId == like.AccountId, ct);
         if (!there)
@@ -195,6 +224,7 @@ public sealed class LikeEndpoints : IApiEndpoints
             try
             {
                 await db.SaveChangesAsync(ct);
+                changed = true;
             }
             catch (DbUpdateException e) when (e.InnerException is PostgresException
             {
@@ -205,16 +235,36 @@ public sealed class LikeEndpoints : IApiEndpoints
             }
         }
 
-        return TypedResults.Ok(await StateAsync(db, like.TargetKind, like.TargetId, like.AccountId, ct));
+        var state = await StateAsync(db, like.TargetKind, like.TargetId, like.AccountId, ct);
+        if (changed)
+        {
+            await ReactionEvents.PublishAsync(
+                realtime, logger, like.PostId, like.TargetKind, like.TargetId, state.Count, ct);
+        }
+
+        return TypedResults.Ok(state);
     }
 
     private static async Task<IResult> UnlikeAsync(
-        ReactionsDbContext db, ReactionTarget target, Guid targetId, Guid account, CancellationToken ct)
+        ReactionsDbContext db,
+        ReactionTarget target,
+        Guid targetId,
+        Guid postId,
+        Guid account,
+        IRealtimePublisher realtime,
+        ILogger logger,
+        CancellationToken ct)
     {
-        await db.Reactions
+        var removed = await db.Reactions
             .Where(r => r.TargetKind == target && r.TargetId == targetId && r.AccountId == account)
             .ExecuteDeleteAsync(ct);
-        return TypedResults.Ok(await StateAsync(db, target, targetId, account, ct));
+        var state = await StateAsync(db, target, targetId, account, ct);
+        if (removed > 0)
+        {
+            await ReactionEvents.PublishAsync(realtime, logger, postId, target, targetId, state.Count, ct);
+        }
+
+        return TypedResults.Ok(state);
     }
 
     private static async Task<LikeView> StateAsync(
