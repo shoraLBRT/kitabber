@@ -46,12 +46,14 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
 
         var publisher = api.Services.GetRequiredService<IRealtimePublisher>();
         await publisher.PublishAsync(RealtimeTopic.Account(alice), "notification.created", new { n = 1 }, Ct);
-        await publisher.PublishAsync(RealtimeTopic.Account(bob), "notification.created", new { n = 2 }, Ct);
 
         var aliceEvent = await aliceClient.NextAsync();
         Assert.Equal(RealtimeTopic.Account(alice).Name, aliceEvent.Topic);
         Assert.Equal("notification.created", aliceEvent.Type);
-        // Bob's own event comes after Alice's was published: had Alice's reached him, it would be first.
+        await SettleAsync(publisher, RealtimeTopic.Account(alice), aliceClient);
+
+        // Bob's own event is written to his connection after Alice's would have been: it must come first.
+        await publisher.PublishAsync(RealtimeTopic.Account(bob), "notification.created", new { n = 2 }, Ct);
         Assert.Equal(RealtimeTopic.Account(bob).Name, (await bobClient.NextAsync()).Topic);
         Assert.False(aliceClient.HasMore);
         Assert.False(bobClient.HasMore);
@@ -76,8 +78,13 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
         Assert.Equal("comment.created", comment.Type);
         Assert.Equal("ping", (await bobClient.NextAsync()).Type);
 
+        // Bob joins the post topic as the witness of the event Alice must no longer get.
+        await bobClient.Connection.InvokeAsync("Subscribe", RealtimeTopic.Post(post).Name, Ct);
         await aliceClient.Connection.InvokeAsync("Unsubscribe", RealtimeTopic.Post(post).Name, Ct);
         await publisher.PublishAsync(RealtimeTopic.Post(post), "comment.created", null, Ct);
+        Assert.Equal("comment.created", (await bobClient.NextAsync()).Type);
+        await SettleAsync(publisher, RealtimeTopic.Post(post), bobClient);
+
         await publisher.PublishAsync(RealtimeTopic.Account(alice), "ping", null, Ct);
         Assert.Equal("ping", (await aliceClient.NextAsync()).Type);
     }
@@ -100,12 +107,13 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
         Assert.Contains(RealtimeHub.TopicRefused, error.Message, StringComparison.Ordinal);
 
         // Still connected, and still not in Bob's group.
-        await api.Services.GetRequiredService<IRealtimePublisher>()
-            .PublishAsync(RealtimeTopic.Account(bob), "private", null, Ct);
-        await api.Services.GetRequiredService<IRealtimePublisher>()
-            .PublishAsync(RealtimeTopic.Account(alice), "ping", null, Ct);
-        Assert.Equal("ping", (await aliceClient.NextAsync()).Type);
+        var publisher = api.Services.GetRequiredService<IRealtimePublisher>();
+        await publisher.PublishAsync(RealtimeTopic.Account(bob), "private", null, Ct);
         Assert.Equal("private", (await bobClient.NextAsync()).Type);
+        await SettleAsync(publisher, RealtimeTopic.Account(bob), bobClient);
+
+        await publisher.PublishAsync(RealtimeTopic.Account(alice), "ping", null, Ct);
+        Assert.Equal("ping", (await aliceClient.NextAsync()).Type);
     }
 
     [Fact]
@@ -202,6 +210,21 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
             .PublishAsync(RealtimeTopic.Account(alice), "notification.created", null, Ct);
 
         Assert.Equal("notification.created", (await again.NextAsync()).Type);
+    }
+
+    /// <summary>
+    /// Proves, without a pause, that an event already published in <paramref name="topic"/> has been written to every
+    /// connection that would get it. The backplane hands on the messages of one topic in order and writes one to all
+    /// of the topic's connections before it takes the next (ADR-0064), so once <paramref name="witness"/>, a member of
+    /// the topic, gets a beacon published after the event, the event is in every other recipient's connection too.
+    /// An event published to a client after that comes behind it: one connection keeps its order. Order between topics
+    /// is not guaranteed, so a beacon in another topic would prove nothing (#379).
+    /// </summary>
+    private static async Task SettleAsync(IRealtimePublisher publisher, RealtimeTopic topic, Client witness)
+    {
+        await publisher.PublishAsync(topic, "beacon", null, Ct);
+        var beacon = await witness.NextAsync();
+        Assert.Equal((topic.Name, "beacon"), (beacon.Topic, beacon.Type));
     }
 
     private PlatformApiFactory Instance()
