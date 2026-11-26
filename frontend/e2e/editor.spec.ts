@@ -559,26 +559,29 @@ test('ends the list on Enter in an empty item and goes on with text', async ({ p
 test('switches between bullets and numbers without losing the text or the nesting', async ({ page }) => {
   await startList(page, 'Маркированный список')
   await page.keyboard.press('Enter')
-  await page.keyboard.type('Вложенный ')
-  await page.keyboard.press('ControlOrMeta+b')
-  await page.keyboard.type('жирный')
-  await page.keyboard.press('ControlOrMeta+b')
+  await page.keyboard.type('Вложенный жирный')
+  // Bold through the panel on the selected word, not Ctrl+B on a collapsed caret: on a busy machine the caret's
+  // pending bold was lost and the word came out plain (failed in CI; 41 of 80 runs with 8 workers locally).
+  for (let i = 0; i < 'жирный'.length; i++) await page.keyboard.press('Shift+ArrowLeft')
+  await press(tool(page, 'bold'))
+  await expect.poll(async () => (await itemHtmls(page))[1]).toContain('<b>жирный</b>')
+  await page.keyboard.press('End')
   await page.keyboard.press('Tab')
+  await expect.poll(() => levels(page)).toEqual(['0', '1'])
   const written = await itemHtmls(page)
-  expect(written[1]).toContain('<b>жирный</b>')
 
   await convert(page, 6, 'Нумерованный список')
   await expect(lists(page)).toHaveCount(1)
   await expect(lists(page).first()).toHaveJSProperty('tagName', 'OL')
-  expect(await itemHtmls(page)).toEqual(written)
-  expect(await levels(page)).toEqual(['0', '1'])
+  await expect.poll(() => itemHtmls(page)).toEqual(written)
+  await expect.poll(() => levels(page)).toEqual(['0', '1'])
 
   await press(items(page).nth(1))
   await page.keyboard.press('End')
   await convert(page, 6, 'Маркированный список')
   await expect(lists(page).first()).toHaveJSProperty('tagName', 'UL')
-  expect(await itemHtmls(page)).toEqual(written)
-  expect(await levels(page)).toEqual(['0', '1'])
+  await expect.poll(() => itemHtmls(page)).toEqual(written)
+  await expect.poll(() => levels(page)).toEqual(['0', '1'])
 })
 
 test('keeps the list and its nesting through undo and redo', async ({ page }) => {
