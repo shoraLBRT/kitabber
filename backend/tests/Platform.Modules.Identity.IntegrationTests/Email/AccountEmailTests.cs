@@ -290,7 +290,9 @@ public sealed class AccountEmailTests(EmailApi api) : IClassFixture<EmailApi>, I
         Assert.DoesNotContain("owner@example.com", body, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("other@example.com", (await StoredAsync(other)).NormalizedEmail);
         Assert.Equal(JsonValueKind.Null, (await api.EmailStateAsync(other)).GetProperty("pendingEmail").ValueKind);
-        Assert.Single(api.LettersTo("Owner@Example.com"));
+        // No code went to the taken address: the owner's mailbox has only its own confirmation letter.
+        Assert.Empty(api.LettersTo("Owner@Example.com"));
+        Assert.Single(api.LettersTo("owner@example.com"));
     }
 
     [Theory]
