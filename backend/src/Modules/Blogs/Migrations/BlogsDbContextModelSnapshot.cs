@@ -241,6 +241,29 @@ namespace Platform.Modules.Blogs.Migrations
                     b.ToTable("outbox_state", "blogs");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Blogs.Subscriptions.Subscription", b =>
+                {
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<Guid>("SubsiteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subsite_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.HasKey("AccountId", "SubsiteId")
+                        .HasName("pk_subscriptions");
+
+                    b.HasIndex("SubsiteId")
+                        .HasDatabaseName("ix_subscriptions_subsite");
+
+                    b.ToTable("subscriptions", "blogs");
+                });
+
             modelBuilder.Entity("Platform.Modules.Blogs.Subsite", b =>
                 {
                     b.Property<Guid>("Id")
@@ -315,6 +338,16 @@ namespace Platform.Modules.Blogs.Migrations
                         .HasForeignKey("InboxMessageId", "InboxConsumerId")
                         .HasPrincipalKey("MessageId", "ConsumerId")
                         .HasConstraintName("fk_outbox_message_inbox_state_inbox_message_id_inbox_consumer_");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Blogs.Subscriptions.Subscription", b =>
+                {
+                    b.HasOne("Platform.Modules.Blogs.Subsite", null)
+                        .WithMany()
+                        .HasForeignKey("SubsiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscriptions_subsites_subsite_id");
                 });
 #pragma warning restore 612, 618
         }

@@ -7,6 +7,7 @@ using Platform.Http;
 using Platform.Messaging;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Profiles;
+using Platform.Modules.Blogs.Subscriptions;
 using Platform.Modules.Blogs.Topics;
 using Platform.Persistence;
 
@@ -40,6 +41,7 @@ public static class BlogsModule
         AddServices(builder.Services, builder.Configuration);
         builder.Services.AddApiEndpoints<ProfileEndpoints>();
         builder.Services.AddApiEndpoints<TopicEndpoints>();
+        builder.Services.AddApiEndpoints<SubscriptionEndpoints>();
         return builder;
     }
 
@@ -73,5 +75,6 @@ public static class BlogsModule
         services.AddModuleDbContext<BlogsDbContext>(configuration.GetConnectionString(ConnectionStringName)!);
         services.AddScoped<PersonalBlogs>();
         services.AddScoped<IBlogDirectory, BlogDirectory>();
+        services.AddScoped<IBlogSubscriptions, BlogSubscriptions>();
     }
 }

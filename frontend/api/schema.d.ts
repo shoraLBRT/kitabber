@@ -386,6 +386,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/blogs/{id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Subscribes to a blog or a topic; subscribing again changes nothing */
+        put: operations["SubscribeToBlog"];
+        post?: never;
+        /** Unsubscribes from a blog or a topic; unsubscribing when not subscribed changes nothing */
+        delete: operations["UnsubscribeFromBlog"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts": {
         parameters: {
             query?: never;
@@ -978,6 +996,15 @@ export interface components {
             avatarSources: components["schemas"]["ImageSource"][];
             cover: null | components["schemas"]["ProfileCover"];
             owner?: null | components["schemas"]["ProfileOwner"];
+            /**
+             * Format: int32
+             * @default 0
+             */
+            subscriberCount: number;
+            /** Format: int32 */
+            subscriptionCount?: null | number;
+            /** @default false */
+            subscribed: boolean;
         };
         ProfileCover: {
             /** Format: uuid */
@@ -1030,6 +1057,11 @@ export interface components {
             challengeId: string;
             /** Format: int32 */
             resendAfterSeconds: number;
+        };
+        SubscriptionView: {
+            /** Format: int32 */
+            subscriberCount: number;
+            subscribed: boolean;
         };
         TopicSummary: {
             /** Format: uuid */
@@ -2009,6 +2041,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TopicSummary"][];
+                };
+            };
+        };
+    };
+    SubscribeToBlog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnsubscribeFromBlog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
