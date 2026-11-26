@@ -132,6 +132,7 @@
 | #68 | E06-03 Размытое превью и доминирующий цвет | P1 | 2 | #43 |  |
 | #307 | QA: тест frontend/tests/api-client.spec.ts упирается в таймаут 5 с под нагрузкой | P2 | 0,5 | #19 |  |
 | #316 | QA: нестабильный тест RealtimeIntegrationTests.RedisBackplaneDeliversAcrossInstances | P2 | 0,5 | #25 |  |
+| #379 | QA: проверки «лишнего не пришло» в RealtimeIntegrationTests опираются на порядок между темами | P2 | 0,5 | #316 |  |
 | #318 | E01-xx Хранилище телеметрии на stage: Grafana, Prometheus, Loki, Tempo и коллектор OpenTelemetry | P1 | 2 | #20 | владелец |
 
 ## M2. Сообщество

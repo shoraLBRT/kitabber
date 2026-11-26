@@ -181,8 +181,11 @@ public sealed class RealtimeIntegrationTests(RealtimeRedis redis) : IClassFixtur
         await publisher.PublishAsync(RealtimeTopic.Account(alice), "notification.created", null, Ct);
         await publisher.PublishAsync(RealtimeTopic.Post(post), "comment.created", null, Ct);
 
-        Assert.Equal(RealtimeTopic.Account(alice).Name, (await client.NextAsync()).Topic);
-        Assert.Equal(RealtimeTopic.Post(post).Name, (await client.NextAsync()).Topic);
+        // Each topic is a Redis channel of its own, and the backplane hands each channel's messages on
+        // independently: events of different topics may arrive in either order (ADR-0064). Both must arrive.
+        string[] received = [(await client.NextAsync()).Topic, (await client.NextAsync()).Topic];
+        Assert.Equivalent(new[] { RealtimeTopic.Account(alice).Name, RealtimeTopic.Post(post).Name }, received, strict: true);
+        Assert.False(client.HasMore);
     }
 
     [Fact]
