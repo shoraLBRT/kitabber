@@ -26,6 +26,12 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
     /// <summary>The kept ratings of posts and comments (ADR-0081).</summary>
     public DbSet<Rating> Ratings => Set<Rating>();
 
+    /// <summary>The table of <see cref="ReactionSet"/>: reference data the migration seeds.</summary>
+    public const string ReactionSetTable = "reaction_set";
+
+    /// <summary>The directory of reactions the platform offers (ADR-0095).</summary>
+    public DbSet<ReactionSetEntry> ReactionSet => Set<ReactionSetEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -45,6 +51,15 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
             rating.HasKey(r => new { r.TargetKind, r.TargetId });
             rating.Property(r => r.TargetKind).HasConversion<string>().HasMaxLength(16);
             rating.HasIndex(r => r.PostId).HasDatabaseName(RatingPostIndex);
+        });
+        modelBuilder.Entity<ReactionSetEntry>(entry =>
+        {
+            entry.ToTable(ReactionSetTable);
+            entry.HasKey(e => e.Code);
+            entry.Property(e => e.Code).HasMaxLength(ReactionSetEntry.CodeMaxLength);
+            entry.Property(e => e.Title).HasMaxLength(ReactionSetEntry.TitleMaxLength);
+            // The default set is reference data: every environment has it from the migration (ADR-0095).
+            entry.HasData(ReactionSetEntry.Defaults);
         });
     }
 }

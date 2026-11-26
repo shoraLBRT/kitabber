@@ -27,6 +27,7 @@ public static class ReactionsModule
         builder.Services.AddScoped<ILikeCounts, LikeCounts>();
         builder.Services.AddScoped<IReactionRatings, ReactionRatings>();
         builder.Services.AddApiEndpoints<LikeEndpoints>();
+        builder.Services.AddApiEndpoints<ReactionSetEndpoints>();
         return builder;
     }
 

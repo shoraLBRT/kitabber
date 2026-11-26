@@ -28,5 +28,11 @@
     "package": "lucide-vue-next",
     "license": "ISC",
     "source": "https://lucide.dev"
+  },
+  "reactions": {
+    "name": "Fluent Emoji",
+    "author": "Microsoft",
+    "license": "MIT",
+    "source": "https://github.com/microsoft/fluentui-emoji"
   }
 }
