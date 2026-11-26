@@ -133,6 +133,8 @@ bus.AddModuleOutbox<SomeDbContext>();             // outbox в схеме мод
 
 Контекст модуля, который публикует события, вызывает `modelBuilder.AddOutboxTables()`; его потребители
 объявляются через `ModuleConsumerDefinition<TConsumer, TContext>` (повторная доставка отбрасывается inbox).
+Код модуля публикует через `IModuleOutbox<SomeDbContext>`: в хосте с несколькими публикующими модулями каждый пишет
+в outbox своей схемы.
 Настройки: `Messaging:Transport` (`RabbitMq` | `InMemory`), `ConnectionStrings:RabbitMq`
 (`amqp://user:password@host:port/`), `Cache:Provider` (`Redis` | `InMemory`), `ConnectionStrings:Redis`;
 для локального окружения они заданы в `backend/src/Workers/appsettings.Development.json`. Запуск:

@@ -11,6 +11,7 @@ using static Platform.Messaging.IntegrationTests.TestHosts;
 namespace Platform.Messaging.IntegrationTests;
 
 /// <summary>The transactional outbox on PostgreSQL and RabbitMQ (ADR-0005).</summary>
+[Collection(TestHosts.SampleEvents)]
 public sealed class OutboxTests(RabbitMqFixture rabbitMq, PostgresFixture postgres) : IAsyncLifetime
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);

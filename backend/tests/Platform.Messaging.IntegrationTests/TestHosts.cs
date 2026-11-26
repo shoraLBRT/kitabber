@@ -8,6 +8,12 @@ namespace Platform.Messaging.IntegrationTests;
 
 internal static class TestHosts
 {
+    /// <summary>
+    /// Test classes whose hosts consume the sample modules' events: they share the broker's exchanges, so they run one
+    /// after another and do not receive each other's events.
+    /// </summary>
+    public const string SampleEvents = "sample-events";
+
     /// <summary>Builds the workers host (<see cref="WorkerHost"/>) with test configuration and test consumers.</summary>
     public static IHost Worker(
         IDictionary<string, string?> settings,

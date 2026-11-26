@@ -51,6 +51,6 @@ public static class WorkerHost
         });
     }
 
-    // One line per module: its consumers and, when it publishes, its outbox (#281: one bus outbox per host).
+    // One line per module: its consumers and, when it publishes, its outbox (AddModuleOutbox, ADR-0005).
     private static void AddModules(IBusRegistrationConfigurator bus) => bus.AddBlogsConsumers();
 }

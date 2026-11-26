@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Configuration;
 using Platform.Http;
+using Platform.Messaging;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Profiles;
 using Platform.Modules.Blogs.Topics;
@@ -52,8 +53,8 @@ public static class BlogsModule
     }
 
     /// <summary>
-    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing, so its outbox is
-    /// not the bus outbox of the host (#281): only the consumers' inbox and their own sends use it.
+    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing yet; when it does, it
+    /// registers <c>AddModuleOutbox&lt;BlogsDbContext&gt;</c> instead and publishes through <c>IModuleOutbox&lt;BlogsDbContext&gt;</c>.
     /// </summary>
     public static IBusRegistrationConfigurator AddBlogsConsumers(this IBusRegistrationConfigurator bus)
     {
@@ -61,7 +62,7 @@ public static class BlogsModule
         bus.AddConsumer<AccountActivatedConsumer, AccountActivatedConsumerDefinition>();
         bus.AddEntityFrameworkOutbox<BlogsDbContext>(outbox =>
         {
-            outbox.UsePostgres();
+            outbox.UseModulePostgres();
             outbox.DuplicateDetectionWindow = TimeSpan.FromDays(1);
         });
         return bus;
