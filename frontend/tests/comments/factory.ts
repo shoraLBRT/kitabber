@@ -18,6 +18,9 @@ export function comment(
     guest: null,
     text: `Комментарий ${id}`,
     createdAt: '2026-11-20T12:00:00Z',
+    editedAt: null,
+    editableUntil: '2026-11-20T12:15:00Z',
+    deleted: false,
     replies,
   }
 }

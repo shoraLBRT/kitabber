@@ -3,7 +3,9 @@
 // with replies left out is read on «Показать ещё». The authors' names and avatars follow, a few profiles at a time.
 // A comment written (E09-03, ADR-0056) is in the tree at once, dimmed until the server keeps it; a failed send takes it
 // out again and gives its text back to its form with the reason. The server puts the threads in the order the reader
-// chose (E09-04, ADR-0058), remembered in the browser; another choice reads the tree again.
+// chose (E09-04, ADR-0058), remembered in the browser; another choice reads the tree again. The person's own comments
+// (read through the site's server, ADR-0059) take «Редактировать» while the time to change them lasts and «Удалить»
+// (E09-05); a deleted comment with replies stays as their stub.
 import { onMounted, ref, shallowRef } from 'vue'
 import {
   commentLevels,
@@ -15,7 +17,10 @@ import {
   withBranch,
   withComment,
   withoutComment,
+  withDeleted,
+  withEdited,
   type Comment,
+  type CommentEdit,
   type CommentSend,
   type CommentSort,
   type CommentsState,
@@ -33,6 +38,8 @@ import { phoneQuery } from './useMediaQuery'
 
 const sendFailure = 'Не удалось отправить комментарий. Текст сохранён — попробуйте ещё раз.'
 const signedOut = 'Войдите снова, чтобы отправить комментарий.'
+const editFailure = 'Не удалось сохранить правку. Попробуйте ещё раз.'
+const editSignedOut = 'Войдите снова, чтобы изменить комментарий.'
 
 /** The send goes through the site's own server, which holds the access token (server/routes/bff/comments.post.ts). */
 async function post(postId: string, text: string, parentId: string | null): Promise<CommentSend> {
@@ -43,13 +50,31 @@ async function post(postId: string, text: string, parentId: string | null): Prom
   }
 }
 
+async function patch(id: string, text: string): Promise<CommentEdit> {
+  try {
+    return await $fetch<CommentEdit>('/bff/comments', { method: 'PATCH', body: { id, text } })
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+async function ownComments(postId: string): Promise<string[]> {
+  try {
+    return (await $fetch<{ ids: string[] }>('/bff/own-comments', { query: { postId } })).ids
+  } catch {
+    return []
+  }
+}
+
 export function useComments(postId: () => string) {
   const { $api } = useNuxtApp()
+  const account = useAccount()
   const state = shallowRef<CommentsState>({ status: 'loading' })
   const branches = ref<Record<string, BranchStatus>>({})
   const authors = shallowRef(new Map<string, Profile | null>())
   const pending = ref<Record<string, true>>({})
   const failures = ref<Record<FormTarget, CommentFailure>>({})
+  const own = ref<Record<string, true>>({})
   const sort = ref<CommentSort>('popular')
   let levels: number = commentLevels.wide
   let sent = 0
@@ -73,7 +98,14 @@ export function useComments(postId: () => string) {
       found.status === 'found'
         ? { status: 'found', comments: found.tree.comments, maxDepth: found.tree.maxDepth }
         : { status: 'error' }
-    if (found.status === 'found') await addAuthors(found.tree.comments)
+    if (found.status !== 'found') return
+    await Promise.all([addAuthors(found.tree.comments), addOwn()])
+  }
+
+  async function addOwn() {
+    if (!account.value.signedIn) return
+    const ids = await ownComments(postId())
+    own.value = { ...own.value, ...Object.fromEntries(ids.map((id) => [id, true as const])) }
   }
 
   async function more(commentId: string) {
@@ -107,6 +139,9 @@ export function useComments(postId: () => string) {
       guest: null,
       text: text.trim(),
       createdAt: new Date().toISOString(),
+      editedAt: null,
+      editableUntil: null,
+      deleted: false,
       replies: 0,
     }
     failures.value = Object.fromEntries(Object.entries(failures.value).filter(([key]) => key !== target))
@@ -117,6 +152,7 @@ export function useComments(postId: () => string) {
     pending.value = Object.fromEntries(Object.entries(pending.value).filter(([id]) => id !== local.id))
     if (result.status === 'sent') {
       update((comments) => replaceComment(comments, local.id, result.comment))
+      own.value = { ...own.value, [result.comment.id]: true }
       forgetCommentDraft(draftStorage(), commentDraftKey(postId(), parentId), text)
       await addAuthors([result.comment])
       return
@@ -129,6 +165,32 @@ export function useComments(postId: () => string) {
           ? signedOut
           : sendFailure
     failures.value = { ...failures.value, [target]: { text, message } }
+  }
+
+  /** Changes the text of an own comment; `null` once the server keeps it, otherwise the reason shown under the form. */
+  async function edit(id: string, text: string): Promise<string | null> {
+    const result = await patch(id, text)
+    if (result.status === 'edited') {
+      update((comments) => withEdited(comments, result.comment))
+      return null
+    }
+    return result.status === 'refused'
+      ? result.message
+      : result.status === 'unauthorized'
+        ? editSignedOut
+        : editFailure
+  }
+
+  /** Deletes an own comment; `false` when the server did not. */
+  async function remove(id: string): Promise<boolean> {
+    try {
+      await $fetch('/bff/comments', { method: 'DELETE', query: { id } })
+    } catch {
+      return false
+    }
+    update((comments) => withDeleted(comments, id))
+    own.value = Object.fromEntries(Object.entries(own.value).filter(([key]) => key !== id))
+    return true
   }
 
   function dismiss(target: FormTarget) {
@@ -151,5 +213,20 @@ export function useComments(postId: () => string) {
     void load()
   })
 
-  return { state, branches, authors, pending, failures, sort, retry: load, more, send, dismiss, order }
+  return {
+    state,
+    branches,
+    authors,
+    pending,
+    failures,
+    own,
+    sort,
+    retry: load,
+    more,
+    send,
+    edit,
+    remove,
+    dismiss,
+    order,
+  }
 }

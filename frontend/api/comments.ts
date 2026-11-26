@@ -248,7 +248,113 @@ function ancestors(comments: readonly Comment[], id: string): Set<string> {
   return found
 }
 
-/** Whether a native comment may reply to this one: not to a guest comment (FR-TG-6), not past `maxDepth` levels. */
+/**
+ * Whether a native comment may reply to this one: not to a deleted one (ADR-0059) or a guest one (FR-TG-6), not past
+ * `maxDepth` levels.
+ */
 export function canReply(comment: Comment, maxDepth: number): boolean {
-  return comment.kind !== 'guest' && comment.depth < maxDepth
+  return !comment.deleted && comment.kind !== 'guest' && comment.depth < maxDepth
+}
+
+/**
+ * Whether the author may still change the text of a comment (E09-05, ADR-0059): before `editableUntil`, the end of the
+ * time the server gives. The server checks it again; past it, the comment can only be deleted.
+ */
+export function canEdit(comment: Comment, now: number = Date.now()): boolean {
+  return !comment.deleted && comment.editableUntil !== null && Date.parse(comment.editableUntil) > now
+}
+
+/**
+ * What became of a changed text (E09-05): the comment as the server keeps it; a refusal with the reason (an empty text,
+ * the time to change it is over, the comment is gone); the person is not signed in any more; or the request failed.
+ */
+export type CommentEdit =
+  | { status: 'edited'; comment: Comment }
+  | { status: 'refused'; message: string }
+  | { status: 'unauthorized' }
+  | { status: 'error' }
+
+const editRefused: Readonly<Record<number, string>> = {
+  403: 'Время на правку вышло: комментарий можно только удалить.',
+  404: 'Комментарий уже удалён.',
+}
+
+/** Changes the text of the person's own comment: PATCH /comments/{id}. */
+export async function editComment(client: ApiClient, id: string, text: string): Promise<CommentEdit> {
+  try {
+    const { data, error, response } = await client.PATCH('/api/v1/comments/{id}', {
+      params: { path: { id } },
+      body: { text },
+    })
+    if (data) return { status: 'edited', comment: data }
+    if (response.status === 400) {
+      const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {}
+      return { status: 'refused', message: Object.values(errors).flat()[0] ?? 'Текст не принят.' }
+    }
+    if (response.status === 401) return { status: 'unauthorized' }
+    const refused = editRefused[response.status]
+    return refused ? { status: 'refused', message: refused } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/** Deletes the person's own comment: DELETE /comments/{id}; the status of the API, 0 when it could not be reached. */
+export async function deleteComment(client: ApiClient, id: string): Promise<number> {
+  try {
+    const { response } = await client.DELETE('/api/v1/comments/{id}', { params: { path: { id } } })
+    return response.status
+  } catch {
+    return 0
+  }
+}
+
+/** The person's comments under the post, which take «Редактировать» and «Удалить»; none when they cannot be read. */
+export async function loadOwnComments(client: ApiClient, postId: string): Promise<string[]> {
+  try {
+    const { data } = await client.GET('/api/v1/posts/{postId}/comments/mine', {
+      params: { path: { postId } },
+    })
+    return data?.ids ?? []
+  } catch {
+    return []
+  }
+}
+
+/** The comments with the changed text of `edited` in its place; the replies read stay as they are. */
+export function withEdited(comments: readonly Comment[], edited: Comment): Comment[] {
+  return comments.map((comment) =>
+    comment.id === edited.id
+      ? { ...comment, text: edited.text, editedAt: edited.editedAt, editableUntil: edited.editableUntil }
+      : comment,
+  )
+}
+
+/**
+ * The comments after `id` is deleted, as the server does it (ADR-0059): a comment with replies becomes their stub
+ * «Комментарий удалён» with no author and no text; one without replies goes, and so does each stub above it that is
+ * left with no replies.
+ */
+export function withDeleted(comments: readonly Comment[], id: string): Comment[] {
+  const deleted = comments.find((comment) => comment.id === id)
+  if (!deleted) return [...comments]
+  if (deleted.replies > 0) {
+    const stub = {
+      deleted: true,
+      text: '',
+      authorAccountId: null,
+      guest: null,
+      editedAt: null,
+      editableUntil: null,
+    }
+    return comments.map((comment) => (comment.id === id ? { ...comment, ...stub } : comment))
+  }
+  let rest = withoutComment(comments, id)
+  for (let parentId = deleted.parentId; parentId !== null;) {
+    const parent = rest.find((comment) => comment.id === parentId)
+    if (!parent?.deleted || parent.replies > 0) break
+    rest = withoutComment(rest, parent.id)
+    parentId = parent.parentId
+  }
+  return rest
 }
