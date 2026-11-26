@@ -37,10 +37,14 @@ export const mainNav: NavItem[] = [
   { id: 'rating', label: t('nav.rating'), to: '/rating', icon: Trophy },
 ]
 
+/** The cookie choice (E02-13, ADR-0066): open to guests, so it is a service link and not an account item. */
+export const cookieSettingsPath = '/settings/cookies'
+
 /** Service links at the bottom of the left column. */
 export const serviceNav: NavItem[] = [
   { id: 'about', label: t('nav.about'), to: '/about' },
   { id: 'rules', label: t('nav.rules'), to: '/rules' },
+  { id: 'cookies', label: t('nav.cookies'), to: cookieSettingsPath },
 ]
 
 /** Address of the full topic list ("Показать все"). */
