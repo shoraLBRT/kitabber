@@ -17,11 +17,13 @@ import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
 import CaptchaCheck from './CaptchaCheck.vue'
 import PasswordResetForm from './PasswordResetForm.vue'
+import { t } from '../../i18n'
+import I18nText from '../../i18n/I18nText'
 
 const props = defineProps<{ api: SignInApi; resetApi?: PasswordResetApi; embedded?: boolean }>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
-const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
+const unreachable = t('auth.unreachable')
 
 const mode = ref<'password' | 'code' | 'reset'>('password')
 const step = ref<'email' | 'code'>('email')
@@ -77,7 +79,7 @@ function stopTimer() {
 onBeforeUnmount(stopTimer)
 
 function tooMany(retryAfter: number | undefined) {
-  return `Слишком много попыток. Попробуйте через ${formatCountdown(retryAfter ?? 60)}.`
+  return t('auth.tooManyAttempts', { time: formatCountdown(retryAfter ?? 60) })
 }
 
 function clearMessages() {
@@ -102,7 +104,7 @@ async function signInWithPassword() {
   }
   if (result.status === 400 && captchaAsked(result.body)) return
   if (result.status === 400) {
-    passwordError.value = 'Неверная почта или пароль.'
+    passwordError.value = t('auth.badCredentials')
     return
   }
   formError.value = result.status === 429 ? tooMany(result.retryAfter) : unreachable
@@ -119,12 +121,12 @@ async function requestCode(again = false) {
     challengeId.value = sent.challengeId
     step.value = 'code'
     code.value = ''
-    if (again) notice.value = 'Отправили новый код. Прежний больше не действует.'
+    if (again) notice.value = t('auth.codeResent')
     startTimer(sent.resendAfterSeconds)
     return
   }
   if (result.status === 400) {
-    emailError.value = 'Это не похоже на адрес почты.'
+    emailError.value = t('auth.badEmail')
     return
   }
   if (result.status === 429 && step.value === 'code') {
@@ -146,7 +148,7 @@ async function signInWithCode() {
   }
   if (result.status === 400 && captchaAsked(result.body)) return
   if (result.status === 400) {
-    codeError.value = 'Неверный или просроченный код. Проверьте письмо или отправьте код снова.'
+    codeError.value = t('auth.badCode')
     return
   }
   codeError.value = result.status === 429 ? tooMany(result.retryAfter) : unreachable
@@ -161,13 +163,13 @@ async function signInWithCode() {
     :aria-labelledby="embedded ? undefined : 'sign-in-title'"
   >
     <h1 v-if="!embedded" id="sign-in-title" class="sign-in__title">
-      {{ mode === 'reset' ? 'Восстановление пароля' : 'Вход' }}
+      {{ mode === 'reset' ? t('auth.passwordReset') : t('auth.signIn') }}
     </h1>
 
     <form v-if="mode === 'password'" class="sign-in__form" novalidate @submit.prevent="signInWithPassword">
       <UiField
         v-model="email"
-        label="Почта"
+        :label="t('auth.email')"
         type="email"
         name="email"
         autocomplete="username"
@@ -176,7 +178,7 @@ async function signInWithCode() {
       />
       <UiField
         v-model="password"
-        label="Пароль"
+        :label="t('auth.password')"
         type="password"
         name="password"
         autocomplete="current-password"
@@ -185,9 +187,13 @@ async function signInWithCode() {
       />
       <CaptchaCheck v-if="captchaShown" v-model="captcha" :solve="api.captcha" />
       <p v-if="formError" class="sign-in__error" role="alert">{{ formError }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canSignIn">Войти</UiButton>
-      <UiButton variant="ghost" block @click="switchMode('code')">Войти по коду из письма</UiButton>
-      <UiButton v-if="resetApi" variant="ghost" block @click="switchMode('reset')">Забыли пароль?</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canSignIn">{{
+        t('common.signIn')
+      }}</UiButton>
+      <UiButton variant="ghost" block @click="switchMode('code')">{{ t('auth.signInWithCode') }}</UiButton>
+      <UiButton v-if="resetApi" variant="ghost" block @click="switchMode('reset')">{{
+        t('auth.forgotPassword')
+      }}</UiButton>
     </form>
 
     <PasswordResetForm
@@ -199,10 +205,10 @@ async function signInWithCode() {
     />
 
     <form v-else-if="step === 'email'" class="sign-in__form" novalidate @submit.prevent="requestCode()">
-      <p class="sign-in__lead">Пришлём на почту код для входа. Если аккаунта ещё нет, код его создаст.</p>
+      <p class="sign-in__lead">{{ t('auth.codeLead') }}</p>
       <UiField
         v-model="email"
-        label="Почта"
+        :label="t('auth.email')"
         type="email"
         name="email"
         autocomplete="email"
@@ -211,17 +217,23 @@ async function signInWithCode() {
         :error="emailError"
       />
       <p v-if="formError" class="sign-in__error" role="alert">{{ formError }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canRequest">Получить код</UiButton>
-      <UiButton variant="ghost" block @click="switchMode('password')">Войти с паролем</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canRequest">{{
+        t('auth.getCode')
+      }}</UiButton>
+      <UiButton variant="ghost" block @click="switchMode('password')">{{
+        t('auth.signInWithPassword')
+      }}</UiButton>
     </form>
 
     <form v-else class="sign-in__form" novalidate @submit.prevent="signInWithCode">
-      <p class="sign-in__lead">
-        Отправили код на <strong>{{ email.trim() }}</strong>. Он действует 10 минут.
-      </p>
+      <I18nText tag="p" class="sign-in__lead" keypath="auth.codeSent" :params="{ minutes: 10 }">
+        <template #email
+          ><strong>{{ email.trim() }}</strong></template
+        >
+      </I18nText>
       <UiField
         v-model="code"
-        label="Код из письма"
+        :label="t('auth.code')"
         name="code"
         autocomplete="one-time-code"
         inputmode="numeric"
@@ -231,20 +243,22 @@ async function signInWithCode() {
       />
       <CaptchaCheck v-if="captchaShown" v-model="captcha" :solve="api.captcha" />
       <p v-if="notice" class="sign-in__notice" role="status">{{ notice }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canConfirm">Войти</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canConfirm">{{
+        t('common.signIn')
+      }}</UiButton>
       <div class="sign-in__resend">
         <p v-if="resendLeft > 0" class="sign-in__timer" data-testid="resend-timer" aria-live="polite">
-          Отправить код снова можно через {{ formatCountdown(resendLeft) }}
+          {{ t('auth.resendIn', { time: formatCountdown(resendLeft) }) }}
         </p>
-        <UiButton v-else variant="ghost" block :loading="resending" @click="requestCode(true)"
-          >Отправить код снова</UiButton
-        >
-        <UiButton variant="ghost" block @click="switchMode('code')">Изменить почту</UiButton>
+        <UiButton v-else variant="ghost" block :loading="resending" @click="requestCode(true)">{{
+          t('auth.resend')
+        }}</UiButton>
+        <UiButton variant="ghost" block @click="switchMode('code')">{{ t('auth.changeEmail') }}</UiButton>
       </div>
     </form>
 
     <p v-if="!embedded" class="sign-in__footer">
-      Нет аккаунта? <NuxtLink to="/register">Зарегистрироваться</NuxtLink>
+      {{ t('auth.noAccount') }} <NuxtLink to="/register">{{ t('auth.register') }}</NuxtLink>
     </p>
   </section>
 </template>

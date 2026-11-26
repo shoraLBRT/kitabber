@@ -12,6 +12,7 @@ import UiSheet from '../ui/UiSheet.vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { useToast } from '../../composables/useToast'
 import type { CommentMenuAction, CommentMenuItem } from '../../utils/comment-menu'
+import { t } from '../../i18n'
 
 const props = defineProps<{
   items: CommentMenuItem[]
@@ -21,7 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ edit: [] }>()
 
-const label = 'Меню комментария'
+const label = t('comments.menu')
 const toast = useToast()
 const isPhone = useMediaQuery(phoneQuery)
 const sheetOpen = ref(false)
@@ -43,8 +44,8 @@ async function confirmDelete() {
   try {
     if (await props.remove()) {
       confirmOpen.value = false
-      toast.show('Комментарий удалён')
-    } else toast.show('Не удалось удалить комментарий', { tone: 'error' })
+      toast.show(t('comments.deleted'))
+    } else toast.show(t('comments.deleteFailed'), { tone: 'error' })
   } finally {
     deleting.value = false
   }
@@ -86,19 +87,21 @@ async function confirmDelete() {
       </template>
     </UiMenu>
 
-    <UiModal v-model:open="confirmOpen" title="Удалить комментарий?">
+    <UiModal v-model:open="confirmOpen" :title="t('comments.deleteConfirm')">
       <p class="comment-menu__text">
-        Текст пропадёт. Если на комментарий ответили, на его месте останется «Комментарий удалён».
+        {{ t('comments.deleteConfirmText') }}
       </p>
       <template #footer>
-        <UiButton variant="secondary" data-autofocus @click="confirmOpen = false">Отмена</UiButton>
+        <UiButton variant="secondary" data-autofocus @click="confirmOpen = false">{{
+          t('actions.cancel')
+        }}</UiButton>
         <UiButton
           variant="danger"
           :loading="deleting"
           data-testid="comment-delete-confirm"
           @click="confirmDelete"
         >
-          Удалить
+          {{ t('actions.delete') }}
         </UiButton>
       </template>
     </UiModal>

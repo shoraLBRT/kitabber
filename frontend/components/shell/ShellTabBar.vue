@@ -4,6 +4,7 @@
 // the left menu is hidden. Respects the safe areas of the screen; every tab is at least --size-touch (44 px) tall.
 // A second tap on the current tab scrolls the page to the top (docs/ui/README.md, "Кнопка «наверх»").
 import { isActive, tabBarNav, type NavItem } from '../../utils/navigation'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -26,7 +27,7 @@ function onClick(item: NavItem, event: MouseEvent) {
 </script>
 
 <template>
-  <nav class="tab-bar" aria-label="Нижняя панель" data-testid="tab-bar">
+  <nav class="tab-bar" :aria-label="t('shell.tabBar')" data-testid="tab-bar">
     <ul class="tab-bar__list">
       <li v-for="item in tabBarNav" :key="item.id" class="tab-bar__item">
         <NuxtLink
@@ -43,7 +44,9 @@ function onClick(item: NavItem, event: MouseEvent) {
             </span>
           </span>
           <span class="tab-bar__label">{{ item.label }}</span>
-          <span v-if="countOf(item) > 0" class="tab-bar__sr">, непрочитанных: {{ countOf(item) }}</span>
+          <span v-if="countOf(item) > 0" class="tab-bar__sr">{{
+            t('shell.unread', { count: countOf(item) })
+          }}</span>
         </NuxtLink>
       </li>
     </ul>

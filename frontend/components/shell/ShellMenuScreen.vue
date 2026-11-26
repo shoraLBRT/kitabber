@@ -8,6 +8,7 @@ import { accountNav, isActive, loginPath, serviceNav, topicsPath, type NavItem }
 import UiAvatar from '../ui/UiAvatar.vue'
 import type { ShellUser } from './ShellHeader.vue'
 import ShellThemeSwitch from './ShellThemeSwitch.vue'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -27,20 +28,20 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
 
 <template>
   <section class="menu-screen" aria-labelledby="menu-screen-title" data-testid="menu-screen">
-    <h1 id="menu-screen-title" class="menu-screen__title">Меню</h1>
+    <h1 id="menu-screen-title" class="menu-screen__title">{{ t('common.menu') }}</h1>
 
     <div class="menu-screen__card">
       <NuxtLink v-if="user" :to="profile.to" class="menu-screen__profile" data-nav="profile">
         <UiAvatar :name="user.name" :src="user.avatar" size="md" decorative />
         <span class="menu-screen__profile-text">
           <span class="menu-screen__name">{{ user.name }}</span>
-          <span class="menu-screen__hint">Профиль</span>
+          <span class="menu-screen__hint">{{ t('common.profile') }}</span>
         </span>
         <ChevronRight class="menu-screen__chevron" aria-hidden="true" />
       </NuxtLink>
       <NuxtLink v-else :to="loginPath" external class="menu-screen__row" data-nav="login">
         <LogIn class="menu-screen__icon" aria-hidden="true" />
-        Войти
+        {{ t('common.signIn') }}
       </NuxtLink>
 
       <ul v-if="accountLinks.length" class="menu-screen__list">
@@ -59,7 +60,7 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
     </div>
 
     <section class="menu-screen__card" aria-labelledby="menu-screen-topics">
-      <h2 id="menu-screen-topics" class="menu-screen__heading">Темы</h2>
+      <h2 id="menu-screen-topics" class="menu-screen__heading">{{ t('common.topics') }}</h2>
       <ul v-if="topics.length" class="menu-screen__list">
         <li v-for="topic in topics" :key="topic.id">
           <NuxtLink
@@ -71,7 +72,9 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
           </NuxtLink>
         </li>
       </ul>
-      <NuxtLink :to="topicsPath" class="menu-screen__row" data-nav="topics">Показать все</NuxtLink>
+      <NuxtLink :to="topicsPath" class="menu-screen__row" data-nav="topics">{{
+        t('common.showAll')
+      }}</NuxtLink>
     </section>
 
     <div class="menu-screen__card">
@@ -93,7 +96,7 @@ const accountLinks = computed(() => (props.user ? accountNav.filter((item) => it
       </ul>
       <button v-if="user" type="button" class="menu-screen__row menu-screen__logout" @click="emit('logout')">
         <LogOut class="menu-screen__icon" aria-hidden="true" />
-        Выйти
+        {{ t('common.signOut') }}
       </button>
     </div>
   </section>

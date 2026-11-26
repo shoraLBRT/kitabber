@@ -5,6 +5,7 @@
 import { EyeOff, Flag, Link, Pencil, Trash2 } from 'lucide-vue-next'
 import type { useToast } from '../composables/useToast'
 import type { MenuItem } from '../types/ui'
+import { t } from '../i18n'
 
 /** The flags of the menu items that wait for their own tasks: editing (#146 and the editor), reporting (E15-02), hiding (E11-07). */
 export interface PostMenuFeatures {
@@ -25,13 +26,13 @@ export interface PostMenuItem extends MenuItem {
 export function postMenuItems(own: boolean, features: PostMenuFeatures): PostMenuItem[] {
   const items: (PostMenuItem | false)[] = own
     ? [
-        features.postEdit && { id: 'edit', label: 'Редактировать', icon: Pencil },
-        { id: 'delete', label: 'Удалить', icon: Trash2, danger: true },
+        features.postEdit && { id: 'edit', label: t('actions.edit'), icon: Pencil },
+        { id: 'delete', label: t('actions.delete'), icon: Trash2, danger: true },
       ]
     : [
-        features.postReport && { id: 'report', label: 'Пожаловаться', icon: Flag },
-        features.postHide && { id: 'hide', label: 'Скрыть', icon: EyeOff },
-        { id: 'copy-link', label: 'Скопировать ссылку', icon: Link },
+        features.postReport && { id: 'report', label: t('actions.report'), icon: Flag },
+        features.postHide && { id: 'hide', label: t('actions.hide'), icon: EyeOff },
+        { id: 'copy-link', label: t('actions.copyLink'), icon: Link },
       ]
   return items.filter((item): item is PostMenuItem => Boolean(item))
 }
@@ -40,8 +41,8 @@ export function postMenuItems(own: boolean, features: PostMenuFeatures): PostMen
 export async function copyPostLink(path: string, toast: ReturnType<typeof useToast>): Promise<void> {
   try {
     await navigator.clipboard.writeText(new URL(path, window.location.origin).href)
-    toast.show('Ссылка скопирована', { tone: 'success' })
+    toast.show(t('actions.linkCopied'), { tone: 'success' })
   } catch {
-    toast.show('Не удалось скопировать ссылку', { tone: 'error' })
+    toast.show(t('actions.copyLinkFailed'), { tone: 'error' })
   }
 }

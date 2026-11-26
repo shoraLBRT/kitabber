@@ -13,6 +13,7 @@ import { ImageTool, type ImageToolConfig, type ImageUpload } from './image'
 import { QuoteTool } from './quote'
 import { TextTool } from './text'
 import { LinkTool, MarkerTool } from './tools'
+import { t } from '../i18n'
 
 export interface EngineOptions {
   holder: HTMLElement
@@ -43,32 +44,36 @@ export type InlineMark = 'bold' | 'italic'
 
 export type CreateEngine = (options: EngineOptions) => Promise<EditorEngine>
 
-// Russian labels of the Editor.js interface (docs: interface texts are in Russian). Tools of later tasks add theirs.
+// The labels of the Editor.js interface, from the dictionary (E02-10). Tools of later tasks add theirs.
 const messages = {
   ui: {
-    blockTunes: { toggler: { 'Click to tune': 'Настроить', 'or drag to move': 'или перетащите' } },
-    inlineToolbar: { converter: { 'Convert to': 'Превратить в' } },
-    toolbar: { toolbox: { Add: 'Добавить блок' } },
-    popover: { Filter: 'Поиск', 'Nothing found': 'Ничего не найдено', 'Convert to': 'Превратить в' },
+    blockTunes: { toggler: { 'Click to tune': t('editor.tune'), 'or drag to move': t('editor.dragToMove') } },
+    inlineToolbar: { converter: { 'Convert to': t('editor.convertTo') } },
+    toolbar: { toolbox: { Add: t('editor.addBlock') } },
+    popover: {
+      Filter: t('editor.search'),
+      'Nothing found': t('editor.nothingFound'),
+      'Convert to': t('editor.convertTo'),
+    },
   },
   toolNames: {
-    Text: 'Текст',
-    Heading: 'Заголовок',
-    Subheading: 'Подзаголовок',
-    'Bulleted list': 'Маркированный список',
-    'Numbered list': 'Нумерованный список',
-    Quote: 'Цитата',
-    Delimiter: 'Разделитель',
-    Image: 'Фото',
-    Bold: 'Жирный',
-    Italic: 'Курсив',
-    Marker: 'Маркер',
-    Link: 'Ссылка',
+    Text: t('editor.text'),
+    Heading: t('editor.heading'),
+    Subheading: t('editor.subheading'),
+    'Bulleted list': t('editor.bulletedList'),
+    'Numbered list': t('editor.numberedList'),
+    Quote: t('editor.quote'),
+    Delimiter: t('editor.delimiter'),
+    Image: t('editor.image'),
+    Bold: t('editor.bold'),
+    Italic: t('editor.italic'),
+    Marker: t('editor.marker'),
+    Link: t('editor.link'),
   },
   blockTunes: {
-    delete: { Delete: 'Удалить', 'Click to delete': 'Нажмите, чтобы удалить' },
-    moveUp: { 'Move up': 'Выше' },
-    moveDown: { 'Move down': 'Ниже' },
+    delete: { Delete: t('editor.delete'), 'Click to delete': t('editor.clickToDelete') },
+    moveUp: { 'Move up': t('editor.moveUp') },
+    moveDown: { 'Move down': t('editor.moveDown') },
   },
 }
 

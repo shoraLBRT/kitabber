@@ -9,6 +9,7 @@ import { toEditorData, toPostDocument, type PostDocument } from '../../editor/do
 import { createEditorJs, type CreateEngine, type EditorEngine, type InlineMark } from '../../editor/engine'
 import { EditorHistory, type Snapshot } from '../../editor/history'
 import type { ImageUpload } from '../../editor/image'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -59,7 +60,7 @@ async function start() {
     const started = await props.createEngine({
       holder: holder.value!,
       data: toEditorData(document.value),
-      placeholder: 'Начните писать…',
+      placeholder: t('editor.placeholder'),
       onChange: () => void enqueue(capture),
       uploadImage: props.uploadImage,
     })
@@ -205,10 +206,10 @@ defineExpose({ undo, redo, flush, keepSelection, openBlockMenu, format, addImage
     <div v-if="state === 'loading'" class="block-editor__skeleton" aria-hidden="true">
       <span v-for="line in 3" :key="line" class="block-editor__line" />
     </div>
-    <p v-if="state === 'loading'" class="block-editor__sr" role="status">Редактор загружается…</p>
+    <p v-if="state === 'loading'" class="block-editor__sr" role="status">{{ t('editor.loading') }}</p>
     <div v-if="state === 'error'" class="block-editor__error" role="alert">
-      <p class="block-editor__error-text">Не удалось открыть редактор. Текст не потерян.</p>
-      <button type="button" class="block-editor__retry" @click="start">Повторить</button>
+      <p class="block-editor__error-text">{{ t('editor.failed') }}</p>
+      <button type="button" class="block-editor__retry" @click="start">{{ t('common.retry') }}</button>
     </div>
     <div
       v-show="state === 'ready'"

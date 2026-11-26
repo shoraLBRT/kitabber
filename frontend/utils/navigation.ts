@@ -17,6 +17,7 @@ import {
   Trophy,
   User,
 } from 'lucide-vue-next'
+import { t } from '../i18n'
 
 export interface NavItem {
   id: string
@@ -29,17 +30,17 @@ export interface NavItem {
 
 /** Main menu of the left column, in the order of docs/spec.md section 5. */
 export const mainNav: NavItem[] = [
-  { id: 'popular', label: 'Популярное', to: '/popular', icon: Flame, aliases: ['/'] },
-  { id: 'new', label: 'Свежее', to: '/new', icon: Clock },
-  { id: 'my', label: 'Моя лента', to: '/my', icon: Newspaper },
-  { id: 'messages', label: 'Сообщения', to: '/messages', icon: MessageCircle },
-  { id: 'rating', label: 'Рейтинг', to: '/rating', icon: Trophy },
+  { id: 'popular', label: t('nav.popular'), to: '/popular', icon: Flame, aliases: ['/'] },
+  { id: 'new', label: t('nav.new'), to: '/new', icon: Clock },
+  { id: 'my', label: t('nav.my'), to: '/my', icon: Newspaper },
+  { id: 'messages', label: t('nav.messages'), to: '/messages', icon: MessageCircle },
+  { id: 'rating', label: t('nav.rating'), to: '/rating', icon: Trophy },
 ]
 
 /** Service links at the bottom of the left column. */
 export const serviceNav: NavItem[] = [
-  { id: 'about', label: 'О проекте', to: '/about' },
-  { id: 'rules', label: 'Правила', to: '/rules' },
+  { id: 'about', label: t('nav.about'), to: '/about' },
+  { id: 'rules', label: t('nav.rules'), to: '/rules' },
 ]
 
 /** Address of the full topic list ("Показать все"). */
@@ -60,11 +61,11 @@ const byId = (id: string): NavItem => mainNav.find((item) => item.id === id)!
  * "Лента" stands for all three feeds, which switch by tabs under the header on phones.
  */
 export const tabBarNav: NavItem[] = [
-  { id: 'feed', label: 'Лента', to: '/', icon: Rss, aliases: ['/popular', '/new', '/my'] },
+  { id: 'feed', label: t('nav.feed'), to: '/', icon: Rss, aliases: ['/popular', '/new', '/my'] },
   byId('rating'),
-  { id: 'notifications', label: 'Уведомления', to: notificationsPath, icon: Bell },
+  { id: 'notifications', label: t('nav.notifications'), to: notificationsPath, icon: Bell },
   byId('messages'),
-  { id: 'menu', label: 'Меню', to: menuPath, icon: Menu },
+  { id: 'menu', label: t('nav.menu'), to: menuPath, icon: Menu },
 ]
 
 /**
@@ -72,10 +73,10 @@ export const tabBarNav: NavItem[] = [
  * until they have an FR, donations never (docs/ui/README.md).
  */
 export const accountNav: NavItem[] = [
-  { id: 'profile', label: 'Профиль', to: '/profile', icon: User },
-  { id: 'drafts', label: 'Черновики', to: '/drafts', icon: FileText },
-  { id: 'bookmarks', label: 'Закладки', to: '/bookmarks', icon: Bookmark },
-  { id: 'settings', label: 'Настройки', to: '/settings', icon: Settings },
+  { id: 'profile', label: t('nav.profile'), to: '/profile', icon: User },
+  { id: 'drafts', label: t('nav.drafts'), to: '/drafts', icon: FileText },
+  { id: 'bookmarks', label: t('nav.bookmarks'), to: '/bookmarks', icon: Bookmark },
+  { id: 'settings', label: t('nav.settings'), to: '/settings', icon: Settings },
 ]
 
 /** Whether the item is the current screen: its own path, an alias, or a page below it. */

@@ -13,6 +13,7 @@ import {
   type CropState,
   type Size,
 } from '../../utils/avatar-crop'
+import { t } from '../../i18n'
 
 const props = defineProps<{ file: File }>()
 const emit = defineEmits<{ done: [avatar: Blob]; cancel: []; failed: [] }>()
@@ -123,7 +124,7 @@ async function apply() {
       :style="{ width: `${frame}px`, height: `${frame}px` }"
       tabindex="0"
       role="group"
-      aria-label="Положение аватара: двигайте картинку мышью, пальцем или стрелками, + и − меняют масштаб"
+      :aria-label="t('settings.cropLabel')"
       data-testid="avatar-frame"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
@@ -144,7 +145,7 @@ async function apply() {
       <div class="avatar-cropper__mask" aria-hidden="true" />
     </div>
     <label class="avatar-cropper__zoom">
-      <span>Масштаб</span>
+      <span>{{ t('settings.zoom') }}</span>
       <input
         type="range"
         :min="minZoom"
@@ -156,8 +157,8 @@ async function apply() {
       />
     </label>
     <div class="avatar-cropper__actions">
-      <UiButton variant="secondary" @click="$emit('cancel')">Отмена</UiButton>
-      <UiButton :loading="busy" :disabled="!natural" @click="apply">Применить</UiButton>
+      <UiButton variant="secondary" @click="$emit('cancel')">{{ t('actions.cancel') }}</UiButton>
+      <UiButton :loading="busy" :disabled="!natural" @click="apply">{{ t('settings.apply') }}</UiButton>
     </div>
   </div>
 </template>

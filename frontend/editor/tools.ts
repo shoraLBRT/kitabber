@@ -4,6 +4,7 @@
 // the server.
 import type { API, InlineTool, InlineToolConstructorOptions, SanitizerConfig } from '@editorjs/editorjs'
 import { isSafeHref, linkRel, normalizeLink } from './inline'
+import { t } from '../i18n'
 
 const activeClass = 'ce-inline-tool--active'
 
@@ -18,7 +19,7 @@ const linkIcon = icon(
 )
 
 /** Error under the link field when the address is not a link. */
-export const linkError = 'Это не ссылка. Подойдут адреса http://, https:// и mailto:'
+export const linkError = t('editor.linkError')
 
 function toolButton(svg: string, name: string): HTMLButtonElement {
   const button = document.createElement('button')
@@ -115,9 +116,9 @@ export class LinkTool implements InlineTool {
     wrapper.classList.add('link-tool')
     this.input = document.createElement('input')
     this.input.type = 'url'
-    this.input.placeholder = 'Вставьте ссылку'
+    this.input.placeholder = t('editor.linkPlaceholder')
     this.input.enterKeyHint = 'done'
-    this.input.setAttribute('aria-label', 'Адрес ссылки')
+    this.input.setAttribute('aria-label', t('editor.linkAddress'))
     this.input.classList.add('ce-inline-tool-input', 'link-tool__input')
     this.input.dataset.testid = 'link-input'
     this.input.addEventListener('keydown', (event) => {

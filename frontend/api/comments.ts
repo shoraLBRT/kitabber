@@ -4,6 +4,7 @@
 // builds the nested tree from it, so a loaded branch only takes the place of its comment's part of the list.
 import type { ApiClient, components } from './client'
 import type { Profile } from './profiles'
+import { t } from '../i18n'
 
 export type Comment = components['schemas']['CommentView']
 export type CommentTree = components['schemas']['CommentTreeView']
@@ -33,8 +34,8 @@ export const commentLevels = { wide: 6, phone: 3 } as const
 export type CommentSort = 'popular' | 'date'
 
 export const commentSorts: readonly { id: CommentSort; label: string }[] = [
-  { id: 'popular', label: 'Популярные' },
-  { id: 'date', label: 'По дате' },
+  { id: 'popular', label: t('comments.sortPopular') },
+  { id: 'date', label: t('comments.sortDate') },
 ]
 
 export function isCommentSort(value: unknown): value is CommentSort {
@@ -148,13 +149,8 @@ export function commentCount(comments: readonly Comment[]): number {
 
 /** «3 ответа», «5 ответов», «21 ответ». */
 export function repliesText(count: number): string {
-  const word = { one: 'ответ', few: 'ответа', many: 'ответов' }[
-    pluralRules.select(count) as 'one' | 'few' | 'many'
-  ]
-  return `${count} ${word ?? 'ответа'}`
+  return t('comments.replies', { count })
 }
-
-const pluralRules = new Intl.PluralRules('ru')
 
 /** The authors of native comments no profile is known for yet, each once. */
 export function unknownAuthors(comments: readonly Comment[], known: ReadonlyMap<string, unknown>): string[] {
@@ -217,7 +213,7 @@ export async function sendComment(
     if (data) return { status: 'sent', comment: data }
     if (response.status === 400) {
       const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {}
-      return { status: 'refused', message: Object.values(errors).flat()[0] ?? 'Комментарий не принят.' }
+      return { status: 'refused', message: Object.values(errors).flat()[0] ?? t('comments.refused') }
     }
     if (response.status === 401) return { status: 'unauthorized' }
     return { status: 'error' }
@@ -304,8 +300,8 @@ export type CommentEdit =
   | { status: 'error' }
 
 const editRefused: Readonly<Record<number, string>> = {
-  403: 'Время на правку вышло: комментарий можно только удалить.',
-  404: 'Комментарий уже удалён.',
+  403: t('comments.editExpired'),
+  404: t('comments.alreadyDeleted'),
 }
 
 /** Changes the text of the person's own comment: PATCH /comments/{id}. */
@@ -318,7 +314,7 @@ export async function editComment(client: ApiClient, id: string, text: string): 
     if (data) return { status: 'edited', comment: data }
     if (response.status === 400) {
       const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {}
-      return { status: 'refused', message: Object.values(errors).flat()[0] ?? 'Текст не принят.' }
+      return { status: 'refused', message: Object.values(errors).flat()[0] ?? t('comments.textRefused') }
     }
     if (response.status === 401) return { status: 'unauthorized' }
     const refused = editRefused[response.status]

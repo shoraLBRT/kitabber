@@ -2,6 +2,7 @@
 // Right column of the desktop shell (E02-05, docs/spec.md section 5): "Популярные комментарии" and "Интересные
 // блоги". Their data comes with the feed widgets (FR-FEED); until then both widgets show the empty state.
 import ShellWidget, { type WidgetState } from './ShellWidget.vue'
+import { t } from '../../i18n'
 
 withDefaults(defineProps<{ commentsState?: WidgetState; blogsState?: WidgetState }>(), {
   commentsState: 'empty',
@@ -11,19 +12,19 @@ const emit = defineEmits<{ retry: [widget: 'comments' | 'blogs'] }>()
 </script>
 
 <template>
-  <aside class="shell-aside" aria-label="Боковая колонка" data-testid="shell-aside">
+  <aside class="shell-aside" :aria-label="t('shell.aside')" data-testid="shell-aside">
     <ShellWidget
-      title="Популярные комментарии"
+      :title="t('shell.popularComments')"
       :state="commentsState"
-      empty-text="Здесь появятся обсуждаемые комментарии"
+      :empty-text="t('shell.popularCommentsEmpty')"
       @retry="emit('retry', 'comments')"
     >
       <slot name="comments" />
     </ShellWidget>
     <ShellWidget
-      title="Интересные блоги"
+      :title="t('shell.blogs')"
       :state="blogsState"
-      empty-text="Здесь появятся блоги, на которые стоит подписаться"
+      :empty-text="t('shell.blogsEmpty')"
       @retry="emit('retry', 'blogs')"
     >
       <slot name="blogs" />

@@ -9,6 +9,7 @@ import { X } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { focusableIn, trapTab } from '../../utils/focus'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -17,7 +18,7 @@ const props = withDefaults(
     closeLabel?: string
     fullscreen?: boolean
   }>(),
-  { presentation: 'auto', closeLabel: 'Закрыть' },
+  { presentation: 'auto', closeLabel: t('common.close') },
 )
 
 const open = defineModel<boolean>('open', { default: false })

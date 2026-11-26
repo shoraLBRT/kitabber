@@ -5,6 +5,7 @@
 // and the owner sees it as the owner; later lookups in the browser go through server/routes/bff/blog-profile.get.ts.
 import BlogView, { type BlogTab } from '~/components/blog/BlogView.vue'
 import { blogPath, blogTitle, lookUpProfile, type ProfileLookup } from '~/api/profiles'
+import { t } from '../../i18n'
 
 const route = useRoute()
 const { $api } = useNuxtApp()
@@ -43,8 +44,8 @@ useHead(() => ({
     state.value.status === 'found'
       ? blogTitle(state.value.profile)
       : state.value.status === 'not-found'
-        ? 'Блог не найден'
-        : 'Блог',
+        ? t('blog.notFound')
+        : t('blog.blog'),
 }))
 </script>
 

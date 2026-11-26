@@ -4,6 +4,7 @@
 // attempt, so the form clears it after each one. States: waiting for the click, checking, failed, passed.
 import { ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
+import { t } from '../../i18n'
 
 const props = defineProps<{ solve: () => Promise<string | undefined> }>()
 const solution = defineModel<string>({ default: '' })
@@ -28,13 +29,13 @@ async function check() {
 
 <template>
   <div class="captcha" data-testid="captcha">
-    <p class="captcha__lead">Было много неудачных попыток. Подтвердите, что вы не робот.</p>
-    <p v-if="state === 'done'" class="captcha__done" role="status">Проверка пройдена</p>
+    <p class="captcha__lead">{{ t('auth.captchaLead') }}</p>
+    <p v-if="state === 'done'" class="captcha__done" role="status">{{ t('auth.captchaDone') }}</p>
     <UiButton v-else variant="secondary" block :loading="state === 'loading'" @click="check">
-      {{ state === 'loading' ? 'Проверяем…' : 'Я не робот' }}
+      {{ state === 'loading' ? t('auth.captchaChecking') : t('auth.captchaButton') }}
     </UiButton>
     <p v-if="state === 'error'" class="captcha__error" role="alert">
-      Не удалось пройти проверку. Попробуйте ещё раз.
+      {{ t('auth.captchaFailed') }}
     </p>
   </div>
 </template>

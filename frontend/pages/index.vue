@@ -3,14 +3,15 @@
 // column shows the empty state of the shared FR-UI states. Above it on a desktop is the quick post (E05-29,
 // ADR-0055); on a phone the floating «Написать» opens it.
 import QuickPost from '~/components/feed/QuickPost.vue'
+import { t } from '../i18n'
 </script>
 
 <template>
   <div class="feed-page">
     <QuickPost class="feed-page__quick-post" />
     <section class="feed-placeholder" aria-labelledby="feed-title">
-      <h1 id="feed-title" class="feed-placeholder__title">Популярное</h1>
-      <p class="feed-placeholder__text">Здесь появятся посты. Лента ещё не подключена.</p>
+      <h1 id="feed-title" class="feed-placeholder__title">{{ t('nav.popular') }}</h1>
+      <p class="feed-placeholder__text">{{ t('pages.popularPlaceholder') }}</p>
     </section>
   </div>
 </template>

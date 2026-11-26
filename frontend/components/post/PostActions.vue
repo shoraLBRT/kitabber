@@ -11,6 +11,7 @@ import { Heart, MessageCircle, Share2 } from 'lucide-vue-next'
 import { useToast } from '../../composables/useToast'
 import type { Likes } from '../../composables/useLikes'
 import { copyPostLink } from '../../utils/post-menu'
+import { formatNumber, t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -52,7 +53,7 @@ function move(event: KeyboardEvent) {
   <div
     class="post-actions"
     role="toolbar"
-    aria-label="Действия с постом"
+    :aria-label="t('post.actions')"
     data-testid="post-actions"
     @keydown="move"
   >
@@ -63,21 +64,23 @@ function move(event: KeyboardEvent) {
       :disabled="!likable"
       :aria-pressed="likable ? (like.liked ? 'true' : 'false') : undefined"
       :aria-busy="likeBusy ? 'true' : undefined"
-      :title="own ? 'Свой пост оценить нельзя' : undefined"
+      :title="own ? t('post.ownLike') : undefined"
       data-testid="post-like"
       @click="toggleLike"
     >
       <Heart class="post-actions__icon" aria-hidden="true" />
-      <span>Нравится</span>
-      <b v-if="like.count > 0" class="post-actions__count" data-testid="post-like-count">{{ like.count }}</b>
+      <span>{{ t('actions.like') }}</span>
+      <b v-if="like.count > 0" class="post-actions__count" data-testid="post-like-count">{{
+        formatNumber(like.count)
+      }}</b>
     </button>
     <a href="#comments" class="post-actions__item" data-testid="post-comments">
       <MessageCircle class="post-actions__icon" aria-hidden="true" />
-      <span>Комментарии</span>
+      <span>{{ t('comments.title') }}</span>
     </a>
     <button type="button" class="post-actions__item" data-testid="post-share" @click="share">
       <Share2 class="post-actions__icon" aria-hidden="true" />
-      <span>Поделиться</span>
+      <span>{{ t('actions.share') }}</span>
     </button>
   </div>
 </template>

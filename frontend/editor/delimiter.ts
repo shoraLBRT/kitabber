@@ -4,6 +4,7 @@
 // removes it and puts the caret next to where it was (removeSelectedDelimiter), instead of Editor.js's default of
 // leaving an empty text block in its place.
 import type { API, BlockAPI, BlockTool, BlockToolConstructorOptions, ToolboxConfig } from '@editorjs/editorjs'
+import { t } from '../i18n'
 
 const delimiterIcon =
   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><path d="M8 6h8"/><path d="M8 18h8"/></svg>'
@@ -18,7 +19,7 @@ export interface BlockApi {
 }
 
 /** What a screen reader says for the delimiter (role separator). */
-export const delimiterLabel = 'Разделитель'
+export const delimiterLabel = t('editor.delimiter')
 
 export class DelimiterTool implements BlockTool {
   static get toolbox(): ToolboxConfig {

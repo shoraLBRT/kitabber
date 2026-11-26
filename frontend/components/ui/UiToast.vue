@@ -4,6 +4,7 @@
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-vue-next'
 import { onBeforeUnmount, onMounted } from 'vue'
 import type { Toast } from '../../composables/useToast'
+import { t } from '../../i18n'
 
 const props = defineProps<{ toast: Toast }>()
 const emit = defineEmits<{ dismiss: [id: number] }>()
@@ -41,7 +42,7 @@ onBeforeUnmount(stop)
     <button
       type="button"
       class="ui-toast__close"
-      aria-label="Закрыть уведомление"
+      :aria-label="t('shell.closeToast')"
       @click="emit('dismiss', toast.id)"
     >
       <X aria-hidden="true" />

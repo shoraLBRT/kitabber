@@ -6,6 +6,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ImageSource } from '../../types/ui'
 import UiImage from './UiImage.vue'
+import { locale } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -35,7 +36,7 @@ const initials = computed(() => {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((word) => [...word][0]!.toLocaleUpperCase('ru'))
+    .map((word) => [...word][0]!.toLocaleUpperCase(locale))
   return letters.join('') || '?'
 })
 </script>

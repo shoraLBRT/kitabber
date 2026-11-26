@@ -4,11 +4,12 @@
 import { Monitor, Moon, Sun } from 'lucide-vue-next'
 import { onMounted, useId } from 'vue'
 import { loadTheme, useTheme, type ThemeChoice } from '../../composables/useTheme'
+import { t } from '../../i18n'
 
 const options: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
-  { value: 'system', label: 'Как в системе', icon: Monitor },
-  { value: 'light', label: 'Светлая', icon: Sun },
-  { value: 'dark', label: 'Тёмная', icon: Moon },
+  { value: 'system', label: t('shell.themeSystem'), icon: Monitor },
+  { value: 'light', label: t('shell.themeLight'), icon: Sun },
+  { value: 'dark', label: t('shell.themeDark'), icon: Moon },
 ]
 
 const { theme, setTheme } = useTheme()
@@ -18,7 +19,7 @@ onMounted(loadTheme)
 
 <template>
   <fieldset class="theme-switch" data-testid="theme-switch">
-    <legend class="theme-switch__legend">Тема оформления</legend>
+    <legend class="theme-switch__legend">{{ t('shell.theme') }}</legend>
     <div class="theme-switch__options">
       <label
         v-for="option in options"

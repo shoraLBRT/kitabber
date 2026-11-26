@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import { blogTitle, type ProfileLookup } from '../../api/profiles'
+import { locale, t } from '../../i18n'
 
 export type BlogTab = 'posts' | 'comments'
 
@@ -21,8 +22,8 @@ const props = defineProps<{
 defineEmits<{ retry: [] }>()
 
 const tabs = computed(() => [
-  { id: 'posts' as const, label: 'Посты', to: props.base },
-  { id: 'comments' as const, label: 'Комментарии', to: `${props.base}/comments` },
+  { id: 'posts' as const, label: t('blog.posts'), to: props.base },
+  { id: 'comments' as const, label: t('blog.comments'), to: `${props.base}/comments` },
 ])
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
@@ -32,7 +33,7 @@ const title = computed(() => (found.value ? blogTitle(found.value.profile) : '')
 const registered = computed(() => {
   const at = found.value?.profile.registeredAt
   if (!at) return null
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -43,7 +44,7 @@ const registered = computed(() => {
 
 <template>
   <section v-if="state.status === 'loading'" class="blog" aria-busy="true" data-testid="blog-loading">
-    <span class="visually-hidden" role="status">Загрузка блога</span>
+    <span class="visually-hidden" role="status">{{ t('blog.loading') }}</span>
     <div class="blog__card">
       <div class="blog__cover" />
       <div class="blog__head">
@@ -60,9 +61,9 @@ const registered = computed(() => {
     class="blog blog__card blog__message"
     data-testid="blog-not-found"
   >
-    <h1 class="blog__title">Блог не найден</h1>
-    <p class="blog__muted">Возможно, адрес набран с ошибкой или блог переехал на другой никнейм.</p>
-    <NuxtLink to="/">На главную</NuxtLink>
+    <h1 class="blog__title">{{ t('blog.notFound') }}</h1>
+    <p class="blog__muted">{{ t('blog.notFoundText') }}</p>
+    <NuxtLink to="/">{{ t('common.home') }}</NuxtLink>
   </section>
 
   <section
@@ -70,9 +71,9 @@ const registered = computed(() => {
     class="blog blog__card blog__message"
     data-testid="blog-error"
   >
-    <h1 class="blog__title">Не удалось загрузить блог</h1>
-    <p class="blog__muted" role="alert">Проверьте соединение и попробуйте ещё раз.</p>
-    <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
+    <h1 class="blog__title">{{ t('blog.loadFailed') }}</h1>
+    <p class="blog__muted" role="alert">{{ t('blog.loadFailedText') }}</p>
+    <UiButton variant="secondary" @click="$emit('retry')">{{ t('common.retry') }}</UiButton>
   </section>
 
   <div v-else-if="found" class="blog" data-testid="blog">
@@ -93,20 +94,22 @@ const registered = computed(() => {
         </p>
         <p v-if="found.profile.description" class="blog__description">{{ found.profile.description }}</p>
         <template v-if="found.owner">
-          <p class="blog__muted" data-testid="blog-registered">На сайте с {{ registered }}</p>
-          <div class="blog__actions" role="group" aria-label="Управление блогом">
-            <NuxtLink to="/settings/blog" class="blog__action">Ред.</NuxtLink>
-            <UiButton variant="secondary" size="sm" disabled aria-describedby="blog-soon"
-              >Статистика</UiButton
-            >
-            <NuxtLink to="/settings/blog" class="blog__action">Настройки</NuxtLink>
+          <p class="blog__muted" data-testid="blog-registered">
+            {{ t('blog.registered', { date: registered ?? '' }) }}
+          </p>
+          <div class="blog__actions" role="group" :aria-label="t('blog.manage')">
+            <NuxtLink to="/settings/blog" class="blog__action">{{ t('blog.edit') }}</NuxtLink>
+            <UiButton variant="secondary" size="sm" disabled aria-describedby="blog-soon">{{
+              t('blog.stats')
+            }}</UiButton>
+            <NuxtLink to="/settings/blog" class="blog__action">{{ t('blog.settings') }}</NuxtLink>
           </div>
-          <p id="blog-soon" class="blog__muted blog__note">Статистика появится позже.</p>
+          <p id="blog-soon" class="blog__muted blog__note">{{ t('blog.statsSoon') }}</p>
         </template>
       </div>
     </header>
 
-    <nav class="blog__tabs" aria-label="Разделы блога">
+    <nav class="blog__tabs" :aria-label="t('blog.sections')">
       <NuxtLink
         v-for="item in tabs"
         :key="item.id"

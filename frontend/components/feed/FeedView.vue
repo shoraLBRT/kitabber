@@ -10,6 +10,7 @@ import FeedCard from './FeedCard.vue'
 import FeedCardSkeleton from './FeedCardSkeleton.vue'
 import UiState from '../ui/UiState.vue'
 import type { FeedState } from '../../api/feeds'
+import { t } from '../../i18n'
 
 const props = defineProps<{ title: string; state: FeedState; loadingMore?: boolean; moreFailed?: boolean }>()
 
@@ -52,18 +53,18 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
     <h1 id="feed-title" class="feed__title">{{ title }}</h1>
 
     <div v-if="state.status === 'loading'" class="feed__list" aria-busy="true" data-testid="feed-loading">
-      <span class="visually-hidden" role="status">Загрузка ленты</span>
+      <span class="visually-hidden" role="status">{{ t('feed.loading') }}</span>
       <div v-for="n in 3" :key="n" class="feed__item"><FeedCardSkeleton /></div>
     </div>
 
     <UiState v-else-if="state.status === 'error'" tone="error" data-testid="feed-error">
-      Не удалось загрузить ленту. Проверьте соединение и попробуйте ещё раз.
+      {{ t('feed.failed') }}
       <template #actions>
-        <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
+        <UiButton variant="secondary" @click="$emit('retry')">{{ t('common.retry') }}</UiButton>
       </template>
     </UiState>
 
-    <UiState v-else-if="items.length === 0" data-testid="feed-empty">Здесь пока нет постов.</UiState>
+    <UiState v-else-if="items.length === 0" data-testid="feed-empty">{{ t('feed.empty') }}</UiState>
 
     <template v-else>
       <ol class="feed__list" data-testid="feed-list">
@@ -73,14 +74,14 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
       </ol>
       <div v-if="state.status === 'found' && state.hasMore" class="feed__more">
         <template v-if="moreFailed">
-          <p class="feed__muted" role="alert">Не удалось загрузить следующие посты.</p>
+          <p class="feed__muted" role="alert">{{ t('feed.moreFailed') }}</p>
           <UiButton
             variant="secondary"
             :disabled="loadingMore"
             data-testid="feed-more"
             @click="$emit('more')"
           >
-            {{ loadingMore ? 'Загрузка…' : 'Повторить' }}
+            {{ loadingMore ? t('feed.loadingShort') : t('common.retry') }}
           </UiButton>
         </template>
         <div
@@ -89,7 +90,7 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
           role="status"
           data-testid="feed-loading-more"
         >
-          <span class="visually-hidden">Загрузка следующих постов…</span>
+          <span class="visually-hidden">{{ t('feed.loadingMore') }}</span>
           <FeedCardSkeleton />
         </div>
         <div
@@ -99,9 +100,9 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
           aria-hidden="true"
           data-testid="feed-sentinel"
         />
-        <UiButton v-else variant="secondary" data-testid="feed-more" @click="$emit('more')"
-          >Показать ещё</UiButton
-        >
+        <UiButton v-else variant="secondary" data-testid="feed-more" @click="$emit('more')">{{
+          t('actions.showMore')
+        }}</UiButton>
       </div>
     </template>
   </section>

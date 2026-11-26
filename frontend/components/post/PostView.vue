@@ -15,6 +15,7 @@ import type { PostMenuFeatures } from '../../utils/post-menu'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 import type { Likes } from '../../composables/useLikes'
+import { locale, t } from '../../i18n'
 
 const props = defineProps<{
   state: PostLookup | { status: 'loading' }
@@ -32,7 +33,7 @@ const props = defineProps<{
 defineEmits<{ retry: [] }>()
 
 // A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
-const dateFormat = new Intl.DateTimeFormat('ru', {
+const dateFormat = new Intl.DateTimeFormat(locale, {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
@@ -53,22 +54,22 @@ const inBlog = computed(() =>
 
 <template>
   <section v-if="state.status === 'loading'" class="post" aria-busy="true" data-testid="post-loading">
-    <span class="visually-hidden" role="status">Загрузка поста</span>
+    <span class="visually-hidden" role="status">{{ t('post.loading') }}</span>
     <div class="post__skeleton post__skeleton--short" />
     <div class="post__skeleton post__skeleton--title" />
     <div v-for="n in 3" :key="n" class="post__skeleton post__skeleton--line" />
   </section>
 
   <section v-else-if="state.status === 'not-found'" class="post post__message" data-testid="post-not-found">
-    <h1 class="post__title">Пост не найден</h1>
-    <p class="post__muted">Возможно, адрес набран с ошибкой или пост удалён.</p>
-    <NuxtLink to="/">На главную</NuxtLink>
+    <h1 class="post__title">{{ t('post.notFound') }}</h1>
+    <p class="post__muted">{{ t('post.notFoundText') }}</p>
+    <NuxtLink to="/">{{ t('common.home') }}</NuxtLink>
   </section>
 
   <section v-else-if="state.status === 'error'" class="post post__message" data-testid="post-error">
-    <h1 class="post__title">Не удалось загрузить пост</h1>
-    <p class="post__muted" role="alert">Проверьте соединение и попробуйте ещё раз.</p>
-    <UiButton variant="secondary" @click="$emit('retry')">Повторить</UiButton>
+    <h1 class="post__title">{{ t('post.loadFailed') }}</h1>
+    <p class="post__muted" role="alert">{{ t('post.loadFailedText') }}</p>
+    <UiButton variant="secondary" @click="$emit('retry')">{{ t('common.retry') }}</UiButton>
   </section>
 
   <article v-else-if="found" class="post" data-testid="post">
@@ -95,7 +96,7 @@ const inBlog = computed(() =>
           }}</NuxtLink>
           <span aria-hidden="true"> · </span>
         </template>
-        <span v-if="found.post.status === 'draft'" data-testid="post-draft">черновик</span>
+        <span v-if="found.post.status === 'draft'" data-testid="post-draft">{{ t('post.draft') }}</span>
         <time v-else-if="found.post.publishedAt" :datetime="found.post.publishedAt" data-testid="post-date">{{
           dateFormat.format(new Date(found.post.publishedAt))
         }}</time>

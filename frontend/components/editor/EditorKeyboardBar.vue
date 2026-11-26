@@ -10,6 +10,7 @@ import { Bold, Camera, Image as ImageIcon, Italic, Plus } from 'lucide-vue-next'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import type { InlineMark } from '../../editor/engine'
+import { t } from '../../i18n'
 
 /** What the panel needs from BlockEditor (its exposed methods). */
 export interface KeyboardBarTarget {
@@ -26,8 +27,8 @@ const isPhone = useMediaQuery(phoneQuery)
 const pressed = ref<Record<InlineMark, boolean>>({ bold: false, italic: false })
 
 const marks: { mark: InlineMark; label: string; icon: typeof Bold }[] = [
-  { mark: 'bold', label: 'Жирный', icon: Bold },
-  { mark: 'italic', label: 'Курсив', icon: Italic },
+  { mark: 'bold', label: t('editor.bold'), icon: Bold },
+  { mark: 'italic', label: t('editor.italic'), icon: Italic },
 ]
 
 // Whether the selection is already bold or italic, for aria-pressed; only while the panel is shown, jsdom has none.
@@ -44,8 +45,8 @@ function onPress(event: PointerEvent) {
 // The gallery and the camera (ADR-0047 point 5): the same file input, the camera's with capture. The picked picture
 // becomes a «Фото» block after the caret's block (E05-06).
 const sources = [
-  { id: 'gallery', label: 'Фото из галереи', icon: ImageIcon },
-  { id: 'camera', label: 'Снять на камеру', icon: Camera },
+  { id: 'gallery', label: t('editor.gallery'), icon: ImageIcon },
+  { id: 'camera', label: t('editor.camera'), icon: Camera },
 ] as const
 const gallery = ref<HTMLInputElement>()
 const camera = ref<HTMLInputElement>()
@@ -75,7 +76,7 @@ onBeforeUnmount(() => document.removeEventListener('selectionchange', readPresse
     v-if="isPhone"
     class="keyboard-bar"
     role="toolbar"
-    aria-label="Инструменты редактора"
+    :aria-label="t('editor.tools')"
     data-testid="editor-keyboard-bar"
     @pointerdown="onPress"
     @mousedown.prevent
@@ -83,7 +84,7 @@ onBeforeUnmount(() => document.removeEventListener('selectionchange', readPresse
     <button
       type="button"
       class="keyboard-bar__button"
-      aria-label="Добавить блок"
+      :aria-label="t('editor.addBlock')"
       data-testid="keyboard-bar-add"
       :disabled="editor?.state !== 'ready'"
       @click="editor?.openBlockMenu()"

@@ -5,6 +5,7 @@
 // (E05-29, ADR-0055: `write`); the link to the full editor stays its address, for a page still without scripts.
 import { PenLine } from 'lucide-vue-next'
 import { writePath } from '../../utils/navigation'
+import { t } from '../../i18n'
 
 defineProps<{ quick?: boolean }>()
 const emit = defineEmits<{ write: [] }>()
@@ -21,14 +22,20 @@ function onQuick(event: MouseEvent) {
     v-if="quick"
     :href="writePath"
     class="write-button"
-    aria-label="Написать"
+    :aria-label="t('common.write')"
     aria-haspopup="dialog"
     data-testid="write-button"
     @click="onQuick"
   >
     <PenLine class="write-button__icon" aria-hidden="true" />
   </a>
-  <NuxtLink v-else :to="writePath" class="write-button" aria-label="Написать" data-testid="write-button">
+  <NuxtLink
+    v-else
+    :to="writePath"
+    class="write-button"
+    :aria-label="t('common.write')"
+    data-testid="write-button"
+  >
     <PenLine class="write-button__icon" aria-hidden="true" />
   </NuxtLink>
 </template>

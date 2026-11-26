@@ -10,6 +10,7 @@ import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { useVisualViewport } from '../../composables/useVisualViewport'
 import { trapTab } from '../../utils/focus'
+import { t } from '../../i18n'
 
 defineProps<{ title: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -74,7 +75,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="editor-window__button editor-window__expand"
-            :aria-label="expanded ? 'Свернуть в окно' : 'Развернуть на весь экран'"
+            :aria-label="expanded ? t('editor.collapse') : t('editor.expand')"
             :aria-pressed="expanded"
             data-testid="editor-expand"
             @click="expanded = !expanded"
@@ -85,7 +86,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="editor-window__button"
-            aria-label="Закрыть редактор"
+            :aria-label="t('editor.close')"
             data-testid="editor-close"
             @click="emit('close')"
           >

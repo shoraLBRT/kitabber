@@ -8,9 +8,10 @@ import BlogSettingsForm from '~/components/settings/BlogSettingsForm.vue'
 import UiButton from '~/components/ui/UiButton.vue'
 import type { MediaUpload } from '~/api/media'
 import { blogPath, ownProfile, type Profile, type ProfileInput, type ProfileSave } from '~/api/profiles'
+import { t } from '../../i18n'
 
 const signIn = '/auth/sign-in?returnTo=/settings/blog'
-useHead({ title: 'Настройки блога' })
+useHead({ title: t('settings.blog') })
 
 const account = useAccount()
 if (!account.value.signedIn) await navigateTo(signIn, { external: true })
@@ -54,16 +55,16 @@ function onUnauthorized() {
         v-if="data"
         :to="blogPath(data)"
         class="settings__back"
-        aria-label="Вернуться в блог"
+        :aria-label="t('settings.backToBlog')"
         data-testid="settings-back"
       >
         ←
       </NuxtLink>
-      <h1 id="settings-title" class="settings__title">Настройки блога</h1>
+      <h1 id="settings-title" class="settings__title">{{ t('settings.blog') }}</h1>
     </header>
 
     <div v-if="pending" class="settings__card" aria-busy="true" data-testid="settings-loading">
-      <span class="visually-hidden" role="status">Загрузка настроек</span>
+      <span class="visually-hidden" role="status">{{ t('settings.loading') }}</span>
       <div class="settings__skeleton settings__skeleton--avatar" />
       <div v-for="n in 2" :key="n" class="settings__skeleton-field">
         <div class="settings__skeleton settings__skeleton--label" />
@@ -72,13 +73,13 @@ function onUnauthorized() {
     </div>
 
     <div v-else-if="!data" class="settings__card settings__message" data-testid="settings-error">
-      <h2 class="settings__section-title">Не удалось загрузить настройки</h2>
-      <p class="settings__muted" role="alert">Проверьте соединение и попробуйте ещё раз.</p>
-      <UiButton variant="secondary" @click="refresh()">Повторить</UiButton>
+      <h2 class="settings__section-title">{{ t('settings.loadFailed') }}</h2>
+      <p class="settings__muted" role="alert">{{ t('settings.loadFailedText') }}</p>
+      <UiButton variant="secondary" @click="refresh()">{{ t('common.retry') }}</UiButton>
     </div>
 
     <div v-else class="settings__card">
-      <h2 class="settings__section-title">Блог</h2>
+      <h2 class="settings__section-title">{{ t('settings.blogSection') }}</h2>
       <BlogSettingsForm
         :key="data.id"
         :profile="data"

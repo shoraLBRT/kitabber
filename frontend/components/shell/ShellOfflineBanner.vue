@@ -3,12 +3,13 @@
 // the browser is offline. It is a status, so a screen reader says it once without moving the focus; when the network
 // comes back the bar goes and what failed to load is read again (plugins/network.client.ts).
 import { WifiOff } from 'lucide-vue-next'
+import { t } from '../../i18n'
 </script>
 
 <template>
   <p class="shell-offline" role="status" data-testid="offline-banner">
     <WifiOff class="shell-offline__icon" aria-hidden="true" />
-    <span>Нет подключения. Покажем новое, когда сеть вернётся.</span>
+    <span>{{ t('shell.offline') }}</span>
   </p>
 </template>
 

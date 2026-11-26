@@ -35,11 +35,12 @@ import {
 import { commentDraftKey, draftStorage, forgetCommentDraft } from '../utils/comment-draft'
 import { readCommentSort, saveCommentSort } from '../utils/comment-sort'
 import { phoneQuery } from './useMediaQuery'
+import { t } from '../i18n'
 
-const sendFailure = 'Не удалось отправить комментарий. Текст сохранён — попробуйте ещё раз.'
-const signedOut = 'Войдите снова, чтобы отправить комментарий.'
-const editFailure = 'Не удалось сохранить правку. Попробуйте ещё раз.'
-const editSignedOut = 'Войдите снова, чтобы изменить комментарий.'
+const sendFailure = t('comments.sendFailed')
+const signedOut = t('comments.signedOut')
+const editFailure = t('comments.editFailed')
+const editSignedOut = t('comments.editSignedOut')
 
 /** The send goes through the site's own server, which holds the access token (server/routes/bff/comments.post.ts). */
 async function post(postId: string, text: string, parentId: string | null): Promise<CommentSend> {

@@ -5,8 +5,9 @@
 import SignInForm from '~/components/auth/SignInForm.vue'
 import { passwordResetApi } from '~/api/password'
 import { afterSignIn, signInApi } from '~/api/sign-in'
+import { t } from '../i18n'
 
-useHead({ title: 'Вход' })
+useHead({ title: t('pages.login') })
 
 const { $api } = useNuxtApp()
 const api = signInApi($api)

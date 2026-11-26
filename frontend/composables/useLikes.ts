@@ -14,9 +14,10 @@ import {
   type PostLikes,
 } from '../api/likes'
 import { pendingActionWith, tabStorage, takePendingAction } from '../utils/pending-action'
+import { t } from '../i18n'
 
-const failure = 'Не удалось поставить отметку. Попробуйте ещё раз.'
-const signedOut = 'Войдите снова, чтобы поставить отметку.'
+const failure = t('likes.failed')
+const signedOut = t('likes.signedOut')
 
 /** The action a guest's press remembers for the sign-in window: `like:<post id>:post` or `like:<post id>:<comment id>`. */
 export function likeAction(postId: string, target: LikeTarget, id: string): string {

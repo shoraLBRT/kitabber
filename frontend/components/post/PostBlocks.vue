@@ -10,6 +10,7 @@ import PostList from './PostList.vue'
 import UiImage from '../ui/UiImage.vue'
 import type { ImageSource } from '../../types/ui'
 import { viewBlocks } from '../../utils/post-blocks'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -30,7 +31,7 @@ const blocks = computed(() => viewBlocks(props.document))
 <template>
   <div class="post-blocks" data-testid="post-blocks">
     <p v-if="blocks.length === 0" class="post-blocks__empty" data-testid="post-blocks-empty">
-      В посте пока ничего нет.
+      {{ t('post.empty') }}
     </p>
     <template v-for="block in blocks" :key="block.key">
       <p v-if="block.kind === 'paragraph'" class="post-blocks__text" v-html="block.html" />
@@ -59,7 +60,7 @@ const blocks = computed(() => viewBlocks(props.document))
           :sizes="imageSizes"
           :width="block.width"
           :height="block.height"
-          :alt="block.caption ? '' : 'Фото'"
+          :alt="block.caption ? '' : t('post.photo')"
           fit="contain"
         />
         <figcaption v-if="block.caption" class="post-blocks__image-caption" v-html="block.caption" />
@@ -71,7 +72,7 @@ const blocks = computed(() => viewBlocks(props.document))
         data-testid="post-block-unknown"
         :data-block-type="block.type || undefined"
       >
-        Этот блок пока не умеем показывать.
+        {{ t('post.unknownBlock') }}
       </p>
     </template>
   </div>

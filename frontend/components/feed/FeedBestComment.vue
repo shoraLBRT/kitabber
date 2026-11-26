@@ -6,12 +6,15 @@ import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import type { FeedComment } from '../../api/feeds'
 import { blogTitle } from '../../api/profiles'
+import { t } from '../../i18n'
 
 const props = defineProps<{ comment: FeedComment; to: string }>()
 
 // A native comment names its author's blog; a guest one (FR-TG-6) the outside author.
 const name = computed(() =>
-  props.comment.author ? blogTitle(props.comment.author) : props.comment.guestName?.trim() || 'Автор',
+  props.comment.author
+    ? blogTitle(props.comment.author)
+    : props.comment.guestName?.trim() || t('common.author'),
 )
 </script>
 

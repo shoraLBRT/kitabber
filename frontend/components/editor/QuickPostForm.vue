@@ -15,6 +15,7 @@ import { imageMessages, measureInBrowser, rememberPreview, type ImageUpload } fr
 import { quickPhotoLimit, quickPostDocument, type QuickPostHandoff } from '../../editor/quick-post'
 import type { PublishInput, PublishOutcome } from '../../api/publish'
 import type { Topic } from '../../api/topics'
+import { t } from '../../i18n'
 
 const props = defineProps<{
   topics: Topic[]
@@ -56,9 +57,11 @@ const textId = useId()
 let nextKey = 1
 let draftId: string | null = null
 
-const topicName = computed(() => props.topics.find((topic) => topic.id === topicId.value)?.name ?? 'Без темы')
+const topicName = computed(
+  () => props.topics.find((topic) => topic.id === topicId.value)?.name ?? t('editor.noTopic'),
+)
 const topicItems = computed(() => [
-  { id: noTopic, label: 'Без темы' },
+  { id: noTopic, label: t('editor.noTopic') },
   ...props.topics.map((topic) => ({ id: topic.id, label: topic.name })),
 ])
 const uploading = computed(() => photos.value.some((photo) => photo.state === 'uploading'))
@@ -144,12 +147,12 @@ async function submit() {
     draftId = outcome.draftId
     error.value =
       outcome.status === 'email-not-confirmed'
-        ? 'Чтобы публиковать, подтвердите почту в настройках аккаунта.'
+        ? t('editor.emailNotConfirmed')
         : outcome.status === 'invalid'
           ? Object.keys(outcome.errors).every((field) => field === 'blogId')
-            ? 'Эта тема недоступна, выберите другую.'
+            ? t('editor.topicUnavailable')
             : Object.values(outcome.errors).join(' ')
-          : 'Не удалось опубликовать пост. Попробуйте ещё раз.'
+          : t('editor.publishFailed')
   } finally {
     publishing.value = false
   }
@@ -169,20 +172,20 @@ function onTextKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <section class="quick-post" aria-label="Быстрый пост" data-testid="quick-post">
+  <section class="quick-post" :aria-label="t('editor.quickPost')" data-testid="quick-post">
     <div v-if="!signedIn" class="quick-post__guest" data-testid="quick-post-guest">
-      <p class="quick-post__muted">Войдите, чтобы написать пост.</p>
-      <UiButton data-testid="quick-post-sign-in" @click="emit('sign-in')">Войти</UiButton>
+      <p class="quick-post__muted">{{ t('editor.quickPostSignIn') }}</p>
+      <UiButton data-testid="quick-post-sign-in" @click="emit('sign-in')">{{ t('common.signIn') }}</UiButton>
     </div>
 
     <form v-else class="quick-post__form" @submit.prevent="submit">
-      <label :for="textId" class="visually-hidden">Текст поста</label>
+      <label :for="textId" class="visually-hidden">{{ t('editor.quickPostText') }}</label>
       <textarea
         :id="textId"
         v-model="text"
         class="quick-post__text"
         rows="2"
-        placeholder="Что нового?"
+        :placeholder="t('editor.quickPostPlaceholder')"
         data-testid="quick-post-text"
         @keydown="onTextKeydown"
       />
@@ -215,7 +218,7 @@ function onTextKeydown(event: KeyboardEvent) {
           <button
             type="button"
             class="quick-post__remove"
-            aria-label="Убрать фото"
+            :aria-label="t('editor.removePhoto')"
             data-testid="quick-post-photo-remove"
             @click="remove(photo.key)"
           >
@@ -230,8 +233,8 @@ function onTextKeydown(event: KeyboardEvent) {
         <button
           type="button"
           class="quick-post__icon"
-          aria-label="Прикрепить фото"
-          title="Прикрепить фото"
+          :aria-label="t('editor.attachPhoto')"
+          :title="t('editor.attachPhoto')"
           data-testid="quick-post-attach"
           :disabled="photos.length >= quickPhotoLimit"
           @click="pick"
@@ -249,7 +252,7 @@ function onTextKeydown(event: KeyboardEvent) {
         />
         <UiMenu
           :items="topicItems"
-          :label="`Тема: ${topicName}`"
+          :label="t('editor.topic', { name: topicName })"
           class="quick-post__topic"
           data-testid="quick-post-topic"
           @select="chooseTopic"
@@ -262,20 +265,20 @@ function onTextKeydown(event: KeyboardEvent) {
         <UiButton
           variant="ghost"
           :disabled="uploading"
-          title="Открыть в полном редакторе"
+          :title="t('editor.openFull')"
           data-testid="quick-post-expand"
           @click="expand"
         >
-          Развернуть
+          {{ t('editor.expandShort') }}
         </UiButton>
         <UiButton
           type="submit"
           :disabled="empty || uploading"
           :loading="publishing"
-          title="Опубликовать (Ctrl+Enter)"
+          :title="t('editor.publishHint')"
           data-testid="quick-post-publish"
         >
-          Опубликовать
+          {{ t('editor.publish') }}
         </UiButton>
       </div>
     </form>

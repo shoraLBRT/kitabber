@@ -7,11 +7,13 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
 import { formatCountdown, passwordMinLength, type RegistrationApi } from '../../api/registration'
+import { t } from '../../i18n'
+import I18nText from '../../i18n/I18nText'
 
 const props = defineProps<{ api: RegistrationApi; embedded?: boolean }>()
 const emit = defineEmits<{ confirmed: [] }>()
 
-const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
+const unreachable = t('auth.unreachable')
 
 const step = ref<'form' | 'code'>('form')
 const email = ref('')
@@ -53,13 +55,13 @@ function fieldErrors(body: unknown): Record<string, unknown> {
 }
 
 function tooSoon(retryAfter: number | undefined) {
-  return `Слишком часто. Попробуйте через ${formatCountdown(retryAfter ?? 60)}.`
+  return t('auth.tooOften', { time: formatCountdown(retryAfter ?? 60) })
 }
 
 async function register() {
   emailError.value = passwordError.value = formError.value = undefined
   if (password.value.length < passwordMinLength) {
-    passwordError.value = `Пароль — не короче ${passwordMinLength} символов.`
+    passwordError.value = t('auth.registrationPasswordTooShort', { min: passwordMinLength })
     return
   }
   loading.value = true
@@ -76,13 +78,14 @@ async function register() {
   }
   if (result.status === 400) {
     const errors = fieldErrors(result.body)
-    if ('email' in errors) emailError.value = 'Это не похоже на адрес почты.'
-    if ('password' in errors) passwordError.value = `Пароль — от ${passwordMinLength} до 128 символов.`
-    if (!emailError.value && !passwordError.value) formError.value = 'Проверьте почту и пароль.'
+    if ('email' in errors) emailError.value = t('auth.badEmail')
+    if ('password' in errors)
+      passwordError.value = t('auth.registrationPasswordLength', { min: passwordMinLength })
+    if (!emailError.value && !passwordError.value) formError.value = t('auth.checkEmailAndPassword')
     return
   }
   if (result.status === 409) {
-    emailError.value = 'Этот адрес уже занят другим аккаунтом.'
+    emailError.value = t('auth.emailTaken')
     return
   }
   formError.value = result.status === 429 ? tooSoon(result.retryAfter) : unreachable
@@ -95,7 +98,7 @@ async function resend() {
   resending.value = false
   if (result.status === 202) {
     startTimer((result.body as { resendAfterSeconds: number }).resendAfterSeconds)
-    notice.value = 'Отправили новый код. Прежний больше не действует.'
+    notice.value = t('auth.codeResent')
     return
   }
   if (result.status === 429) {
@@ -103,7 +106,7 @@ async function resend() {
     return
   }
   if (result.status === 404) {
-    backToForm('Регистрация устарела. Начните заново.')
+    backToForm(t('auth.registrationExpired'))
     return
   }
   codeError.value = unreachable
@@ -120,11 +123,11 @@ async function confirm() {
     return
   }
   if (result.status === 400) {
-    codeError.value = 'Неверный или просроченный код. Проверьте письмо или отправьте код снова.'
+    codeError.value = t('auth.badCode')
     return
   }
   if (result.status === 409) {
-    backToForm('Этот адрес уже подтвердил другой аккаунт.')
+    backToForm(t('auth.emailConfirmedElsewhere'))
     return
   }
   codeError.value = result.status === 429 ? tooSoon(result.retryAfter) : unreachable
@@ -144,13 +147,13 @@ function backToForm(message?: string) {
     data-testid="registration"
     :aria-labelledby="embedded ? undefined : 'registration-title'"
   >
-    <h1 v-if="!embedded" id="registration-title" class="registration__title">Регистрация</h1>
+    <h1 v-if="!embedded" id="registration-title" class="registration__title">{{ t('auth.registration') }}</h1>
 
     <form v-if="step === 'form'" class="registration__form" novalidate @submit.prevent="register">
-      <p class="registration__lead">Почта нужна для входа и подтверждения: на неё придёт код.</p>
+      <p class="registration__lead">{{ t('auth.registrationLead') }}</p>
       <UiField
         v-model="email"
-        label="Почта"
+        :label="t('auth.email')"
         type="email"
         name="email"
         autocomplete="email"
@@ -160,25 +163,29 @@ function backToForm(message?: string) {
       />
       <UiField
         v-model="password"
-        label="Пароль"
+        :label="t('auth.password')"
         type="password"
         name="password"
         autocomplete="new-password"
         required
-        :hint="`Не короче ${passwordMinLength} символов`"
+        :hint="t('auth.passwordHint', { min: passwordMinLength })"
         :error="passwordError"
       />
       <p v-if="formError" class="registration__error" role="alert">{{ formError }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canSubmit">Зарегистрироваться</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canSubmit">{{
+        t('auth.register')
+      }}</UiButton>
     </form>
 
     <form v-else class="registration__form" novalidate @submit.prevent="confirm">
-      <p class="registration__lead">
-        Отправили код на <strong>{{ email.trim() }}</strong>. Он действует 30 минут.
-      </p>
+      <I18nText tag="p" class="registration__lead" keypath="auth.codeSent" :params="{ minutes: 30 }">
+        <template #email
+          ><strong>{{ email.trim() }}</strong></template
+        >
+      </I18nText>
       <UiField
         v-model="code"
-        label="Код из письма"
+        :label="t('auth.code')"
         name="code"
         autocomplete="one-time-code"
         inputmode="numeric"
@@ -187,15 +194,17 @@ function backToForm(message?: string) {
         :error="codeError"
       />
       <p v-if="notice" class="registration__notice" role="status">{{ notice }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canConfirm">Подтвердить</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canConfirm">{{
+        t('auth.confirm')
+      }}</UiButton>
       <div class="registration__resend">
         <p v-if="resendLeft > 0" class="registration__timer" data-testid="resend-timer" aria-live="polite">
-          Отправить код снова можно через {{ formatCountdown(resendLeft) }}
+          {{ t('auth.resendIn', { time: formatCountdown(resendLeft) }) }}
         </p>
-        <UiButton v-else variant="ghost" block :loading="resending" @click="resend"
-          >Отправить код снова</UiButton
-        >
-        <UiButton variant="ghost" block @click="backToForm()">Изменить почту</UiButton>
+        <UiButton v-else variant="ghost" block :loading="resending" @click="resend">{{
+          t('auth.resend')
+        }}</UiButton>
+        <UiButton variant="ghost" block @click="backToForm()">{{ t('auth.changeEmail') }}</UiButton>
       </div>
     </form>
   </section>

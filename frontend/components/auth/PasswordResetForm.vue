@@ -8,11 +8,13 @@ import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
 import { formatCountdown, passwordMinLength } from '../../api/registration'
 import type { PasswordResetApi } from '../../api/password'
+import { t } from '../../i18n'
+import I18nText from '../../i18n/I18nText'
 
 const props = defineProps<{ api: PasswordResetApi; email?: string }>()
 const emit = defineEmits<{ 'signed-in': []; back: [] }>()
 
-const unreachable = 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.'
+const unreachable = t('auth.unreachable')
 
 const step = ref<'email' | 'code'>('email')
 const email = ref(props.email ?? '')
@@ -49,7 +51,7 @@ function stopTimer() {
 onBeforeUnmount(stopTimer)
 
 function tooMany(retryAfter: number | undefined) {
-  return `Слишком много попыток. Попробуйте через ${formatCountdown(retryAfter ?? 60)}.`
+  return t('auth.tooManyAttempts', { time: formatCountdown(retryAfter ?? 60) })
 }
 
 function clearMessages() {
@@ -73,12 +75,12 @@ async function request(again = false) {
     resetId.value = sent.resetId
     step.value = 'code'
     code.value = ''
-    if (again) notice.value = 'Отправили новый код. Прежний больше не действует.'
+    if (again) notice.value = t('auth.codeResent')
     startTimer(sent.resendAfterSeconds)
     return
   }
   if (result.status === 400) {
-    emailError.value = 'Это не похоже на адрес почты.'
+    emailError.value = t('auth.badEmail')
     return
   }
   if (result.status === 429 && step.value === 'code') {
@@ -91,7 +93,7 @@ async function request(again = false) {
 async function reset() {
   clearMessages()
   if (password.value.trim().length < passwordMinLength) {
-    passwordError.value = `Не короче ${passwordMinLength} символов.`
+    passwordError.value = t('auth.passwordTooShort', { min: passwordMinLength })
     return
   }
   loading.value = true
@@ -104,11 +106,11 @@ async function reset() {
   }
   const problem = result.body as { code?: string; errors?: Record<string, string[]> } | undefined
   if (result.status === 400 && problem?.errors?.password) {
-    passwordError.value = `Не короче ${passwordMinLength} и не длиннее 128 символов.`
+    passwordError.value = t('auth.passwordLength', { min: passwordMinLength })
     return
   }
   if (result.status === 400) {
-    codeError.value = 'Неверный или просроченный код. Проверьте письмо или отправьте код снова.'
+    codeError.value = t('auth.badCode')
     return
   }
   formError.value = result.status === 429 ? tooMany(result.retryAfter) : unreachable
@@ -119,12 +121,11 @@ async function reset() {
   <div class="password-reset" data-testid="password-reset">
     <form v-if="step === 'email'" class="password-reset__form" novalidate @submit.prevent="request()">
       <p class="password-reset__lead">
-        Пришлём на почту аккаунта код. С ним вы зададите новый пароль, а все прежние входы в аккаунт
-        закончатся.
+        {{ t('auth.resetLead') }}
       </p>
       <UiField
         v-model="email"
-        label="Почта"
+        :label="t('auth.email')"
         type="email"
         name="email"
         autocomplete="email"
@@ -133,17 +134,21 @@ async function reset() {
         :error="emailError"
       />
       <p v-if="formError" class="password-reset__error" role="alert">{{ formError }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canRequest">Получить код</UiButton>
-      <UiButton variant="ghost" block @click="emit('back')">Вернуться ко входу</UiButton>
+      <UiButton type="submit" block :loading="loading" :disabled="!canRequest">{{
+        t('auth.getCode')
+      }}</UiButton>
+      <UiButton variant="ghost" block @click="emit('back')">{{ t('auth.backToSignIn') }}</UiButton>
     </form>
 
     <form v-else class="password-reset__form" novalidate @submit.prevent="reset">
-      <p class="password-reset__lead">
-        Если у <strong>{{ email.trim() }}</strong> есть аккаунт, мы отправили туда код. Он действует 15 минут.
-      </p>
+      <I18nText tag="p" class="password-reset__lead" keypath="auth.resetCodeSent">
+        <template #email
+          ><strong>{{ email.trim() }}</strong></template
+        >
+      </I18nText>
       <UiField
         v-model="code"
-        label="Код из письма"
+        :label="t('auth.code')"
         name="code"
         autocomplete="one-time-code"
         inputmode="numeric"
@@ -153,27 +158,27 @@ async function reset() {
       />
       <UiField
         v-model="password"
-        label="Новый пароль"
+        :label="t('auth.newPassword')"
         type="password"
         name="new-password"
         autocomplete="new-password"
         required
-        :hint="`Не короче ${passwordMinLength} символов`"
+        :hint="t('auth.passwordHint', { min: passwordMinLength })"
         :error="passwordError"
       />
       <p v-if="notice" class="password-reset__notice" role="status">{{ notice }}</p>
       <p v-if="formError" class="password-reset__error" role="alert">{{ formError }}</p>
-      <UiButton type="submit" block :loading="loading" :disabled="!canReset"
-        >Сохранить пароль и войти</UiButton
-      >
+      <UiButton type="submit" block :loading="loading" :disabled="!canReset">{{
+        t('auth.savePassword')
+      }}</UiButton>
       <div class="password-reset__resend">
         <p v-if="resendLeft > 0" class="password-reset__timer" data-testid="resend-timer" aria-live="polite">
-          Отправить код снова можно через {{ formatCountdown(resendLeft) }}
+          {{ t('auth.resendIn', { time: formatCountdown(resendLeft) }) }}
         </p>
-        <UiButton v-else variant="ghost" block :loading="resending" @click="request(true)"
-          >Отправить код снова</UiButton
-        >
-        <UiButton variant="ghost" block @click="changeEmail">Изменить почту</UiButton>
+        <UiButton v-else variant="ghost" block :loading="resending" @click="request(true)">{{
+          t('auth.resend')
+        }}</UiButton>
+        <UiButton variant="ghost" block @click="changeEmail">{{ t('auth.changeEmail') }}</UiButton>
       </div>
     </form>
   </div>

@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import { useToast } from '../../composables/useToast'
 import UiToast from './UiToast.vue'
+import { t } from '../../i18n'
 
 const { toasts, dismiss } = useToast()
 const errors = computed(() => toasts.filter((toast) => toast.tone === 'error'))
@@ -12,7 +13,7 @@ const others = computed(() => toasts.filter((toast) => toast.tone !== 'error'))
 </script>
 
 <template>
-  <section class="ui-toaster" aria-label="Уведомления">
+  <section class="ui-toaster" :aria-label="t('common.notifications')">
     <ol role="status" aria-live="polite" class="ui-toaster__list" data-testid="toasts-polite">
       <UiToast v-for="toast in others" :key="toast.id" :toast="toast" @dismiss="dismiss" />
     </ol>

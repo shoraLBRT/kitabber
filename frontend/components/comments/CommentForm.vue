@@ -7,6 +7,7 @@ import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import { commentTreeKey, formTarget } from './context'
 import { commentDraftKey, draftStorage, readCommentDraft, saveCommentDraft } from '../../utils/comment-draft'
+import { t } from '../../i18n'
 
 const props = withDefaults(defineProps<{ parentId?: string | null; inviting?: boolean }>(), {
   parentId: null,
@@ -96,16 +97,18 @@ onMounted(() => {
       data-testid="comment-form-open"
       @click="unfold"
     >
-      Комментарий…
+      {{ t('comments.placeholder') }}
     </button>
     <form v-else class="comment-form__open" @submit.prevent="submit">
-      <label :for="fieldId" class="visually-hidden">{{ reply ? 'Текст ответа' : 'Текст комментария' }}</label>
+      <label :for="fieldId" class="visually-hidden">{{
+        reply ? t('comments.replyText') : t('comments.text')
+      }}</label>
       <textarea
         :id="fieldId"
         ref="field"
         v-model="text"
         class="comment-form__field"
-        :placeholder="reply ? 'Ответ…' : 'Комментарий…'"
+        :placeholder="reply ? t('comments.replyPlaceholder') : t('comments.placeholder')"
         :maxlength="maxLength"
         rows="3"
         :aria-invalid="failure ? 'true' : undefined"
@@ -131,11 +134,11 @@ onMounted(() => {
           data-testid="comment-form-cancel"
           @click="emit('close')"
         >
-          Отмена
+          {{ t('actions.cancel') }}
         </UiButton>
-        <UiButton type="submit" size="sm" :disabled="blank" data-testid="comment-form-send"
-          >Отправить</UiButton
-        >
+        <UiButton type="submit" size="sm" :disabled="blank" data-testid="comment-form-send">{{
+          t('actions.send')
+        }}</UiButton>
       </div>
     </form>
   </div>

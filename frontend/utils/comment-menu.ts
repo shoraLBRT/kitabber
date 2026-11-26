@@ -5,6 +5,7 @@
 import { Pencil, Trash2 } from 'lucide-vue-next'
 import { canEdit, type Comment } from '../api/comments'
 import type { MenuItem } from '../types/ui'
+import { t } from '../i18n'
 
 export type CommentMenuAction = 'edit' | 'delete'
 
@@ -16,7 +17,7 @@ export interface CommentMenuItem extends MenuItem {
 export function commentMenuItems(comment: Comment, own: boolean, now: number): CommentMenuItem[] {
   if (!own || comment.deleted) return []
   const items: CommentMenuItem[] = []
-  if (canEdit(comment, now)) items.push({ id: 'edit', label: 'Редактировать', icon: Pencil })
-  items.push({ id: 'delete', label: 'Удалить', icon: Trash2, danger: true })
+  if (canEdit(comment, now)) items.push({ id: 'edit', label: t('actions.edit'), icon: Pencil })
+  items.push({ id: 'delete', label: t('actions.delete'), icon: Trash2, danger: true })
   return items
 }

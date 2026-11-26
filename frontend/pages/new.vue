@@ -6,6 +6,7 @@
 import FeedView from '~/components/feed/FeedView.vue'
 import QuickPost from '~/components/feed/QuickPost.vue'
 import { loadFreshFeed } from '~/api/feeds'
+import { t } from '../i18n'
 
 const { $api } = useNuxtApp()
 
@@ -13,14 +14,14 @@ const { state, loadingMore, moreFailed, loadMore, retry } = await useFeed('fresh
   loadFreshFeed($api, cursor),
 )
 
-useHead({ title: 'Свежее' })
+useHead({ title: t('nav.new') })
 </script>
 
 <template>
   <div class="feed-page">
     <QuickPost class="feed-page__quick-post" />
     <FeedView
-      title="Свежее"
+      :title="t('nav.new')"
       :state="state"
       :loading-more="loadingMore"
       :more-failed="moreFailed"
