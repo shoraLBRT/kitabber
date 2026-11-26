@@ -1,11 +1,12 @@
+// @vitest-environment node
+// openapi-typescript needs Node's URL; the DOM environment replaces it, and nothing here touches the DOM.
 // Acceptance checks of E01-08 (#19): the API client is rebuilt by one command, a difference between the OpenAPI
 // snapshot and the committed client fails the tests (and so `ci / verify`), and the app has no hand-written API
 // calls or types outside the generated client. The same checks for the admin live in admin/tests.
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import openapiTS, { astToString, COMMENT_HEADER } from 'openapi-typescript'
 import { describe, expect, it } from 'vitest'
 import { createApiClient } from '../api/client'
 
@@ -14,15 +15,22 @@ const clientDir = 'api'
 const command: string = JSON.parse(readFileSync(join(app, 'package.json'), 'utf8')).scripts['api:generate']
 const skipped = new Set(['node_modules', '.nuxt', '.output', 'dist', 'coverage', 'tests', 'e2e', clientDir])
 
-/** Runs the `api:generate` command with its output redirected to `out`, and returns the generated text. */
-function generate(out: string): string {
-  const [bin, ...args] = command.split(' ')
-  expect(bin).toBe('openapi-typescript')
-  const outIndex = args.indexOf('-o') + 1
-  args[outIndex] = out
-  const cli = join(app, 'node_modules', 'openapi-typescript', 'bin', 'cli.js')
-  execFileSync(process.execPath, [cli, ...args], { cwd: app, stdio: 'pipe' })
-  return readFileSync(out, 'utf8')
+/**
+ * Builds the client the way the `api:generate` command does and returns the generated text. It runs
+ * openapi-typescript in this process (the same `openapiTS` + `astToString` + `COMMENT_HEADER` its CLI calls)
+ * instead of starting the CLI: a second Node process with a cold module load took more than Vitest's 5 s
+ * under the load of the full `verify.ps1` run (#307).
+ */
+async function generate(): Promise<string> {
+  const [bin, input, flag, output, ...rest] = command.split(' ')
+  // Only the input and the output are given, so the CLI passes no generation options and the defaults below
+  // build the same text (the library adds one validation rule, unique operationIds, which never changes the output).
+  expect([bin, flag, output, rest]).toEqual(['openapi-typescript', '-o', `${clientDir}/schema.d.ts`, []])
+  const ast = await openapiTS(pathToFileURL(join(app, input!)), {
+    cwd: pathToFileURL(`${app}/`),
+    silent: true,
+  })
+  return `${COMMENT_HEADER}${astToString(ast)}`
 }
 
 function sources(dir: string): string[] {
@@ -39,16 +47,11 @@ describe('API client', () => {
     expect(command).toBe(`openapi-typescript ../backend/src/Api/openapi/v1.json -o ${clientDir}/schema.d.ts`)
   })
 
-  it('commits api/schema.d.ts exactly as `pnpm run api:generate` builds it', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'api-client-'))
-    try {
-      const fresh = generate(join(dir, 'schema.d.ts'))
-      const committed = readFileSync(join(app, clientDir, 'schema.d.ts'), 'utf8')
-      // On failure: the API changed. Run `pnpm run api:generate` here and commit api/schema.d.ts.
-      expect(committed.replace(/\r\n/g, '\n')).toBe(fresh.replace(/\r\n/g, '\n'))
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
+  it('commits api/schema.d.ts exactly as `pnpm run api:generate` builds it', async () => {
+    const fresh = await generate()
+    const committed = readFileSync(join(app, clientDir, 'schema.d.ts'), 'utf8')
+    // On failure: the API changed. Run `pnpm run api:generate` here and commit api/schema.d.ts.
+    expect(committed.replace(/\r\n/g, '\n')).toBe(fresh.replace(/\r\n/g, '\n'))
   })
 
   it('has no API calls or API types outside the generated client', () => {
