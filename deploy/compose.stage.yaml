@@ -6,12 +6,19 @@ name: ${STAGE_PROJECT:-kitabber-stage}
 
 x-backend: &backend
   restart: unless-stopped
+  # The API's access log (below) writes a line per request: docker keeps at most 5 x 20 MB of console output.
+  logging: &logging
+    driver: json-file
+    options: { max-size: 20m, max-file: '5' }
   environment: &backend-env
     ASPNETCORE_ENVIRONMENT: Staging
     DOTNET_ENVIRONMENT: Staging
     ConnectionStrings__Platform: Host=postgres;Port=5432;Database=platform;Username=platform;Password=${POSTGRES_PASSWORD:?set in the env file}
     ConnectionStrings__RabbitMq: amqp://platform:${RABBITMQ_PASSWORD:?set in the env file}@rabbitmq:5672/
     ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:?set in the env file}
+    # Traces, metrics and logs go over OTLP to the stand's collector (ADR-0015, ADR-0069).
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=stage
 
 services:
   # Runs before every new version of the API: scripts/deploy.ps1 calls `compose run --rm migrator migrate`.
@@ -31,6 +38,9 @@ services:
       # Caddy's X-Forwarded-For gives the client address the rate limits count (ADR-0016). The API publishes no
       # port, so only containers of the stand's private network can reach it.
       Http__TrustedProxies: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # The stand's access log: a line per request with its trace id, so Grafana goes from a request's log line to its
+      # trace (ADR-0069). The collector drops the lines of probes and scrapes.
+      Logging__LogLevel__Microsoft.AspNetCore.Hosting.Diagnostics: Information
       # The OpenID Connect provider (ADR-0018): the site's address is the issuer, the site's /auth/callback the only
       # redirect of the web client; the keys are secrets of the stand (docs/CONFIG.md).
       Identity__Issuer: ${SITE_URL:?set in the env file}/
@@ -124,6 +134,7 @@ services:
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set in the env file}
       ADMIN_ADDRESS: ${ADMIN_ADDRESS:?set in the env file}
+      GRAFANA_ADDRESS: ${GRAFANA_ADDRESS:?set in the env file}
     configs:
       - source: caddyfile
         target: /etc/caddy/Caddyfile
@@ -136,6 +147,7 @@ services:
       api: { condition: service_healthy }
       frontend: { condition: service_healthy }
       admin: { condition: service_healthy }
+      grafana: { condition: service_healthy }
 
   postgres:
     image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
@@ -181,6 +193,109 @@ services:
       retries: 20
       start_period: 20s
 
+  # ---- Telemetry of the stand (E01-xx #318, ADR-0069): the collector takes OTLP from the API and the workers and
+  # hands traces to Tempo, logs to Loki and metrics to Prometheus; Grafana shows them at GRAFANA_ADDRESS behind
+  # Caddy with a password. None of them publishes a port. Every store keeps 14 days.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.166.0@sha256:3e18fe04181de50bdd72e23ad4a4d6214b54351e63d496f1c58127cc4541ad7f
+    restart: unless-stopped
+    logging: *logging
+    configs:
+      - source: otel-collector
+        target: /etc/otelcol-contrib/config.yaml
+    depends_on:
+      prometheus: { condition: service_healthy }
+      loki: { condition: service_started }
+      tempo: { condition: service_started }
+
+  prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    restart: unless-stopped
+    logging: *logging
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Retention: 14 days, and never more than 10 GB on the disk.
+      - --storage.tsdb.retention.time=14d
+      - --storage.tsdb.retention.size=10GB
+      # Metrics of the API and the workers come from the collector over OTLP.
+      - --web.enable-otlp-receiver
+    configs:
+      - source: prometheus
+        target: /etc/prometheus/prometheus.yml
+      - source: prometheus-rules
+        target: /etc/prometheus/rules.yml
+    volumes:
+      - prometheus:/prometheus
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:9090/-/ready]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  loki:
+    image: grafana/loki:3.6.22@sha256:4cf4ceb20e88b0543c88b541a71797c22a46eade04dd588dcdebf9f2b9c36063
+    restart: unless-stopped
+    logging: *logging
+    command: [-config.file=/etc/loki/config.yaml]
+    configs:
+      - source: loki
+        target: /etc/loki/config.yaml
+    volumes:
+      - loki:/loki
+
+  tempo:
+    image: grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38
+    restart: unless-stopped
+    logging: *logging
+    # Tempo runs as uid 10001, a fresh named volume belongs to root: it could not write its blocks.
+    user: root
+    command: [-config.file=/etc/tempo/config.yaml]
+    configs:
+      - source: tempo
+        target: /etc/tempo/config.yaml
+    volumes:
+      - tempo:/var/tempo
+
+  grafana:
+    image: grafana/grafana:12.4.16@sha256:982fa6bf18cc38280a30bf08c3b673486067d4805b25a9d4756688a689a993c7
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # Only the admin signs in, with the password from the stand's secrets (docs/DEPLOY.md). Grafana takes it when it
+      # creates the admin, on the first start; to change it later see docs/DEPLOY.md.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in the env file}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+    configs:
+      - source: grafana-datasources
+        target: /etc/grafana/provisioning/datasources/stand.yaml
+      - source: grafana-dashboards
+        target: /etc/grafana/provisioning/dashboards/stand.yaml
+      - source: dashboard-api
+        target: /etc/grafana/dashboards/api.json
+      - source: dashboard-dotnet
+        target: /etc/grafana/dashboards/dotnet.json
+      - source: dashboard-database
+        target: /etc/grafana/dashboards/database.json
+    volumes:
+      - grafana:/var/lib/grafana
+    depends_on:
+      prometheus: { condition: service_healthy }
+      loki: { condition: service_started }
+      tempo: { condition: service_started }
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:3000/api/health]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
 configs:
   caddyfile:
     content: |
@@ -195,9 +310,296 @@ configs:
         encode
         reverse_proxy admin:8080
       }
+      {$$GRAFANA_ADDRESS} {
+        encode
+        reverse_proxy grafana:3000
+      }
+
+  # The configs of the telemetry are inline like the Caddyfile: the deploy talks to a remote Docker over SSH, where a
+  # file next to this one does not exist. A literal $ is written $$ here.
+  otel-collector:
+    content: |
+      receivers:
+        otlp:
+          protocols:
+            grpc: { endpoint: 0.0.0.0:4317 }
+            http: { endpoint: 0.0.0.0:4318 }
+      processors:
+        memory_limiter: { check_interval: 1s, limit_mib: 400, spike_limit_mib: 100 }
+        # The access log of probes and scrapes (they come every few seconds and are not traced either, ADR-0015).
+        filter/probes:
+          error_mode: ignore
+          logs:
+            log_record:
+              - 'IsMatch(attributes["Path"], "^/(health|metrics)")'
+      exporters:
+        otlp/tempo:
+          endpoint: tempo:4317
+          tls: { insecure: true }
+        otlphttp/loki:
+          endpoint: http://loki:3100/otlp
+        otlphttp/prometheus:
+          endpoint: http://prometheus:9090/api/v1/otlp
+      service:
+        telemetry:
+          logs: { level: warn }
+        pipelines:
+          traces: { receivers: [otlp], processors: [memory_limiter], exporters: [otlp/tempo] }
+          metrics: { receivers: [otlp], processors: [memory_limiter], exporters: [otlphttp/prometheus] }
+          logs: { receivers: [otlp], processors: [memory_limiter, filter/probes], exporters: [otlphttp/loki] }
+
+  prometheus:
+    content: |
+      global:
+        scrape_interval: 30s
+        evaluation_interval: 30s
+      rule_files: [/etc/prometheus/rules.yml]
+      # OTLP metrics: job is the service name (platform-api, platform-workers), instance its instance id.
+      otlp:
+        promote_resource_attributes: [service.version, deployment.environment.name]
+      storage:
+        tsdb:
+          out_of_order_time_window: 30m
+      scrape_configs:
+        # The API's /metrics inside the stand's network (ADR-0015): the same metrics as over OTLP, under another job.
+        - job_name: platform-api-scrape
+          metrics_path: /metrics
+          static_configs: [{ targets: ['api:8080'] }]
+
+  prometheus-rules:
+    content: |
+      groups:
+        - name: platform-api
+          rules:
+            - alert: ApiServerErrors
+              expr: |
+                sum(rate(http_server_request_duration_seconds_count{job="platform-api", http_response_status_code=~"5.."}[5m]))
+                  / sum(rate(http_server_request_duration_seconds_count{job="platform-api"}[5m])) > 0.05
+              for: 5m
+              labels: { severity: warning }
+              annotations:
+                summary: Больше 5% ответов API — ошибки 5xx
+                description: 'Доля ответов 5xx за 5 минут: {{ $$value | humanizePercentage }}. Дашборд «API», логи и трассы — в Grafana.'
+
+  loki:
+    content: |
+      auth_enabled: false
+      server:
+        http_listen_port: 3100
+        log_level: warn
+      common:
+        instance_addr: 127.0.0.1
+        path_prefix: /loki
+        replication_factor: 1
+        ring:
+          kvstore: { store: inmemory }
+        storage:
+          filesystem:
+            chunks_directory: /loki/chunks
+            rules_directory: /loki/rules
+      schema_config:
+        configs:
+          - from: 2026-01-01
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index: { prefix: index_, period: 24h }
+      # Retention: 14 days; the compactor deletes older chunks.
+      limits_config:
+        retention_period: 336h
+        allow_structured_metadata: true
+      compactor:
+        working_directory: /loki/compactor
+        retention_enabled: true
+        delete_request_store: filesystem
+      analytics:
+        reporting_enabled: false
+
+  tempo:
+    content: |
+      stream_over_http_enabled: true
+      server:
+        http_listen_port: 3200
+        log_level: warn
+      distributor:
+        receivers:
+          otlp:
+            protocols:
+              grpc: { endpoint: 0.0.0.0:4317 }
+      ingester:
+        max_block_duration: 5m
+      # Retention: 14 days.
+      compactor:
+        compaction:
+          block_retention: 336h
+      storage:
+        trace:
+          backend: local
+          wal: { path: /var/tempo/wal }
+          local: { path: /var/tempo/blocks }
+      usage_report:
+        reporting_enabled: false
+
+  # Grafana expands $VAR in provisioning files, so a literal $ of Grafana is $$ there: $$$$ in this file.
+  grafana-datasources:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          url: http://prometheus:9090
+          isDefault: true
+          editable: false
+          jsonData:
+            timeInterval: 30s
+        - name: Loki
+          uid: loki
+          type: loki
+          url: http://loki:3100
+          editable: false
+          jsonData:
+            # A log line with a trace id links to the trace in Tempo.
+            derivedFields:
+              - name: Trace
+                matcherType: label
+                matcherRegex: trace_id
+                datasourceUid: tempo
+                url: '$$$${__value.raw}'
+                urlDisplayLabel: Трасса
+        - name: Tempo
+          uid: tempo
+          type: tempo
+          url: http://tempo:3200
+          editable: false
+          jsonData:
+            # A span links to the log lines of its trace in Loki.
+            tracesToLogsV2:
+              datasourceUid: loki
+              filterByTraceID: true
+              spanStartTimeShift: -5m
+              spanEndTimeShift: 5m
+              tags: [{ key: service.name, value: service_name }]
+            lokiSearch: { datasourceUid: loki }
+            nodeGraph: { enabled: true }
+
+  grafana-dashboards:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: kitabber
+          folder: Kitabber
+          type: file
+          disableDeletion: true
+          allowUiUpdates: false
+          options: { path: /etc/grafana/dashboards }
+
+  # The dashboards. Metric names are those of OpenTelemetry in Prometheus (dots become underscores, units suffixes).
+  dashboard-api:
+    content: |
+      {
+        "uid": "kitabber-api", "title": "API", "tags": ["kitabber"], "schemaVersion": 39, "refresh": "30s",
+        "time": { "from": "now-6h", "to": "now" },
+        "templating": { "list": [
+          { "name": "job", "label": "Сервис", "type": "query", "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_server_request_duration_seconds_count, job)", "current": { "text": "platform-api", "value": "platform-api" }, "refresh": 2 }
+        ] },
+        "panels": [
+          { "type": "timeseries", "title": "Запросы в секунду по коду ответа", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "{{http_response_status_code}}",
+              "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{job=\"$$job\"}[$$__rate_interval]))" } ] },
+          { "type": "timeseries", "title": "Доля ошибок 5xx", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0 }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "5xx",
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"$$job\", http_response_status_code=~\"5..\"}[$$__rate_interval])) / sum(rate(http_server_request_duration_seconds_count{job=\"$$job\"}[$$__rate_interval]))" } ] },
+          { "type": "timeseries", "title": "Задержка ответа", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval])))" },
+              { "refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval])))" },
+              { "refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval])))" } ] },
+          { "type": "timeseries", "title": "p95 задержки по маршрутам", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "{{http_request_method}} {{http_route}}",
+              "expr": "topk(10, histogram_quantile(0.95, sum by (le, http_request_method, http_route) (rate(http_server_request_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval]))))" } ] },
+          { "type": "logs", "title": "Логи", "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+            "datasource": { "type": "loki", "uid": "loki" }, "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+            "targets": [ { "refId": "A", "expr": "{service_name=\"$$job\"}" } ] }
+        ]
+      }
+
+  dashboard-dotnet:
+    content: |
+      {
+        "uid": "kitabber-dotnet", "title": ".NET runtime", "tags": ["kitabber"], "schemaVersion": 39, "refresh": "30s",
+        "time": { "from": "now-6h", "to": "now" },
+        "templating": { "list": [
+          { "name": "job", "label": "Сервис", "type": "query", "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(dotnet_process_memory_working_set_bytes, job)", "current": { "text": "platform-api", "value": "platform-api" }, "refresh": 2 }
+        ] },
+        "panels": [
+          { "type": "timeseries", "title": "Память процесса и куча GC", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "working set {{instance}}", "expr": "dotnet_process_memory_working_set_bytes{job=\"$$job\"}" },
+              { "refId": "B", "legendFormat": "куча после GC {{instance}}", "expr": "sum by (instance) (dotnet_gc_last_collection_heap_size_bytes{job=\"$$job\"})" } ] },
+          { "type": "timeseries", "title": "Процессор", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "{{instance}}", "expr": "sum by (instance) (rate(dotnet_process_cpu_time_seconds_total{job=\"$$job\"}[$$__rate_interval]))" } ] },
+          { "type": "timeseries", "title": "Сборки мусора в секунду", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "{{dotnet_gc_heap_generation}}", "expr": "sum by (dotnet_gc_heap_generation) (rate(dotnet_gc_collections_total{job=\"$$job\"}[$$__rate_interval]))" } ] },
+          { "type": "timeseries", "title": "Пул потоков", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "потоки {{instance}}", "expr": "dotnet_thread_pool_thread_count{job=\"$$job\"}" },
+              { "refId": "B", "legendFormat": "очередь {{instance}}", "expr": "dotnet_thread_pool_queue_length{job=\"$$job\"}" } ] },
+          { "type": "timeseries", "title": "Исключения в секунду", "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "{{error_type}}", "expr": "sum by (error_type) (rate(dotnet_exceptions_total{job=\"$$job\"}[$$__rate_interval]))" } ] }
+        ]
+      }
+
+  # Npgsql metrics: the names of Npgsql 8-9 (db.client.connections.*, db.client.commands.*) or of the OpenTelemetry
+  # database conventions (db.client.connection.*, db.client.operation.*), whichever the driver sends.
+  dashboard-database:
+    content: |
+      {
+        "uid": "kitabber-database", "title": "PostgreSQL (Npgsql)", "tags": ["kitabber"], "schemaVersion": 39, "refresh": "30s",
+        "time": { "from": "now-6h", "to": "now" },
+        "templating": { "list": [
+          { "name": "job", "label": "Сервис", "type": "custom", "query": "platform-api,platform-workers",
+            "current": { "text": "platform-api", "value": "platform-api" } }
+        ] },
+        "panels": [
+          { "type": "timeseries", "title": "Соединения пула", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "{{state}}{{db_client_connection_state}}", "expr": "sum by (state, db_client_connection_state) (db_client_connections_usage{job=\"$$job\"} or db_client_connection_count{job=\"$$job\"})" },
+              { "refId": "B", "legendFormat": "максимум", "expr": "sum(db_client_connections_max{job=\"$$job\"} or db_client_connection_max{job=\"$$job\"})" } ] },
+          { "type": "timeseries", "title": "Ожидают соединения", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [ { "refId": "A", "legendFormat": "ожидают", "expr": "sum(db_client_connections_pending_requests{job=\"$$job\"} or db_client_connection_pending_requests{job=\"$$job\"})" } ] },
+          { "type": "timeseries", "title": "Длительность команд", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.5, sum by (le) (rate(db_client_commands_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval]) or rate(db_client_operation_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval])))" },
+              { "refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(db_client_commands_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval]) or rate(db_client_operation_duration_seconds_bucket{job=\"$$job\"}[$$__rate_interval])))" } ] },
+          { "type": "timeseries", "title": "Команды и ошибки в секунду", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" }, "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+            "targets": [
+              { "refId": "A", "legendFormat": "команды", "expr": "sum(rate(db_client_commands_duration_seconds_count{job=\"$$job\"}[$$__rate_interval]) or rate(db_client_operation_duration_seconds_count{job=\"$$job\"}[$$__rate_interval]))" },
+              { "refId": "B", "legendFormat": "ошибки", "expr": "sum(rate(db_client_commands_failed_total{job=\"$$job\"}[$$__rate_interval]))" } ] }
+        ]
+      }
 
 volumes:
   postgres:
   redis:
   rabbitmq:
   caddy:
+  prometheus:
+  loki:
+  tempo:
+  grafana:
