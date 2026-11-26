@@ -43,6 +43,7 @@ public static class BlogsModule
         builder.Services.AddApiEndpoints<ProfileEndpoints>();
         builder.Services.TryAddSingleton(BlogsSettings.ReadLimits(builder.Configuration));
         builder.Services.AddApiEndpoints<TopicEndpoints>();
+        builder.Services.AddApiEndpoints<TopicCatalogEndpoints>();
         builder.Services.AddApiEndpoints<SubscriptionEndpoints>();
         return builder;
     }

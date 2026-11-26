@@ -880,6 +880,60 @@ async function createTopic(request, response) {
   createdTopics.push(topic)
   return send(response, 201, { id: topic.id, name, nickname })
 }
+// The topic catalogue and the menu's topics (E11-02, ADR-0088): GET /api/v1/topics/catalog, the stored topics with
+// their subscribers (as the profile counts them), the most followed first and then the newest, searched by name or
+// address, a page of `limit` (20 by default) with an opaque cursor; the search `сбой поиска` fails as an unavailable
+// API would. GET /api/v1/topics/menu gives a person's subscribed topics by name, or the popular ones. The real rules
+// are the backend's (TopicCatalogApiTests).
+const menuSize = 10
+
+function topicCards(request) {
+  return blogs
+    .filter((blog) => blog.type === 'topic')
+    .map(({ id, name, nickname, description }) => ({
+      id,
+      name,
+      nickname,
+      description,
+      subscriberCount: subscriptionFields({ id, nickname, type: 'topic' }, request).subscriberCount,
+    }))
+    .sort((a, b) => b.subscriberCount - a.subscriberCount || b.id.localeCompare(a.id))
+}
+
+function topicCatalog(request, response, url) {
+  const q = (url.searchParams.get('q') ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+  if (q.length > 50)
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { q: ['Поиск — не длиннее 50 символов.'] },
+    })
+  if (q === 'сбой поиска') return send(response, 500, { status: 500, code: 'internal' })
+  const found = topicCards(request).filter(
+    (topic) => !q || topic.name.toLowerCase().includes(q) || topic.nickname.includes(q),
+  )
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  const cursor = url.searchParams.get('cursor')
+  const start = cursor ? Number(Buffer.from(cursor, 'base64url').toString()) : 0
+  const items = found.slice(start, start + limit)
+  const next = start + limit < found.length ? Buffer.from(String(start + limit)).toString('base64url') : null
+  return send(response, 200, { items, nextCursor: next })
+}
+
+function topicMenu(request, response) {
+  const own = subject(request) ? subscribedBy(request) : new Set()
+  const subscribed = blogs
+    .filter((blog) => blog.type === 'topic' && own.has(blog.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    .slice(0, menuSize)
+    .map(({ id, name, nickname }) => ({ id, name, nickname }))
+  if (subscribed.length > 0) return send(response, 200, { source: 'subscriptions', topics: subscribed })
+  const popular = topicCards(request)
+    .slice(0, menuSize)
+    .map(({ id, name, nickname }) => ({ id, name, nickname }))
+  return send(response, 200, { source: 'popular', topics: popular })
+}
+
 // The fresh feed (E08-01): GET /api/v1/feeds/fresh, the posts above newest first (by publishedAt, then id), two per
 // page so the e2e test reaches a second page. The cursor is opaque to the client, as the API's (ADR-0006).
 const feedPageSize = 2
@@ -1357,6 +1411,9 @@ createServer(async (request, response) => {
     return deletePost(request, response, url)
   if (url.pathname === '/api/v1/topics' && request.method === 'GET') return send(response, 200, topics())
   if (url.pathname === '/api/v1/topics' && request.method === 'POST') return createTopic(request, response)
+  if (url.pathname === '/api/v1/topics/catalog' && request.method === 'GET')
+    return topicCatalog(request, response, url)
+  if (url.pathname === '/api/v1/topics/menu' && request.method === 'GET') return topicMenu(request, response)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')

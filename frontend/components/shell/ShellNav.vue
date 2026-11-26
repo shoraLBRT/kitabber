@@ -9,7 +9,7 @@ withDefaults(
   defineProps<{
     /** Path of the current route. */
     currentPath: string
-    /** Topics of the reader; empty until the topics module exists (FR-TOPIC). */
+    /** The menu's topics: the person's subscribed ones or the popular ones (E11-02, ADR-0088); empty while they load. */
     topics?: NavItem[]
   }>(),
   { topics: () => [] },

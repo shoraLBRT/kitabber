@@ -1204,6 +1204,82 @@
         }
       }
     },
+    "/api/v1/topics/catalog": {
+      "get": {
+        "tags": [
+          "Topics"
+        ],
+        "summary": "Every topic, the most followed first, searched by name or address, page by page with a cursor",
+        "operationId": "GetTopicCatalog",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfTopicCard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/menu": {
+      "get": {
+        "tags": [
+          "Topics"
+        ],
+        "summary": "The menu's topics: the signed-in person's subscribed topics, or the most followed ones",
+        "operationId": "GetTopicMenu",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicMenu"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blogs/{id}/subscription": {
       "put": {
         "tags": [
@@ -3197,6 +3273,27 @@
           }
         }
       },
+      "CursorPageOfTopicCard": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopicCard"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "EndedSessions": {
         "required": [
           "ended"
@@ -4123,6 +4220,38 @@
           }
         }
       },
+      "TopicCard": {
+        "required": [
+          "id",
+          "name",
+          "nickname",
+          "description",
+          "subscriberCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subscriberCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "TopicInput": {
         "required": [
           "name",
@@ -4148,6 +4277,24 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "TopicMenu": {
+        "required": [
+          "source",
+          "topics"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopicSummary"
+            }
           }
         }
       },

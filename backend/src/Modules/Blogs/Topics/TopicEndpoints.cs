@@ -24,11 +24,11 @@ public sealed record TopicInput(string? Name, string? Nickname, string? Descript
 /// <summary>
 /// <c>/api/v1/topics</c> (FR-EDITOR, ADR-0046): every topic with a name and an address, by name, open to everyone —
 /// the list the editor's topic choice offers; and a new topic by a person (E11-11, ADR-0084). The catalogue with search
-/// is E11-02 (#78).
+/// and the menu's list are <see cref="TopicCatalogEndpoints"/> (E11-02, ADR-0088).
 /// </summary>
 public sealed class TopicEndpoints : IApiEndpoints
 {
-    /// <summary>At most this many topics are listed; the catalogue with search and paging is E11-02 (#78).</summary>
+    /// <summary>At most this many topics are listed; the catalogue with search and paging is <see cref="TopicCatalogEndpoints"/>.</summary>
     public const int MaxTopics = 500;
 
     /// <summary>The problem code of a new topic over <see cref="TopicLimits.MaxPerAccount"/>.</summary>
@@ -164,9 +164,7 @@ public sealed class TopicEndpoints : IApiEndpoints
     // at the same moment (ADR-0084): a rare case the moderation renames.
     private static Task<bool> NameTakenAsync(BlogsDbContext db, string name, CancellationToken ct)
     {
-        var pattern = name.Replace(@"\", @"\\", StringComparison.Ordinal)
-            .Replace("%", @"\%", StringComparison.Ordinal)
-            .Replace("_", @"\_", StringComparison.Ordinal);
+        var pattern = TopicCatalogRules.EscapeLike(name);
         return db.Subsites.AnyAsync(
             s => s.Type == SubsiteType.Topic && s.Name != null && EF.Functions.ILike(s.Name, pattern, @"\"), ct);
     }

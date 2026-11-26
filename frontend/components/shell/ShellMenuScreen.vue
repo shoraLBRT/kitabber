@@ -22,7 +22,7 @@ const props = withDefaults(
   defineProps<{
     currentPath: string
     user?: ShellUser | null
-    /** Topics of the reader; empty until the topics module exists (FR-TOPIC). */
+    /** The menu's topics: the person's subscribed ones or the popular ones (E11-02, ADR-0088); empty while they load. */
     topics?: NavItem[]
   }>(),
   { user: null, topics: () => [] },

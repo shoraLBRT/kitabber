@@ -13,6 +13,7 @@ import {
 import type { Profile } from '../api/profiles'
 import { tabStorage, takePendingAction } from '../utils/pending-action'
 import { t } from '../i18n'
+import { topicMenuKey } from './useTopicMenu'
 
 // The person's own access token stays on the site's server (server/routes/bff/subscription.post.ts).
 async function send(blogId: string, subscribed: boolean): Promise<SubscriptionChange> {
@@ -57,6 +58,8 @@ export function useSubscription(profile: () => Profile | null) {
     busy.value = false
     if (result.status === 'done') {
       state.value = result.state
+      // The menu lists the subscribed topics (E11-02, ADR-0088).
+      void refreshNuxtData(topicMenuKey)
       return
     }
     state.value = before
