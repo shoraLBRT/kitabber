@@ -32,7 +32,7 @@ public sealed class PersonalBlogs(BlogsDbContext db, TimeProvider time)
 
     /// <summary>
     /// The personal blog of <paramref name="accountId"/>, created now and saved if it is missing: for an account that
-    /// signs in before the workers have handled its <see cref="AccountActivated"/>, or that was activated before blogs
+    /// signs in before the workers have handled its <see cref="AccountCreated"/>, or that was activated before blogs
     /// existed.
     /// </summary>
     public async Task<Subsite> EnsureAsync(Guid accountId, CancellationToken cancellationToken)
@@ -62,18 +62,19 @@ public sealed class PersonalBlogs(BlogsDbContext db, TimeProvider time)
 }
 
 /// <summary>
-/// Creates the personal blog of an account that has just been activated. Runs in the workers; the blog and the inbox
-/// record are saved together after it returns (<see cref="AccountActivatedConsumerDefinition"/>), so a repeat of the
-/// message changes nothing.
+/// Creates the personal blog of an account that has just been created (<c>account.created.v1</c>, ADR-0087). Runs in
+/// the workers; the blog and the inbox record are saved together after it returns
+/// (<see cref="AccountCreatedBlogsConsumerDefinition"/>), so a repeat of the message changes nothing.
 /// </summary>
-public sealed class AccountActivatedConsumer(PersonalBlogs blogs) : IConsumer<AccountActivated>
+public sealed class AccountCreatedBlogsConsumer(PersonalBlogs blogs) : IConsumer<AccountCreated>
 {
-    public async Task Consume(ConsumeContext<AccountActivated> context)
+    public async Task Consume(ConsumeContext<AccountCreated> context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        await blogs.AddIfMissingAsync(context.Message.AccountId, context.Message.ActivatedAt, context.CancellationToken);
+        await blogs.AddIfMissingAsync(context.Message.AccountId, context.Message.OccurredAt, context.CancellationToken);
     }
 }
 
-/// <summary>The inbox of the Blogs schema for <see cref="AccountActivatedConsumer"/> (ADR-0005).</summary>
-public sealed class AccountActivatedConsumerDefinition : ModuleConsumerDefinition<AccountActivatedConsumer, BlogsDbContext>;
+/// <summary>The inbox of the Blogs schema for <see cref="AccountCreatedBlogsConsumer"/> (ADR-0005).</summary>
+public sealed class AccountCreatedBlogsConsumerDefinition
+    : ModuleConsumerDefinition<AccountCreatedBlogsConsumer, BlogsDbContext>;

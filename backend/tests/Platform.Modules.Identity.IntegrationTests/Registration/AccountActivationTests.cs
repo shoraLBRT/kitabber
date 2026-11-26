@@ -11,14 +11,14 @@ using static Platform.Modules.Identity.IntegrationTests.Registration.Registratio
 namespace Platform.Modules.Identity.IntegrationTests.Registration;
 
 /// <summary>
-/// E04-01 (ADR-0025): Identity tells other modules about an account once it is here to stay — its email is confirmed
-/// for the first time — through the module outbox, so the Blogs module can give it a personal blog. A registration
-/// waiting for its code is not announced; a later sign-in of the same account is not announced again.
+/// E04-01 (ADR-0025, ADR-0087): Identity publishes account.created once the account is here to stay — its email is
+/// confirmed for the first time — through the module outbox, so the Blogs module can give it a personal blog. A
+/// registration waiting for its code is not announced; a later sign-in of the same account is not announced again.
 /// </summary>
 public sealed class AccountActivationTests(RegistrationApi api) : IClassFixture<RegistrationApi>, IAsyncLifetime
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
-    private readonly ConcurrentQueue<AccountActivated> _events = new();
+    private readonly ConcurrentQueue<AccountCreated> _events = new();
     private HostReceiveEndpointHandle? _endpoint;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -28,7 +28,7 @@ public sealed class AccountActivationTests(RegistrationApi api) : IClassFixture<
         await api.ResetAndDeliverAsync();
         _endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
             $"identity-tests-activations-{Guid.NewGuid():N}",
-            (_, endpoint) => endpoint.Handler<AccountActivated>(context =>
+            (_, endpoint) => endpoint.Handler<AccountCreated>(context =>
             {
                 _events.Enqueue(context.Message);
                 return Task.CompletedTask;
@@ -59,7 +59,7 @@ public sealed class AccountActivationTests(RegistrationApi api) : IClassFixture<
         }
 
         var activated = await EventuallyAsync(registration);
-        Assert.Equal(api.Time.GetUtcNow(), activated.ActivatedAt);
+        Assert.Equal(api.Time.GetUtcNow(), activated.OccurredAt);
 
         // Signing in again later announces nothing new.
         using (var signedIn = await client.PostAsJsonAsync("/api/v1/sign-in/password", new { email, password = "secret-1" }, Ct))
@@ -99,7 +99,7 @@ public sealed class AccountActivationTests(RegistrationApi api) : IClassFixture<
         return await db.Accounts.Where(a => a.Email == email).Select(a => a.Id).SingleAsync(Ct);
     }
 
-    private async Task<AccountActivated> EventuallyAsync(Guid account)
+    private async Task<AccountCreated> EventuallyAsync(Guid account)
     {
         var deadline = DateTime.UtcNow + _timeout;
         while (true)
@@ -109,7 +109,7 @@ public sealed class AccountActivationTests(RegistrationApi api) : IClassFixture<
                 return activated;
             }
 
-            Assert.True(DateTime.UtcNow < deadline, $"no AccountActivated for {account} within {_timeout.TotalSeconds:0}s");
+            Assert.True(DateTime.UtcNow < deadline, $"no account.created for {account} within {_timeout.TotalSeconds:0}s");
             await Task.Delay(100, Ct);
         }
     }
