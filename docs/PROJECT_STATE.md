@@ -751,7 +751,7 @@
   окне; вызовы — `api/sessions.ts` через `server/routes/bff/sessions.get.ts`, `sessions/[id].delete.ts`,
   `sessions/sign-out-others.post.ts`). Тесты — `SignIn/AccountSessionTests`, `SignIn/DeviceNamesTests` (Identity),
   `frontend/tests/settings/SessionList.spec.ts`, сквозной `frontend/e2e/sessions.spec.ts` (фейк API хранит три
-  устройства по адресу клиента). Не сделано: фоновая очистка строк старше 30 дней.
+  устройства по адресу клиента). Не сделано: фоновая очистка строк старше 30 дней (#398).
 - Вход по OpenID Connect (E18-02, [ADR-0018](adr/0018-openid-connect-provider.md), FR-ID-2): API подключает модуль
   Identity (`AddIdentityModule`, `MapIdentityEndpoints`; теперь API нужен `ConnectionStrings:Platform`). Identity —
   провайдер на OpenIddict 7: `/.well-known/openid-configuration`, `/.well-known/jwks`, `/connect/authorize`,
