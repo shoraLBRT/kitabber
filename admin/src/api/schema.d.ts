@@ -379,7 +379,8 @@ export interface paths {
         /** Every topic a post may be published in, by name */
         get: operations["ListTopics"];
         put?: never;
-        post?: never;
+        /** Creates a topic owned by the signed-in account (a confirmed email, a limit of topics per account) */
+        post: operations["CreateTopic"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1062,6 +1063,11 @@ export interface components {
             /** Format: int32 */
             subscriberCount: number;
             subscribed: boolean;
+        };
+        TopicInput: {
+            name: null | string;
+            nickname: null | string;
+            description: null | string;
         };
         TopicSummary: {
             /** Format: uuid */
@@ -2041,6 +2047,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TopicSummary"][];
+                };
+            };
+        };
+    };
+    CreateTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicSummary"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
