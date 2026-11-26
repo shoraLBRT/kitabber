@@ -33,6 +33,17 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
     /// <summary>The secret of each day that turns a guest's address into a pseudonym (ADR-0071).</summary>
     public DbSet<ViewSalt> ViewSalts => Set<ViewSalt>();
 
+    /// <summary>The hotness of published posts, the order of the popular feed (ADR-0086).</summary>
+    public DbSet<PostHotness> Hotness => Set<PostHotness>();
+
+    /// <summary>The coefficients every stored score was computed with: one row (ADR-0086).</summary>
+    public DbSet<HotnessFormulaState> HotnessFormula => Set<HotnessFormulaState>();
+
+    /// <summary>The popular feed: scores, highest first, the id breaking ties (ADR-0086).</summary>
+    public const string PopularFeedIndex = "ix_post_hotness_popular_feed";
+
+    public const int HotnessFormulaMaxLength = 128;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -71,6 +82,22 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
             salt.ToTable("view_salts");
             salt.HasKey(s => s.PeriodStart);
             salt.Property(s => s.PeriodStart).ValueGeneratedNever();
+        });
+        modelBuilder.Entity<PostHotness>(hotness =>
+        {
+            hotness.ToTable("post_hotness");
+            hotness.HasKey(h => h.PostId);
+            hotness.Property(h => h.PostId).ValueGeneratedNever();
+            hotness.Property(h => h.Formula).HasMaxLength(HotnessFormulaMaxLength);
+            hotness.Ignore(h => h.Inputs);
+            hotness.HasIndex(h => new { h.Score, h.PostId }).IsDescending().HasDatabaseName(PopularFeedIndex);
+        });
+        modelBuilder.Entity<HotnessFormulaState>(state =>
+        {
+            state.ToTable("hotness_formula");
+            state.HasKey(s => s.Id);
+            state.Property(s => s.Id).ValueGeneratedNever();
+            state.Property(s => s.Formula).HasMaxLength(HotnessFormulaMaxLength);
         });
     }
 }

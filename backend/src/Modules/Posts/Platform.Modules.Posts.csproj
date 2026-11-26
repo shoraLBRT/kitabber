@@ -4,7 +4,8 @@
       The Posts module (FR-POST, ADR-0029): the post — a document of typed blocks by one author in one blog — and the
       post API. Its tables live in the schema `posts`; it knows the author only by the account_id (FR-ID-1), asks the
       Blogs module about a blog through Blogs.Contracts, checks the body through Editor.Contracts and asks the Comments
-      module for the best comment of a feed card through Comments.Contracts (ADR-0062).
+      module for the best comment of a feed card and the comment counts of hotness through Comments.Contracts (ADR-0062,
+      ADR-0086) and the Reactions module for the post ratings of hotness through Reactions.Contracts (ADR-0086).
     -->
     <PropertyGroup>
         <RootNamespace>Platform.Modules.Posts</RootNamespace>
@@ -23,6 +24,7 @@
         <ProjectReference Include="../Editor.Contracts/Platform.Modules.Editor.Contracts.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../Posts.Contracts/Platform.Modules.Posts.Contracts.csproj" />
+        <ProjectReference Include="../Reactions.Contracts/Platform.Modules.Reactions.Contracts.csproj" />
         <ProjectReference Include="../Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
     </ItemGroup>
 
