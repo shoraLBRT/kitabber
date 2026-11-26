@@ -820,6 +820,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The notifications of the signed-in account, newest first, page by page with a cursor */
+        get: operations["GetOwnNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/me/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The number of the unread notifications of the signed-in account */
+        get: operations["GetOwnUnreadNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/me/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks the shown notifications of the signed-in account read and gives the unread number */
+        post: operations["MarkOwnNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media": {
         parameters: {
             query?: never;
@@ -966,6 +1017,10 @@ export interface components {
             items: components["schemas"]["FeedPostView"][];
             nextCursor: null | string;
         };
+        CursorPageOfNotificationView: {
+            items: components["schemas"]["NotificationView"][];
+            nextCursor: null | string;
+        };
         CursorPageOfTopicCard: {
             items: components["schemas"]["TopicCard"][];
             nextCursor: null | string;
@@ -1040,8 +1095,34 @@ export interface components {
             count: number;
             liked: boolean;
         };
+        MarkNotificationsReadRequest: {
+            ids: null | string[];
+        };
         NicknameInput: {
             nickname: null | string;
+        };
+        NotificationActorView: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: uuid */
+            blogId: null | string;
+            name: null | string;
+            nickname: null | string;
+            avatarSources: components["schemas"]["ImageSource"][];
+        };
+        NotificationView: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            actor: components["schemas"]["NotificationActorView"];
+            /** Format: uuid */
+            postId: null | string;
+            /** Format: uuid */
+            commentId: null | string;
+            reactionKind: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            read: boolean;
         };
         OwnCommentsView: {
             /** Format: uuid */
@@ -1230,6 +1311,10 @@ export interface components {
             id: string;
             name: string;
             nickname: string;
+        };
+        UnreadNotificationsView: {
+            /** Format: int32 */
+            unread: number;
         };
         UploadedMedia: {
             /** Format: uuid */
@@ -3619,6 +3704,118 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOwnNotifications: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfNotificationView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOwnUnreadNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadNotificationsView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MarkOwnNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkNotificationsReadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadNotificationsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
             };
             /** @description Unauthorized */
             401: {

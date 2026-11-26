@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // Header of the desktop shell (E02-05, docs/spec.md section 5, docs/ui/README.md): logo, search, "Написать",
-// the bell and the avatar menu, or "Войти" for a guest. Search (FR-SEARCH, #85) and the bell's drop-down panel
-// (docs/ui/notifications.md) come later: for now search only emits an event and the bell leads to the full page.
+// the bell and the avatar menu, or "Войти" for a guest. Search (FR-SEARCH, #85) comes later: for now it only emits an
+// event. The bell (E12-02, docs/ui/notifications.md) carries the unread counter («99+» above 99) in its name and opens
+// the drop-down panel, whose list the layout puts in the `notifications` slot; the panel closes by Esc, by a click
+// outside it and when a row is opened, and leads on to the full page.
 import { Bell, LogOut, PenLine, Search } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { MenuItem } from '../../types/ui'
 import { accountNav, loginPath, notificationsPath, writePath } from '../../utils/navigation'
+import { badgeText } from '../../api/notifications'
 import BrandLogo from '../BrandLogo.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiMenu from '../ui/UiMenu.vue'
@@ -16,7 +19,10 @@ export interface ShellUser {
   avatar?: string
 }
 
-const props = withDefaults(defineProps<{ user?: ShellUser | null }>(), { user: null })
+const props = withDefaults(defineProps<{ user?: ShellUser | null; unread?: number }>(), {
+  user: null,
+  unread: 0,
+})
 const emit = defineEmits<{ search: []; account: [id: string] }>()
 
 // "Коллекция" has no FR yet and donations never appear (docs/ui/README.md); the theme switch lives in the left
@@ -26,6 +32,42 @@ const accountItems: MenuItem[] = [
   { id: 'logout', label: t('common.signOut'), icon: LogOut, danger: true },
 ]
 const accountLabel = computed(() => (props.user ? t('shell.accountMenu', { name: props.user.name }) : ''))
+
+const bellLabel = computed(() =>
+  props.unread > 0 ? t('notifications.bellUnread', { count: props.unread }) : t('common.notifications'),
+)
+const panelOpen = ref(false)
+const bellWrap = ref<HTMLElement | null>(null)
+const bell = ref<HTMLButtonElement | null>(null)
+
+function closePanel(returnFocus = false) {
+  if (!panelOpen.value) return
+  panelOpen.value = false
+  if (returnFocus) bell.value?.focus()
+}
+
+function onDocumentPointerdown(event: PointerEvent) {
+  if (bellWrap.value && !bellWrap.value.contains(event.target as Node)) closePanel()
+}
+
+function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closePanel(true)
+}
+
+watch(panelOpen, (open) => {
+  if (open) {
+    document.addEventListener('pointerdown', onDocumentPointerdown)
+    document.addEventListener('keydown', onDocumentKeydown)
+  } else {
+    document.removeEventListener('pointerdown', onDocumentPointerdown)
+    document.removeEventListener('keydown', onDocumentKeydown)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocumentPointerdown)
+  document.removeEventListener('keydown', onDocumentKeydown)
+})
 </script>
 
 <template>
@@ -46,13 +88,42 @@ const accountLabel = computed(() => (props.user ? t('shell.accountMenu', { name:
           {{ t('common.write') }}
         </NuxtLink>
         <template v-if="user">
-          <NuxtLink
-            :to="notificationsPath"
-            class="shell-header__icon-button"
-            :aria-label="t('common.notifications')"
-          >
-            <Bell class="shell-header__icon" aria-hidden="true" />
-          </NuxtLink>
+          <div ref="bellWrap" class="shell-header__bell">
+            <button
+              ref="bell"
+              type="button"
+              class="shell-header__icon-button"
+              :aria-label="bellLabel"
+              :aria-expanded="panelOpen ? 'true' : 'false'"
+              aria-controls="notifications-panel"
+              data-testid="notifications-bell"
+              @click="panelOpen = !panelOpen"
+            >
+              <Bell class="shell-header__icon" aria-hidden="true" />
+              <span
+                v-if="unread > 0"
+                class="shell-header__badge"
+                aria-hidden="true"
+                data-testid="notifications-badge"
+                >{{ badgeText(unread) }}</span
+              >
+            </button>
+            <section
+              v-if="panelOpen"
+              id="notifications-panel"
+              class="shell-header__panel"
+              :aria-label="t('common.notifications')"
+              data-testid="notifications-panel"
+            >
+              <h2 class="shell-header__panel-title">{{ t('common.notifications') }}</h2>
+              <div class="shell-header__panel-list">
+                <slot name="notifications" :close="() => closePanel()" />
+              </div>
+              <NuxtLink :to="notificationsPath" class="shell-header__panel-all" @click="closePanel()">
+                {{ t('notifications.all') }}
+              </NuxtLink>
+            </section>
+          </div>
           <UiMenu :items="accountItems" :label="accountLabel" align="end" @select="emit('account', $event)">
             <template #trigger>
               <UiAvatar :name="user.name" :src="user.avatar" size="sm" decorative />
@@ -102,6 +173,7 @@ const accountLabel = computed(() => (props.user ? t('shell.accountMenu', { name:
 }
 
 .shell-header__icon-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -116,6 +188,58 @@ const accountLabel = computed(() => (props.user ? t('shell.accountMenu', { name:
 .shell-header__icon-button:hover {
   background: var(--color-surface-subtle);
   color: var(--color-text);
+}
+
+.shell-header__bell {
+  position: relative;
+}
+
+.shell-header__badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: var(--space-4);
+  box-sizing: border-box;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--font-size-xs);
+  line-height: var(--space-4);
+  text-align: center;
+}
+
+.shell-header__panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--size-aside);
+  max-width: calc(100vw - 2 * var(--space-4));
+  max-height: 70vh;
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 var(--space-2) var(--space-6) var(--color-shadow);
+}
+
+.shell-header__panel-title {
+  margin: 0;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  font-size: var(--font-size-md);
+}
+
+.shell-header__panel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell-header__panel-all {
+  padding: var(--space-3) var(--space-5);
+  border-top: var(--size-border) solid var(--color-border);
+  font-size: var(--font-size-sm);
 }
 
 .shell-header__icon {

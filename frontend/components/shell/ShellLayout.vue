@@ -21,7 +21,7 @@ withDefaults(
     currentPath: string
     user?: ShellUser | null
     topics?: NavItem[]
-    /** Unread counters of the bottom bar by tab id. */
+    /** Unread counters of the bottom bar by tab id; `notifications` is also the counter on the header's bell. */
     counts?: Partial<Record<string, number>>
     /** `false` hides the floating «Написать», as the post page does for its action panel (E07-04). */
     writeButton?: boolean
@@ -38,7 +38,16 @@ const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
 <template>
   <div class="shell" data-testid="shell">
     <a href="#content" class="shell__skip">{{ t('shell.skipToContent') }}</a>
-    <ShellHeader :user="user" @search="emit('search')" @account="emit('account', $event)" />
+    <ShellHeader
+      :user="user"
+      :unread="counts.notifications ?? 0"
+      @search="emit('search')"
+      @account="emit('account', $event)"
+    >
+      <template v-if="$slots.notifications" #notifications="{ close }">
+        <slot name="notifications" :close="close" />
+      </template>
+    </ShellHeader>
     <div class="shell__body">
       <div class="shell__menu" data-column="menu">
         <ShellNav :current-path="currentPath" :topics="topics" />

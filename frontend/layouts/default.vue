@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // Default layout: the shell (E02-05 desktop, E02-06 phone: bottom bar and floating "Написать" below 925 px).
 // Signed in (E18-02), the shell shows the account menu; the name and avatar come with the profile (#33).
+import NotificationList from '~/components/notifications/NotificationList.vue'
 import SettingsNav from '~/components/settings/SettingsNav.vue'
+import { notificationsApi } from '~/api/notifications'
 
 const route = useRoute()
 const user = useShellUser()
@@ -12,6 +14,11 @@ const online = useOnline()
 // The menu's topics: the person's subscribed ones or the popular ones (E11-02, ADR-0088).
 const { topics } = useTopicMenu()
 
+// The unread counter of the bell and of the phone's «Уведомления» tab; the bell's panel lists the notifications and
+// marks the shown ones read (E12-02, ADR-0093).
+const { unread, set: setUnread } = useUnreadNotifications()
+const counts = computed(() => ({ notifications: unread.value }))
+const notifications = notificationsApi()
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
   if (id === 'logout') signOut()
@@ -26,10 +33,14 @@ function onAccount(id: string) {
     :write-button="route.meta.writeButton !== false"
     quick-post
     :offline="!online"
+    :counts="counts"
     @account="onAccount"
     @write="sheetOpen = true"
   >
     <slot />
+    <template #notifications="{ close }">
+      <NotificationList :api="notifications" compact @unread="setUnread" @open="close()" />
+    </template>
     <!-- The settings put their sections in the right column instead of the widgets (E04-08). -->
     <template v-if="route.meta.settingsNav" #aside>
       <SettingsNav :current-path="route.path" />
