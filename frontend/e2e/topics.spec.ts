@@ -69,9 +69,10 @@ test.describe('темы в меню и каталог', () => {
     await catalog.getByRole('searchbox', { name: 'Поиск по темам' }).fill('кулинария')
     await expect(catalog.getByTestId('state')).toHaveText('По запросу «кулинария» тем не нашлось.')
 
-    await catalog.getByRole('searchbox', { name: 'Поиск по темам' }).fill('сбой поиска')
-    await expect(catalog.getByRole('alert')).toHaveText('Не удалось загрузить темы.')
-    await expect(catalog.getByRole('button', { name: 'Повторить' })).toBeVisible()
+    // The server render meets the failure, so the browser logs no failed request.
+    const failed = await openCatalog(page, `/topics?q=${encodeURIComponent('сбой поиска')}`)
+    await expect(failed.getByRole('alert')).toHaveText('Не удалось загрузить темы.')
+    await expect(failed.getByRole('button', { name: 'Повторить' })).toBeVisible()
   })
 
   test('пока темы загружаются, видна заглушка', async ({ page }) => {

@@ -3,8 +3,10 @@
 // and «Только необходимые» are buttons of the same weight, so refusing is as easy as agreeing; «Настроить» opens
 // /settings/cookies, where the choice can be changed later. It does not block the page or take the focus: until a
 // choice only the necessary cookies are set. It renders on the client only, once the saved choice is read, so the
-// server page and the first client render agree and a person who has chosen never sees it flash.
-import { onMounted } from 'vue'
+// server page and the first client render agree and a person who has chosen never sees it flash. Below 925 px it covers
+// the end of the page, so a space as tall as the banner follows the page: the last links (the service links of the
+// «Меню» screen) can still be scrolled out from under it.
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { loadCookieConsent, useCookieConsent } from '../../composables/useCookieConsent'
 import { acceptAll, necessaryOnly } from '../../utils/cookie-consent'
 import { cookieSettingsPath } from '../../utils/navigation'
@@ -13,11 +15,26 @@ import { t } from '../../i18n'
 
 const { loaded, decided, setCookieConsent } = useCookieConsent()
 onMounted(loadCookieConsent)
+
+const banner = ref<HTMLElement | null>(null)
+const space = ref(0)
+let observer: ResizeObserver | undefined
+watch(banner, (element) => {
+  observer?.disconnect()
+  space.value = 0
+  if (!element || typeof ResizeObserver === 'undefined') return
+  observer = new ResizeObserver(() => {
+    space.value = element.offsetHeight
+  })
+  observer.observe(element)
+})
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
   <section
     v-if="loaded && !decided"
+    ref="banner"
     class="cookie-banner"
     :aria-label="t('cookies.banner')"
     data-testid="cookie-banner"
@@ -33,6 +50,12 @@ onMounted(loadCookieConsent)
       <NuxtLink :to="cookieSettingsPath" class="cookie-banner__link">{{ t('cookies.customize') }}</NuxtLink>
     </div>
   </section>
+  <div
+    v-if="loaded && !decided"
+    class="cookie-banner__space"
+    :style="{ height: `${space}px` }"
+    aria-hidden="true"
+  />
 </template>
 
 <style scoped>
@@ -77,8 +100,17 @@ onMounted(loadCookieConsent)
   font-weight: var(--font-weight-medium);
 }
 
+/* On a desktop the banner lies over the right column and covers no end of a page. */
+.cookie-banner__space {
+  display: none;
+}
+
 /* Above the bottom bar of the phone shell (ShellTabBar.vue). */
 @media (max-width: 924px) {
+  .cookie-banner__space {
+    display: block;
+  }
+
   .cookie-banner {
     bottom: calc(
       var(--size-tab-bar) + 2 * var(--space-1) + var(--size-border) + var(--space-2) +

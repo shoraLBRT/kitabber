@@ -39,6 +39,14 @@ describe('ShellCookieBanner', () => {
     expect(banner.get('a').text()).toBe('Настроить')
   })
 
+  it('is followed by a hidden space, so the end of a phone page can be scrolled out from under it (E11-02)', async () => {
+    const banner = await mountBanner()
+    const space = banner.get('.cookie-banner__space')
+    expect(space.attributes('aria-hidden')).toBe('true')
+    await banner.get('button').trigger('click')
+    expect(banner.find('.cookie-banner__space').exists()).toBe(false)
+  })
+
   it.each([
     ['Только необходимые', 'v1.analytics-0'],
     ['Разрешить все', 'v1.analytics-1'],
