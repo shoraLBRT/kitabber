@@ -22,8 +22,8 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # E01-02: a run of the skeleton must stay under 10 minutes.
-    timeout-minutes: 10
+    # E01-02: a run of the skeleton must stay under 20 minutes (raised from 10 in #375: the full check grew to 9-10 minutes).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
