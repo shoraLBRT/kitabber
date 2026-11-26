@@ -9,12 +9,11 @@ export const topicMenuKey = 'topic-menu'
 
 export function useTopicMenu() {
   const account = useAccount()
-  const { data, status, refresh } = useFetch<TopicMenu | null>('/bff/topic-menu', {
-    key: topicMenuKey,
-    server: false,
-    lazy: true,
-    default: () => null,
-  })
+  const { data, status, refresh } = useAsyncData(
+    topicMenuKey,
+    () => $fetch<TopicMenu>('/bff/topic-menu').catch(() => null),
+    { server: false, lazy: true, default: () => null },
+  )
   watch(
     () => account.value.signedIn,
     () => refresh(),
