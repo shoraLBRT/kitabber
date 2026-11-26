@@ -591,6 +591,87 @@ namespace Platform.Modules.Identity.Migrations
                     b.ToTable("email_confirmations", "identity");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Identity.External.ExternalIdentity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("LinkedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("linked_at");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("subject");
+
+                    b.HasKey("Id")
+                        .HasName("pk_external_identities");
+
+                    b.HasIndex("AccountId", "Provider")
+                        .IsUnique()
+                        .HasDatabaseName("ux_external_identities_account_provider");
+
+                    b.HasIndex("Provider", "Subject")
+                        .IsUnique()
+                        .HasDatabaseName("ux_external_identities_provider_subject");
+
+                    b.ToTable("external_identities", "identity");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Identity.External.ExternalIdentityLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("subject");
+
+                    b.HasKey("Id")
+                        .HasName("pk_external_identity_log");
+
+                    b.HasIndex("AccountId", "At")
+                        .HasDatabaseName("ix_external_identity_log_account_id_at");
+
+                    b.ToTable("external_identity_log", "identity");
+                });
+
             modelBuilder.Entity("Platform.Modules.Identity.Passwords.PasswordReset", b =>
                 {
                     b.Property<string>("NormalizedEmail")
@@ -758,6 +839,26 @@ namespace Platform.Modules.Identity.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_email_confirmations_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Identity.External.ExternalIdentity", b =>
+                {
+                    b.HasOne("Platform.Modules.Identity.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_external_identities_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Identity.External.ExternalIdentityLogEntry", b =>
+                {
+                    b.HasOne("Platform.Modules.Identity.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_external_identity_log_accounts_account_id");
                 });
 
             modelBuilder.Entity("Platform.Modules.Identity.SignIn.AccountSession", b =>

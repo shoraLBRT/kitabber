@@ -605,6 +605,95 @@
         }
       }
     },
+    "/api/v1/account/identities": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Lists the external sign-in providers linked to the account, in the order they were linked",
+        "operationId": "ListExternalIdentities",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalIdentityView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/identities/{identityId}": {
+      "delete": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Unlinks an external sign-in provider from the account, unless it is the last way to sign in",
+        "operationId": "UnlinkExternalIdentity",
+        "parameters": [
+          {
+            "name": "identityId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/password-reset": {
       "post": {
         "tags": [
@@ -3758,6 +3847,27 @@
           "ended": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ExternalIdentityView": {
+        "required": [
+          "id",
+          "provider",
+          "linkedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "linkedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

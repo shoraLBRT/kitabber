@@ -215,6 +215,8 @@ public static class IdentityModule
         services.AddMemoryCache();
         services.AddScoped<AccountSessions>();
         services.AddApiEndpoints<SessionEndpoints>();
+        services.AddScoped<External.ExternalIdentities>();
+        services.AddApiEndpoints<External.ExternalIdentityEndpoints>();
         services.AddScoped<Passwords.AccountPasswords>();
         services.AddApiEndpoints<Passwords.PasswordEndpoints>();
     }

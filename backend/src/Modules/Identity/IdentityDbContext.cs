@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using OpenIddict.EntityFrameworkCore.Models;
 using Platform.Messaging;
 using Platform.Modules.Identity.Email;
+using Platform.Modules.Identity.External;
 using Platform.Persistence;
 
 namespace Platform.Modules.Identity;
@@ -18,6 +19,12 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     /// <summary>The unique index on <see cref="Account.NormalizedEmail"/> (ADR-0020).</summary>
     public const string NormalizedEmailIndex = "ux_accounts_normalized_email";
 
+    /// <summary>The unique index on the pair «provider, subject» of an external identity (ADR-0098).</summary>
+    public const string ExternalSubjectIndex = "ux_external_identities_provider_subject";
+
+    /// <summary>The unique index on «account, provider»: one identity of each provider per account (ADR-0098).</summary>
+    public const string ExternalProviderIndex = "ux_external_identities_account_provider";
+
     public static string Schema => "identity";
 
     public DbSet<Account> Accounts => Set<Account>();
@@ -29,6 +36,10 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<Passwords.PasswordReset> PasswordResets => Set<Passwords.PasswordReset>();
 
     public DbSet<SignIn.AccountSession> AccountSessions => Set<SignIn.AccountSession>();
+
+    public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
+
+    public DbSet<ExternalIdentityLogEntry> ExternalIdentityLog => Set<ExternalIdentityLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -87,6 +98,31 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             session.Property(s => s.Device).HasMaxLength(SignIn.AccountSession.DeviceMaxLength);
             session.HasIndex(s => new { s.AccountId, s.LastActiveAt });
             session.HasOne<Account>().WithMany().HasForeignKey(s => s.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // External identities (FR-ID-4, ADR-0098): a pair «provider, subject» belongs to one account, an account has
+        // one identity of each provider, and both go with the account.
+        modelBuilder.Entity<ExternalIdentity>(identity =>
+        {
+            identity.ToTable("external_identities");
+            identity.HasKey(i => i.Id);
+            identity.Property(i => i.Id).ValueGeneratedNever();
+            identity.Property(i => i.Provider).HasMaxLength(ExternalProviders.MaxLength);
+            identity.Property(i => i.Subject).HasMaxLength(ExternalIdentity.SubjectMaxLength);
+            identity.HasIndex(i => new { i.Provider, i.Subject }).IsUnique().HasDatabaseName(ExternalSubjectIndex);
+            identity.HasIndex(i => new { i.AccountId, i.Provider }).IsUnique().HasDatabaseName(ExternalProviderIndex);
+            identity.HasOne<Account>().WithMany().HasForeignKey(i => i.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // The journal of links (ADR-0098): rows are only added, and erased with the account (the subject names a person).
+        modelBuilder.Entity<ExternalIdentityLogEntry>(entry =>
+        {
+            entry.ToTable("external_identity_log");
+            entry.HasKey(e => e.Id);
+            entry.Property(e => e.Id).ValueGeneratedNever();
+            entry.Property(e => e.Provider).HasMaxLength(ExternalProviders.MaxLength);
+            entry.Property(e => e.Subject).HasMaxLength(ExternalIdentity.SubjectMaxLength);
+            entry.Property(e => e.Action).HasConversion<string>().HasMaxLength(16);
+            entry.HasIndex(e => new { e.AccountId, e.At });
+            entry.HasOne<Account>().WithMany().HasForeignKey(e => e.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
