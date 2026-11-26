@@ -56,8 +56,14 @@ public sealed class AccountSessions(IdentityDbContext db, IMemoryCache cache, Ti
     {
         var ended = await db.AccountSessions.Where(s => s.Id == sessionId && s.AccountId == accountId)
             .ExecuteDeleteAsync(cancellationToken);
+        if (ended == 0)
+        {
+            // Not this account's: another account's session must not be marked ended, even for a moment.
+            return false;
+        }
+
         Forget(sessionId);
-        return ended == 1;
+        return true;
     }
 
     /// <summary>Ends every session of <paramref name="accountId"/> but <paramref name="current"/>; how many were ended.</summary>
