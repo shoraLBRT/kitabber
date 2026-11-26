@@ -364,6 +364,7 @@ const posts = [
   updatedAt: '2026-11-20T10:00:00Z',
   publishedAt: '2026-11-20T10:00:00Z',
   images: {},
+  imagePreviews: {},
 }))
 
 function post(response, url) {
@@ -861,6 +862,7 @@ async function uploadMedia(request, response) {
     size: file.size,
     fileName: 'avatar.jpg',
     createdAt: new Date().toISOString(),
+    preview: null,
   })
 }
 

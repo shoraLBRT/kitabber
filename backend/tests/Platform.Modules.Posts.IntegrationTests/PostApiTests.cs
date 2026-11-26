@@ -333,7 +333,26 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
                 sources.EnumerateArray().Select(s => s.GetProperty("width").GetInt32()));
             Assert.All(sources.EnumerateArray(), s => Assert.StartsWith(
                 PlatformApiFactory.ImgproxyBaseUrl, s.GetProperty("url").GetString(), StringComparison.Ordinal));
+            // The sample only starts like a PNG: it cannot be decoded, so it has no preview (ADR-0067).
+            Assert.Empty(post.GetProperty("imagePreviews").EnumerateObject());
         }
+    }
+
+    [Fact]
+    public async Task PostWithARealImageGivesItsPreview()
+    {
+        // A real PNG of one opaque pixel.
+        var image = await UploadAsync(_author, "dot.png", Convert.FromBase64String(_onePixelPng));
+
+        using var created = await SendAsync(HttpMethod.Post, "/api/v1/posts", Input(body: ImageBody(image)), _author);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
+        using var read = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{id}", null, _author);
+        var view = await read.Content.ReadFromJsonAsync<JsonElement>(Ct);
+
+        var preview = view.GetProperty("imagePreviews").GetProperty(image.ToString("D"));
+        Assert.Matches("^#[0-9a-f]{6}$", preview.GetProperty("color").GetString());
+        Assert.StartsWith("data:image/webp;base64,", preview.GetProperty("image").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -360,9 +379,12 @@ public sealed class PostApiTests(PostsApi api) : IClassFixture<PostsApi>, IAsync
           "data": {"media": "{{media}}", "width": 800, "height": 600, "caption": "Подпись"} }]}
         """;
 
-    private async Task<Guid> UploadAsync(Guid account, string fileName)
+    private const string _onePixelPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    private async Task<Guid> UploadAsync(Guid account, string fileName, byte[]? content = null)
     {
-        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, .. "IHDR"u8, .. new byte[240]];
+        byte[] png = content ?? [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, .. "IHDR"u8, .. new byte[240]];
         var file = new ByteArrayContent(png);
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/media")

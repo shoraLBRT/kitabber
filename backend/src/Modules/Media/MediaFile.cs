@@ -1,3 +1,4 @@
+using Platform.Modules.Media.Images;
 using Platform.Modules.Media.Uploads;
 
 namespace Platform.Modules.Media;
@@ -33,9 +34,24 @@ public sealed class MediaFile
 
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>A file of <paramref name="ownerAccountId"/>, saved under <paramref name="storageKey"/> at <paramref name="createdAt"/>.</summary>
+    /// <summary>The dominant colour of an image as <c>#rrggbb</c> (ADR-0067); <c>null</c> for other files and for an image without a preview.</summary>
+    public string? PreviewColor { get; init; }
+
+    /// <summary>The tiny WebP an image is shown blurred as until it loads (ADR-0067); <c>null</c> like <see cref="PreviewColor"/>.</summary>
+    public byte[]? PreviewImage { get; init; }
+
+    /// <summary>
+    /// A file of <paramref name="ownerAccountId"/>, saved under <paramref name="storageKey"/> at
+    /// <paramref name="createdAt"/>, with the <paramref name="preview"/> of an image when it has one.
+    /// </summary>
     public static MediaFile Create(
-        Guid ownerAccountId, FileFormat format, long size, string storageKey, string? fileName, DateTimeOffset createdAt)
+        Guid ownerAccountId,
+        FileFormat format,
+        long size,
+        string storageKey,
+        string? fileName,
+        DateTimeOffset createdAt,
+        ImagePreviewData? preview = null)
     {
         ArgumentNullException.ThrowIfNull(format);
         ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
@@ -56,6 +72,8 @@ public sealed class MediaFile
             StorageKey = storageKey,
             FileName = string.IsNullOrEmpty(name) ? null : name[..Math.Min(name.Length, FileNameMaxLength)],
             CreatedAt = createdAt,
+            PreviewColor = preview?.Color,
+            PreviewImage = preview?.Image,
         };
     }
 }

@@ -74,6 +74,17 @@ public static class PostImages
         return problems;
     }
 
+    /// <summary>The previews of every picture in <paramref name="bodies"/> (ADR-0067), one query for all of them, keyed by file id.</summary>
+    public static async Task<IReadOnlyDictionary<Guid, ImagePreview>> PreviewsAsync(
+        IEnumerable<JsonObject> bodies, IMediaLibrary media, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(media);
+        var ids = bodies.SelectMany(b => MediaIds(b).Select(m => m.MediaId)).ToHashSet();
+        return ids.Count == 0
+            ? new Dictionary<Guid, ImagePreview>()
+            : await media.ImagePreviewsAsync(ids, cancellationToken);
+    }
+
     /// <summary>The sources of every picture in <paramref name="bodies"/>, one query for all of them, keyed by file id.</summary>
     public static async Task<IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>>> SourcesAsync(
         IEnumerable<JsonObject> bodies, IMediaLibrary media, CancellationToken cancellationToken)

@@ -42,6 +42,26 @@ public interface IMediaLibrary
     /// </summary>
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>>> ImageSourcesAsync(
         IReadOnlyCollection<Guid> mediaIds, IReadOnlyList<ImageVariant> variants, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What the page shows in place of each image among <paramref name="mediaIds"/> until it loads (E06-03,
+    /// ADR-0067); an identifier that is not an uploaded image, or an image without a preview, has no entry.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, ImagePreview>> ImagePreviewsAsync(
+        IReadOnlyCollection<Guid> mediaIds, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The stand-in of an image until the picture arrives (E06-03, ADR-0067), computed at upload and kept with the file:
+/// the page fills the reserved box with the colour and draws the tiny picture over it, stretched and blurred.
+/// </summary>
+/// <param name="Color">The dominant colour, <c>#rrggbb</c>.</param>
+/// <param name="Image">The whole picture at most 16 pixels on its longer side, as a <c>data:image/webp;base64,…</c> link.</param>
+public sealed record ImagePreview(string Color, string Image)
+{
+    /// <summary>The preview of a tiny WebP <paramref name="webp"/> with the dominant colour <paramref name="color"/>.</summary>
+    public static ImagePreview FromWebP(string color, byte[] webp) =>
+        new(color, "data:image/webp;base64," + Convert.ToBase64String(webp));
 }
 
 /// <summary>

@@ -663,6 +663,10 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        ImagePreview: {
+            color: string;
+            image: string;
+        };
         ImageSource: {
             /** Format: uri */
             url: string;
@@ -738,6 +742,9 @@ export interface components {
             images: {
                 [key: string]: components["schemas"]["ImageSource"][];
             };
+            imagePreviews: {
+                [key: string]: components["schemas"]["ImagePreview"];
+            };
         };
         ProblemDetails: {
             type?: null | string;
@@ -812,6 +819,7 @@ export interface components {
             fileName: null | string;
             /** Format: date-time */
             createdAt: string;
+            preview: null | components["schemas"]["ImagePreview"];
         };
     };
     responses: never;

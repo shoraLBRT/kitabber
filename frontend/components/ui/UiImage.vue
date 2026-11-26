@@ -4,9 +4,11 @@
 // of signed imgproxy links, ADR-0037) the one that fits the box at the screen's density, and fetches a picture off
 // the screen only when it comes near. Pass eager for the picture a page opens with. States (data-state): empty (no
 // link), loading, loaded, error; empty and error keep the box and show a placeholder in place of the picture.
+// With a preview (E06-03, ADR-0067) the box is filled, until the picture paints, with its dominant colour and its tiny
+// version stretched and blurred by an SVG filter: drawn on the server, it shows before scripts and before any request.
 import { ImageIcon, ImageOff } from 'lucide-vue-next'
 import { computed, getCurrentInstance, onMounted, ref, watch } from 'vue'
-import type { ImageSource } from '../../types/ui'
+import type { ImagePreview, ImageSource } from '../../types/ui'
 import { t } from '../../i18n'
 
 const props = withDefaults(
@@ -24,8 +26,10 @@ const props = withDefaults(
     /** Load at once and ahead of other pictures: the first screen of a page. */
     eager?: boolean
     fit?: 'cover' | 'contain'
+    /** The blurred stand-in shown until the picture arrives. */
+    preview?: ImagePreview | null
   }>(),
-  { src: undefined, sources: () => [], sizes: '100vw', fit: 'cover' },
+  { src: undefined, sources: () => [], sizes: '100vw', fit: 'cover', preview: null },
 )
 
 const emit = defineEmits<{ load: []; error: [] }>()
@@ -42,6 +46,33 @@ const srcset = computed(() =>
 )
 const state = computed(() => (link.value ? status.value : 'empty'))
 const ratio = computed(() => `${props.width} / ${props.height}`)
+
+// Only what the server makes: a colour #rrggbb and a base64 picture; anything else is not put into the style.
+const previewColor = computed(() =>
+  props.preview && /^#[0-9a-f]{6}$/i.test(props.preview.color) ? props.preview.color : undefined,
+)
+
+// The tiny picture stretched over the box's proportions and blurred by about one of its own pixels (16 on the longer
+// side); the alpha table keeps the blurred edges opaque.
+const blurred = computed(() => {
+  const image = props.preview?.image
+  if (!image || !/^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(image)) return undefined
+  const deviation = Math.max(props.width, props.height) / 16
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${props.width} ${props.height}'>` +
+    `<filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='${deviation}'/>` +
+    `<feComponentTransfer><feFuncA type='discrete' tableValues='1 1'/></feComponentTransfer></filter>` +
+    `<image width='100%' height='100%' preserveAspectRatio='none' filter='url(#b)' href='${image}'/></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+})
+
+// The stand-in shows only while the picture loads: a transparent picture does not show it through once painted.
+const previewing = computed(() => state.value === 'loading' && !!(previewColor.value || blurred.value))
+const style = computed(() => ({
+  aspectRatio: ratio.value,
+  backgroundColor: previewing.value ? previewColor.value : undefined,
+  backgroundImage: previewing.value ? blurred.value : undefined,
+}))
 
 function loaded() {
   status.value = 'loaded'
@@ -78,7 +109,8 @@ watch([link, srcset], () => {
     class="ui-image"
     :class="`ui-image--${fit}`"
     :data-state="state"
-    :style="{ aspectRatio: ratio }"
+    :data-preview="previewing ? '' : undefined"
+    :style="style"
     :src="link"
     :srcset="srcset"
     :sizes="srcset ? sizes : undefined"
@@ -120,6 +152,13 @@ watch([link, srcset], () => {
   max-width: 100%;
 
   background: var(--color-surface-subtle);
+}
+
+/* The stand-in of a preview fills the box, which already has the picture's proportions. */
+.ui-image[data-preview] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
 }
 
 .ui-image--cover {

@@ -81,6 +81,42 @@ public sealed class UploadApiTests(MediaApi api) : IClassFixture<MediaApi>, IAsy
     }
 
     [Fact]
+    public async Task ImageGetsItsPreviewAndColourStoredWithTheFile()
+    {
+        using var response = await UploadAsync(NewAccount(), Pictures.Png(64, 48), "gradient.png");
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        var preview = body.GetProperty("preview");
+        Assert.Matches("^#[0-9a-f]{6}$", preview.GetProperty("color").GetString());
+        var image = preview.GetProperty("image").GetString()!;
+        Assert.StartsWith("data:image/webp;base64,", image, StringComparison.Ordinal);
+
+        // Kept with the file itself: the same colour and picture come back later without decoding the original again.
+        var file = await FindAsync(body.GetProperty("id").GetGuid());
+        Assert.Equal(preview.GetProperty("color").GetString(), file.PreviewColor);
+        Assert.Equal(image["data:image/webp;base64,".Length..], Convert.ToBase64String(file.PreviewImage!));
+        Assert.Equal((16, 12), Pictures.SizeOf(file.PreviewImage!));
+    }
+
+    [Theory]
+    [InlineData("broken.png", nameof(SampleFiles.Png))]
+    [InlineData("report.pdf", nameof(SampleFiles.Pdf))]
+    public async Task UndecodableImageAndOtherFilesAreAcceptedWithoutAPreview(string name, string sample)
+    {
+        var bytes = (byte[])typeof(SampleFiles).GetMethod(sample)!.Invoke(null, [512])!;
+
+        using var response = await UploadAsync(NewAccount(), bytes, name);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("preview").ValueKind);
+        var file = await FindAsync(body.GetProperty("id").GetGuid());
+        Assert.Null(file.PreviewColor);
+        Assert.Null(file.PreviewImage);
+    }
+
+    [Fact]
     public async Task SameFileUploadedTwiceGetsTwoUnrelatedKeys()
     {
         var owner = NewAccount();

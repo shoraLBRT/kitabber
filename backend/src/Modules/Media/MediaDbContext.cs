@@ -30,6 +30,7 @@ public sealed class MediaDbContext(DbContextOptions<MediaDbContext> options)
             file.Property(f => f.ContentType).HasMaxLength(127);
             file.Property(f => f.StorageKey).HasMaxLength(255);
             file.Property(f => f.FileName).HasMaxLength(MediaFile.FileNameMaxLength);
+            file.Property(f => f.PreviewColor).HasMaxLength(7);
             file.HasIndex(f => f.StorageKey).IsUnique().HasDatabaseName(StorageKeyIndex);
             file.HasIndex(f => f.OwnerAccountId);
         });

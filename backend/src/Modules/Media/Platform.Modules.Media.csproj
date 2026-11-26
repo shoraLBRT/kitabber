@@ -16,6 +16,10 @@
 
     <ItemGroup>
         <PackageReference Include="AWSSDK.S3" />
+        <!-- The blurred preview and the dominant colour of an uploaded image (ADR-0067); Skia's Linux build without
+             system dependencies, for the API image. -->
+        <PackageReference Include="SkiaSharp" />
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     </ItemGroup>
 
     <ItemGroup>
