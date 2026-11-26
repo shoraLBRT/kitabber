@@ -5,7 +5,9 @@
 // above the tree once it is read, open when there is none yet. Next to the heading, «Популярные | По дате» (E09-04,
 // ADR-0058) picks the order of the threads; it stays while the tree is read again and is gone only when there are no
 // comments to order. The person's own comments (`own`) take the «…» menu with «Редактировать» and «Удалить» (E09-05,
-// ADR-0059); `edit` and `remove` do the work and answer how it went.
+// ADR-0059); `edit` and `remove` do the work and answer how it went. On a phone a branch deeper than one read opens on
+// its own screen (`branchLink`, E09-06); that screen draws the same tree for one branch (`branch`), without the
+// heading, the order and the form under the post, and says so when the branch is gone.
 import { computed, onBeforeUnmount, onMounted, provide, ref, toRef } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
@@ -34,6 +36,10 @@ const props = withDefaults(
     own?: Readonly<Record<string, true>>
     edit?: (id: string, text: string) => Promise<string | null>
     remove?: (id: string) => Promise<boolean>
+    /** Where a deep branch opens on its own screen (a phone, E09-06); `null` reads it in place. */
+    branchLink?: ((commentId: string) => string) | null
+    /** The tree is one branch on its own screen (E09-06): no heading, no order, no form under the post. */
+    branch?: boolean
   }>(),
   {
     pending: () => ({}),
@@ -43,6 +49,8 @@ const props = withDefaults(
     own: () => ({}),
     edit: async () => 'Не удалось сохранить правку. Попробуйте ещё раз.',
     remove: async () => false,
+    branchLink: null,
+    branch: false,
   },
 )
 
@@ -73,6 +81,7 @@ provide(commentTreeKey, {
   pending: toRef(props, 'pending'),
   failures: toRef(props, 'failures'),
   resume: toRef(props, 'resume'),
+  branchLink: toRef(props, 'branchLink'),
   own: toRef(props, 'own'),
   now,
   edit: (id, text) => props.edit(id, text),
@@ -91,7 +100,7 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 
 <template>
   <section class="comments" aria-labelledby="comments-title" data-testid="comments">
-    <div class="comments__head">
+    <div v-if="!branch" class="comments__head">
       <h2 id="comments-title" class="comments__title">
         Комментарии
         <span
@@ -143,8 +152,12 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
       <UiButton variant="secondary" size="sm" @click="emit('retry')">Повторить</UiButton>
     </div>
 
+    <p v-else-if="state.status === 'not-found'" class="comments__muted" data-testid="comments-not-found">
+      Ветка не найдена: комментарий удалён или адрес набран с ошибкой.
+    </p>
+
     <template v-else>
-      <CommentForm :inviting="roots.length === 0" />
+      <CommentForm v-if="!branch" :inviting="roots.length === 0" />
       <p v-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
         Комментариев пока нет — будьте первым
       </p>

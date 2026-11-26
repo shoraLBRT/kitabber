@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  branchPath,
   commentCount,
   loadAuthors,
   loadBranch,
@@ -106,6 +107,13 @@ describe('counts and words', () => {
   })
 })
 
+describe('branchPath', () => {
+  it('puts a branch screen under its post (E09-06)', () => {
+    expect(branchPath('/u/anna/p1-privet', 'c1')).toBe('/u/anna/p1-privet/comments/c1')
+    expect(branchPath('/books/p1', 'c1')).toBe('/books/p1/comments/c1')
+  })
+})
+
 describe('reads', () => {
   function client(get: (path: string, init: unknown) => Promise<{ data?: unknown }>): ApiClient {
     return { GET: get } as unknown as ApiClient
@@ -147,6 +155,12 @@ describe('reads', () => {
       ),
     ).toEqual({ status: 'error' })
     expect(await loadBranch(failing, '1', 6)).toEqual({ status: 'error' })
+  })
+
+  it('tells a branch that is gone from one that failed (E09-06)', async () => {
+    const answering = (status: number) => client(async () => ({ response: { status } }) as { data?: unknown })
+    expect(await loadBranch(answering(404), '1', 3)).toEqual({ status: 'not-found' })
+    expect(await loadBranch(answering(503), '1', 3)).toEqual({ status: 'error' })
   })
 
   it('reads the authors a few at a time and leaves out the ones that fail', async () => {

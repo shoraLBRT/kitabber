@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // One comment of the tree (E09-02, docs/ui/comments.md) and, nested under it, the replies that were read. The branch
 // line beside the replies is the button that folds them; a folded branch leaves «Развернуть · N ответов». Replies a
-// read left out come on «Показать ещё N ответов», with a skeleton line while they load and «Повторить» on a failure.
+// read left out come on «Показать ещё N ответов», with a skeleton line while they load and «Повторить» on a failure; on
+// a phone «Открыть ветку (N) →» opens them on the branch's own screen instead (E09-06).
 // «Ответить» opens the reply form under the comment (E09-03); a reply being sent is dimmed until the server keeps it.
 // The person's own comment has the «…» menu (E09-05, ADR-0059): «Редактировать» opens its text in a form while the time
 // lasts, «Удалить» asks first. A changed text is marked «изменено»; a deleted comment with replies is the stub
@@ -64,6 +65,8 @@ watch(
 )
 const branch = computed(() => tree.branches.value[comment.value.id])
 const titleId = computed(() => `comment-${comment.value.id}`)
+// On a phone the replies a read left out open on the branch's own screen (E09-06): the text keeps its width there.
+const branchLink = computed(() => tree.branchLink.value?.(comment.value.id) ?? null)
 
 function remove() {
   return tree.remove(comment.value.id)
@@ -168,7 +171,16 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
       Развернуть · {{ repliesText(comment.replies) }}
     </button>
 
-    <template v-if="node.hidden > 0 && expanded">
+    <p v-if="node.hidden > 0 && expanded && branchLink" class="comment__more">
+      <NuxtLink
+        :to="branchLink"
+        class="comment__link"
+        :aria-label="`Открыть ветку: ${repliesText(node.hidden)}`"
+        data-testid="comment-open-branch"
+        >Открыть ветку ({{ node.hidden }}) →</NuxtLink
+      >
+    </p>
+    <template v-else-if="node.hidden > 0 && expanded">
       <div
         v-if="branch === 'loading'"
         class="comment__skeleton"
@@ -299,6 +311,10 @@ a.comment__author:hover {
   font: inherit;
   font-size: var(--font-size-sm);
   cursor: pointer;
+}
+
+a.comment__link {
+  text-decoration: none;
 }
 
 .comment__link:hover {

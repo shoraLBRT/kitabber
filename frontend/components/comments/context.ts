@@ -1,6 +1,7 @@
 // What every comment of a tree shares (E09-02, E09-03): the authors read so far, where each branch's reading stands and
 // how to read the rest of a branch, and what the forms need: who writes, which comments are still being sent, why a send
-// failed and how to send, and the person's own comments with how to change and delete them (E09-05). CommentTree
+// failed and how to send, the person's own comments with how to change and delete them (E09-05), and where a deep
+// branch opens on a phone (E09-06). CommentTree
 // provides it once, so the nested CommentItems do not pass it down level by level.
 import type { InjectionKey, Ref } from 'vue'
 import type { Profile } from '../../api/profiles'
@@ -36,6 +37,11 @@ export type CommentTreeContext = {
   now: Readonly<Ref<number>>
   /** The form to open on arrival: the person came back signed in from the window its button opened. */
   resume: Readonly<Ref<FormTarget | null>>
+  /**
+   * The address of a branch's own screen when the replies a read left out open there (a phone, E09-06), `null` when
+   * «Показать ещё» reads them in place.
+   */
+  branchLink: Readonly<Ref<((commentId: string) => string) | null>>
   more: (commentId: string) => void
   send: (text: string, parentId: string | null) => void
   /** Changes an own comment's text: `null` once kept, otherwise the reason to show under the form. */
