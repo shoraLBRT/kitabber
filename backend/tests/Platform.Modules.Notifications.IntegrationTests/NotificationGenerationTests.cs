@@ -11,6 +11,7 @@ using Platform.Modules.Identity.Contracts;
 using Platform.Modules.Notifications.Contracts;
 using Platform.Modules.Reactions.Contracts;
 using Platform.Testing.Containers;
+using Platform.Testing.Hosting;
 using Platform.Workers;
 
 namespace Platform.Modules.Notifications.IntegrationTests;
@@ -53,14 +54,17 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
                 "--Mail:Provider", "InMemory", $"--ConnectionStrings:Platform={database}"]);
         builder.Services.AddSingleton<INotificationSuppression>(_suppression);
         _host = builder.Build();
-        await using (var scope = _host.Services.CreateAsyncScope())
+        await HostStartGate.RunAsync(async () =>
         {
-            await scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.MigrateAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<Preferences.PreferencesDbContext>().Database.MigrateAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<Blogs.BlogsDbContext>().Database.MigrateAsync(Ct);
-        }
+            await using (var scope = _host.Services.CreateAsyncScope())
+            {
+                await scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.MigrateAsync(Ct);
+                await scope.ServiceProvider.GetRequiredService<Preferences.PreferencesDbContext>().Database.MigrateAsync(Ct);
+                await scope.ServiceProvider.GetRequiredService<Blogs.BlogsDbContext>().Database.MigrateAsync(Ct);
+            }
 
-        await _host.StartAsync(Ct);
+            await _host.StartAsync(Ct);
+        }, Ct);
     }
 
     public async ValueTask DisposeAsync()

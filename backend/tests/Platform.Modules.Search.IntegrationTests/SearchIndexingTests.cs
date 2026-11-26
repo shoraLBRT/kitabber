@@ -10,6 +10,7 @@ using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Posts;
 using Platform.Modules.Posts.Contracts;
 using Platform.Testing.Containers;
+using Platform.Testing.Hosting;
 using Platform.Workers;
 
 namespace Platform.Modules.Search.IntegrationTests;
@@ -37,14 +38,17 @@ public sealed class SearchIndexingTests(PostgresFixture postgres) : IAsyncLifeti
             ["--environment", PlatformEnvironments.Test, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory",
                 "--Mail:Provider", "InMemory", "--Search:Provider", "InMemory", $"--ConnectionStrings:Platform={database}"])
             .Build();
-        await using (var scope = _host.Services.CreateAsyncScope())
+        await HostStartGate.RunAsync(async () =>
         {
-            await scope.ServiceProvider.GetRequiredService<SearchDbContext>().Database.MigrateAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<PostsDbContext>().Database.MigrateAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<BlogsDbContext>().Database.MigrateAsync(Ct);
-        }
+            await using (var scope = _host.Services.CreateAsyncScope())
+            {
+                await scope.ServiceProvider.GetRequiredService<SearchDbContext>().Database.MigrateAsync(Ct);
+                await scope.ServiceProvider.GetRequiredService<PostsDbContext>().Database.MigrateAsync(Ct);
+                await scope.ServiceProvider.GetRequiredService<BlogsDbContext>().Database.MigrateAsync(Ct);
+            }
 
-        await _host.StartAsync(Ct);
+            await _host.StartAsync(Ct);
+        }, Ct);
     }
 
     public async ValueTask DisposeAsync()

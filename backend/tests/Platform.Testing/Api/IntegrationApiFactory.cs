@@ -6,6 +6,7 @@ using Platform.Seeding;
 using Platform.Testing.Containers;
 using Platform.Testing.Data;
 using Platform.Testing.Database;
+using Platform.Testing.Hosting;
 
 namespace Platform.Testing.Api;
 
@@ -23,6 +24,8 @@ public class IntegrationApiFactory(PostgresFixture postgres, RedisFixture redis)
 
     private readonly SemaphoreSlim _start = new(1, 1);
     private DatabaseReset? _reset;
+    private Exception? _startFailure;
+    private bool _hostConfigured;
     private SeedData? _data;
 
     /// <summary>The test database of this factory; set by the first <see cref="ResetAsync"/>.</summary>
@@ -82,21 +85,45 @@ public class IntegrationApiFactory(PostgresFixture postgres, RedisFixture redis)
                 return;
             }
 
-            DatabaseConnectionString = await postgres.CreateDatabaseAsync();
-            RedisConnectionString = redis.CreateDatabase();
-            WithSetting($"ConnectionStrings:{DatabaseConnectionName}", DatabaseConnectionString);
-            WithSetting($"ConnectionStrings:{CacheServiceCollectionExtensions.RedisConnectionName}", RedisConnectionString);
-            WithSetting(CacheServiceCollectionExtensions.ProviderKey, nameof(CacheProvider.Redis));
+            // The host takes its settings once, with the first database: once configured, starting again would make a
+            // second database the host never sees and fail every later test with a misleading error ("No tables
+            // found"). Later tests get the first failure instead. A skip (no Docker) comes before that and repeats.
+            if (_startFailure is not null)
+            {
+                throw new InvalidOperationException(
+                    "The test host failed to start in an earlier test of this class; see the inner exception.",
+                    _startFailure);
+            }
 
-            await using var scope = Services.CreateAsyncScope();
-            var migrator = ActivatorUtilities.CreateInstance<ModuleMigrator>(scope.ServiceProvider);
-            await migrator.MigrateAsync(TextWriter.Null);
-            _reset = await DatabaseReset.CreateAsync(
-                DatabaseConnectionString, migrator.Modules.Select(m => m.Schema), KeepTables);
+            try
+            {
+                await HostStartGate.RunAsync(StartHostAsync);
+            }
+            catch (Exception e) when (_hostConfigured)
+            {
+                _startFailure = e;
+                throw;
+            }
         }
         finally
         {
             _start.Release();
         }
+    }
+
+    private async Task StartHostAsync()
+    {
+        DatabaseConnectionString = await postgres.CreateDatabaseAsync();
+        RedisConnectionString = redis.CreateDatabase();
+        WithSetting($"ConnectionStrings:{DatabaseConnectionName}", DatabaseConnectionString);
+        WithSetting($"ConnectionStrings:{CacheServiceCollectionExtensions.RedisConnectionName}", RedisConnectionString);
+        WithSetting(CacheServiceCollectionExtensions.ProviderKey, nameof(CacheProvider.Redis));
+        _hostConfigured = true;
+
+        await using var scope = Services.CreateAsyncScope();
+        var migrator = ActivatorUtilities.CreateInstance<ModuleMigrator>(scope.ServiceProvider);
+        await migrator.MigrateAsync(TextWriter.Null);
+        _reset = await DatabaseReset.CreateAsync(
+            DatabaseConnectionString, migrator.Modules.Select(m => m.Schema), KeepTables);
     }
 }
