@@ -54,6 +54,10 @@
 
 Логи, метрики и трассировка — [ADR-0015](adr/0015-observability.md). Переменные `OTEL_*` — стандартные переменные
 OpenTelemetry: SDK читает и остальные (`OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_RESOURCE_ATTRIBUTES` и другие).
+На stage compose-файл задаёт `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317`,
+`OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=stage` и журнал запросов API
+(`Logging__LogLevel__Microsoft.AspNetCore.Hosting.Diagnostics=Information`); хранилища и Grafana стенда —
+[ADR-0069](adr/0069-stage-telemetry.md) и `docs/DEPLOY.md` (`GRAFANA_ADDRESS`, секрет `GRAFANA_ADMIN_PASSWORD`).
 
 | Ключ | Переменная окружения | Секрет | Обязательна | По умолчанию | Что это |
 | --- | --- | --- | --- | --- | --- |

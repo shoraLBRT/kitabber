@@ -3,11 +3,13 @@
 #   (no switch)  static, a step of scripts/verify.ps1: base images pinned by digest; the stage compose file uses
 #                exactly the published images and validates with its env template; the images workflow builds on
 #                PRs and publishes to GHCR on main (sha + latest, release versions), its deploy is gated; the
-#                deploy workflow is manual for production and documented; no hosting secret is needed for CI.
+#                deploy workflow is manual for production and documented; no hosting secret is needed for CI; the
+#                telemetry of the stand (ADR-0069) is wired, closed, retained 7-15 days, with valid dashboards.
 #   -Smoke       the real thing on this Docker host, run by the images workflow on every PR: builds the images
 #                (or takes them with -NoBuild), deploys the stage compose file with scripts/deploy.ps1, upgrades to
 #                another tag, checks that a failing migration stops a deploy and keeps the running version, rolls
 #                back, and checks the site, the API's /health/live and the admin through Caddy each time.
+#                After the first deploy: a request to the API gives a trace, a log line and metrics in Grafana.
 param(
     [switch]$Smoke,
     [string]$Registry = 'local/kitabber-smoke',
@@ -95,6 +97,58 @@ if (-not $Smoke) {
         Assert ($used -contains $name) "deploy/stage.env.example: $name is not used in deploy/compose.stage.yaml"
         if ($name -like '*PASSWORD*') { Assert ($vars[$name] -eq 'change-me') "deploy/stage.env.example: $name must be the placeholder change-me" }
     }
+
+    # 2b. The telemetry of the stand (ADR-0069): the hosts send OTLP to the collector, only Caddy publishes ports and
+    # Grafana is the only telemetry service behind it, with a password; every store keeps 7-15 days; the dashboards
+    # are JSON and use the provisioned data sources; the 5xx alert exists.
+    function Get-InlineConfig([string]$Name) {
+        $m = [regex]::Match($text, "(?m)^  $([regex]::Escape($Name)):\r?\n    content: \|\r?\n((?:(?:      .*)?\r?\n)*)")
+        if (-not $m.Success) { $problems.Add("deploy/compose.stage.yaml: no inline config $Name"); return '' }
+        (($m.Groups[1].Value -split '\r?\n' | ForEach-Object { if ($_.Length -ge 6) { $_.Substring(6) } else { '' } }) -join "`n").Replace('$$', '$')
+    }
+    function Get-ComposeService([string]$Name) {
+        $m = [regex]::Match($text, "(?ms)^  ${Name}:\s*$.*?(?=^  [a-z][a-z0-9-]*:\s*$|^[a-z]|\z)")
+        if ($m.Success) { $m.Value } else { $problems.Add("deploy/compose.stage.yaml: no service $Name"); '' }
+    }
+    $backend = [regex]::Match($text, '(?ms)^x-backend:.*?(?=^services:)').Value
+    Assert ($backend -match '(?m)^    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317\s*$') 'deploy/compose.stage.yaml: the backend hosts must send OTLP to http://otel-collector:4317'
+    Assert (@([regex]::Matches($text, '(?m)^    ports:')).Count -eq 1 -and (Get-ComposeService 'caddy') -match '(?m)^    ports:') 'deploy/compose.stage.yaml: only caddy may publish ports'
+    $caddyfile = Get-InlineConfig 'caddyfile'
+    Assert ($caddyfile -match '\{\$GRAFANA_ADDRESS\} \{\s*encode\s*reverse_proxy grafana:3000') 'deploy/compose.stage.yaml: Caddy must serve Grafana at GRAFANA_ADDRESS'
+    foreach ($inner in 'otel-collector', 'prometheus', 'loki', 'tempo') { Assert ($caddyfile -notmatch "\b${inner}:") "deploy/compose.stage.yaml: Caddy must not expose $inner" }
+    $grafana = Get-ComposeService 'grafana'
+    Assert ($grafana -match '(?m)^      GF_SECURITY_ADMIN_PASSWORD: \$\{GRAFANA_ADMIN_PASSWORD:\?') 'deploy/compose.stage.yaml: the Grafana admin password must come from GRAFANA_ADMIN_PASSWORD'
+    Assert ($grafana -match "(?m)^      GF_AUTH_ANONYMOUS_ENABLED: 'false'" -and $grafana -match "(?m)^      GF_USERS_ALLOW_SIGN_UP: 'false'") 'deploy/compose.stage.yaml: Grafana must allow neither anonymous users nor sign-up'
+    function Assert-Days([string]$What, [double]$Days) { Assert ($Days -ge 7 -and $Days -le 15) "deploy/compose.stage.yaml: $What keeps $Days days, not 7-15" }
+    $m = [regex]::Match((Get-ComposeService 'prometheus'), '--storage\.tsdb\.retention\.time=(\d+)d')
+    if ($m.Success) { Assert-Days 'Prometheus' ([int]$m.Groups[1].Value) } else { $problems.Add('deploy/compose.stage.yaml: Prometheus has no --storage.tsdb.retention.time=<n>d') }
+    $loki = Get-InlineConfig 'loki'
+    $m = [regex]::Match($loki, '(?m)^  retention_period: (\d+)h\s*$')
+    if ($m.Success) { Assert-Days 'Loki' ([int]$m.Groups[1].Value / 24) } else { $problems.Add('deploy/compose.stage.yaml: Loki has no limits_config.retention_period: <n>h') }
+    Assert ($loki -match '(?m)^  retention_enabled: true\s*$') 'deploy/compose.stage.yaml: the Loki compactor must apply the retention'
+    $m = [regex]::Match((Get-InlineConfig 'tempo'), '(?m)^    block_retention: (\d+)h\s*$')
+    if ($m.Success) { Assert-Days 'Tempo' ([int]$m.Groups[1].Value / 24) } else { $problems.Add('deploy/compose.stage.yaml: Tempo has no compactor.compaction.block_retention: <n>h') }
+    $collector = Get-InlineConfig 'otel-collector'
+    foreach ($pipeline in 'traces: \{ receivers: \[otlp\].*otlp/tempo', 'metrics: \{ receivers: \[otlp\].*otlphttp/prometheus', 'logs: \{ receivers: \[otlp\].*otlphttp/loki') {
+        Assert ($collector -match $pipeline) "deploy/compose.stage.yaml: the collector lacks the pipeline $pipeline"
+    }
+    $rules = Get-InlineConfig 'prometheus-rules'
+    Assert ($rules -match '(?m)^\s+- alert: ApiServerErrors\s*$' -and $rules -match 'http_response_status_code=~"5\.\."') 'deploy/compose.stage.yaml: no alert ApiServerErrors on the share of 5xx'
+    $datasources = Get-InlineConfig 'grafana-datasources'
+    $sources = @([regex]::Matches($datasources, '(?m)^\s+uid: (\S+)\s*$') | ForEach-Object { $_.Groups[1].Value })
+    Assert ((@($sources | Sort-Object) -join ',') -eq 'loki,prometheus,tempo') "deploy/compose.stage.yaml: Grafana's data sources are '$($sources -join ', ')', not prometheus, loki and tempo"
+    Assert ($datasources.Contains("url: '`$`${__value.raw}'")) 'deploy/compose.stage.yaml: the Loki data source must link a trace id to Tempo (Grafana reads $$ as a literal $)'
+    $dashboards = @([regex]::Matches($text, '(?m)^  (dashboard-[a-z]+):\s*$') | ForEach-Object { $_.Groups[1].Value })
+    foreach ($name in 'dashboard-api', 'dashboard-dotnet', 'dashboard-database') { Assert ($dashboards -contains $name) "deploy/compose.stage.yaml: no $name" }
+    foreach ($name in $dashboards) {
+        Assert ($grafana -match "(?m)^      - source: $name\s*\r?\n\s+target: /etc/grafana/dashboards/[a-z]+\.json\s*$") "deploy/compose.stage.yaml: Grafana does not mount $name"
+        $json = Get-InlineConfig $name
+        try { $board = $json | ConvertFrom-Json -AsHashtable } catch { $problems.Add("deploy/compose.stage.yaml: $name is not JSON: $_"); continue }
+        Assert ($board.uid -and $board.title -and $board.panels.Count) "deploy/compose.stage.yaml: $name needs a uid, a title and panels"
+        $refs = @([regex]::Matches($json, '"uid": "([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ne $board.uid })
+        foreach ($uid in $refs) { Assert ($sources -contains $uid) "deploy/compose.stage.yaml: $name uses data source $uid, Grafana has '$($sources -join ', ')'" }
+        foreach ($panel in $board.panels) { Assert ($panel.datasource -and $panel.targets.Count) "deploy/compose.stage.yaml: ${name}: panel '$($panel.title)' has no data source or query" }
+    }
     if (Get-Command docker -ErrorAction SilentlyContinue) {
         $out = & { $ErrorActionPreference = 'Continue'; docker compose -f $compose --env-file $template config --quiet 2>&1 | Out-String }
         Assert ($LASTEXITCODE -eq 0) "deploy/compose.stage.yaml: docker compose config failed: $out"
@@ -173,6 +227,7 @@ $envFile = Join-Path $temp 'stage.env'
 $httpPort = Get-FreePort
 do { $httpsPort = Get-FreePort } while ($httpsPort -eq $httpPort)
 $project = "kitabber-deploy-smoke-$PID"
+$grafanaPassword = New-Password
 Set-Content -Encoding ascii -LiteralPath $envFile @(
     "STAGE_PROJECT=$project", "IMAGE_REGISTRY=$Registry", "IMAGE_TAG=$Tag",
     'SITE_ADDRESS=http://site.localhost', 'ADMIN_ADDRESS=http://admin.localhost',
@@ -189,7 +244,9 @@ Set-Content -Encoding ascii -LiteralPath $envFile @(
     'MEDIA_STORAGE_URL=http://s3.invalid', 'MEDIA_STORAGE_REGION=us-east-1', 'MEDIA_STORAGE_BUCKET=smoke', 'MEDIA_STORAGE_ACCESS_KEY=smoke',
     "MEDIA_STORAGE_SECRET_KEY=$(New-Password)",
     # imgproxy starts without reaching S3 too; the key and salt are hex made for this run (ADR-0037).
-    "IMGPROXY_KEY=$(New-Password)", "IMGPROXY_SALT=$(New-Password)"
+    "IMGPROXY_KEY=$(New-Password)", "IMGPROXY_SALT=$(New-Password)",
+    # Grafana of the stand (ADR-0069) at its own address behind Caddy, with a password made for this run.
+    'GRAFANA_ADDRESS=http://grafana.localhost', "GRAFANA_ADMIN_PASSWORD=$grafanaPassword"
 )
 $dc = @('compose', '-f', $compose, '--env-file', $envFile)
 $deployScript = Join-Path $PSScriptRoot 'deploy.ps1'
@@ -198,14 +255,49 @@ $shell = (Get-Process -Id $PID).Path
 Add-Type -AssemblyName System.Net.Http
 $http = [System.Net.Http.HttpClient]::new()
 $http.Timeout = [TimeSpan]::FromSeconds(15)
-function Get-Page([string]$HostName, [string]$Path) {
+function Get-Page([string]$HostName, [string]$Path, [hashtable]$Headers = @{}) {
     $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, "http://127.0.0.1:$httpPort$Path")
     $request.Headers.Host = $HostName
+    foreach ($name in $Headers.Keys) { $request.Headers.TryAddWithoutValidation($name, $Headers[$name]) | Out-Null }
     try {
         $response = $http.SendAsync($request).GetAwaiter().GetResult()
         [pscustomobject]@{ Status = [int]$response.StatusCode; Body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() }
     }
     catch { [pscustomobject]@{ Status = 0; Body = "$_" } }
+}
+function Get-Grafana([string]$Path) {
+    $auth = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("admin:$grafanaPassword"))
+    Get-Page 'grafana.localhost' $Path @{ Authorization = "Basic $auth" }
+}
+# The telemetry of the stand (ADR-0069): Grafana asks for a password; a request to the API through Caddy leaves its
+# trace in Tempo, its log line in Loki and its metrics in Prometheus, all read through Grafana's data sources; the
+# dashboards and the 5xx alert are loaded; Prometheus scrapes the API's /metrics.
+function Assert-Telemetry {
+    $anonymous = Get-Page 'grafana.localhost' '/api/search'
+    Assert ($anonymous.Status -eq 401) "telemetry: Grafana without a password answers $($anonymous.Status), not 401"
+    $traceId = -join ((1..32) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
+    $spanId = -join ((1..16) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
+    $call = Get-Page 'site.localhost' '/api/telemetry-smoke' @{ traceparent = "00-$traceId-$spanId-01" }
+    Assert ($call.Status -gt 0) "telemetry: the API did not answer: $($call.Body)"
+    $start = [DateTimeOffset]::UtcNow.AddMinutes(-10).ToUnixTimeMilliseconds() * 1000000
+    $logQuery = [uri]::EscapeDataString("{service_name=`"platform-api`"} | trace_id=`"$traceId`"")
+    $checks = [ordered]@{
+        "a trace $traceId in Tempo"                        = { (Get-Grafana "/api/datasources/proxy/uid/tempo/api/traces/$traceId").Status -eq 200 }
+        "a log line of trace $traceId in Loki"             = { (Get-Grafana "/api/datasources/proxy/uid/loki/loki/api/v1/query_range?query=$logQuery&start=$start&limit=5").Body -match '"values":\[\[' }
+        'the API request metric in Prometheus over OTLP'   = { (Get-Grafana "/api/datasources/proxy/uid/prometheus/api/v1/query?query=$([uri]::EscapeDataString('http_server_request_duration_seconds_count{job="platform-api"}'))").Body -match '"result":\[\{' }
+        "the scrape of the API's /metrics"                 = { (Get-Grafana "/api/datasources/proxy/uid/prometheus/api/v1/query?query=$([uri]::EscapeDataString('up{job="platform-api-scrape"} == 1'))").Body -match '"result":\[\{' }
+        'the alert ApiServerErrors in Prometheus'          = { (Get-Grafana '/api/datasources/proxy/uid/prometheus/api/v1/rules').Body -match '"name":"ApiServerErrors"' }
+        'the dashboards API, .NET runtime and PostgreSQL'  = { $b = (Get-Grafana '/api/search?tag=kitabber').Body; $b -match '"uid":"kitabber-api"' -and $b -match '"uid":"kitabber-dotnet"' -and $b -match '"uid":"kitabber-database"' }
+    }
+    # The exporters send every few seconds and metrics once a minute: wait up to three minutes.
+    $pending = [System.Collections.Generic.List[string]]::new([string[]]@($checks.Keys))
+    $deadline = [DateTime]::UtcNow.AddMinutes(3)
+    while ($pending.Count -and [DateTime]::UtcNow -lt $deadline) {
+        foreach ($name in @($pending)) { if (& $checks[$name]) { $pending.Remove($name) | Out-Null } }
+        if ($pending.Count) { Start-Sleep -Seconds 5 }
+    }
+    foreach ($name in $pending) { $problems.Add("telemetry: no $name through Grafana within 3 minutes") }
+    if ($pending.Count) { $problems.Add((docker @dc logs --tail 20 otel-collector prometheus loki tempo grafana 2>&1 | Out-String)) }
 }
 function Invoke-Deploy([string]$DeployTag) {
     $out = & $shell -NoProfile -File $deployScript -EnvFile $envFile -Tag $DeployTag -ComposeFile $compose -NoPull 2>&1 | Out-String
@@ -264,6 +356,7 @@ try {
     $result = Invoke-Deploy $Tag
     if ($result.Code) { Stop-WithProblems "first deploy of $Tag" $result }
     Assert-Running $Tag "first deploy of $Tag"
+    Assert-Telemetry
 
     $result = Invoke-Deploy $next
     if ($result.Code) { Stop-WithProblems "upgrade to $next" $result }
