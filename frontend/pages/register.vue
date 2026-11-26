@@ -3,8 +3,9 @@
 // so /auth/sign-in runs the usual authorization code flow without asking again and brings them back signed in.
 import RegistrationForm from '~/components/auth/RegistrationForm.vue'
 import { registrationApi } from '~/api/registration'
+import { t } from '../i18n'
 
-useHead({ title: 'Регистрация' })
+useHead({ title: t('pages.register') })
 
 const { $api } = useNuxtApp()
 const api = registrationApi($api)

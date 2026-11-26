@@ -14,6 +14,7 @@ import ShellNav from './ShellNav.vue'
 import ShellOfflineBanner from './ShellOfflineBanner.vue'
 import ShellTabBar from './ShellTabBar.vue'
 import ShellWriteButton from './ShellWriteButton.vue'
+import { t } from '../../i18n'
 
 withDefaults(
   defineProps<{
@@ -36,7 +37,7 @@ const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
 
 <template>
   <div class="shell" data-testid="shell">
-    <a href="#content" class="shell__skip">Перейти к содержимому</a>
+    <a href="#content" class="shell__skip">{{ t('shell.skipToContent') }}</a>
     <ShellHeader :user="user" @search="emit('search')" @account="emit('account', $event)" />
     <div class="shell__body">
       <div class="shell__menu" data-column="menu">

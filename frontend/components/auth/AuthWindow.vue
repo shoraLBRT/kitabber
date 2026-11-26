@@ -11,6 +11,7 @@ import type { RegistrationApi } from '../../api/registration'
 import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
 import type { AuthWindowMode } from '../../composables/useAuthWindow'
+import { t } from '../../i18n'
 
 defineProps<{ signInApi: SignInApi; registrationApi: RegistrationApi; passwordResetApi?: PasswordResetApi }>()
 const emit = defineEmits<{ 'signed-in': [] }>()
@@ -18,7 +19,7 @@ const emit = defineEmits<{ 'signed-in': [] }>()
 const open = defineModel<boolean>('open', { default: false })
 const mode = defineModel<AuthWindowMode>('mode', { default: 'sign-in' })
 
-const title = computed(() => (mode.value === 'sign-in' ? 'Вход' : 'Регистрация'))
+const title = computed(() => (mode.value === 'sign-in' ? t('auth.signIn') : t('auth.registration')))
 </script>
 
 <template>
@@ -27,17 +28,19 @@ const title = computed(() => (mode.value === 'sign-in' ? 'Вход' : 'Реги�
       <template v-if="mode === 'sign-in'">
         <SignInForm :api="signInApi" :reset-api="passwordResetApi" embedded @signed-in="emit('signed-in')" />
         <p class="auth-window__switch">
-          Нет аккаунта?
+          {{ t('auth.noAccount') }}
           <button type="button" class="auth-window__link" @click="mode = 'registration'">
-            Зарегистрироваться
+            {{ t('auth.register') }}
           </button>
         </p>
       </template>
       <template v-else>
         <RegistrationForm :api="registrationApi" embedded @confirmed="emit('signed-in')" />
         <p class="auth-window__switch">
-          Уже есть аккаунт?
-          <button type="button" class="auth-window__link" @click="mode = 'sign-in'">Войти</button>
+          {{ t('auth.hasAccount') }}
+          <button type="button" class="auth-window__link" @click="mode = 'sign-in'">
+            {{ t('common.signIn') }}
+          </button>
         </p>
       </template>
     </div>

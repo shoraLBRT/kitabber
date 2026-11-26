@@ -5,6 +5,7 @@
 import { computed, inject, onMounted, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import { commentTreeKey } from './context'
+import { t } from '../../i18n'
 
 const props = defineProps<{ commentId: string; text: string }>()
 
@@ -50,7 +51,7 @@ onMounted(() => field.value?.focus())
 
 <template>
   <form class="comment-edit" data-testid="comment-edit" @submit.prevent="submit">
-    <label :for="fieldId" class="visually-hidden">Текст комментария</label>
+    <label :for="fieldId" class="visually-hidden">{{ t('comments.text') }}</label>
     <textarea
       :id="fieldId"
       ref="field"
@@ -75,11 +76,11 @@ onMounted(() => field.value?.focus())
     </p>
     <div class="comment-edit__actions">
       <UiButton variant="ghost" size="sm" data-testid="comment-edit-cancel" @click="emit('close')">
-        Отмена
+        {{ t('actions.cancel') }}
       </UiButton>
-      <UiButton type="submit" size="sm" :disabled="blank" :loading="saving" data-testid="comment-edit-save"
-        >Сохранить</UiButton
-      >
+      <UiButton type="submit" size="sm" :disabled="blank" :loading="saving" data-testid="comment-edit-save">{{
+        t('actions.save')
+      }}</UiButton>
     </div>
   </form>
 </template>

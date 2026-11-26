@@ -2,6 +2,7 @@
 import { fileURLToPath } from 'node:url'
 import brand from '../brand/brand.json'
 import { faviconHref } from '../brand/favicon'
+import { locale } from './i18n/config'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
@@ -14,7 +15,8 @@ export default defineNuxtConfig({
   css: [fileURLToPath(new URL('../brand/tokens.css', import.meta.url)), '~/assets/base.css'],
   app: {
     head: {
-      htmlAttrs: { lang: 'ru' },
+      // The language of the page is the locale of the dictionaries (E02-10, ADR-0063).
+      htmlAttrs: { lang: locale },
       title: brand.name,
       // viewport-fit=cover lets the phone shell lay out under the notch and keep clear of it through the safe-area
       // insets (E02-06).

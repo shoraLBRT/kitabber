@@ -7,6 +7,7 @@
 // go through server/routes/bff/post.get.ts.
 import PostView from '~/components/post/PostView.vue'
 import { lookUpPost, subsitePath, type PostLookup } from '~/api/posts'
+import { t } from '../i18n'
 
 definePageMeta({
   path: '/u/:blog/:post([0-9a-fA-F]{8}-[^/]*)',
@@ -68,7 +69,7 @@ async function remove(): Promise<boolean> {
   } catch {
     return false
   }
-  toast.show('Пост удалён', { tone: 'success' })
+  toast.show(t('post.deleted'), { tone: 'success' })
   await navigateTo(subsitePath(found.blog), { replace: true })
   return true
 }
@@ -76,10 +77,10 @@ async function remove(): Promise<boolean> {
 useHead(() => ({
   title:
     state.value.status === 'found'
-      ? (state.value.post.title ?? 'Пост')
+      ? (state.value.post.title ?? t('post.post'))
       : state.value.status === 'not-found'
-        ? 'Пост не найден'
-        : 'Пост',
+        ? t('post.notFound')
+        : t('post.post'),
 }))
 </script>
 

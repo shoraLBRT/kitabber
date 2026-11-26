@@ -22,6 +22,7 @@ import {
 import type { Profile } from '../../api/profiles'
 import type { Likes } from '../../composables/useLikes'
 import { commentTreeKey, type BranchStatus, type CommentFailure, type FormTarget } from './context'
+import { formatNumber, t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -50,7 +51,7 @@ const props = withDefaults(
     resume: null,
     sort: 'popular',
     own: () => ({}),
-    edit: async () => 'Не удалось сохранить правку. Попробуйте ещё раз.',
+    edit: async () => t('comments.editFailed'),
     remove: async () => false,
     branchLink: null,
     branch: false,
@@ -107,19 +108,19 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
   <section class="comments" aria-labelledby="comments-title" data-testid="comments">
     <div v-if="!branch" class="comments__head">
       <h2 id="comments-title" class="comments__title">
-        Комментарии
+        {{ t('comments.title') }}
         <span
           v-if="state.status === 'found' && count > 0"
           class="comments__count"
           data-testid="comments-count"
-          >{{ count }}</span
+          >{{ formatNumber(count) }}</span
         >
       </h2>
       <div
         v-if="sortable"
         class="comments__sort"
         role="group"
-        aria-label="Порядок комментариев"
+        :aria-label="t('comments.sortLabel')"
         data-testid="comments-sort"
       >
         <button
@@ -142,7 +143,7 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
       aria-busy="true"
       data-testid="comments-loading"
     >
-      <span class="visually-hidden" role="status">Загрузка комментариев</span>
+      <span class="visually-hidden" role="status">{{ t('comments.loading') }}</span>
       <div v-for="n in 3" :key="n" class="comments__skeleton">
         <div class="comments__skeleton-mark" />
         <div class="comments__skeleton-lines">
@@ -153,18 +154,18 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
     </div>
 
     <div v-else-if="state.status === 'error'" class="comments__error" data-testid="comments-error">
-      <p class="comments__muted" role="alert">Не удалось загрузить комментарии.</p>
-      <UiButton variant="secondary" size="sm" @click="emit('retry')">Повторить</UiButton>
+      <p class="comments__muted" role="alert">{{ t('comments.loadFailed') }}</p>
+      <UiButton variant="secondary" size="sm" @click="emit('retry')">{{ t('common.retry') }}</UiButton>
     </div>
 
     <p v-else-if="state.status === 'not-found'" class="comments__muted" data-testid="comments-not-found">
-      Ветка не найдена: комментарий удалён или адрес набран с ошибкой.
+      {{ t('comments.branchNotFound') }}
     </p>
 
     <template v-else>
       <CommentForm v-if="!branch" :inviting="roots.length === 0" />
       <p v-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
-        Комментариев пока нет — будьте первым
+        {{ t('comments.empty') }}
       </p>
       <ul v-else class="comments__tree" data-testid="comment-tree">
         <CommentItem v-for="root in roots" :key="root.comment.id" :node="root" />

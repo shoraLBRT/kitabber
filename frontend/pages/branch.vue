@@ -6,6 +6,7 @@
 // another post, a deleted one or a wrong address says the branch is not found.
 import PostComments from '~/components/comments/PostComments.vue'
 import { postIdOf } from '~/api/posts'
+import { t } from '../i18n'
 
 definePageMeta({
   path: '/u/:blog/:post([0-9a-fA-F]{8}-[^/]*)/comments/:comment([0-9a-fA-F-]+)',
@@ -20,13 +21,15 @@ const commentId = computed(() => String(route.params.comment).toLowerCase())
 // The post's address: the branch's own without its last two segments.
 const postPath = computed(() => route.path.replace(/\/comments\/[^/]+\/?$/, ''))
 
-useHead({ title: 'Ветка комментариев' })
+useHead({ title: t('comments.branch') })
 </script>
 
 <template>
   <section class="branch" aria-labelledby="branch-title" data-testid="branch">
-    <NuxtLink :to="`${postPath}#comments`" class="branch__back" data-testid="branch-back">← К посту</NuxtLink>
-    <h1 id="branch-title" class="branch__title">Ветка комментариев</h1>
+    <NuxtLink :to="`${postPath}#comments`" class="branch__back" data-testid="branch-back">{{
+      t('comments.backToPost')
+    }}</NuxtLink>
+    <h1 id="branch-title" class="branch__title">{{ t('comments.branch') }}</h1>
     <PostComments
       :key="`${postId}:${commentId}`"
       :post-id="postId"

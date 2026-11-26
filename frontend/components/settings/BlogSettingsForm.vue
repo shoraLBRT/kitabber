@@ -22,6 +22,7 @@ import {
   type ProfileInput,
   type ProfileSave,
 } from '../../api/profiles'
+import { t } from '../../i18n'
 
 const props = defineProps<{
   profile: Profile
@@ -75,11 +76,11 @@ function onFile(event: Event) {
   if (!file) return
   avatarError.value = undefined
   if (!imageTypes.includes(file.type)) {
-    avatarError.value = 'Выберите картинку: JPEG, PNG, WebP или GIF.'
+    avatarError.value = t('settings.avatarType')
     return
   }
   if (file.size > imageMaxBytes) {
-    avatarError.value = 'Картинка больше 20 МБ, выберите поменьше.'
+    avatarError.value = t('settings.avatarTooLarge')
     return
   }
   choosing.value = file
@@ -95,7 +96,7 @@ function onCropped(avatar: Blob) {
 
 function onCropFailed() {
   cropping.value = false
-  avatarError.value = 'Не удалось открыть картинку, выберите другую.'
+  avatarError.value = t('settings.avatarUnreadable')
 }
 
 function removeAvatar() {
@@ -113,10 +114,10 @@ async function focusFirstError() {
 }
 
 const uploadErrors: Record<Exclude<MediaUpload['status'], 'uploaded'>, string> = {
-  unsupported: 'Этот формат картинки не подходит, выберите JPEG, PNG, WebP или GIF.',
-  'too-large': 'Картинка больше 20 МБ, выберите поменьше.',
+  unsupported: t('settings.avatarUnsupported'),
+  'too-large': t('settings.avatarTooLarge'),
   unauthorized: '',
-  error: 'Не удалось загрузить аватар. Попробуйте ещё раз.',
+  error: t('settings.avatarFailed'),
 }
 
 async function submit() {
@@ -143,7 +144,7 @@ async function submit() {
       avatarId.value = result.profile.avatarId
       name.value = result.profile.name ?? ''
       description.value = result.profile.description ?? ''
-      toast.show('Изменения сохранены', { tone: 'success' })
+      toast.show(t('settings.saved'), { tone: 'success' })
       emit('saved', result.profile)
     } else if (result.status === 'invalid') {
       serverErrors.value = result.errors
@@ -152,7 +153,7 @@ async function submit() {
     } else if (result.status === 'unauthorized') {
       emit('unauthorized')
     } else {
-      toast.show('Не удалось сохранить. Попробуйте ещё раз.', { tone: 'error' })
+      toast.show(t('settings.saveFailed'), { tone: 'error' })
     }
   } finally {
     saving.value = false
@@ -166,9 +167,11 @@ async function submit() {
       <UiAvatar :name="title" :src="preview" size="lg" data-testid="avatar-preview" />
       <div class="blog-settings__avatar-actions">
         <UiButton variant="secondary" size="sm" @click="chooseFile">
-          {{ hasAvatar ? 'Заменить аватар' : 'Загрузить аватар' }}
+          {{ hasAvatar ? t('settings.replaceAvatar') : t('settings.uploadAvatar') }}
         </UiButton>
-        <UiButton v-if="hasAvatar" variant="ghost" size="sm" @click="removeAvatar">Убрать аватар</UiButton>
+        <UiButton v-if="hasAvatar" variant="ghost" size="sm" @click="removeAvatar">{{
+          t('settings.removeAvatar')
+        }}</UiButton>
         <input
           ref="fileInput"
           class="visually-hidden"
@@ -187,7 +190,7 @@ async function submit() {
 
     <UiField
       v-model="name"
-      label="Название"
+      :label="t('settings.name')"
       :hint="`${profileTextLength(name)}/${nameMaxLength}`"
       :error="errors.name"
       autocomplete="off"
@@ -195,7 +198,7 @@ async function submit() {
     />
     <UiField
       v-model="description"
-      label="Описание"
+      :label="t('settings.description')"
       multiline
       :rows="3"
       :hint="`${profileTextLength(description)}/${descriptionMaxLength}`"
@@ -204,10 +207,10 @@ async function submit() {
     />
 
     <div class="blog-settings__submit">
-      <UiButton type="submit" :loading="saving">Сохранить</UiButton>
+      <UiButton type="submit" :loading="saving">{{ t('actions.save') }}</UiButton>
     </div>
 
-    <UiModal v-model:open="cropping" title="Аватар">
+    <UiModal v-model:open="cropping" :title="t('settings.avatar')">
       <AvatarCropper
         v-if="choosing"
         :file="choosing"

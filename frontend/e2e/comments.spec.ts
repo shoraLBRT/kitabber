@@ -118,7 +118,7 @@ test.describe('дерево комментариев', () => {
     await page.goto(big)
     await waitForHydration(page)
     const comments = page.getByTestId('comments')
-    await expect(comments.getByRole('heading', { level: 2 })).toHaveText('Комментарии 1000', {
+    await expect(comments.getByRole('heading', { level: 2 })).toHaveText('Комментарии 1 000', {
       timeout: 10_000,
     })
 

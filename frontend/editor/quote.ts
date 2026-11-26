@@ -11,6 +11,7 @@ import type {
   ToolboxConfig,
 } from '@editorjs/editorjs'
 import { placeCaret } from './caret'
+import { t } from '../i18n'
 
 export interface QuoteData {
   text: string
@@ -21,7 +22,7 @@ const quoteIcon =
   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 7H6a2 2 0 0 0-2 2v3h4v4H4"/><path d="M20 7h-4a2 2 0 0 0-2 2v3h4v4h-4"/></svg>'
 
 /** Placeholders of the empty fields. */
-export const quotePlaceholders = { text: 'Цитата', caption: 'Подпись, источник' } as const
+export const quotePlaceholders = { text: t('editor.quote'), caption: t('editor.quoteCaption') } as const
 
 /** A field with only `<br>` or spaces is empty: browsers leave a `<br>` in a field whose text was deleted. */
 function fieldHtml(element: HTMLElement): string {

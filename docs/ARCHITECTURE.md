@@ -54,6 +54,12 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 вкладки, модальное окно (на телефоне — шторка), шторка, тосты (`useToast()` и `UiToaster` в `app.vue`) и аватар;
 помощники фокуса — `frontend/utils/focus.ts`. Витрина — страница `/ui`. Стили — только из токенов (ADR-0012).
 
+Строки интерфейса сайта (E02-10, ADR-0063) — только из словаря `frontend/i18n/locales/ru.ts`: `t('ключ', параметры)`
+из `frontend/i18n`, формы множественного числа по `Intl.PluralRules`, `formatNumber` и `formatDate` по языку из
+`frontend/i18n/config.ts`, текст с разметкой — компонент `I18nText`. Второй язык — файл словаря рядом с `ru.ts` и
+строка в `i18n/locales/index.ts`; недостающие тексты берутся из русского. Правило ESLint `i18n/no-raw-text`
+(`frontend/eslint/i18n.mjs`) не пропускает текст мимо словаря в шаблонах и кириллицу в коде.
+
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и
@@ -244,7 +250,7 @@ backend). Сборки различаются по имени, поэтому п
 | --- | --- | --- |
 | Все файлы | Кодировка, переводы строк, отступы | `.editorconfig` |
 | backend | `dotnet build -warnaserror` с анализаторами (`AnalysisLevel=latest-recommended`, стиль кода при сборке) и `dotnet format --verify-no-changes` | `.editorconfig` (раздел `[*.cs]`), `backend/Directory.Build.props` |
-| frontend | ESLint (`@nuxt/eslint`, плоская конфигурация) и `prettier --check` | `frontend/eslint.config.mjs`, общий `.prettierrc.json` |
+| frontend | ESLint (`@nuxt/eslint`, плоская конфигурация, правило строк интерфейса `i18n/no-raw-text`) и `prettier --check` | `frontend/eslint.config.mjs`, общий `.prettierrc.json` |
 | admin | ESLint (`eslint-plugin-vue`, `@vue/eslint-config-typescript`) и `prettier --check` | `admin/eslint.config.mjs`, общий `.prettierrc.json` |
 
 Prettier отвечает за форматирование, ESLint — за ошибки; правила ESLint, спорящие с Prettier, выключены

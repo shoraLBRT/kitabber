@@ -2,6 +2,7 @@
 // address names the blog by its nickname, or by its UUID while it has none (a new blog's nickname is empty until the
 // owner sets it); a short numeric `id123` address does not exist yet (open question of ADR-0025).
 import type { ApiClient, components } from './client'
+import { locale, t } from '../i18n'
 
 export type Profile = components['schemas']['Profile']
 
@@ -28,7 +29,7 @@ export function blogPath(profile: Pick<Profile, 'id' | 'nickname'>): string {
 
 /** The blog's name as the page shows it: its title, else its nickname; a new blog has neither yet (ADR-0025, §6). */
 export function blogTitle(profile: Pick<Profile, 'name' | 'nickname'>): string {
-  return profile.name?.trim() || (profile.nickname ? `@${profile.nickname}` : 'Блог без названия')
+  return profile.name?.trim() || (profile.nickname ? `@${profile.nickname}` : t('blog.untitled'))
 }
 
 /**
@@ -70,7 +71,7 @@ export type ProfileInput = components['schemas']['ProfileInput']
 export const nameMaxLength = 25
 export const descriptionMaxLength = 160
 
-const graphemes = new Intl.Segmenter('ru', { granularity: 'grapheme' })
+const graphemes = new Intl.Segmenter(locale, { granularity: 'grapheme' })
 
 /** The length the limits count: grapheme clusters of the trimmed text, so an emoji is one character. */
 export function profileTextLength(text: string | null | undefined): number {
@@ -83,9 +84,9 @@ export function profileInputErrors(
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (profileTextLength(input.name) > nameMaxLength)
-    errors.name = `Название — не длиннее ${nameMaxLength} символов.`
+    errors.name = t('blog.nameTooLong', { max: nameMaxLength })
   if (profileTextLength(input.description) > descriptionMaxLength)
-    errors.description = `Описание — не длиннее ${descriptionMaxLength} символов.`
+    errors.description = t('blog.descriptionTooLong', { max: descriptionMaxLength })
   return errors
 }
 

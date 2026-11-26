@@ -11,11 +11,12 @@ import UiAvatar from '../ui/UiAvatar.vue'
 import { feedCommentPath, feedItemPath, feedPreview, type FeedPost } from '../../api/feeds'
 import { blogTitle } from '../../api/profiles'
 import { subsitePath } from '../../api/posts'
+import { locale, t } from '../../i18n'
 
 const props = defineProps<{ item: FeedPost }>()
 
 // A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
-const dateFormat = new Intl.DateTimeFormat('ru', {
+const dateFormat = new Intl.DateTimeFormat(locale, {
   day: 'numeric',
   month: 'long',
   hour: '2-digit',
@@ -27,7 +28,7 @@ const expanded = ref(false)
 
 const path = computed(() => feedItemPath(props.item))
 const author = computed(() => props.item.author)
-const authorName = computed(() => (author.value ? blogTitle(author.value) : 'Автор'))
+const authorName = computed(() => (author.value ? blogTitle(author.value) : t('common.author')))
 const date = computed(() =>
   props.item.post.publishedAt ? dateFormat.format(new Date(props.item.post.publishedAt)) : '',
 )
@@ -74,7 +75,7 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
       data-testid="feed-card-more"
       @click="expanded = true"
     >
-      Показать полностью
+      {{ t('actions.showAll') }}
     </button>
 
     <FeedBestComment

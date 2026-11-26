@@ -7,6 +7,7 @@
 import { ImageIcon, ImageOff } from 'lucide-vue-next'
 import { computed, getCurrentInstance, onMounted, ref, watch } from 'vue'
 import type { ImageSource } from '../../types/ui'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -100,7 +101,9 @@ watch([link, srcset], () => {
   >
     <ImageOff v-if="state === 'error'" class="ui-image__icon" aria-hidden="true" />
     <ImageIcon v-else class="ui-image__icon" aria-hidden="true" />
-    <span v-if="state === 'error'" class="ui-image__caption" aria-hidden="true">Не удалось загрузить</span>
+    <span v-if="state === 'error'" class="ui-image__caption" aria-hidden="true">{{
+      t('common.loadFailed')
+    }}</span>
   </span>
 </template>
 

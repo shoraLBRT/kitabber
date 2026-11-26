@@ -9,6 +9,7 @@ import { accountNav, loginPath, notificationsPath, writePath } from '../../utils
 import BrandLogo from '../BrandLogo.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiMenu from '../ui/UiMenu.vue'
+import { t } from '../../i18n'
 
 export interface ShellUser {
   name: string
@@ -22,19 +23,19 @@ const emit = defineEmits<{ search: []; account: [id: string] }>()
 // menu, so this menu does not repeat it.
 const accountItems: MenuItem[] = [
   ...accountNav.map(({ id, label, icon }) => ({ id, label, icon })),
-  { id: 'logout', label: 'Выйти', icon: LogOut, danger: true },
+  { id: 'logout', label: t('common.signOut'), icon: LogOut, danger: true },
 ]
-const accountLabel = computed(() => (props.user ? `Меню профиля: ${props.user.name}` : ''))
+const accountLabel = computed(() => (props.user ? t('shell.accountMenu', { name: props.user.name }) : ''))
 </script>
 
 <template>
   <header class="shell-header" data-testid="shell-header">
     <div class="shell-header__inner">
-      <NuxtLink to="/" class="shell-header__home" aria-label="На главную"><BrandLogo /></NuxtLink>
+      <NuxtLink to="/" class="shell-header__home" :aria-label="t('common.home')"><BrandLogo /></NuxtLink>
       <button
         type="button"
         class="shell-header__icon-button shell-header__search"
-        aria-label="Поиск"
+        :aria-label="t('common.search')"
         @click="emit('search')"
       >
         <Search class="shell-header__icon" aria-hidden="true" />
@@ -42,10 +43,14 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
       <div class="shell-header__actions">
         <NuxtLink :to="writePath" class="shell-header__write" data-nav="write">
           <PenLine class="shell-header__icon" aria-hidden="true" />
-          Написать
+          {{ t('common.write') }}
         </NuxtLink>
         <template v-if="user">
-          <NuxtLink :to="notificationsPath" class="shell-header__icon-button" aria-label="Уведомления">
+          <NuxtLink
+            :to="notificationsPath"
+            class="shell-header__icon-button"
+            :aria-label="t('common.notifications')"
+          >
             <Bell class="shell-header__icon" aria-hidden="true" />
           </NuxtLink>
           <UiMenu :items="accountItems" :label="accountLabel" align="end" @select="emit('account', $event)">
@@ -54,9 +59,9 @@ const accountLabel = computed(() => (props.user ? `Меню профиля: ${pr
             </template>
           </UiMenu>
         </template>
-        <NuxtLink v-else :to="loginPath" external class="shell-header__login" data-nav="login"
-          >Войти</NuxtLink
-        >
+        <NuxtLink v-else :to="loginPath" external class="shell-header__login" data-nav="login">{{
+          t('common.signIn')
+        }}</NuxtLink>
       </div>
     </div>
   </header>

@@ -6,8 +6,9 @@
 // sign-in. Opened by «Развернуть» of the quick post (E05-29, ADR-0055), the editor starts from its text, photos and
 // topic. Closing goes back.
 import PostEditor from '~/components/editor/PostEditor.vue'
+import { t } from '../i18n'
 
-useHead({ title: 'Новый пост' })
+useHead({ title: t('pages.write') })
 
 const router = useRouter()
 const authWindow = useAuthWindow()

@@ -8,12 +8,13 @@ import { computed } from 'vue'
 import type { NuxtError } from '#app'
 import UiButton from './components/ui/UiButton.vue'
 import UiState from './components/ui/UiState.vue'
+import { t } from './i18n'
 
 const props = defineProps<{ error: NuxtError }>()
 
 const missing = computed(() => props.error.statusCode === 404)
 
-useHead(() => ({ title: missing.value ? 'Страница не найдена' : 'Ошибка' }))
+useHead(() => ({ title: missing.value ? t('errorPage.notFound') : t('errorPage.error') }))
 
 const home = () => clearError({ redirect: '/' })
 const retry = () => reloadNuxtApp()
@@ -25,19 +26,19 @@ const retry = () => reloadNuxtApp()
       v-if="missing"
       tone="not-found"
       heading="h1"
-      title="Страница не найдена"
+      :title="t('errorPage.notFound')"
       data-testid="not-found-page"
     >
-      Возможно, адрес набран с ошибкой или страница удалена.
+      {{ t('errorPage.notFoundText') }}
       <template #actions>
-        <a href="/" @click.prevent="home">На главную</a>
+        <a href="/" @click.prevent="home">{{ t('common.home') }}</a>
       </template>
     </UiState>
-    <UiState v-else tone="error" heading="h1" title="Что-то пошло не так" data-testid="error-page">
-      Сайт не смог показать эту страницу. Попробуйте ещё раз чуть позже.
+    <UiState v-else tone="error" heading="h1" :title="t('errorPage.failed')" data-testid="error-page">
+      {{ t('errorPage.failedText') }}
       <template #actions>
-        <UiButton variant="secondary" @click="retry">Повторить</UiButton>
-        <a href="/" @click.prevent="home">На главную</a>
+        <UiButton variant="secondary" @click="retry">{{ t('common.retry') }}</UiButton>
+        <a href="/" @click.prevent="home">{{ t('common.home') }}</a>
       </template>
     </UiState>
   </NuxtLayout>

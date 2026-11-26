@@ -4,6 +4,7 @@
 import { CircleAlert } from 'lucide-vue-next'
 import { useId } from 'vue'
 import UiButton from '../ui/UiButton.vue'
+import { t } from '../../i18n'
 
 export type WidgetState = 'ready' | 'loading' | 'error' | 'empty'
 
@@ -13,7 +14,7 @@ withDefaults(
     state?: WidgetState
     emptyText?: string
   }>(),
-  { state: 'empty', emptyText: 'Пока здесь пусто' },
+  { state: 'empty', emptyText: t('shell.widgetEmpty') },
 )
 
 const emit = defineEmits<{ retry: [] }>()
@@ -29,15 +30,15 @@ const headingId = `widget-${useId()}`
   >
     <h2 :id="headingId" class="shell-widget__title">{{ title }}</h2>
     <div v-if="state === 'loading'" class="shell-widget__skeleton" data-testid="widget-skeleton">
-      <span class="visually-hidden">Загрузка</span>
+      <span class="visually-hidden">{{ t('common.loading') }}</span>
       <span v-for="n in 3" :key="n" class="shell-widget__bar" aria-hidden="true" />
     </div>
     <div v-else-if="state === 'error'" class="shell-widget__error" role="alert">
       <p class="shell-widget__message">
         <CircleAlert class="shell-widget__icon" aria-hidden="true" />
-        Не удалось загрузить
+        {{ t('common.loadFailed') }}
       </p>
-      <UiButton variant="secondary" size="sm" @click="emit('retry')">Повторить</UiButton>
+      <UiButton variant="secondary" size="sm" @click="emit('retry')">{{ t('common.retry') }}</UiButton>
     </div>
     <p v-else-if="state === 'empty'" class="shell-widget__empty">{{ emptyText }}</p>
     <slot v-else />

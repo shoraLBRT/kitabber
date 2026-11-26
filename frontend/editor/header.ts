@@ -8,6 +8,7 @@ import type {
   ToolboxConfig,
 } from '@editorjs/editorjs'
 import { headerAnchor } from './document'
+import { t } from '../i18n'
 
 export type HeaderLevel = 2 | 3
 
@@ -25,7 +26,10 @@ const h3Icon = icon(
 )
 
 /** The placeholder of an empty heading, by level. */
-export const headerPlaceholders: Record<HeaderLevel, string> = { 2: 'Заголовок', 3: 'Подзаголовок' }
+export const headerPlaceholders: Record<HeaderLevel, string> = {
+  2: t('editor.heading'),
+  3: t('editor.subheading'),
+}
 
 export function headerLevel(value: unknown): HeaderLevel {
   return value === 3 ? 3 : 2

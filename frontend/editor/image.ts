@@ -7,6 +7,7 @@
 // left out of the saved document (document.ts), so a failed upload never breaks it. The caption is one line of at most
 // imageCaptionMaxLength characters a reader sees.
 import type { API, BlockAPI, BlockTool, BlockToolConstructorOptions, ToolboxConfig } from '@editorjs/editorjs'
+import { t } from '../i18n'
 
 export interface ImageData {
   media: string
@@ -31,16 +32,16 @@ export interface ImageToolConfig {
 }
 
 export const imageMessages = {
-  choose: 'Выбрать фото',
-  chooseAnother: 'Выбрать другой файл',
-  retry: 'Повторить',
-  uploading: 'Загружаем фото…',
-  caption: 'Подпись',
-  unreadable: 'Это не изображение или файл повреждён.',
-  unsupported: 'Такой формат не подходит: нужны JPEG, PNG, GIF или WebP.',
-  'too-large': 'Файл больше 20 МБ.',
-  unauthorized: 'Войдите, чтобы загружать фото.',
-  error: 'Не удалось загрузить фото. Попробуйте ещё раз.',
+  choose: t('editor.imageChoose'),
+  chooseAnother: t('editor.imageChooseAnother'),
+  retry: t('common.retry'),
+  uploading: t('editor.imageUploading'),
+  caption: t('editor.imageCaption'),
+  unreadable: t('editor.imageUnreadable'),
+  unsupported: t('editor.imageUnsupported'),
+  'too-large': t('editor.imageTooLarge'),
+  unauthorized: t('editor.imageUnauthorized'),
+  error: t('editor.imageFailed'),
 } as const
 
 const imageIcon =

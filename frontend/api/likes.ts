@@ -2,6 +2,7 @@
 // comments at once; a like is put and taken back one target at a time, and the server answers with the target's new
 // count. The server refuses one's own post or comment and a guest comment; the page does not offer them either.
 import type { ApiClient, components } from './client'
+import { t } from '../i18n'
 
 export type LikeState = components['schemas']['LikeView']
 export type PostLikes = components['schemas']['PostLikesView']
@@ -19,8 +20,8 @@ export type LikeChange =
 export const noLikes: LikeState = { count: 0, liked: false }
 
 const refusedMessages: Record<number, string> = {
-  403: 'Этот пост или комментарий оценить нельзя.',
-  404: 'Пост или комментарий не найден: возможно, его удалили.',
+  403: t('likes.forbidden'),
+  404: t('likes.notFound'),
 }
 
 export function isLikeTarget(value: unknown): value is LikeTarget {

@@ -18,6 +18,7 @@ import { blogPath, blogTitle } from '../../api/profiles'
 import { canReply, repliesText, type CommentNode } from '../../api/comments'
 import { commentMenuItems } from '../../utils/comment-menu'
 import { commentTreeKey } from './context'
+import { formatNumber, locale, t } from '../../i18n'
 
 const props = defineProps<{ node: CommentNode }>()
 
@@ -45,8 +46,8 @@ const name = computed(() =>
     : profile.value
       ? blogTitle(profile.value)
       : sending.value
-        ? 'Вы'
-        : 'Автор',
+        ? t('comments.you')
+        : t('common.author'),
 )
 
 // «Нравится» (E10-01, ADR-0061): on a native comment that is kept and not deleted; a guest comment takes no likes, and
@@ -84,7 +85,7 @@ function remove() {
   return tree.remove(comment.value.id)
 }
 
-const timeFormat = new Intl.DateTimeFormat('ru', {
+const timeFormat = new Intl.DateTimeFormat(locale, {
   day: 'numeric',
   month: 'short',
   hour: '2-digit',
@@ -103,7 +104,7 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
     :data-comment-id="comment.id"
   >
     <p v-if="comment.deleted" :id="titleId" class="comment__deleted" data-testid="comment-deleted">
-      Комментарий удалён
+      {{ t('comments.deleted') }}
     </p>
     <div v-else class="comment__head">
       <UiAvatar
@@ -132,16 +133,18 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         >{{ name }}</a
       >
       <span v-else :id="titleId" class="comment__author" data-testid="comment-author">{{ name }}</span>
-      <span v-if="sending" class="comment__time" data-testid="comment-sending">Отправляется…</span>
+      <span v-if="sending" class="comment__time" data-testid="comment-sending">{{
+        t('comments.sending')
+      }}</span>
       <time v-else class="comment__time" :datetime="comment.createdAt">{{
         timeFormat.format(new Date(comment.createdAt))
       }}</time>
       <span
         v-if="comment.editedAt && !sending"
         class="comment__time"
-        :title="`Изменено ${timeFormat.format(new Date(comment.editedAt))}`"
+        :title="t('comments.editedAt', { time: timeFormat.format(new Date(comment.editedAt)) })"
         data-testid="comment-edited"
-        >· изменено</span
+        >{{ t('comments.edited') }}</span
       >
       <CommentMenu v-if="menuItems.length > 0" :items="menuItems" :remove="remove" @edit="editing = true" />
     </div>
@@ -161,13 +164,13 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         :disabled="ownComment"
         :aria-pressed="ownComment ? undefined : like.liked ? 'true' : 'false'"
         :aria-busy="likeBusy ? 'true' : undefined"
-        :title="ownComment ? 'Свой комментарий оценить нельзя' : undefined"
+        :title="ownComment ? t('comments.ownLike') : undefined"
         data-testid="comment-like"
         @click="tree.likes.value?.toggle('comment', comment.id)"
       >
         <Heart class="comment__like-icon" aria-hidden="true" />
-        <span class="visually-hidden">Нравится</span>
-        <span v-if="like.count > 0" data-testid="comment-like-count">{{ like.count }}</span>
+        <span class="visually-hidden">{{ t('actions.like') }}</span>
+        <span v-if="like.count > 0" data-testid="comment-like-count">{{ formatNumber(like.count) }}</span>
       </button>
       <button
         v-if="replyable && !replying"
@@ -176,7 +179,7 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         data-testid="comment-reply"
         @click="startReply"
       >
-        Ответить
+        {{ t('comments.reply') }}
       </button>
     </div>
     <CommentForm v-if="replying" :parent-id="comment.id" @close="closeReply" />
@@ -186,7 +189,7 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         type="button"
         class="comment__line"
         aria-expanded="true"
-        :aria-label="`Свернуть ветку: ${repliesText(comment.replies)}`"
+        :aria-label="t('comments.collapse', { replies: repliesText(comment.replies) })"
         data-testid="comment-collapse"
         @click="expanded = false"
       />
@@ -202,16 +205,16 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
       data-testid="comment-expand"
       @click="expanded = true"
     >
-      Развернуть · {{ repliesText(comment.replies) }}
+      {{ t('comments.expand', { replies: repliesText(comment.replies) }) }}
     </button>
 
     <p v-if="node.hidden > 0 && expanded && branchLink" class="comment__more">
       <NuxtLink
         :to="branchLink"
         class="comment__link"
-        :aria-label="`Открыть ветку: ${repliesText(node.hidden)}`"
+        :aria-label="t('comments.openBranchLabel', { replies: repliesText(node.hidden) })"
         data-testid="comment-open-branch"
-        >Открыть ветку ({{ node.hidden }}) →</NuxtLink
+        >{{ t('comments.openBranch', { count: node.hidden }) }}</NuxtLink
       >
     </p>
     <template v-else-if="node.hidden > 0 && expanded">
@@ -221,14 +224,18 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
         aria-busy="true"
         data-testid="comment-more-loading"
       >
-        <span class="visually-hidden" role="status">Загрузка ответов</span>
+        <span class="visually-hidden" role="status">{{ t('comments.repliesLoading') }}</span>
       </div>
       <p v-else class="comment__more">
-        <span v-if="branch === 'error'" class="comment__failed" role="alert"
-          >Не удалось загрузить ответы.</span
-        >
+        <span v-if="branch === 'error'" class="comment__failed" role="alert">{{
+          t('comments.repliesFailed')
+        }}</span>
         <button type="button" class="comment__link" data-testid="comment-more" @click="tree.more(comment.id)">
-          {{ branch === 'error' ? 'Повторить' : `Показать ещё ${repliesText(node.hidden)}` }}
+          {{
+            branch === 'error'
+              ? t('common.retry')
+              : t('comments.moreReplies', { replies: repliesText(node.hidden) })
+          }}
         </button>
       </p>
     </template>

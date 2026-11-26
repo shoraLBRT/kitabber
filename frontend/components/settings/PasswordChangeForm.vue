@@ -8,6 +8,7 @@ import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
 import { passwordMinLength } from '../../api/registration'
 import type { PasswordChangeApi } from '../../api/password'
+import { t } from '../../i18n'
 
 const props = defineProps<{ api: PasswordChangeApi }>()
 
@@ -25,7 +26,7 @@ async function save() {
   currentError.value = nextError.value = formError.value = undefined
   done.value = false
   if (next.value.trim().length < passwordMinLength) {
-    nextError.value = `Не короче ${passwordMinLength} символов.`
+    nextError.value = t('auth.passwordTooShort', { min: passwordMinLength })
     return
   }
   loading.value = true
@@ -38,53 +39,52 @@ async function save() {
   }
   const problem = result.body as { code?: string; errors?: Record<string, string[]> } | undefined
   if (result.status === 400 && problem?.code === 'current_password_invalid') {
-    currentError.value = 'Неверный пароль.'
+    currentError.value = t('settings.wrongPassword')
     return
   }
   if (result.status === 400 && problem?.errors?.newPassword) {
-    nextError.value = `Не короче ${passwordMinLength} и не длиннее 128 символов.`
+    nextError.value = t('auth.passwordLength', { min: passwordMinLength })
     return
   }
   if (result.status === 401) {
-    formError.value = 'Сессия закончилась. Войдите снова.'
+    formError.value = t('settings.sessionEnded')
     return
   }
-  formError.value =
-    result.status === 429
-      ? 'Слишком много попыток. Попробуйте позже.'
-      : 'Не удалось сохранить пароль. Проверьте подключение и попробуйте ещё раз.'
+  formError.value = result.status === 429 ? t('settings.tooManyAttempts') : t('settings.passwordSaveFailed')
 }
 </script>
 
 <template>
   <form class="password-change" data-testid="password-change" novalidate @submit.prevent="save">
-    <h2 class="password-change__title">Пароль</h2>
+    <h2 class="password-change__title">{{ t('settings.password') }}</h2>
     <UiField
       v-model="current"
-      label="Текущий пароль"
+      :label="t('settings.currentPassword')"
       type="password"
       name="current-password"
       autocomplete="current-password"
       required
-      hint="Нет пароля? Задайте его через «Забыли пароль?» на странице входа."
+      :hint="t('settings.noPasswordHint')"
       :error="currentError"
     />
     <UiField
       v-model="next"
-      label="Новый пароль"
+      :label="t('auth.newPassword')"
       type="password"
       name="new-password"
       autocomplete="new-password"
       required
-      :hint="`Не короче ${passwordMinLength} символов`"
+      :hint="t('auth.passwordHint', { min: passwordMinLength })"
       :error="nextError"
     />
     <p v-if="formError" class="password-change__error" role="alert">{{ formError }}</p>
     <p v-if="done" class="password-change__notice" role="status">
-      Пароль изменён. Мы отправили письмо об этом на почту аккаунта.
+      {{ t('settings.passwordChanged') }}
     </p>
     <div class="password-change__actions">
-      <UiButton type="submit" :loading="loading" :disabled="!canSave">Сменить пароль</UiButton>
+      <UiButton type="submit" :loading="loading" :disabled="!canSave">{{
+        t('settings.changePassword')
+      }}</UiButton>
     </div>
   </form>
 </template>

@@ -15,6 +15,7 @@ import type {
 import { caretOffsetIn, placeCaret } from './caret'
 import { maxListLevel, normalizeLevels, type ListLevel } from './document'
 import { cleanInline } from './inline'
+import { t } from '../i18n'
 
 export type ListStyle = 'unordered' | 'ordered'
 
@@ -35,12 +36,12 @@ const numberIcon = svg(
 )
 
 /** Placeholder of an empty item. */
-export const itemPlaceholder = 'Пункт списка'
+export const itemPlaceholder = t('editor.listItem')
 
 /** Names of the two styles in the block menu (the tune that switches the style). */
 export const styleTitles: Record<ListStyle, string> = {
-  unordered: 'Маркированный',
-  ordered: 'Нумерованный',
+  unordered: t('editor.bulleted'),
+  ordered: t('editor.numbered'),
 }
 
 const itemClass = 'cdx-list__item'

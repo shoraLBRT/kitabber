@@ -4,6 +4,8 @@
 // same field, with the same markup, and filters the blocks the same way. It does not take the focus by itself, so
 // opening the sheet does not move the caret; Enter in it adds the first block found.
 
+import { locale } from '../i18n'
+
 /** The menu «+» of Editor.js while it is open. */
 const openMenu = '.ce-toolbox .ce-popover--opened'
 const searchClass = 'cdx-search-field'
@@ -15,7 +17,7 @@ const searchIcon =
 
 /** True when a block named `title` matches the search `query`: its name contains the query, letter case aside. */
 export function matchesQuery(title: string, query: string): boolean {
-  return title.toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))
+  return title.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale))
 }
 
 /** Shows the blocks of the menu that match query and the «Ничего не найдено» line when none does. */

@@ -21,6 +21,7 @@ import type { Topic } from '../../api/topics'
 import type { ImageUpload } from '../../editor/image'
 import type { QuickPostHandoff } from '../../editor/quick-post'
 import { useToast } from '../../composables/useToast'
+import { t } from '../../i18n'
 
 const props = defineProps<{
   topics: Topic[]
@@ -50,9 +51,11 @@ const titleErrorId = useId()
 let draftId: string | null = null
 const toast = useToast()
 
-const topicName = computed(() => props.topics.find((topic) => topic.id === topicId.value)?.name ?? 'Без темы')
+const topicName = computed(
+  () => props.topics.find((topic) => topic.id === topicId.value)?.name ?? t('editor.noTopic'),
+)
 const topicItems = computed(() => [
-  { id: noTopic, label: 'Без темы' },
+  { id: noTopic, label: t('editor.noTopic') },
   ...props.topics.map((topic) => ({ id: topic.id, label: topic.name })),
 ])
 const empty = computed(() => isEmptyDocument(document.value))
@@ -92,7 +95,7 @@ async function submit() {
   await editor.value?.flush()
   if (isEmptyDocument(document.value)) return
   if (titleLength(title.value) > postTitleMaxLength)
-    return showErrors({ title: `Заголовок длиннее ${postTitleMaxLength} символов.` })
+    return showErrors({ title: t('editor.titleTooLong', { max: postTitleMaxLength }) })
 
   publishing.value = true
   try {
@@ -114,10 +117,10 @@ async function submit() {
     errors.value = {}
     toast.show(
       outcome.status === 'email-not-confirmed'
-        ? 'Чтобы публиковать, подтвердите почту в настройках аккаунта.'
+        ? t('editor.emailNotConfirmed')
         : outcome.status === 'invalid'
-          ? 'Эта тема недоступна, выберите другую.'
-          : 'Не удалось опубликовать пост. Попробуйте ещё раз.',
+          ? t('editor.topicUnavailable')
+          : t('editor.publishFailed'),
       { tone: 'error' },
     )
   } finally {
@@ -136,11 +139,11 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
 </script>
 
 <template>
-  <EditorWindow title="Новый пост" @close="emit('close')">
+  <EditorWindow :title="t('post.new')" @close="emit('close')">
     <template #actions>
       <UiMenu
         :items="topicItems"
-        :label="`Тема: ${topicName}`"
+        :label="t('editor.topic', { name: topicName })"
         class="post-editor__topic"
         data-testid="editor-topic"
         @select="chooseTopic"
@@ -153,8 +156,8 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
       <button
         type="button"
         class="editor-window__button"
-        aria-label="Отменить"
-        title="Отменить (Ctrl+Z)"
+        :aria-label="t('editor.undo')"
+        :title="t('editor.undoHint')"
         data-testid="editor-undo"
         :disabled="!editor?.canUndo"
         @click="editor?.undo()"
@@ -164,8 +167,8 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
       <button
         type="button"
         class="editor-window__button"
-        aria-label="Повторить"
-        title="Повторить (Ctrl+Shift+Z)"
+        :aria-label="t('editor.redo')"
+        :title="t('editor.redoHint')"
         data-testid="editor-redo"
         :disabled="!editor?.canRedo"
         @click="editor?.redo()"
@@ -179,8 +182,8 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
       v-model="title"
       class="post-editor__title"
       rows="1"
-      placeholder="Заголовок"
-      aria-label="Заголовок"
+      :placeholder="t('editor.title')"
+      :aria-label="t('editor.title')"
       data-testid="editor-title"
       :aria-invalid="errors.title ? 'true' : undefined"
       :aria-describedby="errors.title ? titleErrorId : undefined"
@@ -214,11 +217,11 @@ onBeforeUnmount(() => window.document.removeEventListener('keydown', onKeydown, 
       <UiButton
         :disabled="empty"
         :loading="publishing"
-        title="Опубликовать (Ctrl+Enter)"
+        :title="t('editor.publishHint')"
         data-testid="editor-publish"
         @click="submit"
       >
-        Опубликовать
+        {{ t('editor.publish') }}
       </UiButton>
     </template>
   </EditorWindow>

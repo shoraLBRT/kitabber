@@ -19,6 +19,7 @@ import {
   type PostMenuAction,
   type PostMenuFeatures,
 } from '../../utils/post-menu'
+import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -33,7 +34,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ action: [action: Exclude<PostMenuAction, 'delete' | 'copy-link'>] }>()
 
-const label = 'Меню поста'
+const label = t('post.menu')
 const toast = useToast()
 const isPhone = useMediaQuery(phoneQuery)
 const items = computed(() => postMenuItems(props.own, props.features))
@@ -57,7 +58,7 @@ async function confirmDelete() {
   deleting.value = true
   try {
     if (await props.remove()) confirmOpen.value = false
-    else toast.show('Не удалось удалить пост', { tone: 'error' })
+    else toast.show(t('post.deleteFailed'), { tone: 'error' })
   } finally {
     deleting.value = false
   }
@@ -99,17 +100,19 @@ async function confirmDelete() {
       </template>
     </UiMenu>
 
-    <UiModal v-model:open="confirmOpen" title="Удалить пост?">
-      <p class="post-menu__text">Пост пропадёт из блога и лент, а его адрес перестанет открываться.</p>
+    <UiModal v-model:open="confirmOpen" :title="t('post.deleteConfirm')">
+      <p class="post-menu__text">{{ t('post.deleteConfirmText') }}</p>
       <template #footer>
-        <UiButton variant="secondary" data-autofocus @click="confirmOpen = false">Отмена</UiButton>
+        <UiButton variant="secondary" data-autofocus @click="confirmOpen = false">{{
+          t('actions.cancel')
+        }}</UiButton>
         <UiButton
           variant="danger"
           :loading="deleting"
           data-testid="post-delete-confirm"
           @click="confirmDelete"
         >
-          Удалить
+          {{ t('actions.delete') }}
         </UiButton>
       </template>
     </UiModal>

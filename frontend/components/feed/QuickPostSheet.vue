@@ -4,6 +4,7 @@
 // server, as the sign-in window is (AuthWindowHost), so an empty teleport does not upset the hydration.
 import QuickPost from './QuickPost.vue'
 import UiSheet from '../ui/UiSheet.vue'
+import { t } from '../../i18n'
 
 const { sheetOpen } = useQuickPost()
 const rendered = ref(false)
@@ -17,7 +18,7 @@ watch(
 </script>
 
 <template>
-  <UiSheet v-if="rendered" v-model:open="sheetOpen" title="Новый пост">
+  <UiSheet v-if="rendered" v-model:open="sheetOpen" :title="t('post.new')">
     <QuickPost @done="sheetOpen = false" />
   </UiSheet>
 </template>

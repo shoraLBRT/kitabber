@@ -3,6 +3,7 @@
 // "Показать все", service links and the colour theme switch. The current screen is marked with aria-current.
 import { isActive, mainNav, serviceNav, topicsPath, type NavItem } from '../../utils/navigation'
 import ShellThemeSwitch from './ShellThemeSwitch.vue'
+import { t } from '../../i18n'
 
 withDefaults(
   defineProps<{
@@ -16,7 +17,7 @@ withDefaults(
 </script>
 
 <template>
-  <nav class="shell-nav" aria-label="Основное меню" data-testid="shell-nav">
+  <nav class="shell-nav" :aria-label="t('shell.mainNav')" data-testid="shell-nav">
     <ul class="shell-nav__list">
       <li v-for="item in mainNav" :key="item.id">
         <NuxtLink
@@ -32,7 +33,7 @@ withDefaults(
     </ul>
 
     <section class="shell-nav__section" aria-labelledby="shell-nav-topics">
-      <h2 id="shell-nav-topics" class="shell-nav__heading">Темы</h2>
+      <h2 id="shell-nav-topics" class="shell-nav__heading">{{ t('common.topics') }}</h2>
       <ul v-if="topics.length" class="shell-nav__list">
         <li v-for="topic in topics" :key="topic.id">
           <NuxtLink
@@ -44,7 +45,9 @@ withDefaults(
           </NuxtLink>
         </li>
       </ul>
-      <NuxtLink :to="topicsPath" class="shell-nav__more" data-nav="topics">Показать все</NuxtLink>
+      <NuxtLink :to="topicsPath" class="shell-nav__more" data-nav="topics">{{
+        t('common.showAll')
+      }}</NuxtLink>
     </section>
 
     <ul class="shell-nav__service">

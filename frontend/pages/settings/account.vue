@@ -5,8 +5,9 @@
 // holds the access token. A guest signs in first and comes back here.
 import PasswordChangeForm from '~/components/settings/PasswordChangeForm.vue'
 import { passwordChangeApi } from '~/api/password'
+import { t } from '../../i18n'
 
-useHead({ title: 'Аккаунт и вход' })
+useHead({ title: t('settings.account') })
 
 const account = useAccount()
 if (!account.value.signedIn) await navigateTo('/auth/sign-in?returnTo=/settings/account', { external: true })
@@ -16,7 +17,7 @@ const api = passwordChangeApi()
 
 <template>
   <section class="settings" aria-labelledby="settings-title">
-    <h1 id="settings-title" class="settings__title">Аккаунт и вход</h1>
+    <h1 id="settings-title" class="settings__title">{{ t('settings.account') }}</h1>
     <div class="settings__card">
       <PasswordChangeForm :api="api" />
     </div>

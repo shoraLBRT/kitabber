@@ -66,13 +66,13 @@ exports[`PostBlocks: a snapshot of each block type > quote with and without a ca
 
 exports[`PostBlocks: a snapshot of each block type > unknown block and an empty document 1`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="gallery"> Этот блок пока не умеем показывать. </p>
-<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="header"> Этот блок пока не умеем показывать. </p>
+<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="gallery">Этот блок пока не умеем показывать.</p>
+<p class="post-blocks__unknown" role="note" data-testid="post-block-unknown" data-block-type="header">Этот блок пока не умеем показывать.</p>
 </div>"
 `;
 
 exports[`PostBlocks: a snapshot of each block type > unknown block and an empty document 2`] = `
 "<div class="post-blocks" data-testid="post-blocks">
-<p class="post-blocks__empty" data-testid="post-blocks-empty"> В посте пока ничего нет. </p>
+<p class="post-blocks__empty" data-testid="post-blocks-empty">В посте пока ничего нет.</p>
 </div>"
 `;
