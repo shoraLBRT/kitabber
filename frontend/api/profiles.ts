@@ -118,3 +118,32 @@ export async function saveOwnProfile(client: ApiClient, input: ProfileInput): Pr
     return { status: 'error' }
   }
 }
+
+// The cover (E04-04, ADR-0079): an uploaded image and the vertical position, in percent, of the band the header shows.
+export type ProfileCover = components['schemas']['ProfileCover']
+export type CoverInput = components['schemas']['CoverInput']
+
+/** Sets the cover or moves it (PUT /profiles/me/cover); the answer is the whole profile, as for the other edits. */
+export async function saveOwnCover(client: ApiClient, input: CoverInput): Promise<ProfileSave> {
+  try {
+    const { data, error, response } = await client.PUT('/api/v1/profiles/me/cover', { body: input })
+    if (data) return { status: 'saved', profile: data }
+    if (response.status === 400) return { status: 'invalid', errors: fieldErrors(error) }
+    if (response.status === 401) return { status: 'unauthorized' }
+    return { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/** Removes the cover (DELETE /profiles/me/cover). */
+export async function removeOwnCover(client: ApiClient): Promise<ProfileSave> {
+  try {
+    const { data, response } = await client.DELETE('/api/v1/profiles/me/cover')
+    if (data) return { status: 'saved', profile: data }
+    if (response.status === 401) return { status: 'unauthorized' }
+    return { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}

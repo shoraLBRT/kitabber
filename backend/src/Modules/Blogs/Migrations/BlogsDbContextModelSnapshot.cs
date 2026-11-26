@@ -251,6 +251,14 @@ namespace Platform.Modules.Blogs.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("avatar_media_id");
 
+                    b.Property<Guid?>("CoverMediaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cover_media_id");
+
+                    b.Property<int>("CoverPosition")
+                        .HasColumnType("integer")
+                        .HasColumnName("cover_position");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

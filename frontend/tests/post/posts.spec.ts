@@ -27,6 +27,7 @@ const anna: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  cover: null,
 }
 const books: Profile = {
   ...anna,

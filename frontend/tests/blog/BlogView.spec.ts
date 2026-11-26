@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import BlogView from '../../components/blog/BlogView.vue'
 import BlogTabEmpty from '../../components/blog/BlogTabEmpty.vue'
+import type { CoverActions } from '../../components/blog/BlogCover.vue'
 import type { Profile, ProfileLookup } from '../../api/profiles'
 
 // The blog page's header, tabs and states (E04-02, docs/ui/blog.md); the server render, the addresses and the owner
@@ -18,6 +19,7 @@ const anna: Profile = {
   avatarId: null,
   avatarUrl: null,
   avatarSources: [],
+  cover: null,
 }
 
 function mountView(state: ProfileLookup | { status: 'loading' }, tab: 'posts' | 'comments' = 'posts') {
@@ -142,5 +144,43 @@ describe('BlogTabEmpty', () => {
     const wrapper = mount(BlogTabEmpty, { props: { tab: 'comments', owner: true }, global: { stubs } })
     expect(wrapper.text()).toBe('Пока нет комментариев')
     expect(wrapper.find('a').exists()).toBe(false)
+  })
+
+  it('gives only the owner the cover controls, and passes the saved profile on', async () => {
+    const actions: CoverActions = {
+      upload: async () => ({ status: 'error' }),
+      save: async () => ({ status: 'error' }),
+      remove: async () => ({ status: 'saved', profile: anna }),
+    }
+    const cover = {
+      id: 'm1',
+      position: 20,
+      sources: [{ url: 'https://example.org/c.webp', width: 640 }],
+      preview: null,
+    }
+    const visitor = mount(BlogView, {
+      props: {
+        state: { status: 'found', profile: { ...anna, cover }, owner: false },
+        base: '/u/anna',
+        tab: 'posts',
+        coverActions: actions,
+      },
+      global: { stubs },
+    })
+    expect(visitor.get('[data-testid="blog-cover-image"]').attributes('style')).toContain('50% 20%')
+    expect(visitor.find('[data-testid="blog-cover-remove"]').exists()).toBe(false)
+
+    const owner = mount(BlogView, {
+      props: {
+        state: { status: 'found', profile: { ...anna, cover }, owner: true },
+        base: '/u/anna',
+        tab: 'posts',
+        coverActions: actions,
+      },
+      global: { stubs },
+    })
+    await owner.get('[data-testid="blog-cover-remove"]').trigger('click')
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(owner.emitted('saved')?.[0]?.[0]).toEqual(anna)
   })
 })

@@ -4,10 +4,12 @@
 // not found, a failure with «Повторить», and the blog itself. The owner also sees the registration date and the
 // management buttons: «Ред.» and «Настройки» open the blog settings (E04-03, /settings/blog); statistics comes with
 // its own issue, so its button is there but disabled. Visitor actions (subscribe, message, block, report) come with FR-SUB, FR-MSG and FR-MOD.
+// The cover (E04-04, BlogCover.vue) is shown to everyone; the owner's page passes coverActions to change it.
 import { computed } from 'vue'
+import BlogCover, { type CoverActions } from './BlogCover.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
-import { blogTitle, type ProfileLookup } from '../../api/profiles'
+import { blogTitle, type Profile, type ProfileLookup } from '../../api/profiles'
 import { locale, t } from '../../i18n'
 
 export type BlogTab = 'posts' | 'comments'
@@ -17,9 +19,11 @@ const props = defineProps<{
   /** The blog's address, e.g. /u/anna; the tabs live under it. */
   base: string
   tab: BlogTab
+  /** What the owner can do with the cover; only the owner's page passes it. */
+  coverActions?: CoverActions
 }>()
 
-defineEmits<{ retry: [] }>()
+defineEmits<{ retry: []; saved: [profile: Profile]; unauthorized: [] }>()
 
 const tabs = computed(() => [
   { id: 'posts' as const, label: t('blog.posts'), to: props.base },
@@ -78,7 +82,12 @@ const registered = computed(() => {
 
   <div v-else-if="found" class="blog" data-testid="blog">
     <header class="blog__card">
-      <div class="blog__cover" />
+      <BlogCover
+        :cover="found.profile.cover"
+        :actions="found.owner ? coverActions : undefined"
+        @saved="$emit('saved', $event)"
+        @unauthorized="$emit('unauthorized')"
+      />
       <div class="blog__head">
         <UiAvatar
           class="blog__avatar"
@@ -149,8 +158,9 @@ const registered = computed(() => {
   padding: var(--space-5);
 }
 
+/* The proportion of the cover (utils/cover-position.ts, coverRatio), so the skeleton is the size of the cover. */
 .blog__cover {
-  height: calc(var(--space-16) * 3);
+  aspect-ratio: 10 / 3;
   background: var(--color-surface-subtle);
 }
 
@@ -163,6 +173,7 @@ const registered = computed(() => {
 }
 
 .blog__avatar {
+  position: relative;
   margin-top: calc(-1 * var(--space-8));
   border: var(--size-focus-ring) solid var(--color-surface);
   border-radius: var(--radius-full);

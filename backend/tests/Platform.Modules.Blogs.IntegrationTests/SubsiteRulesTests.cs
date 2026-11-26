@@ -37,6 +37,29 @@ public sealed class SubsiteRulesTests
     }
 
     [Fact]
+    public void CoverStartsInTheMiddleAndKeepsItsPositionFrom0To100()
+    {
+        var blog = Subsite.CreatePersonal(Guid.CreateVersion7(_now), _now);
+        var cover = Guid.CreateVersion7(_now);
+        Assert.Null(blog.CoverMediaId);
+        Assert.Equal(50, blog.CoverPosition);
+
+        blog.SetCover(cover, 0);
+        Assert.Equal(cover, blog.CoverMediaId);
+        Assert.Equal(0, blog.CoverPosition);
+        blog.SetCover(cover, 100);
+        Assert.Equal(100, blog.CoverPosition);
+        Assert.Throws<ArgumentOutOfRangeException>(() => blog.SetCover(cover, 101));
+        Assert.Throws<ArgumentOutOfRangeException>(() => blog.SetCover(cover, -1));
+        Assert.Throws<ArgumentException>(() => blog.SetCover(Guid.Empty, 50));
+        Assert.Equal(100, blog.CoverPosition);
+
+        blog.RemoveCover();
+        Assert.Null(blog.CoverMediaId);
+        Assert.Equal(50, blog.CoverPosition);
+    }
+
+    [Fact]
     public void DescriptionIsAtMost160Characters()
     {
         var blog = Subsite.CreatePersonal(Guid.CreateVersion7(_now), _now);

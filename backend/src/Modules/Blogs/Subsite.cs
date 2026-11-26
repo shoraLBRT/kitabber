@@ -44,6 +44,18 @@ public sealed class Subsite
     public Guid? AvatarMediaId { get; private set; }
 
     /// <summary>
+    /// The cover (E04-04, ADR-0079): an image uploaded through the Media module, kept whole; <c>null</c> until it is set.
+    /// </summary>
+    public Guid? CoverMediaId { get; private set; }
+
+    /// <summary>
+    /// Which part of the cover the header shows (ADR-0079): the vertical offset in percent, from 0 (the top edge of the
+    /// picture) to 100 (the bottom edge), as CSS <c>object-position</c> reads it; <see cref="SubsiteRules.CoverPositionDefault"/>
+    /// without a cover.
+    /// </summary>
+    public int CoverPosition { get; private set; } = SubsiteRules.CoverPositionDefault;
+
+    /// <summary>
     /// A topic named <paramref name="name"/> at the address <paramref name="nickname"/>. Topics are made by the
     /// administration (FR-TOPIC); until its tools come (E11-01, #76), only the demo data and the tests make them.
     /// </summary>
@@ -112,6 +124,34 @@ public sealed class Subsite
     }
 
     /// <summary>
+    /// Sets the cover to the uploaded image <paramref name="mediaId"/> shown at <paramref name="position"/> (ADR-0079).
+    /// Whether the file is an image of the owner is checked by the caller through <c>IMediaLibrary</c>.
+    /// </summary>
+    public void SetCover(Guid mediaId, int position)
+    {
+        if (mediaId == Guid.Empty)
+        {
+            throw new ArgumentException("Not a media file identifier.", nameof(mediaId));
+        }
+
+        if (!SubsiteRules.IsValidCoverPosition(position))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(position), position, $"The cover position is from 0 to {SubsiteRules.CoverPositionMax}.");
+        }
+
+        CoverMediaId = mediaId;
+        CoverPosition = position;
+    }
+
+    /// <summary>Removes the cover; the header shows the plain background again.</summary>
+    public void RemoveCover()
+    {
+        CoverMediaId = null;
+        CoverPosition = SubsiteRules.CoverPositionDefault;
+    }
+
+    /// <summary>
     /// Sets the nickname. Only its form is checked here; whether it is taken or reserved, and how often it may change,
     /// is E04-05.
     /// </summary>
@@ -132,6 +172,12 @@ public static partial class SubsiteRules
     /// <summary>The description: at most 160 characters (FR-PROFILE).</summary>
     public const int DescriptionMaxLength = 160;
 
+    /// <summary>The cover position (ADR-0079): percent from the top edge of the picture, 0 to 100.</summary>
+    public const int CoverPositionMax = 100;
+
+    /// <summary>The middle of the picture: where a new cover starts.</summary>
+    public const int CoverPositionDefault = 50;
+
     public const int NicknameMinLength = 3;
     public const int NicknameMaxLength = 32;
 
@@ -144,6 +190,8 @@ public static partial class SubsiteRules
     public static bool IsValidName(string? name) => LengthOf(Clean(name)) <= NameMaxLength;
 
     public static bool IsValidDescription(string? description) => LengthOf(Clean(description)) <= DescriptionMaxLength;
+
+    public static bool IsValidCoverPosition(int position) => position is >= 0 and <= CoverPositionMax;
 
     /// <summary>
     /// The nickname in its stored form: trimmed, without a leading <c>@</c>, in lower case; Latin letters, digits and

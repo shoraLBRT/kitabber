@@ -3,8 +3,18 @@
 // the tabs are child pages (/u/<blog> and /u/<blog>/comments), so they switch without a reload and keep their
 // addresses. The first render happens on the server with the reader's access token, so a guest gets the whole page
 // and the owner sees it as the owner; later lookups in the browser go through server/routes/bff/blog-profile.get.ts.
+// The owner changes the cover here (E04-04): the picture goes through /bff/media, the cover through /bff/own-cover.
 import BlogView, { type BlogTab } from '~/components/blog/BlogView.vue'
-import { blogPath, blogTitle, lookUpProfile, type ProfileLookup } from '~/api/profiles'
+import type { CoverActions } from '~/components/blog/BlogCover.vue'
+import type { MediaUpload } from '~/api/media'
+import {
+  blogPath,
+  blogTitle,
+  lookUpProfile,
+  type Profile,
+  type ProfileLookup,
+  type ProfileSave,
+} from '~/api/profiles'
 import { t } from '../../i18n'
 
 const route = useRoute()
@@ -39,6 +49,27 @@ if (import.meta.server) {
   }
 }
 
+const failed = (): ProfileSave => ({ status: 'error' })
+const coverActions: CoverActions = {
+  upload(file) {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return $fetch<MediaUpload>('/bff/media', { method: 'POST', body: form }).catch((): MediaUpload => ({
+      status: 'error',
+    }))
+  },
+  save: (input) => $fetch<ProfileSave>('/bff/own-cover', { method: 'PUT', body: input }).catch(failed),
+  remove: () => $fetch<ProfileSave>('/bff/own-cover', { method: 'DELETE' }).catch(failed),
+}
+
+function onSaved(profile: Profile) {
+  if (data.value?.status === 'found') data.value = { ...data.value, profile }
+}
+
+function onUnauthorized() {
+  window.location.assign(`/auth/sign-in?returnTo=${encodeURIComponent(route.fullPath)}`)
+}
+
 useHead(() => ({
   title:
     state.value.status === 'found'
@@ -50,7 +81,15 @@ useHead(() => ({
 </script>
 
 <template>
-  <BlogView :state="state" :base="`/u/${segment}`" :tab="tab" @retry="refresh()">
+  <BlogView
+    :state="state"
+    :base="`/u/${segment}`"
+    :tab="tab"
+    :cover-actions="coverActions"
+    @retry="refresh()"
+    @saved="onSaved"
+    @unauthorized="onUnauthorized"
+  >
     <NuxtPage :owner="owner" />
   </BlogView>
 </template>
