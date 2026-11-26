@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Pagination;
 using Platform.Modules.Blogs.Contracts;
+using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Media.Contracts;
 
 namespace Platform.Modules.Posts;
@@ -40,6 +41,7 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
         PostsDbContext db,
         IMediaLibrary media,
         IBlogDirectory blogs,
+        ICommentDirectory comments,
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
@@ -58,6 +60,6 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
         var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
         return TypedResults.Ok(new CursorPage<FeedPostView>(
-            await FeedPostViews.BuildAsync(views, blogs, ct), result.NextCursor));
+            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor));
     }
 }
