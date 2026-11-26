@@ -387,6 +387,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/topics/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every topic, the most followed first, searched by name or address, page by page with a cursor */
+        get: operations["GetTopicCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/topics/menu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The menu's topics: the signed-in person's subscribed topics, or the most followed ones */
+        get: operations["GetTopicMenu"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/blogs/{id}/subscription": {
         parameters: {
             query?: never;
@@ -868,6 +902,10 @@ export interface components {
             items: components["schemas"]["FeedPostView"][];
             nextCursor: null | string;
         };
+        CursorPageOfTopicCard: {
+            items: components["schemas"]["TopicCard"][];
+            nextCursor: null | string;
+        };
         EndedSessions: {
             /** Format: int32 */
             ended: number;
@@ -1098,10 +1136,23 @@ export interface components {
             subscriberCount: number;
             subscribed: boolean;
         };
+        TopicCard: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            nickname: string;
+            description: null | string;
+            /** Format: int32 */
+            subscriberCount: number;
+        };
         TopicInput: {
             name: null | string;
             nickname: null | string;
             description: null | string;
+        };
+        TopicMenu: {
+            source: string;
+            topics: components["schemas"]["TopicSummary"][];
         };
         TopicSummary: {
             /** Format: uuid */
@@ -2141,6 +2192,59 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTopicCatalog: {
+        parameters: {
+            query?: {
+                q?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfTopicCard"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTopicMenu: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicMenu"];
                 };
             };
         };
