@@ -15,6 +15,7 @@
         <ProjectReference Include="../Configuration/Platform.Configuration.csproj" />
         <ProjectReference Include="../Modules/Blogs/Platform.Modules.Blogs.csproj" />
         <ProjectReference Include="../Modules/Comments/Platform.Modules.Comments.csproj" />
+        <ProjectReference Include="../Modules/Preferences/Platform.Modules.Preferences.csproj" />
         <ProjectReference Include="../Modules/Reactions/Platform.Modules.Reactions.csproj" />
         <ProjectReference Include="../Modules/Media/Platform.Modules.Media.csproj" />
         <ProjectReference Include="../Modules/Identity/Platform.Modules.Identity.csproj" />

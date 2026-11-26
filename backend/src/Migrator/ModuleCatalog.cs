@@ -4,6 +4,7 @@ using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Media;
 using Platform.Modules.Posts;
+using Platform.Modules.Preferences;
 using Platform.Modules.Reactions;
 using Platform.Persistence;
 
@@ -25,5 +26,6 @@ public static class ModuleCatalog
         services.AddModuleDbContext<CommentsDbContext>(connectionString);
         services.AddModuleDbContext<MediaDbContext>(connectionString);
         services.AddModuleDbContext<ReactionsDbContext>(connectionString);
+        services.AddModuleDbContext<PreferencesDbContext>(connectionString);
     }
 }
