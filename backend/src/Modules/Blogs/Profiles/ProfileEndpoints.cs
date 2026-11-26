@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
+using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Subscriptions;
 using Platform.Modules.Blogs.Topics;
 using Platform.Modules.Media.Contracts;
@@ -203,7 +205,9 @@ public sealed class ProfileEndpoints : IApiEndpoints
         ClaimsPrincipal user,
         PersonalBlogs blogs,
         BlogsDbContext db,
+        IModuleOutbox<BlogsDbContext> outbox,
         IMediaLibrary media,
+        TimeProvider time,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } accountId)
@@ -236,6 +240,8 @@ public sealed class ProfileEndpoints : IApiEndpoints
         blog.Rename(input.Name);
         blog.Describe(input.Description);
         blog.SetAvatar(input.AvatarId);
+        // What search finds the blog by may have changed (ADR-0094); the event goes with the change.
+        await outbox.Publish(new BlogChanged(blog.Id, time.GetUtcNow()), ct);
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
@@ -247,6 +253,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         ClaimsPrincipal user,
         PersonalBlogs blogs,
         BlogsDbContext db,
+        IModuleOutbox<BlogsDbContext> outbox,
         IMediaLibrary media,
         TopicLimits limits,
         TimeProvider time,
@@ -294,6 +301,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
             BlogAddresses.Release(db, former, blog.Id, now);
         }
 
+        await outbox.Publish(new BlogChanged(blog.Id, now), ct);
         try
         {
             await db.SaveChangesAsync(ct);

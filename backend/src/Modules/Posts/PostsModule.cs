@@ -1,8 +1,10 @@
+using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Caching;
 using Platform.Http;
+using Platform.Messaging;
 using Platform.Modules.Posts.Contracts;
 using Platform.Persistence;
 
@@ -24,6 +26,7 @@ public static class PostsModule
         builder.Services.AddModuleDbContext<PostsDbContext>(
             builder.Configuration.GetConnectionString(ConnectionStringName)!);
         builder.Services.AddScoped<IPostDirectory, PostDirectory>();
+        builder.Services.AddScoped<IPostSearchSource, PostSearchSource>();
         builder.Services.AddApiEndpoints<PostEndpoints>();
         builder.Services.AddPlatformCache(builder.Configuration);
         builder.Services.AddScoped<FeedPageCache>();
@@ -39,5 +42,28 @@ public static class PostsModule
         builder.Services.AddApiEndpoints<PopularFeedEndpoints>();
         builder.Services.AddApiEndpoints<MyFeedEndpoints>();
         return builder;
+    }
+
+    /// <summary>
+    /// The module's outbox in the API host (ADR-0005): publishing, editing and deleting a post publish
+    /// <see cref="PostChanged"/> through <c>IModuleOutbox&lt;PostsDbContext&gt;</c> (ADR-0094).
+    /// </summary>
+    public static IBusRegistrationConfigurator AddPostsOutbox(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        return bus.AddModuleOutbox<PostsDbContext>();
+    }
+
+    /// <summary>
+    /// What the workers host needs of the module: its database and <see cref="IPostSearchSource"/>, which the Search
+    /// module reads (ADR-0094). The module has no consumers.
+    /// </summary>
+    public static IServiceCollection AddPostsWorkers(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+        services.AddModuleDbContext<PostsDbContext>(configuration.GetConnectionString(ConnectionStringName)!);
+        services.AddScoped<IPostSearchSource, PostSearchSource>();
+        return services;
     }
 }

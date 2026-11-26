@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
+using Platform.Modules.Blogs.Contracts;
 
 namespace Platform.Modules.Blogs.Topics;
 
@@ -56,6 +58,7 @@ public sealed class TopicEndpoints : IApiEndpoints
         TopicInput input,
         ClaimsPrincipal user,
         BlogsDbContext db,
+        IModuleOutbox<BlogsDbContext> outbox,
         TopicLimits limits,
         TimeProvider time,
         CancellationToken ct)
@@ -111,6 +114,8 @@ public sealed class TopicEndpoints : IApiEndpoints
         // A nickname a blog gave up long ago stops leading to that blog (ADR-0090).
         await BlogAddresses.ClaimAsync(db, nickname!, ct);
         db.Subsites.Add(topic);
+        // The new topic and its event are one change (ADR-0094): search finds it from then on.
+        await outbox.Publish(new BlogChanged(topic.Id, now), ct);
         try
         {
             await db.SaveChangesAsync(ct);
