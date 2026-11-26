@@ -10,7 +10,7 @@ import type { Post } from '../../api/posts'
 const stubs = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 
 function post(id: string, title: string | null, text: string): FeedPost {
-  return { post: postView(id, title, text), author: null, topic: null }
+  return { post: postView(id, title, text), author: null, topic: null, bestComment: null }
 }
 
 function postView(id: string, title: string | null, text: string): Post {

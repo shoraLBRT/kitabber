@@ -682,7 +682,35 @@ const feedBlog = ({ id, type, name, nickname }) => ({ id, type, name, nickname, 
 function feedItem(post) {
   const author = blogs.find((blog) => blog.type === 'personal' && blog.owner === post.authorAccountId)
   const topic = blogs.find((blog) => blog.type === 'topic' && blog.id === post.blogId)
-  return { post, author: author ? feedBlog(author) : null, topic: topic ? feedBlog(topic) : null }
+  return {
+    post,
+    author: author ? feedBlog(author) : null,
+    topic: topic ? feedBlog(topic) : null,
+    bestComment: bestComment(post.id),
+  }
+}
+
+// The best comment of a card (E08-15, ADR-0062), as CommentDirectory.BestShownAsync chooses it: the most liked shown
+// comment, the earlier among equals; its text cut to 300 characters with «…».
+const excerptLength = 300
+
+function bestComment(postId) {
+  const likesOf = (comment) => othersLikes.get(`comment:${comment.id}`) ?? 0
+  const [best] = comments
+    .filter((comment) => comment.postId === postId && !comment.deleted)
+    .sort((a, b) => likesOf(b) - likesOf(a) || a.createdAt.localeCompare(b.createdAt))
+  if (!best) return null
+  const author = best.authorAccountId
+    ? blogs.find((blog) => blog.type === 'personal' && blog.owner === best.authorAccountId)
+    : null
+  const text =
+    best.text.length > excerptLength ? `${best.text.slice(0, excerptLength).trimEnd()}…` : best.text
+  return {
+    id: best.id,
+    author: author ? feedBlog(author) : null,
+    guestName: best.guest?.name ?? null,
+    text,
+  }
 }
 
 // Likes (E10-01, ADR-0061): GET /api/v1/posts/{postId}/likes, PUT and DELETE /api/v1/posts/{postId}/like and

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // The card of a post in a feed (E08-02, FR-FEED, docs/ui/feed.md, ADR-0052): the author with the avatar, the topic, the
 // date (a link to the post), the title and the post's blocks drawn by PostBlocks. A short post is shown whole; a
-// longread shows its first blocks (feedPreview) and «Показать полностью» opens the rest in place. The reactions, the
-// counters, the best comment and the «…» menu come with their own issues (FR-REACT, E08-06, FR-POST).
+// longread shows its first blocks (feedPreview) and «Показать полностью» opens the rest in place. Under it, the best
+// comment of a post with comments (E08-15, ADR-0062). The reactions, the counters and the «…» menu come with their own
+// issues (FR-REACT, E08-06, FR-POST); the best comment stays the card's last block, under the counters to come.
 import { computed, ref } from 'vue'
+import FeedBestComment from './FeedBestComment.vue'
 import PostBlocks from '../post/PostBlocks.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
-import { feedItemPath, feedPreview, type FeedPost } from '../../api/feeds'
+import { feedCommentPath, feedItemPath, feedPreview, type FeedPost } from '../../api/feeds'
 import { blogTitle } from '../../api/profiles'
 import { subsitePath } from '../../api/posts'
 
@@ -74,6 +76,12 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
     >
       Показать полностью
     </button>
+
+    <FeedBestComment
+      v-if="item.bestComment"
+      :comment="item.bestComment"
+      :to="feedCommentPath(item, item.bestComment.id)"
+    />
   </article>
 </template>
 

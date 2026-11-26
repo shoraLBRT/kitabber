@@ -7,6 +7,7 @@ import {
   feedSnapshotLimit,
   loadFreshFeed,
   rememberFeed,
+  feedCommentPath,
   feedItemPath,
   feedPreview,
   type FeedPost,
@@ -81,6 +82,10 @@ describe('feedItemPath', () => {
     expect(feedItemPath({ post, author, topic: null })).toBe('/u/anna/p1-privet')
     expect(feedItemPath({ post: { ...post, blogId: 'b9' }, author, topic: null })).toBe('/u/b9/p1-privet')
     expect(feedItemPath({ post, author: null, topic: null })).toBe('/u/b1/p1-privet')
+  })
+
+  it('leads to a comment on the post page by its fragment (E08-15)', () => {
+    expect(feedCommentPath({ post, author, topic: null }, 'c1')).toBe('/u/anna/p1-privet#comment-c1')
   })
 })
 

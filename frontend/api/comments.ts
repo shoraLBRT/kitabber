@@ -87,6 +87,20 @@ export function branchPath(postPath: string, commentId: string): string {
 }
 
 /**
+ * The address fragment that names a comment on its post's page (E08-15, ADR-0062): `#comment-<id>`, the id of the
+ * comment's title in the tree. The page brings it into view once the comments are read.
+ */
+export function commentHash(commentId: string): string {
+  return `#comment-${commentId}`
+}
+
+/** The comment a post page's address fragment names (`#comment-<id>`), or `null`. */
+export function commentOfHash(hash: string): string | null {
+  const match = /^#comment-([0-9a-fA-F-]{36})$/.exec(hash)
+  return match?.[1] ? match[1].toLowerCase() : null
+}
+
+/**
  * A comment in the nested tree: its replies that were read, and how many replies under it a read left out right there
  * — the ones not under any reply that was read, so «Показать ещё» stands where the tree stops, not above it.
  */
