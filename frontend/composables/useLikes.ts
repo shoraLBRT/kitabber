@@ -1,8 +1,10 @@
 // The likes of a post page (E10-01, FR-REACT, ADR-0061): the post's and its comments', read in the browser once the
 // page is shown, with one request, and shared by the action panel and the comment tree. A press shows the new mark and
 // count at once; the server's answer then replaces them, and a failure puts the old ones back with a toast. A guest's
-// press opens the sign-in window (ADR-0032); back on the page signed in, the like is put by itself.
-import { onMounted, ref, watch } from 'vue'
+// press opens the sign-in window (ADR-0032); back on the page signed in, the like is put by itself. While the page is
+// open, a signed-in reader gets the new counts of the post and its comments in the realtime topic `post:<id>` (E10-03,
+// ADR-0072); the own mark stays as the person's reads and changes left it.
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   commentLikes,
   loadLikes,
@@ -13,6 +15,14 @@ import {
   type LikeTarget,
   type PostLikes,
 } from '../api/likes'
+import {
+  likesAfter,
+  parseReactionsChanged,
+  reactionsChangedType,
+  reactionsOfLikes,
+  type ReactionCount,
+} from '../api/reactions'
+import type { RealtimeEvent } from '../realtime/channel'
 import { pendingActionWith, tabStorage, takePendingAction } from '../utils/pending-action'
 import { t } from '../i18n'
 
@@ -49,6 +59,7 @@ export function useLikes(postId: () => string | null) {
   const requireAccount = useRequireAccount()
   const route = useRoute()
   const toast = useToast()
+  const channel = useRealtime()
   const post = ref<LikeState>(noLikes)
   const comments = ref<Record<string, LikeState>>({})
   /** The targets whose change the server has not answered yet: `post` or a comment id. */
@@ -97,6 +108,35 @@ export function useLikes(postId: () => string | null) {
     )
   }
 
+  /** The reactions of the target for its row (ReactionRow); only likes so far. */
+  function reactions(target: LikeTarget, id: string): ReactionCount[] {
+    return reactionsOfLikes(of(target, id))
+  }
+
+  // New counts from another reader's change, or the echo of one's own. While the person's own change of the target is
+  // not answered, the answer brings the count; the mark is never taken from the event, which names no one.
+  function receive(event: RealtimeEvent) {
+    if (event.type !== reactionsChangedType) return
+    const change = parseReactionsChanged(event.data)
+    if (!change || (change.target === 'post' && change.targetId !== postId())) return
+    if (busy.value[keyOf(change.target, change.targetId)]) return
+    put(change.target, change.targetId, likesAfter(of(change.target, change.targetId), change))
+  }
+
+  let topic: string | null = null
+  let stopListening: (() => void) | null = null
+
+  // One post's topic at a time; a guest and the server have no channel and simply get no live counts.
+  function listen(id: string | null) {
+    stopListening?.()
+    stopListening = null
+    if (channel && topic) void channel.unsubscribe(topic)
+    topic = id === null ? null : `post:${id}`
+    if (!channel || topic === null) return
+    stopListening = channel.on(receive, topic)
+    void channel.subscribe(topic)
+  }
+
   /** A press on «Нравится»: the mark turns over for a signed-in person, a guest gets the sign-in window. */
   function toggle(target: LikeTarget, id: string) {
     const current = postId()
@@ -124,6 +164,7 @@ export function useLikes(postId: () => string | null) {
       async (id) => {
         post.value = noLikes
         comments.value = {}
+        listen(id)
         if (id === null) return
         await load(id)
         await resume(id)
@@ -132,7 +173,9 @@ export function useLikes(postId: () => string | null) {
     )
   })
 
-  return { post, comments, of, toggle, isBusy }
+  onBeforeUnmount(() => listen(null))
+
+  return { post, comments, of, reactions, toggle, isBusy }
 }
 
 export type Likes = ReturnType<typeof useLikes>
