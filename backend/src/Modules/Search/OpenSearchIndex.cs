@@ -282,8 +282,12 @@ public sealed class OpenSearchIndex : ISearchIndex, IDisposable
 
     private static JsonObject Keyword() => new() { ["type"] = "keyword" };
 
-    private static string Serialize(IndexedDocument document) =>
-        JsonSerializer.Serialize(document, document.GetType(), _json);
+    /// <summary>The JSON stored for <paramref name="document"/>: its fields without the id, which is the key.</summary>
+    public static string Serialize(IndexedDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return JsonSerializer.Serialize(document, document.GetType(), _json);
+    }
 
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 

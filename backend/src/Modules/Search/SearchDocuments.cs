@@ -30,6 +30,7 @@ public sealed record IndexedPost(
     Guid Id, Guid BlogId, Guid AuthorAccountId, string? Title, string Text, DateTimeOffset PublishedAt)
     : IndexedDocument(Id)
 {
+    [JsonIgnore]
     public override SearchIndexKind Index => SearchIndexKind.Posts;
 
     public override IEnumerable<string?> SearchableText() => [Title, Text];
@@ -50,6 +51,7 @@ public sealed record IndexedBlog(
     public const string PersonalKind = "personal";
     public const string TopicKind = "topic";
 
+    [JsonIgnore]
     public override SearchIndexKind Index => SearchIndexKind.Blogs;
 
     public override IEnumerable<string?> SearchableText() => [Name, Nickname, Description];
