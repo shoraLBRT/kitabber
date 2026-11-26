@@ -83,7 +83,8 @@ public sealed class UploadApiTests(MediaApi api) : IClassFixture<MediaApi>, IAsy
     [Fact]
     public async Task ImageGetsItsPreviewAndColourStoredWithTheFile()
     {
-        using var response = await UploadAsync(NewAccount(), Pictures.Png(64, 48), "gradient.png");
+        // Under the test limit of MediaApi.ImageLimit bytes.
+        using var response = await UploadAsync(NewAccount(), Pictures.Png(32, 24), "gradient.png");
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
