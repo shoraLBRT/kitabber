@@ -31,6 +31,9 @@
   <Folder Name="/src/Modules/Comments/">
     <Project Path="src/Modules/Comments/Platform.Modules.Comments.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Comments.Contracts/">
+    <Project Path="src/Modules/Comments.Contracts/Platform.Modules.Comments.Contracts.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Editor.Contracts/">
     <Project Path="src/Modules/Editor.Contracts/Platform.Modules.Editor.Contracts.csproj" />
   </Folder>
@@ -54,6 +57,9 @@
   </Folder>
   <Folder Name="/src/Modules/Posts/">
     <Project Path="src/Modules/Posts/Platform.Modules.Posts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reactions/">
+    <Project Path="src/Modules/Reactions/Platform.Modules.Reactions.csproj" />
   </Folder>
   <Folder Name="/src/Observability/">
     <Project Path="src/Observability/Platform.Observability.csproj" />
@@ -84,6 +90,7 @@
     <Project Path="tests/Platform.Modules.Editor.Tests/Platform.Modules.Editor.Tests.csproj" />
     <Project Path="tests/Platform.Modules.Identity.IntegrationTests/Platform.Modules.Identity.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Posts.IntegrationTests/Platform.Modules.Posts.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Modules.Reactions.IntegrationTests/Platform.Modules.Reactions.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Modules.Media.IntegrationTests/Platform.Modules.Media.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Messaging.IntegrationTests/Platform.Messaging.IntegrationTests.csproj" />
     <Project Path="tests/Platform.Persistence.IntegrationTests/Platform.Persistence.IntegrationTests.csproj" />

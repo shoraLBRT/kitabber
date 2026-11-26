@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Comments module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules, such as
+      Reactions, ask about a comment without reading the schema `comments` (ADR-0061).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Comments.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>
