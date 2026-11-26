@@ -70,6 +70,15 @@ public sealed class Post
 
     public DateTimeOffset? DeletedAt { get; private set; }
 
+    /// <summary>
+    /// How many people opened the post, each counted once a day (E07-06, ADR-0071). Only
+    /// <see cref="DatabaseViewCounter"/> changes it, in the database, so editing the post never overwrites it.
+    /// </summary>
+    public int ViewCount { get; private set; }
+
+    /// <summary>How many people saw the post's card in a feed, each counted once a day (E07-06, ADR-0071).</summary>
+    public int ImpressionCount { get; private set; }
+
     public bool IsDeleted => DeletedAt is not null;
 
     /// <summary>The source of a carried-over post; <c>null</c> for a native one.</summary>

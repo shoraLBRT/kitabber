@@ -1301,6 +1301,130 @@
         }
       }
     },
+    "/api/v1/posts/{id}/open": {
+      "post": {
+        "tags": [
+          "Views"
+        ],
+        "summary": "Counts the opening of a published post's page, once a day per reader",
+        "operationId": "RecordPostOpen",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/impressions": {
+      "post": {
+        "tags": [
+          "Views"
+        ],
+        "summary": "Counts the feed cards the reader has seen, each once a day per reader",
+        "operationId": "RecordPostImpressions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImpressionsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/reading": {
+      "post": {
+        "tags": [
+          "Views"
+        ],
+        "summary": "Keeps how long the reader read a post's page they opened today",
+        "operationId": "RecordPostReading",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts/{postId}/comments": {
       "get": {
         "tags": [
@@ -2718,6 +2842,24 @@
           }
         }
       },
+      "ImpressionsInput": {
+        "required": [
+          "postIds"
+        ],
+        "type": "object",
+        "properties": {
+          "postIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "JsonElement": { },
       "JsonObject": {
         "type": "object"
@@ -2921,7 +3063,8 @@
           "updatedAt",
           "publishedAt",
           "images",
-          "imagePreviews"
+          "imagePreviews",
+          "viewCount"
         ],
         "type": "object",
         "properties": {
@@ -2997,6 +3140,10 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/ImagePreview"
             }
+          },
+          "viewCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3136,6 +3283,18 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "ReadingInput": {
+        "required": [
+          "seconds"
+        ],
+        "type": "object",
+        "properties": {
+          "seconds": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3338,6 +3497,9 @@
     },
     {
       "name": "Feeds"
+    },
+    {
+      "name": "Views"
     },
     {
       "name": "Comments"

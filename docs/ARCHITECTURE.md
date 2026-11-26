@@ -68,6 +68,11 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 внутри LTR-строки изолирует `frontend/utils/bidi.ts` (RLI…PDI), арабский шрифт Noto Naskh Arabic объявлен в
 `frontend/assets/fonts.css` только для арабских букв и стоит первым в семействах токенов.
 
+Учёт просмотров (E07-06, ADR-0071): браузер шлёт отчёты (открытие, показы карточек, время чтения) на `/bff/views`
+через `frontend/composables/useViews.ts`, сервер сайта передаёт их в `POST /api/v1/posts/{id}/open`, `…/impressions`,
+`…/{id}/reading` с токеном, строкой браузера и адресом. В модуле Posts учёт — за внутренним `IViewCounter`
+(`DatabaseViewCounter`); Redis-счётчики (E10-09) и аналитическая база (E16-18) подключаются на его месте.
+
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и

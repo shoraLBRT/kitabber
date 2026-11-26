@@ -50,6 +50,10 @@ namespace Platform.Modules.Posts.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
+                    b.Property<int>("ImpressionCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("impression_count");
+
                     b.Property<string>("Origin")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -89,6 +93,10 @@ namespace Platform.Modules.Posts.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("view_count");
+
                     b.HasKey("Id")
                         .HasName("pk_posts");
 
@@ -109,6 +117,60 @@ namespace Platform.Modules.Posts.Migrations
                         .HasFilter("source_channel IS NOT NULL");
 
                     b.ToTable("posts", "posts");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Posts.PostViewMark", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Viewer")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("viewer");
+
+                    b.Property<DateTimeOffset>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("ReadSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("read_seconds");
+
+                    b.HasKey("PostId", "Kind", "Viewer", "PeriodStart")
+                        .HasName("pk_post_views");
+
+                    b.HasIndex("PeriodStart")
+                        .HasDatabaseName("ix_post_views_period_start");
+
+                    b.ToTable("post_views", "posts");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Posts.ViewSalt", b =>
+                {
+                    b.Property<DateTimeOffset>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<byte[]>("Salt")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("salt");
+
+                    b.HasKey("PeriodStart")
+                        .HasName("pk_view_salts");
+
+                    b.ToTable("view_salts", "posts");
                 });
 #pragma warning restore 612, 618
         }

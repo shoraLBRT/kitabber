@@ -51,6 +51,7 @@ function item(
     publishedAt: '2026-11-20T10:05:00Z',
     images: {},
     imagePreviews: {},
+    viewCount: 0,
   }
   return { post, author: anna, topic: null, bestComment: null, ...extra }
 }
@@ -69,6 +70,21 @@ describe('FeedCard', () => {
     expect(wrapper.get('[data-testid="feed-card-title"]').attributes('href')).toBe(
       '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-zagolovok',
     )
+  })
+
+  it('shows the view count with its plural form (E07-06)', () => {
+    const views = (count: number) => {
+      const card = mountCard(item(paragraphs(1)))
+      const post = { ...card.props('item').post, viewCount: count }
+      return mountCard({ ...card.props('item'), post })
+        .get('[data-testid="feed-card-views"]')
+        .text()
+        .replace(/\s/g, ' ')
+    }
+    expect(views(0)).toBe('0 просмотров')
+    expect(views(1)).toBe('1 просмотр')
+    expect(views(3)).toBe('3 просмотра')
+    expect(views(1234)).toBe('1 234 просмотра')
   })
 
   it('shows the topic of a post in a topic and leads to the post there', () => {

@@ -58,6 +58,13 @@ const likes = useLikes(() =>
   state.value.status === 'found' && state.value.post.status === 'published' ? state.value.post.id : null,
 )
 
+// The view counter (E07-06, ADR-0071): the opening of a reader's published post and, with consent, its reading time.
+usePostViews(() =>
+  state.value.status === 'found' && state.value.post.status === 'published' && !state.value.own
+    ? state.value.post.id
+    : null,
+)
+
 const features = useRuntimeConfig().public.features
 const toast = useToast()
 

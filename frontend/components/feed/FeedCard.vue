@@ -3,9 +3,12 @@
 // date (a link to the post), the title and the post's blocks drawn by PostBlocks. A short post is shown whole; a
 // longread shows its first blocks (feedPreview) and «Показать полностью» opens the rest in place. Under it, the best
 // comment of a post with comments (E08-15, ADR-0062). The reactions, the counters and the «…» menu come with their own
-// issues (FR-REACT, E08-06, FR-POST); the best comment stays the card's last block, under the counters to come.
+// issues (FR-REACT, E08-06, FR-POST); the best comment stays the card's last block, under the counters. The first
+// counter is the views (E07-06, ADR-0071), and a card that half stayed on screen for a second is reported as seen.
 import { computed, ref } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import FeedBestComment from './FeedBestComment.vue'
+import { useCardImpression } from '../../composables/useViews'
 import PostBlocks from '../post/PostBlocks.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import { feedCommentPath, feedItemPath, feedPreview, type FeedPost } from '../../api/feeds'
@@ -35,10 +38,14 @@ const date = computed(() =>
 )
 const preview = computed(() => feedPreview(props.item.post.body))
 const shown = computed(() => (expanded.value ? props.item.post.body : preview.value.document))
+const views = computed(() => t('views.count', { count: props.item.post.viewCount }))
+
+const card = ref<HTMLElement | null>(null)
+useCardImpression(card, () => props.item.post.id)
 </script>
 
 <template>
-  <article class="feed-card" data-testid="feed-card">
+  <article ref="card" class="feed-card" data-testid="feed-card">
     <header class="feed-card__meta">
       <NuxtLink
         v-if="author"
@@ -78,6 +85,13 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
     >
       {{ t('actions.showAll') }}
     </button>
+
+    <footer class="feed-card__counters">
+      <span class="feed-card__counter" data-testid="feed-card-views">
+        <Eye class="feed-card__icon" aria-hidden="true" />
+        {{ views }}
+      </span>
+    </footer>
 
     <FeedBestComment
       v-if="item.bestComment"
@@ -167,5 +181,26 @@ const shown = computed(() => (expanded.value ? props.item.post.body : preview.va
 
 .feed-card__more:hover {
   text-decoration: underline;
+}
+
+.feed-card__counters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.feed-card__counter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.feed-card__icon {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  flex: none;
 }
 </style>
