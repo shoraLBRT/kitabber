@@ -2957,6 +2957,146 @@
         }
       }
     },
+    "/api/v1/notifications/me": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "The notifications of the signed-in account, newest first, page by page with a cursor",
+        "operationId": "GetOwnNotifications",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfNotificationView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/me/unread": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "The number of the unread notifications of the signed-in account",
+        "operationId": "GetOwnUnreadNotifications",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadNotificationsView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/me/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Marks the shown notifications of the signed-in account read and gives the unread number",
+        "operationId": "MarkOwnNotificationsRead",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkNotificationsReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadNotificationsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/media": {
       "post": {
         "tags": [
@@ -3483,6 +3623,27 @@
           }
         }
       },
+      "CursorPageOfNotificationView": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationView"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "CursorPageOfTopicCard": {
         "required": [
           "items",
@@ -3800,6 +3961,24 @@
           }
         }
       },
+      "MarkNotificationsReadRequest": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "NicknameInput": {
         "required": [
           "nickname"
@@ -3811,6 +3990,91 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "NotificationActorView": {
+        "required": [
+          "accountId",
+          "name",
+          "nickname",
+          "avatarSources"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatarSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageSource"
+            }
+          }
+        }
+      },
+      "NotificationView": {
+        "required": [
+          "id",
+          "type",
+          "actor",
+          "postId",
+          "commentId",
+          "reactionKind",
+          "createdAt",
+          "read"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/NotificationActorView"
+          },
+          "postId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "commentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "reactionKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "read": {
+            "type": "boolean"
           }
         }
       },
@@ -4556,6 +4820,18 @@
           }
         }
       },
+      "UnreadNotificationsView": {
+        "required": [
+          "unread"
+        ],
+        "type": "object",
+        "properties": {
+          "unread": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "UploadedMedia": {
         "required": [
           "id",
@@ -4645,6 +4921,9 @@
     },
     {
       "name": "Preferences"
+    },
+    {
+      "name": "Notifications"
     },
     {
       "name": "Media"
