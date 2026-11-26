@@ -456,6 +456,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/feeds/blogs/{blogId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The published posts of one blog or topic, newest first, page by page with a cursor */
+        get: operations["GetBlogFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{id}/open": {
         parameters: {
             query?: never;
@@ -960,6 +977,7 @@ export interface components {
             avatarUrl: null | string;
             avatarSources: components["schemas"]["ImageSource"][];
             cover: null | components["schemas"]["ProfileCover"];
+            owner?: null | components["schemas"]["ProfileOwner"];
         };
         ProfileCover: {
             /** Format: uuid */
@@ -974,6 +992,12 @@ export interface components {
             description?: null | string;
             /** Format: uuid */
             avatarId?: null | string;
+        };
+        ProfileOwner: {
+            /** Format: uuid */
+            id: string;
+            name: null | string;
+            nickname: null | string;
         };
         ReadingInput: {
             /** Format: int32 */
@@ -2261,6 +2285,49 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetBlogFeed: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                blogId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfFeedPostView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
