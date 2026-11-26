@@ -1,4 +1,4 @@
-import { expect, expectNoHorizontalScroll, test, waitForHydration } from './fixtures'
+import { expect, expectNoHorizontalScroll, isTouch, test, waitForHydration } from './fixtures'
 
 // The best comment under a post's card in the feed (E08-15, FR-FEED, ADR-0062) in both profiles against the fake API
 // (e2e/fake-api.mjs): «Привет, мир» has «Вторая ветка» (two likes) as its best comment, «Книги осени» the earliest of
@@ -26,7 +26,8 @@ test.describe('лучший комментарий в ленте', () => {
   })
 
   test('длинный текст обрезается многоточием в несколько строк', async ({ page }) => {
-    await page.route('**/api/v1/feeds/fresh', async (route) => {
+    // The first page comes rendered by the server; the second is read by the browser, so the test can change it.
+    await page.route('**/api/v1/feeds/fresh?cursor=Mg', async (route) => {
       const response = await route.fetch()
       const body = (await response.json()) as { items: { bestComment: { text: string } | null }[] }
       body.items[0]!.bestComment!.text = longText
@@ -35,7 +36,7 @@ test.describe('лучший комментарий в ленте', () => {
     await page.goto('/new')
     await waitForHydration(page)
 
-    const text = page.getByTestId('feed-item').first().getByTestId('feed-best-comment-text')
+    const text = page.getByTestId('feed-item').nth(2).getByTestId('feed-best-comment-text')
     await expect(text).toHaveText(longText)
     const box = await text.evaluate((element) => {
       const style = getComputedStyle(element)
@@ -63,5 +64,19 @@ test.describe('лучший комментарий в ленте', () => {
     const comment = page.getByTestId('comment').filter({ hasText: 'Вторая ветка' }).first()
     await expect(comment).toBeInViewport()
     expect(new URL(page.url()).hash).toBe(`#comment-${await comment.getAttribute('data-comment-id')}`)
+  })
+
+  // «Пятый уровень» of «Привет, мир»: within the six levels a wide screen reads, past the three of a phone.
+  test('комментарий глубже прочитанного открывается экраном своей ветки', async ({ page }) => {
+    const post = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
+    const id = '0195f3a0-0000-7000-8000-000000d00004'
+    await page.goto(`${post}#comment-${id}`)
+
+    if (isTouch()) {
+      await expect(page).toHaveURL(new RegExp(`${post}/comments/${id}$`))
+      await expect(page.getByTestId('branch')).toBeVisible()
+    } else {
+      await expect(page.locator(`[data-comment-id="${id}"]`)).toBeInViewport()
+    }
   })
 })
