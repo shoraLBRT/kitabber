@@ -7,6 +7,7 @@ import {
   feedSnapshotLimit,
   loadBlogFeed,
   loadFreshFeed,
+  loadMyFeed,
   rememberFeed,
   feedCommentPath,
   feedItemPath,
@@ -71,6 +72,22 @@ describe('loadBlogFeed', () => {
     const gone = clientAnswering(404, { code: 'posts.blog_not_found' }).client
     expect(await loadBlogFeed(gone, 'b1')).toEqual({ status: 'error' })
     expect(await loadBlogFeed(clientAnswering(500, {}).client, 'b1')).toEqual({ status: 'error' })
+  })
+})
+
+describe('loadMyFeed', () => {
+  it('reads a page of the subscriptions of the reader with the cursor of the previous page (E08-04)', async () => {
+    const page = { items: [post('p1')], nextCursor: 'next' }
+    const { client, fetch } = clientAnswering(200, page)
+    expect(await loadMyFeed(client, 'eyJhIjoxfQ')).toEqual({ status: 'found', page })
+    expect((fetch.mock.calls[0] as unknown as [Request])[0].url).toBe(
+      'http://api.test/api/v1/feeds/my?cursor=eyJhIjoxfQ',
+    )
+  })
+
+  it('is an error when the person is signed out or the API fails', async () => {
+    expect(await loadMyFeed(clientAnswering(401, {}).client)).toEqual({ status: 'error' })
+    expect(await loadMyFeed(clientAnswering(500, {}).client)).toEqual({ status: 'error' })
   })
 })
 

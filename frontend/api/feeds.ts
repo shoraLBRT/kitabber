@@ -55,6 +55,22 @@ export async function loadBlogFeed(
   }
 }
 
+/**
+ * One page of «Моя лента» (E08-04, ADR-0089): GET /api/v1/feeds/my, the posts of the reader's subscriptions newest
+ * first with the cursor of the fresh feed. It needs the person's access token, so only the site's server calls it
+ * (server/routes/bff/my-feed.get.ts, ADR-0018).
+ */
+export async function loadMyFeed(client: ApiClient, cursor?: string | null): Promise<FeedLookup> {
+  try {
+    const { data } = await client.GET('/api/v1/feeds/my', {
+      params: { query: cursor ? { cursor } : {} },
+    })
+    return data ? { status: 'found', page: data } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
 /** Adds a later page to the posts already shown, leaving out any post that is already there. */
 export function appendPage(shown: FeedPost[], page: FeedPage): FeedPost[] {
   const seen = new Set(shown.map((item) => item.post.id))

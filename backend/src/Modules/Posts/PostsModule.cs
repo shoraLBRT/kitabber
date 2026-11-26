@@ -37,6 +37,7 @@ public static class PostsModule
         builder.Services.AddScoped<HotnessCalculator>();
         builder.Services.AddHostedService<HotnessService>();
         builder.Services.AddApiEndpoints<PopularFeedEndpoints>();
+        builder.Services.AddApiEndpoints<MyFeedEndpoints>();
         return builder;
     }
 }
