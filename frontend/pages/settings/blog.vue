@@ -1,13 +1,21 @@
 <script setup lang="ts">
 // The blog settings (E04-03, FR-PROFILE, docs/ui/settings.md) at /settings/blog: the avatar, the name and the
-// description of the person's own blog. The nickname (E04-05) and the other switches of the section come with their
-// own issues. The first render happens on the server with the person's access token; later loads, the save and the
+// description of the person's own blog, and its nickname (E04-05, ADR-0090, through /bff/own-nickname). The other
+// switches of the section come with their own issues. The first render happens on the server with the person's access token; later loads, the save and the
 // avatar upload go through the site's server (server/routes/bff/own-profile.*.ts, media.post.ts, ADR-0018). A guest
 // signs in first and comes back here.
 import BlogSettingsForm from '~/components/settings/BlogSettingsForm.vue'
+import NicknameForm from '~/components/settings/NicknameForm.vue'
 import UiButton from '~/components/ui/UiButton.vue'
 import type { MediaUpload } from '~/api/media'
-import { blogPath, ownProfile, type Profile, type ProfileInput, type ProfileSave } from '~/api/profiles'
+import {
+  blogPath,
+  ownProfile,
+  type NicknameSave,
+  type Profile,
+  type ProfileInput,
+  type ProfileSave,
+} from '~/api/profiles'
 import { t } from '../../i18n'
 
 const signIn = '/auth/sign-in?returnTo=/settings/blog'
@@ -29,6 +37,13 @@ const save = (input: ProfileInput) =>
   $fetch<ProfileSave>('/bff/own-profile', { method: 'PUT', body: input }).catch((): ProfileSave => ({
     status: 'error',
   }))
+
+const saveNickname = (nickname: string) =>
+  $fetch<NicknameSave>('/bff/own-nickname', { method: 'PUT', body: { nickname } }).catch(
+    (): NicknameSave => ({
+      status: 'error',
+    }),
+  )
 
 function upload(avatar: Blob, fileName: string): Promise<MediaUpload> {
   const form = new FormData()
@@ -86,6 +101,17 @@ function onUnauthorized() {
         :profile="data"
         :save="save"
         :upload="upload"
+        @saved="onSaved"
+        @unauthorized="onUnauthorized"
+      />
+    </div>
+
+    <div v-if="!pending && data" class="settings__card">
+      <h2 class="settings__section-title">{{ t('settings.nicknameSection') }}</h2>
+      <NicknameForm
+        :key="data.id"
+        :profile="data"
+        :save="saveNickname"
         @saved="onSaved"
         @unauthorized="onUnauthorized"
       />

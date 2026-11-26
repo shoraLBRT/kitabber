@@ -1183,6 +1183,33 @@ async function editProfile(request, response) {
   return send(response, 200, { ...edited(own, request), owner: undefined })
 }
 
+// The nickname (E04-05, ADR-0090): PUT /api/v1/profiles/me/nickname, kept per client address like the edits. A
+// nickname of another blog or topic and `settings` are refused, `outage` fails as an unavailable API would; the second
+// change of one client is too soon (30 days). The old nickname keeps answering with the blog, so the site redirects.
+async function changeNickname(request, response) {
+  const reader = subject(request)
+  const own = blogs.find((blog) => reader && blog.owner === reader)
+  if (!own) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const nickname = String(JSON.parse((await readBody(request)) || '{}').nickname ?? '')
+    .replace(/^@/, '')
+    .toLowerCase()
+  if (nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
+  const invalid = (message) =>
+    send(response, 400, { status: 400, code: 'validation_failed', errors: { nickname: [message] } })
+  if (nickname === 'settings') return invalid('Такой никнейм выбрать нельзя.')
+  if ([...blogs, ...createdTopics].some((blog) => blog.nickname === nickname && blog.id !== own.id))
+    return invalid('Этот никнейм уже занят блогом или темой.')
+  const edit = edits.get(clientOf(request)) ?? {}
+  if (edit.nicknameChangeableFrom)
+    return send(response, 409, {
+      status: 409,
+      code: 'blogs.nickname_change_too_soon',
+      detail: 'Никнейм можно менять раз в 30 дней; следующая смена — с 2027-01-01.',
+    })
+  edits.set(clientOf(request), { ...edit, nickname, nicknameChangeableFrom: '2099-01-01T00:00:00Z' })
+  return send(response, 200, { ...edited(own, request), owner: undefined })
+}
+
 // The cover (E04-04, ADR-0079): PUT and DELETE /api/v1/profiles/me/cover, kept per client address like the edits.
 // The sources are the fake's square pixel, so the picture is taller than the header and can be moved.
 async function setCover(request, response) {
@@ -1288,9 +1315,12 @@ function profile(request, response, url) {
     .replace(/^@/, '')
     .toLowerCase()
   if (kind && nickname === 'broken') return send(response, 500, { status: 500, code: 'internal' })
-  const found = [...blogs, ...createdTopics].find((blog) =>
-    kind ? blog.nickname === nickname : blog.id === value,
-  )
+  // A client's new nickname (changeNickname) names the own blog for that client only.
+  const renamed =
+    kind && blogs.find((blog) => blog.owner === owner && edits.get(clientOf(request))?.nickname === nickname)
+  const found =
+    renamed ||
+    [...blogs, ...createdTopics].find((blog) => (kind ? blog.nickname === nickname : blog.id === value))
   return found
     ? send(response, 200, view(found))
     : send(response, 404, { status: 404, code: 'profile_not_found' })
@@ -1373,6 +1403,8 @@ createServer(async (request, response) => {
     return saveGeneral(request, response)
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
+  if (url.pathname === '/api/v1/profiles/me/nickname' && request.method === 'PUT')
+    return changeNickname(request, response)
   if (url.pathname === '/api/v1/profiles/me/cover' && ['PUT', 'DELETE'].includes(request.method))
     return setCover(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
