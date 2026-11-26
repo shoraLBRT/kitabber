@@ -253,6 +253,7 @@ describe('PostView', () => {
     })
     const bar = wrapper.get('[role="toolbar"]')
     expect(bar.attributes('aria-label')).toBe('Действия с постом')
+    // Without the likes the page reads (E10-01) the like is shown and disabled; tests/likes covers it with them.
     expect(bar.get('[data-testid="post-like"]').attributes('disabled')).toBeDefined()
     expect(bar.get('[data-testid="post-comments"]').attributes('href')).toBe('#comments')
     expect(wrapper.find('#comments').exists()).toBe(true)

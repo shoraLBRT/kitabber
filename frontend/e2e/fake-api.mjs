@@ -685,6 +685,67 @@ function feedItem(post) {
   return { post, author: author ? feedBlog(author) : null, topic: topic ? feedBlog(topic) : null }
 }
 
+// Likes (E10-01, ADR-0061): GET /api/v1/posts/{postId}/likes, PUT and DELETE /api/v1/posts/{postId}/like and
+// /api/v1/comments/{id}/like, with the server's checks (a signed-in account, not one's own content, not a guest
+// comment). Others' likes are fixed: three on the post in the topic, two on «Вторая ветка». The signed-in person's
+// likes are kept per client address (`x-forwarded-for`), as the profile edits are, so parallel tests never see each
+// other's. A comment the fake does not know is one the test has just written: it is the caller's own.
+const othersLikes = new Map([
+  [`post:${posts[2].id}`, 3],
+  [`comment:${comments.find((c) => c.text === 'Вторая ветка').id}`, 2],
+])
+const ownLikes = new Map() // client address -> Set of `post:<id>` and `comment:<id>`
+
+function likeState(request, key, account) {
+  const liked = Boolean(account) && (ownLikes.get(clientOf(request))?.has(key) ?? false)
+  return { count: (othersLikes.get(key) ?? 0) + (liked ? 1 : 0), liked }
+}
+
+function postLikes(request, response, postId) {
+  // A post a test has just published (`written`) has no likes yet.
+  if (!posts.some((item) => item.id === postId) && !written.has(postId))
+    return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
+  const account = subject(request)
+  const keys = new Set([...othersLikes.keys(), ...(ownLikes.get(clientOf(request)) ?? [])])
+  const under = comments.filter((c) => c.postId === postId && keys.has(`comment:${c.id}`))
+  return send(response, 200, {
+    postId,
+    post: likeState(request, `post:${postId}`, account),
+    comments: under.map((c) => ({ commentId: c.id, ...likeState(request, `comment:${c.id}`, account) })),
+  })
+}
+
+function changeLike(request, response, target, id) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const item =
+    target === 'post'
+      ? (posts.find((p) => p.id === id) ?? written.get(id))
+      : comments.find((c) => c.id === id)
+  if (!item && target === 'post')
+    return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
+  const key = `${target}:${id}`
+  if (request.method === 'PUT') {
+    if (item?.kind === 'guest')
+      return send(response, 403, {
+        status: 403,
+        code: 'reactions.guest_comment',
+        detail: 'Комментарий гостя оценить нельзя: у его автора нет аккаунта.',
+      })
+    if (!item || item.authorAccountId === account)
+      return send(response, 403, {
+        status: 403,
+        code: 'reactions.own_content',
+        detail: 'Свой пост или комментарий оценить нельзя.',
+      })
+    const mine = ownLikes.get(clientOf(request)) ?? new Set()
+    ownLikes.set(clientOf(request), mine.add(key))
+  } else {
+    ownLikes.get(clientOf(request))?.delete(key)
+  }
+  return send(response, 200, likeState(request, key, account))
+}
+
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
 function subject(request) {
   try {
@@ -868,6 +929,11 @@ createServer(async (request, response) => {
     return editProfile(request, response)
   if (url.pathname.startsWith('/api/v1/profiles/') && request.method === 'GET')
     return profile(request, response, url)
+  const [, likedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/likes$/) ?? []
+  if (likedPost && request.method === 'GET') return postLikes(request, response, likedPost)
+  const [, likeTarget, likeId] = url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/like$/) ?? []
+  if (likeTarget && ['PUT', 'DELETE'].includes(request.method))
+    return changeLike(request, response, likeTarget === 'posts' ? 'post' : 'comment', likeId)
   if (
     /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/branch)$/.test(url.pathname) &&
     request.method === 'GET'

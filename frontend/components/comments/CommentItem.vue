@@ -6,8 +6,10 @@
 // «Ответить» opens the reply form under the comment (E09-03); a reply being sent is dimmed until the server keeps it.
 // The person's own comment has the «…» menu (E09-05, ADR-0059): «Редактировать» opens its text in a form while the time
 // lasts, «Удалить» asks first. A changed text is marked «изменено»; a deleted comment with replies is the stub
-// «Комментарий удалён», with no author, no text and no actions, over its replies.
+// «Комментарий удалён», with no author, no text and no actions, over its replies. «Нравится» with the count stands
+// before «Ответить» (E10-01).
 import { computed, inject, ref, watch } from 'vue'
+import { Heart } from 'lucide-vue-next'
 import UiAvatar from '../ui/UiAvatar.vue'
 import CommentEdit from './CommentEdit.vue'
 import CommentForm from './CommentForm.vue'
@@ -46,6 +48,16 @@ const name = computed(() =>
         ? 'Вы'
         : 'Автор',
 )
+
+// «Нравится» (E10-01, ADR-0061): on a native comment that is kept and not deleted; a guest comment takes no likes, and
+// the person's own comment only shows its count.
+const ownComment = computed(() => tree.own.value[comment.value.id] === true)
+const likeShown = computed(
+  () =>
+    tree.likes.value !== null && !sending.value && !comment.value.deleted && comment.value.kind === 'native',
+)
+const like = computed(() => tree.likes.value?.of('comment', comment.value.id) ?? { count: 0, liked: false })
+const likeBusy = computed(() => tree.likes.value?.isBusy('comment', comment.value.id) === true)
 
 function startReply() {
   if (tree.signedIn.value) replying.value = true
@@ -140,8 +152,30 @@ const timeFormat = new Intl.DateTimeFormat('ru', {
       @close="editing = false"
     />
     <p v-else-if="!comment.deleted" class="comment__text" data-testid="comment-text">{{ comment.text }}</p>
-    <div v-if="replyable && !replying && !editing" class="comment__actions">
-      <button type="button" class="comment__link" data-testid="comment-reply" @click="startReply">
+    <div v-if="(likeShown || (replyable && !replying)) && !editing" class="comment__actions">
+      <button
+        v-if="likeShown"
+        type="button"
+        class="comment__like"
+        :class="{ 'comment__like--on': like.liked }"
+        :disabled="ownComment"
+        :aria-pressed="ownComment ? undefined : like.liked ? 'true' : 'false'"
+        :aria-busy="likeBusy ? 'true' : undefined"
+        :title="ownComment ? 'Свой комментарий оценить нельзя' : undefined"
+        data-testid="comment-like"
+        @click="tree.likes.value?.toggle('comment', comment.id)"
+      >
+        <Heart class="comment__like-icon" aria-hidden="true" />
+        <span class="visually-hidden">Нравится</span>
+        <span v-if="like.count > 0" data-testid="comment-like-count">{{ like.count }}</span>
+      </button>
+      <button
+        v-if="replyable && !replying"
+        type="button"
+        class="comment__link"
+        data-testid="comment-reply"
+        @click="startReply"
+      >
         Ответить
       </button>
     </div>
@@ -247,7 +281,40 @@ a.comment__author:hover {
 
 .comment__actions {
   display: flex;
+  align-items: center;
   gap: var(--space-3);
+}
+
+.comment__like {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.comment__like:hover:not(:disabled),
+.comment__like--on {
+  color: var(--color-accent);
+}
+
+.comment__like:disabled {
+  cursor: default;
+}
+
+.comment__like-icon {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+
+.comment__like--on .comment__like-icon {
+  fill: currentcolor;
 }
 
 .comment__text {

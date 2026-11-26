@@ -9,12 +9,21 @@ import CommentTree from './CommentTree.vue'
 import type { FormTarget } from './context'
 import { branchPath } from '../../api/comments'
 import { useComments } from '../../composables/useComments'
+import { useLikes, type Likes } from '../../composables/useLikes'
 import { pendingActionWith, tabStorage, takePendingAction } from '../../utils/pending-action'
 
 const props = withDefaults(
-  defineProps<{ postId: string; postPath?: string | null; branchId?: string | null }>(),
-  { postPath: null, branchId: null },
+  defineProps<{
+    postId: string
+    postPath?: string | null
+    branchId?: string | null
+    /** The likes of the post page (E10-01), shared with its action panel; a branch's own screen reads its own. */
+    likes?: Likes | null
+  }>(),
+  { postPath: null, branchId: null, likes: null },
 )
+
+const likes = props.likes ?? useLikes(() => props.postId)
 
 const {
   state,
@@ -76,6 +85,7 @@ onMounted(() => {
     :remove="remove"
     :branch-link="branchLink"
     :branch="branchId !== null"
+    :likes="likes"
     @retry="retry()"
     @sort="order"
     @more="more"
