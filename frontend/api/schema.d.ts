@@ -633,10 +633,18 @@ export interface components {
             nickname: null | string;
             avatarSources: components["schemas"]["ImageSource"][];
         };
+        FeedCommentView: {
+            /** Format: uuid */
+            id: string;
+            author: null | components["schemas"]["FeedBlogView"];
+            guestName: null | string;
+            text: string;
+        };
         FeedPostView: {
             post: components["schemas"]["PostView"];
             author: null | components["schemas"]["FeedBlogView"];
             topic: null | components["schemas"]["FeedBlogView"];
+            bestComment: null | components["schemas"]["FeedCommentView"];
         };
         GuestAuthorView: {
             name: string;

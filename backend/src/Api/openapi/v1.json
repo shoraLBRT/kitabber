@@ -2434,11 +2434,46 @@
           }
         }
       },
+      "FeedCommentView": {
+        "required": [
+          "id",
+          "author",
+          "guestName",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeedBlogView"
+              }
+            ]
+          },
+          "guestName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
       "FeedPostView": {
         "required": [
           "post",
           "author",
-          "topic"
+          "topic",
+          "bestComment"
         ],
         "type": "object",
         "properties": {
@@ -2462,6 +2497,16 @@
               },
               {
                 "$ref": "#/components/schemas/FeedBlogView"
+              }
+            ]
+          },
+          "bestComment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeedCommentView"
               }
             ]
           }
