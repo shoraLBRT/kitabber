@@ -18,6 +18,7 @@ public sealed class FeedApi : IntegrationApiFactory
     public FeedApi(PostgresFixture postgres, RedisFixture redis)
         : base(postgres, redis) => WithModule(services =>
         {
+            services.AddTestAuthentication();
             services.ConfigureDbContext<PostsDbContext>(o => o.AddInterceptors(Commands));
             services.ConfigureDbContext<CommentsDbContext>(o => o.AddInterceptors(Commands));
             services.ConfigureDbContext<ReactionsDbContext>(o => o.AddInterceptors(Commands));

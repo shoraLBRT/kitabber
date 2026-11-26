@@ -140,6 +140,10 @@ bus.AddModuleOutbox<SomeDbContext>();             // outbox в схеме мод
 для локального окружения они заданы в `backend/src/Workers/appsettings.Development.json`. Запуск:
 `dotnet run --project backend/src/Workers`. Правила — [ADR-0005](adr/0005-messaging-and-cache.md).
 
+Страницы лент кэшируются целиком под ключом с поколением; изменение поста, видного в ленте, пишет новое поколение, а
+срок жизни страницы (30 секунд) ограничивает отставание данных других модулей на карточке — `FeedPageCache`,
+[ADR-0080](adr/0080-feed-cache.md).
+
 ## REST API
 
 Соглашения — [ADR-0006](adr/0006-rest-api-conventions.md), код — `Platform.Http`. Хост подключает их двумя вызовами

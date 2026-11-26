@@ -22,7 +22,9 @@ public sealed record FreshFeedCursor(DateTimeOffset PublishedAt, Guid Id);
 /// <summary>
 /// <c>/api/v1/feeds/fresh</c> (FR-FEED, E08-01, ADR-0043): every published post, newest first, page by page with a
 /// cursor (ADR-0006). A post published after the first page was read lands before the cursor, so it is neither
-/// repeated nor does it push another post past a page boundary. Drafts and deleted posts are never in the feed.
+/// repeated nor does it push another post past a page boundary. Drafts and deleted posts are never in the feed. A page
+/// read once is given from the cache until a post in the feed changes, for <see cref="FeedPageCache.Lifetime"/> at
+/// most (E08-09, ADR-0080).
 /// </summary>
 public sealed class FreshFeedEndpoints : IApiEndpoints
 {
@@ -42,9 +44,27 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
         IMediaLibrary media,
         IBlogDirectory blogs,
         ICommentDirectory comments,
+        FeedPageCache cache,
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
+        // The fresh feed always exists, so the read is never null.
+        var result = await cache.GetOrReadAsync(
+            FeedPageCache.FreshFeed,
+            page,
+            async token => await ReadAsync(page, db, media, blogs, comments, token),
+            ct);
+        return TypedResults.Ok(result!);
+    }
+
+    private static async Task<CursorPage<FeedPostView>> ReadAsync(
+        PageRequest<FreshFeedCursor> page,
+        PostsDbContext db,
+        IMediaLibrary media,
+        IBlogDirectory blogs,
+        ICommentDirectory comments,
+        CancellationToken ct)
+    {
         var posts = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null);
         if (page.After is { } after)
         {
@@ -59,7 +79,7 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
         var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
-        return TypedResults.Ok(new CursorPage<FeedPostView>(
-            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor));
+        return new CursorPage<FeedPostView>(
+            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor);
     }
 }
