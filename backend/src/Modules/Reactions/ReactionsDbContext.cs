@@ -17,7 +17,13 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
 
     public static string Schema => "reactions";
 
+    /// <summary>The rated comments of a post, read at once for its tree and for the feed (ADR-0081).</summary>
+    public const string RatingPostIndex = "ix_ratings_post";
+
     public DbSet<Reaction> Reactions => Set<Reaction>();
+
+    /// <summary>The kept ratings of posts and comments (ADR-0081).</summary>
+    public DbSet<Rating> Ratings => Set<Rating>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +36,12 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
             reaction.Property(r => r.Kind).HasConversion<string>().HasMaxLength(16);
             reaction.HasIndex(r => r.PostId).HasDatabaseName(PostIndex);
             reaction.HasIndex(r => new { r.AccountId, r.CreatedAt });
+        });
+        modelBuilder.Entity<Rating>(rating =>
+        {
+            rating.HasKey(r => new { r.TargetKind, r.TargetId });
+            rating.Property(r => r.TargetKind).HasConversion<string>().HasMaxLength(16);
+            rating.HasIndex(r => r.PostId).HasDatabaseName(RatingPostIndex);
         });
     }
 }

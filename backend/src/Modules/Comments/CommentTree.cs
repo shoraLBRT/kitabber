@@ -102,13 +102,15 @@ public static class CommentTree
     /// <summary>
     /// The threads of a post's <paramref name="shown"/> comments, in the order of the tree — each comment under the
     /// post with the replies after it — put in the order of <paramref name="sort"/> (E09-04, ADR-0058). The replies
-    /// inside a thread keep the order of the tree. <see cref="CommentSort.Popular"/>: the most replies first, the older
-    /// among equals; <see cref="CommentSort.Date"/>: the newest first. A comment's rating takes the place of its
-    /// replies once comments have one (E10-05).
+    /// inside a thread keep the order of the tree. <see cref="CommentSort.Popular"/>: the highest rated first (E10-05,
+    /// ADR-0081; a comment missing in <paramref name="ratings"/> has zero), then the most replies, then the older;
+    /// <see cref="CommentSort.Date"/>: the newest first.
     /// </summary>
-    public static IReadOnlyList<ShownComment> Sorted(IReadOnlyList<ShownComment> shown, CommentSort sort)
+    public static IReadOnlyList<ShownComment> Sorted(
+        IReadOnlyList<ShownComment> shown, CommentSort sort, IReadOnlyDictionary<Guid, int>? ratings = null)
     {
         ArgumentNullException.ThrowIfNull(shown);
+        ratings ??= new Dictionary<Guid, int>();
         var threads = new List<List<ShownComment>>();
         foreach (var comment in shown)
         {
@@ -125,7 +127,8 @@ public static class CommentTree
                 .OrderByDescending(t => t[0].Comment.CreatedAt)
                 .ThenByDescending(t => t[0].Comment.Path, StringComparer.Ordinal)
             : threads
-                .OrderByDescending(t => t[0].Replies)
+                .OrderByDescending(t => ratings.GetValueOrDefault(t[0].Comment.Id))
+                .ThenByDescending(t => t[0].Replies)
                 .ThenBy(t => t[0].Comment.CreatedAt)
                 .ThenBy(t => t[0].Comment.Path, StringComparer.Ordinal);
         return [.. ordered.SelectMany(t => t)];
@@ -135,7 +138,7 @@ public static class CommentTree
 /// <summary>The order of the comments under a post (FR-COMMENT, ADR-0058).</summary>
 public enum CommentSort
 {
-    /// <summary>«Популярные»: the threads with the most replies first, the older first among equals.</summary>
+    /// <summary>«Популярные»: the highest rated threads first, then the most replies, then the older.</summary>
     Popular,
 
     /// <summary>«По дате»: the newest threads first.</summary>

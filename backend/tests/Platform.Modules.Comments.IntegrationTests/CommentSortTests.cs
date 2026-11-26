@@ -35,6 +35,33 @@ public sealed class CommentSortTests
     }
 
     [Fact]
+    public void PopularPutsTheHigherRatedThreadFirstThenTheOneWithMoreReplies()
+    {
+        var (tree, quiet, busy, lively, busyReply, busyDeeper, livelyReply) = Threads();
+        var ratings = new Dictionary<Guid, int> { [quiet.Id] = 3, [lively.Id] = 1, [busyReply.Id] = 9 };
+
+        var sorted = CommentTree.Sorted(CommentTree.Shown(tree, 0, levels: null), CommentSort.Popular, ratings);
+
+        // The rating of a reply does not move its thread: threads are ordered by their first comment (E10-05).
+        Assert.Equal(
+            new[] { quiet, lively, livelyReply, busy, busyReply, busyDeeper }.Select(c => c.Id),
+            sorted.Select(s => s.Comment.Id));
+    }
+
+    [Fact]
+    public void DateIgnoresTheRatings()
+    {
+        var (tree, quiet, busy, lively, busyReply, busyDeeper, livelyReply) = Threads();
+
+        var sorted = CommentTree.Sorted(
+            CommentTree.Shown(tree, 0, levels: null), CommentSort.Date, new Dictionary<Guid, int> { [quiet.Id] = 5 });
+
+        Assert.Equal(
+            new[] { lively, livelyReply, busy, busyReply, busyDeeper, quiet }.Select(c => c.Id),
+            sorted.Select(s => s.Comment.Id));
+    }
+
+    [Fact]
     public void DatePutsTheNewestThreadFirstAndKeepsTheOrderOfReplies()
     {
         var (tree, quiet, busy, lively, busyReply, busyDeeper, livelyReply) = Threads();

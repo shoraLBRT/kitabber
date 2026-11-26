@@ -239,6 +239,13 @@ public sealed class FeedBestCommentApiTests(FeedApi api) : IClassFixture<FeedApi
                 post,
                 Guid.CreateVersion7(api.Time.GetUtcNow().AddMilliseconds(i)),
                 api.Time.GetUtcNow()))
+            .Append(new Rating
+            {
+                TargetKind = ReactionTarget.Comment,
+                TargetId = comment.Id,
+                PostId = post,
+                Value = count * ReactionWeights.Of(ReactionKind.Like),
+            })
             .ToArray();
         await api.SaveAsync<ReactionsDbContext>(likes);
     }

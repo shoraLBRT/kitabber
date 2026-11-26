@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Modules.Comments;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
+using Platform.Modules.Reactions.Contracts;
 using Platform.Realtime;
 using Platform.Testing.Api;
 using Platform.Testing.Containers;
@@ -265,6 +266,76 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         Assert.Equal(HttpStatusCode.Unauthorized, guestUnlike.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, notConfirmed.StatusCode);
         Assert.Equal(0, await CountAsync());
+    }
+
+    [Fact]
+    public async Task RatingIsCountedAgainOnEveryChangeOfTheReactions()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await SaveCommentAsync(post.Id, _author);
+        var quiet = await SaveCommentAsync(post.Id, _author);
+
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+
+        var weight = ReactionWeights.Of(ReactionKind.Like);
+        Assert.Equal(new Dictionary<Guid, int> { [post.Id] = 2 * weight }, await PostRatingsAsync(post.Id));
+        var comments = await CommentRatingsAsync(post.Id);
+        Assert.Equal(new Dictionary<Guid, int> { [comment.Id] = weight }, comments);
+        Assert.False(comments.ContainsKey(quiet.Id));
+
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+
+        Assert.Equal(new Dictionary<Guid, int> { [post.Id] = weight }, await PostRatingsAsync(post.Id));
+        Assert.Empty(await CommentRatingsAsync(post.Id));
+    }
+
+    [Fact]
+    public async Task SimultaneousChangesKeepTheRatingEqualToTheReactions()
+    {
+        var post = await SavePostAsync(publish: true);
+        var fans = new List<Guid>();
+        for (var i = 0; i < 12; i++)
+        {
+            fans.Add(await SaveAccountAsync(10 + i, $"fan{i}@example.com", confirmed: true));
+        }
+
+        // Every fan likes twice at once, and half of them take the like back at the same time as the others like.
+        await Task.WhenAll(fans.SelectMany(fan => new[]
+        {
+            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan),
+            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan),
+        }));
+        await Task.WhenAll(fans.Select((fan, i) => i % 2 == 0
+            ? Send(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", fan)
+            : Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan)));
+
+        Assert.Equal(6, await CountAsync());
+        Assert.Equal(
+            new Dictionary<Guid, int> { [post.Id] = 6 * ReactionWeights.Of(ReactionKind.Like) },
+            await PostRatingsAsync(post.Id));
+
+        async Task Send(HttpMethod method, string path, Guid account)
+        {
+            using var response = await SendAsync(method, path, account);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, int>> PostRatingsAsync(Guid postId)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IReactionRatings>().PostRatingsAsync([postId], Ct);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, int>> CommentRatingsAsync(Guid postId)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IReactionRatings>().CommentRatingsAsync([postId], Ct);
     }
 
     private async Task<Post> SavePostAsync(bool publish)

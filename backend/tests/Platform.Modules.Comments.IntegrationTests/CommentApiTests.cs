@@ -124,6 +124,32 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
         Assert.Equal([0, 2, 0], RepliesOf(top));
     }
 
+    [Fact]
+    public async Task PopularPutsTheHigherRatedThreadFirstAndFollowsTheChangesOfItsReactions()
+    {
+        var post = await SavePostAsync(publish: true);
+        var quiet = await CreateAsync(post.Id, "тихий, но оценённый", parentId: null);
+        var busy = await CreateAsync(post.Id, "обсуждаемый", parentId: null);
+        var reply = await CreateAsync(post.Id, "ответ", busy);
+        var fan = await SaveConfirmedAccountAsync(2, "fan@example.com");
+        var otherFan = await SaveConfirmedAccountAsync(3, "other-fan@example.com");
+
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/like", null, fan);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/like", null, otherFan);
+        Assert.Equal(HttpStatusCode.OK, otherLiked.StatusCode);
+        using var rated = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, null);
+        using var byDate = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort=date", null, null);
+
+        Assert.Equal([quiet, busy, reply], IdsOf(await rated.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        Assert.Equal([busy, reply, quiet], IdsOf(await byDate.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/like", null, fan);
+        using var otherTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/like", null, otherFan);
+        using var unrated = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, null);
+
+        Assert.Equal([busy, reply, quiet], IdsOf(await unrated.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+    }
+
     [Theory]
     [InlineData("rating")]
     [InlineData("Date")]

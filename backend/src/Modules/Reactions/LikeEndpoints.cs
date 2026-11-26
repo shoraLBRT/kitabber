@@ -216,23 +216,29 @@ public sealed class LikeEndpoints : IApiEndpoints
         CancellationToken ct)
     {
         var changed = false;
-        var there = await db.Reactions.AnyAsync(
-            r => r.TargetKind == like.TargetKind && r.TargetId == like.TargetId && r.AccountId == like.AccountId, ct);
-        if (!there)
+        try
         {
-            db.Reactions.Add(like);
-            try
+            // The like and the new rating of its target are one change (ADR-0081).
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            await Ratings.LockAsync(db, like.TargetKind, like.TargetId, ct);
+            var there = await db.Reactions.AnyAsync(
+                r => r.TargetKind == like.TargetKind && r.TargetId == like.TargetId && r.AccountId == like.AccountId,
+                ct);
+            if (!there)
             {
+                db.Reactions.Add(like);
                 await db.SaveChangesAsync(ct);
+                await Ratings.RecountAsync(db, like.TargetKind, like.TargetId, like.PostId, ct);
+                await transaction.CommitAsync(ct);
                 changed = true;
             }
-            catch (DbUpdateException e) when (e.InnerException is PostgresException
-            {
-                SqlState: PostgresErrorCodes.UniqueViolation,
-            })
-            {
-                db.ChangeTracker.Clear();
-            }
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+        })
+        {
+            db.ChangeTracker.Clear();
         }
 
         var state = await StateAsync(db, like.TargetKind, like.TargetId, like.AccountId, ct);
@@ -255,9 +261,21 @@ public sealed class LikeEndpoints : IApiEndpoints
         ILogger logger,
         CancellationToken ct)
     {
-        var removed = await db.Reactions
-            .Where(r => r.TargetKind == target && r.TargetId == targetId && r.AccountId == account)
-            .ExecuteDeleteAsync(ct);
+        int removed;
+        await using (var transaction = await db.Database.BeginTransactionAsync(ct))
+        {
+            await Ratings.LockAsync(db, target, targetId, ct);
+            removed = await db.Reactions
+                .Where(r => r.TargetKind == target && r.TargetId == targetId && r.AccountId == account)
+                .ExecuteDeleteAsync(ct);
+            if (removed > 0)
+            {
+                await Ratings.RecountAsync(db, target, targetId, postId, ct);
+            }
+
+            await transaction.CommitAsync(ct);
+        }
+
         var state = await StateAsync(db, target, targetId, account, ct);
         if (removed > 0)
         {

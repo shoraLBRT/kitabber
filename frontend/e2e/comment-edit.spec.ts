@@ -107,7 +107,10 @@ test.describe('правка и удаление комментария', () => {
     const withReplies = thread(comments, 'Первый уровень')
     await deleteComment(page, withReplies)
 
-    const stub = comments.locator('[data-testid="comment"][aria-level="1"]').first()
+    const stub = comments
+      .locator('[data-testid="comment"][aria-level="1"]')
+      .filter({ hasText: 'Второй уровень' })
+      .first()
     await expect(stub.locator(':scope > [data-testid="comment-deleted"]')).toHaveText('Комментарий удалён')
     await expect(stub.locator(':scope > .comment__head')).toHaveCount(0)
     await expect(stub.getByText('Второй уровень')).toBeVisible()

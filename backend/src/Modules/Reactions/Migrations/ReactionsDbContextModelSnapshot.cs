@@ -23,6 +23,34 @@ namespace Platform.Modules.Reactions.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Platform.Modules.Reactions.Rating", b =>
+                {
+                    b.Property<string>("TargetKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("target_kind");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("integer")
+                        .HasColumnName("value");
+
+                    b.HasKey("TargetKind", "TargetId")
+                        .HasName("pk_ratings");
+
+                    b.HasIndex("PostId")
+                        .HasDatabaseName("ix_ratings_post");
+
+                    b.ToTable("ratings", "reactions");
+                });
+
             modelBuilder.Entity("Platform.Modules.Reactions.Reaction", b =>
                 {
                     b.Property<string>("TargetKind")

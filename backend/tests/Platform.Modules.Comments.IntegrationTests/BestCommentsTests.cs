@@ -11,7 +11,7 @@ public sealed class BestCommentsTests
     private static readonly Guid _other = Guid.CreateVersion7(_now.AddSeconds(1));
 
     [Fact]
-    public void MostLikedWinsAndTheEarlierAmongEquals()
+    public void HighestRatedWinsAndTheEarlierAmongEquals()
     {
         var early = Candidate(_post, 1);
         var liked = Candidate(_post, 2);
