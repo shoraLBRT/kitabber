@@ -52,6 +52,7 @@ public sealed class AccountPasswords(
     IMailer mailer,
     IOpenIddictAuthorizationManager authorizations,
     IOpenIddictTokenManager tokens,
+    SignIn.AccountSessions sessions,
     TimeProvider time)
 {
     public const string ResetTemplate = "password-reset";
@@ -161,6 +162,7 @@ public sealed class AccountPasswords(
         var subject = account.Id.ToString("D");
         await tokens.RevokeBySubjectAsync(subject, cancellationToken);
         await authorizations.RevokeBySubjectAsync(subject, cancellationToken);
+        await sessions.EndAllAsync(account.Id, cancellationToken);
         account.SetPassword(PasswordHasher.Hash(password!), endSessions: true);
         await SendChangedAsync(account, now, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);

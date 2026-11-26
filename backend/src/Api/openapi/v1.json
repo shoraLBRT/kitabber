@@ -495,6 +495,116 @@
         }
       }
     },
+    "/api/v1/account/sessions": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Lists the devices signed in to the account, the most recently active first",
+        "operationId": "ListAccountSessions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccountSessionView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/sessions/{sessionId}": {
+      "delete": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Signs one device of the account out",
+        "operationId": "EndAccountSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/sessions/sign-out-others": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Signs out every device of the account but the one of the request",
+        "operationId": "EndOtherAccountSessions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndedSessions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/password-reset": {
       "post": {
         "tags": [
@@ -2385,6 +2495,39 @@
           }
         }
       },
+      "AccountSessionView": {
+        "required": [
+          "id",
+          "device",
+          "createdAt",
+          "lastActiveAt",
+          "current"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "device": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastActiveAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean"
+          }
+        }
+      },
       "CaptchaChallenge": {
         "required": [
           "provider",
@@ -2697,6 +2840,18 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "EndedSessions": {
+        "required": [
+          "ended"
+        ],
+        "type": "object",
+        "properties": {
+          "ended": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
