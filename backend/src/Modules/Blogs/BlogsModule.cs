@@ -58,9 +58,16 @@ public static class BlogsModule
     }
 
     /// <summary>
-    /// The module's consumers with the inbox in its schema (ADR-0005). The module publishes nothing yet; when it does, it
-    /// registers <c>AddModuleOutbox&lt;BlogsDbContext&gt;</c> instead and publishes through <c>IModuleOutbox&lt;BlogsDbContext&gt;</c>.
+    /// The module's outbox in the API host (ADR-0005): the subscription endpoints publish <c>BlogSubscribed</c> through
+    /// <c>IModuleOutbox&lt;BlogsDbContext&gt;</c> (ADR-0092).
     /// </summary>
+    public static IBusRegistrationConfigurator AddBlogsOutbox(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        return bus.AddModuleOutbox<BlogsDbContext>();
+    }
+
+    /// <summary>The module's consumers with the inbox in its schema (ADR-0005), in the workers host.</summary>
     public static IBusRegistrationConfigurator AddBlogsConsumers(this IBusRegistrationConfigurator bus)
     {
         ArgumentNullException.ThrowIfNull(bus);

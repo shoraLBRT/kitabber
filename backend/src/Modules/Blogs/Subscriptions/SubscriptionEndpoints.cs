@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Platform.Http;
 using Platform.Http.Problems;
+using Platform.Messaging;
+using Platform.Modules.Blogs.Contracts;
 
 namespace Platform.Modules.Blogs.Subscriptions;
 
@@ -47,7 +49,12 @@ public sealed class SubscriptionEndpoints : IApiEndpoints
     // The key is the account and the blog: a subscription already there, even one written by a request at the same
     // moment, is the same subscription (ADR-0085).
     private static async Task<IResult> SubscribeAsync(
-        Guid id, ClaimsPrincipal user, BlogsDbContext db, TimeProvider time, CancellationToken ct)
+        Guid id,
+        ClaimsPrincipal user,
+        BlogsDbContext db,
+        IModuleOutbox<BlogsDbContext> outbox,
+        TimeProvider time,
+        CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
         {
@@ -66,7 +73,17 @@ public sealed class SubscriptionEndpoints : IApiEndpoints
 
         if (!await db.Subscriptions.AnyAsync(s => s.AccountId == account && s.SubsiteId == id, ct))
         {
-            db.Subscriptions.Add(Subscription.Create(account, id, time.GetUtcNow()));
+            var now = time.GetUtcNow();
+            db.Subscriptions.Add(Subscription.Create(account, id, now));
+            // Only a new subscription is announced, in its own transaction (ADR-0092); a lost race clears both.
+            await outbox.Publish(
+                new BlogSubscribed(
+                    id,
+                    blog.Type == SubsiteType.Personal ? BlogKind.Personal : BlogKind.Topic,
+                    blog.OwnerAccountId,
+                    account,
+                    now),
+                ct);
             try
             {
                 await db.SaveChangesAsync(ct);

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>Platform.Modules.Notifications.IntegrationTests</RootNamespace>
+        <!-- VSTest, like every test project: verify.ps1 uses the TRX logger (ADR-0008). -->
+        <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+        <PackageReference Include="xunit.v3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../src/Modules/Notifications/Platform.Modules.Notifications.csproj" />
+        <ProjectReference Include="../../src/Workers/Platform.Workers.csproj" />
+        <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
+    </ItemGroup>
+
+</Project>

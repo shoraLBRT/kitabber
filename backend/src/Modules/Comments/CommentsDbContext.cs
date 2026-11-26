@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Platform.Messaging;
 using Platform.Persistence;
 
 namespace Platform.Modules.Comments;
@@ -32,6 +33,8 @@ public sealed class CommentsDbContext(DbContextOptions<CommentsDbContext> option
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        // The outbox of the events the module publishes (ADR-0005, ADR-0092).
+        modelBuilder.AddOutboxTables();
         modelBuilder.Entity<Comment>(comment =>
         {
             comment.ToTable(t => t.HasCheckConstraint(

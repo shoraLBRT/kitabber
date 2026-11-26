@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Platform.Messaging;
 using Platform.Persistence;
 
 namespace Platform.Modules.Reactions;
@@ -28,6 +29,8 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        // The outbox of the events the module publishes (ADR-0005, ADR-0092).
+        modelBuilder.AddOutboxTables();
         modelBuilder.Entity<Reaction>(reaction =>
         {
             // One reaction per person and target: the key makes a repeated like a no-op (ADR-0061).

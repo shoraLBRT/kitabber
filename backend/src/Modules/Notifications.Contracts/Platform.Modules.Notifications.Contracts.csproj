@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The public contracts of the Notifications module (docs/ARCHITECTURE.md, "Границы модулей"): what other modules
+      offer it without reading the schema `notifications`, such as the black list that keeps a blocked person from
+      notifying (ADR-0092).
+    -->
+    <PropertyGroup>
+        <RootNamespace>Platform.Modules.Notifications.Contracts</RootNamespace>
+    </PropertyGroup>
+
+</Project>

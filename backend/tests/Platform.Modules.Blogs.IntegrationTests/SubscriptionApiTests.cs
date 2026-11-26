@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Subscriptions;
@@ -49,6 +50,45 @@ public sealed class SubscriptionApiTests(ProfilesApi api) : IClassFixture<Profil
         var guest = await ProfileAsync(topic.Id);
         Assert.Equal(1, guest.GetProperty("subscriberCount").GetInt32());
         Assert.False(guest.GetProperty("subscribed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task OnlyANewSubscriptionIsPublishedWithTheBlogsOwner()
+    {
+        var events = new System.Collections.Concurrent.ConcurrentQueue<BlogSubscribed>();
+        var endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
+            $"blogs-tests-blog-subscribed-{Guid.NewGuid():N}",
+            (_, e) => e.Handler<BlogSubscribed>(c =>
+            {
+                events.Enqueue(c.Message);
+                return Task.CompletedTask;
+            }));
+        await endpoint.Ready;
+        try
+        {
+            var (topic, owner) = await TopicAsync();
+            var reader = NewAccount();
+            var marker = NewAccount();
+
+            await SendAsync(HttpMethod.Put, topic.Id, reader);
+            await SendAsync(HttpMethod.Put, topic.Id, reader);
+            await SendAsync(HttpMethod.Delete, topic.Id, reader);
+            await SendAsync(HttpMethod.Put, topic.Id, marker);
+
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!events.Any(e => e.SubscriberAccountId == marker))
+            {
+                Assert.True(DateTime.UtcNow < deadline, "the subscriptions were not published in 30s");
+                await Task.Delay(100, Ct);
+            }
+
+            var mine = Assert.Single(events, e => e.SubscriberAccountId == reader);
+            Assert.Equal((topic.Id, BlogKind.Topic, (Guid?)owner), (mine.BlogId, mine.Kind, mine.OwnerAccountId));
+        }
+        finally
+        {
+            await endpoint.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]

@@ -1,8 +1,10 @@
+using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Http;
+using Platform.Messaging;
 using Platform.Modules.Comments.Contracts;
 using Platform.Persistence;
 
@@ -27,5 +29,15 @@ public static class CommentsModule
         builder.Services.AddScoped<ICommentDirectory, CommentDirectory>();
         builder.Services.AddApiEndpoints<CommentEndpoints>();
         return builder;
+    }
+
+    /// <summary>
+    /// The module's outbox in the API host (ADR-0005): a new comment publishes <c>CommentPosted</c> through
+    /// <c>IModuleOutbox&lt;CommentsDbContext&gt;</c> (ADR-0092).
+    /// </summary>
+    public static IBusRegistrationConfigurator AddCommentsOutbox(this IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        return bus.AddModuleOutbox<CommentsDbContext>();
     }
 }
