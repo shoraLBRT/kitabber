@@ -21,7 +21,7 @@ public sealed class SettingsCatalogTests
         .. SeedApp.Settings,
     ];
 
-    private static readonly string _root = FindRoot();
+    private static readonly string _root = HostSettings.RepositoryRoot;
 
     [Fact]
     public void EverySettingIsDescribedInConfigDoc()
@@ -101,18 +101,5 @@ public sealed class SettingsCatalogTests
                 yield return key;
             }
         }
-    }
-
-    private static string FindRoot()
-    {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "backend", "Platform.slnx")))
-            {
-                return dir.FullName;
-            }
-        }
-
-        throw new InvalidOperationException("repository root (backend/Platform.slnx) not found");
     }
 }
