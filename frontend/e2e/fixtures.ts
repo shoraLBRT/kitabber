@@ -2,10 +2,15 @@ import { expect, test as base, type Locator, type Page } from '@playwright/test'
 
 // Shared fixtures of the e2e tests (docs/TESTING.md): a page that fails the test on any script error or console
 // error (hydration mismatches included), and small layout helpers.
-export const test = base.extend<{ page: Page; missingResources: string[] }>({
+export const test = base.extend<{ page: Page; missingResources: string[]; cookieChoice: boolean }>({
   // Paths a page is expected to fail to load, e.g. the broken avatar of the /ui showcase.
   missingResources: [[], { option: true }],
-  page: async ({ page, missingResources }, use) => {
+  // The visitor has already answered the cookie banner (E02-13, ADR-0066), so it covers nothing a test presses;
+  // e2e/cookie-consent.spec.ts turns this off to see the banner.
+  cookieChoice: [true, { option: true }],
+  page: async ({ page, missingResources, cookieChoice, baseURL }, use) => {
+    if (cookieChoice)
+      await page.context().addCookies([{ name: 'cookie_consent', value: 'v1.analytics-0', url: baseURL! }])
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`))
     page.on('console', (message) => {

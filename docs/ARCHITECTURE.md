@@ -60,6 +60,10 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 строка в `i18n/locales/index.ts`; недостающие тексты берутся из русского. Правило ESLint `i18n/no-raw-text`
 (`frontend/eslint/i18n.mjs`) не пропускает текст мимо словаря в шаблонах и кириллицу в коде.
 
+Согласие на cookie (E02-13, ADR-0066): выбор — в необходимой cookie `cookie_consent`, баннер `ShellCookieBanner` в
+`app.vue`, настройки — `/settings/cookies`. Код, который ставит необязательную cookie (аналитика, сбор ошибок),
+запускается только через `whenConsented(категория, start, cookies)` из `frontend/composables/useCookieConsent.ts`.
+
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.
 Его подключает раскладка Nuxt `frontend/layouts/default.vue`; витрины дизайна идут в раскладке `bare`. Пункты меню и

@@ -35,6 +35,27 @@ export default {
     drafts: 'Черновики',
     bookmarks: 'Закладки',
     settings: 'Настройки',
+    cookies: 'Настройки cookie',
+  },
+  // E02-13, ADR-0066. A neutral placeholder text: the wording of the notice comes with the legal documents (FR-LEGAL).
+  cookies: {
+    banner: 'Согласие на cookie',
+    bannerText:
+      'Мы используем необходимые cookie, чтобы вы могли войти и сайт запоминал ваш выбор. Аналитические cookie ставим только с вашего согласия.',
+    acceptAll: 'Разрешить все',
+    necessaryOnly: 'Только необходимые',
+    customize: 'Настроить',
+    title: 'Настройки cookie',
+    intro: 'Выберите, какие cookie сайт может ставить в этом браузере. Выбор можно изменить в любой момент.',
+    categories: 'Категории cookie',
+    necessary: 'Необходимые',
+    necessaryText:
+      'Вход в аккаунт и запоминание этого выбора. Без них сайт не работает, поэтому их нельзя отключить.',
+    analytics: 'Аналитические',
+    analyticsText: 'Помогают понять, какие разделы читают и где сайт сбоит. Пока сайт их не ставит.',
+    save: 'Сохранить выбор',
+    saved: 'Выбор сохранён',
+    undecided: 'Вы ещё не сделали выбор: пока сайт ставит только необходимые cookie.',
   },
   shell: {
     aside: 'Боковая колонка',
