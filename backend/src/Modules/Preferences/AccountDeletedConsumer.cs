@@ -1,0 +1,27 @@
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using Platform.Messaging;
+using Platform.Modules.Identity.Contracts;
+
+namespace Platform.Modules.Preferences;
+
+/// <summary>
+/// Erases the settings of a deleted account (FR-ID-5, ADR-0087). The removal and the inbox record are saved together
+/// after it returns (<see cref="AccountDeletedConsumerDefinition"/>); a repeat, or an account that never changed its
+/// settings, finds no row and does nothing.
+/// </summary>
+public sealed class AccountDeletedConsumer(PreferencesDbContext db) : IConsumer<AccountDeleted>
+{
+    public async Task Consume(ConsumeContext<AccountDeleted> context)
+    {
+        var preferences = await db.AccountPreferences
+            .SingleOrDefaultAsync(p => p.AccountId == context.Message.AccountId, context.CancellationToken);
+        if (preferences is not null)
+        {
+            db.AccountPreferences.Remove(preferences);
+        }
+    }
+}
+
+/// <summary>The inbox of the Preferences schema for <see cref="AccountDeletedConsumer"/> (ADR-0005).</summary>
+public sealed class AccountDeletedConsumerDefinition : ModuleConsumerDefinition<AccountDeletedConsumer, PreferencesDbContext>;

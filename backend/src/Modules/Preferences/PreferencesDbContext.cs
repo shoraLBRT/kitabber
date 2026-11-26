@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Platform.Messaging;
 using Platform.Persistence;
 
 namespace Platform.Modules.Preferences;
@@ -18,6 +19,8 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        // The inbox of the consumers (ADR-0005): a repeated event is not handled twice.
+        modelBuilder.AddOutboxTables();
         modelBuilder.Entity<AccountPreferences>(preferences =>
         {
             // One row per account; an account without a row has the defaults (ADR-0070).

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:message:account.updated.v1",
+  "title": "account.updated.v1",
+  "description": "Данные аккаунта изменились; changes называет, что именно (сейчас только email).",
+  "type": "object",
+  "properties": {
+    "accountId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "accountId",
+    "occurredAt",
+    "changes"
+  ]
+}

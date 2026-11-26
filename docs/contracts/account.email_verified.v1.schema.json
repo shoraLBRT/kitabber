@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:message:account.email_verified.v1",
+  "title": "account.email_verified.v1",
+  "description": "Почта аккаунта подтверждена кодом: первая или новая вместо прежней.",
+  "type": "object",
+  "properties": {
+    "accountId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "accountId",
+    "occurredAt"
+  ]
+}

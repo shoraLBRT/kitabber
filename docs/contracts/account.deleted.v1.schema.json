@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:message:account.deleted.v1",
+  "title": "account.deleted.v1",
+  "description": "Аккаунт удалён: модули и проекты стирают данные, которые держат по accountId.",
+  "type": "object",
+  "properties": {
+    "accountId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "accountId",
+    "occurredAt"
+  ]
+}
