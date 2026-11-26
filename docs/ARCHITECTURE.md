@@ -71,7 +71,7 @@ Chromium) — в `e2e/` и `playwright.config.ts` каждого пакета; �
 Учёт просмотров (E07-06, ADR-0071): браузер шлёт отчёты (открытие, показы карточек, время чтения) на `/bff/views`
 через `frontend/composables/useViews.ts`, сервер сайта передаёт их в `POST /api/v1/posts/{id}/open`, `…/impressions`,
 `…/{id}/reading` с токеном, строкой браузера и адресом. В модуле Posts учёт — за внутренним `IViewCounter`
-(`DatabaseViewCounter`); Redis-счётчики (E10-09) и аналитическая база (E16-18) подключаются на его месте.
+(`BufferedViewCounter`: Redis-буфер `IWriteBuffer` с пакетным сбросом `ViewFlusher`, ADR-0083); аналитическая база (E16-18) подключается на его месте.
 
 Каркас сайта (E02-05) — `frontend/components/shell/Shell*.vue`: `ShellLayout` собирает шапку, левое меню, центральную
 колонку (`<main id="content">`) и правую колонку виджетов и переключает раскладки по точкам перелома из токенов.

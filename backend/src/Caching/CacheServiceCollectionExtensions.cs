@@ -28,7 +28,8 @@ public static class CacheServiceCollectionExtensions
     public const string InstanceName = "platform:";
 
     /// <summary>
-    /// Registers <see cref="IDistributedCache"/> (ADR-0005) and <see cref="IRateCounter"/> (ADR-0016): Redis, or memory
+    /// Registers <see cref="IDistributedCache"/> (ADR-0005), <see cref="IRateCounter"/> (ADR-0016) and
+    /// <see cref="IWriteBuffer"/> (ADR-0083): Redis, or memory
     /// when <c>Cache:Provider</c> is <c>InMemory</c>. Modules depend on the interfaces only. A second call (a host
     /// and a module both register the cache) changes nothing.
     /// </summary>
@@ -46,10 +47,11 @@ public static class CacheServiceCollectionExtensions
         // Readiness (ADR-0015): the host is not ready while the cache does not answer.
         services.AddHealthChecks().AddCheck<CacheHealthCheck>("cache", tags: [ReadyTag]);
 
+        services.TryAddSingleton(TimeProvider.System);
         if (provider == CacheProvider.InMemory)
         {
-            services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<IRateCounter, InMemoryRateCounter>();
+            services.AddSingleton<IWriteBuffer, InMemoryWriteBuffer>();
             return services.AddDistributedMemoryCache();
         }
 
@@ -63,6 +65,7 @@ public static class CacheServiceCollectionExtensions
             return ConnectionMultiplexer.Connect(options);
         });
         services.AddSingleton<IRateCounter, RedisRateCounter>();
+        services.AddSingleton<IWriteBuffer, RedisWriteBuffer>();
         return services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = connection;
