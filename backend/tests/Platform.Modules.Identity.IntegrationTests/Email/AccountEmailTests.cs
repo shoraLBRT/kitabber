@@ -238,6 +238,63 @@ public sealed class AccountEmailTests(EmailApi api) : IClassFixture<EmailApi>, I
         Assert.Equal("new@example.com", (await StoredAsync(account)).NormalizedEmail);
     }
 
+    [Fact]
+    public async Task ConfirmedEmailChangesOnlyWithTheCodeFromTheNewAddressAndTheOldOneIsNotified()
+    {
+        var account = await api.CreateAccountAsync();
+        (await api.ConfirmAsync(account, await api.RequestCodeAsync(account, "Old.Owner@Example.com"))).Dispose();
+        var code = await api.RequestCodeAsync(account, "new.owner@example.com");
+
+        using (var wrong = await api.ConfirmAsync(account, code == "000000" ? "111111" : "000000"))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        }
+
+        // Neither the first confirmation nor the code sent to the new address nor a wrong code notified the old one: the
+        // letter with the new code has arrived, and the outbox delivers in the order it saved.
+        Assert.Equal("old.owner@example.com", (await StoredAsync(account)).NormalizedEmail);
+        Assert.Equal([AccountEmails.Template], api.LettersTo("Old.Owner@Example.com").Select(l => l.Template));
+
+        api.Time.Advance(TimeSpan.FromMinutes(3));
+        using (var confirmed = await api.ConfirmAsync(account, code))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, confirmed.StatusCode);
+        }
+
+        var stored = await StoredAsync(account);
+        Assert.Equal("new.owner@example.com", stored.NormalizedEmail);
+        Assert.Equal(api.Time.GetUtcNow(), stored.EmailConfirmedAt);
+        var notice = await api.LetterToAsync("Old.Owner@Example.com", count: 2);
+        Assert.Equal(AccountEmails.ChangedTemplate, notice.Template);
+        Assert.DoesNotContain("new.owner", notice.TextBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("new.owner", notice.HtmlBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal([AccountEmails.Template], api.LettersTo("new.owner@example.com").Select(l => l.Template));
+    }
+
+    [Fact]
+    public async Task TakenEmailIsRefusedWithoutNamingItsOwner()
+    {
+        var owner = await api.CreateAccountAsync();
+        var other = await api.CreateAccountAsync();
+        (await api.ConfirmAsync(owner, await api.RequestCodeAsync(owner, "holder@example.com"))).Dispose();
+        (await api.ConfirmAsync(other, await api.RequestCodeAsync(other, "claimant@example.com"))).Dispose();
+
+        using var taken = await api.ChangeEmailAsync(other, "Holder@Example.com");
+
+        Assert.Equal(HttpStatusCode.Conflict, taken.StatusCode);
+        var body = await taken.Content.ReadAsStringAsync(Ct);
+        using var problem = JsonDocument.Parse(body);
+        Assert.Equal(AccountEmailEndpoints.EmailTakenCode, problem.RootElement.GetProperty("code").GetString());
+        Assert.DoesNotContain(owner.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(owner.ToString("N"), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("holder@example.com", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("claimant@example.com", (await StoredAsync(other)).NormalizedEmail);
+        Assert.Equal(JsonValueKind.Null, (await api.EmailStateAsync(other)).GetProperty("pendingEmail").ValueKind);
+        // No code went to the taken address: the owner's mailbox has only its own confirmation letter.
+        Assert.Empty(api.LettersTo("Holder@Example.com"));
+        Assert.Single(api.LettersTo("holder@example.com"));
+    }
+
     [Theory]
     [InlineData("not-an-email")]
     [InlineData("")]

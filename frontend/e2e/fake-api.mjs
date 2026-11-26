@@ -12,6 +12,7 @@
 // Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below. The captcha
 // (E03-12): GET /api/v1/sign-in/captcha.
 // Password (E03-05): POST /api/v1/password-reset and /{id}/confirmation, PUT /api/v1/account/password.
+// Email (E03-06): GET/PUT /api/v1/account/email and POST /api/v1/account/email/confirmation; see accountEmailRoute.
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 
@@ -198,6 +199,61 @@ async function changePassword(request, response) {
   if (!body.currentPassword || body.currentPassword === 'wrong-password')
     return send(response, 400, { status: 400, code: 'current_password_invalid' })
   return send(response, 204)
+}
+
+// The account's email (E03-06): GET/PUT /api/v1/account/email and POST /api/v1/account/email/confirmation with the
+// API's answers. Kept per client address (`x-forwarded-for`), as the profile edits are; the fake provider's account
+// starts with the confirmed reader@example.com. taken@example.com is another account's, the code goes to the new
+// address and, once it is entered, a notice (code null) to the old one.
+const accountEmails = new Map() // client address -> { email, confirmedAt, pendingEmail, code }
+
+function accountEmail(request) {
+  const client = clientOf(request)
+  if (!accountEmails.has(client))
+    accountEmails.set(client, {
+      email: 'reader@example.com',
+      confirmedAt: '2026-11-01T09:00:00Z',
+      pendingEmail: null,
+      code: null,
+    })
+  return accountEmails.get(client)
+}
+
+function emailView({ email, confirmedAt, pendingEmail }) {
+  return { email, confirmedAt, pendingEmail }
+}
+
+async function accountEmailRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const entry = accountEmail(request)
+  if (request.method === 'GET') return send(response, 200, emailView(entry))
+  const body = JSON.parse((await readBody(request)) || '{}')
+  if (url.pathname.endsWith('/confirmation')) {
+    if (!entry.pendingEmail || !entry.code || body.code !== entry.code)
+      return send(response, 400, { status: 400, code: 'confirmation_invalid' })
+    letters.push({ to: entry.email, code: null })
+    Object.assign(entry, {
+      email: entry.pendingEmail,
+      confirmedAt: new Date().toISOString(),
+      pendingEmail: null,
+      code: null,
+    })
+    return send(response, 204)
+  }
+  const email = String(body.email ?? '').trim()
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { email: ['Not an email address.'] },
+    })
+  if (email.toLowerCase() === entry.email.toLowerCase()) return send(response, 204)
+  if (email.toLowerCase() === 'taken@example.com')
+    return send(response, 409, { status: 409, code: 'email_taken', title: 'Another account has this email.' })
+  entry.pendingEmail = email
+  entry.code = String(Math.floor(100000 + Math.random() * 900000))
+  letters.push({ to: email, code: entry.code })
+  return send(response, 202)
 }
 
 function send(response, status, body, type = 'application/json') {
@@ -1012,6 +1068,11 @@ createServer(async (request, response) => {
     return passwordReset(request, response, url)
   if (url.pathname === '/api/v1/account/password' && request.method === 'PUT')
     return changePassword(request, response)
+  if (
+    (url.pathname === '/api/v1/account/email' && (request.method === 'GET' || request.method === 'PUT')) ||
+    (url.pathname === '/api/v1/account/email/confirmation' && request.method === 'POST')
+  )
+    return accountEmailRoute(request, response, url)
 
   if (url.pathname === '/api/v1/preferences/me' && request.method === 'GET')
     return ownPreferences(request, response)

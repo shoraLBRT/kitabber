@@ -42,11 +42,13 @@ public enum EmailConfirmResult
 /// The account's email (FR-ID, ADR-0020): setting it sends a confirmation code, the code confirms it. While an account
 /// has no confirmed email, a new address replaces the account's email at once, unconfirmed; once it has one, a new
 /// address waits in the confirmation and replaces the confirmed one only when its code is entered, so the account never
-/// loses its confirmed email (and the right to publish) halfway.
+/// loses its confirmed email (and the right to publish) halfway. When the code replaces a confirmed email, the old address
+/// gets a letter about the change (E03-06), so its owner learns of a change they did not make.
 /// </summary>
 public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, IPublishEndpoint publish, TimeProvider time)
 {
     public const string Template = "email-confirmation";
+    public const string ChangedTemplate = "email-changed";
 
     private static readonly CultureInfo _culture = CultureInfo.GetCultureInfo("ru");
 
@@ -158,8 +160,33 @@ public sealed class AccountEmails(IdentityDbContext db, IMailer mailer, IPublish
             return EmailConfirmResult.Taken;
         }
 
+        var previous = account.HasConfirmedEmail && account.NormalizedEmail != confirmation.NormalizedEmail
+            ? account.Email
+            : null;
         account.ConfirmEmail(confirmation.Email, confirmation.NormalizedEmail, now);
+        if (previous is not null)
+        {
+            // Queued after the release above has been saved: the letter leaves only together with the change.
+            await NotifyChangedAsync(previous, now, cancellationToken);
+        }
+
         return await SaveAsync(cancellationToken) ? EmailConfirmResult.Confirmed : EmailConfirmResult.Taken;
+    }
+
+    // The letter to the replaced confirmed address (E03-06). It does not name the new address: whoever reads the old
+    // mailbox learns that the email changed and when, not where the account's letters go now.
+    private async Task NotifyChangedAsync(string previous, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var when = now.UtcDateTime.ToString("d MMMM yyyy 'в' HH:mm '(UTC)'", _culture);
+        try
+        {
+            await mailer.SendAsync(previous, ChangedTemplate, _culture, new Dictionary<string, string> { ["when"] = when },
+                cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            // An old address the mail library does not parse: the notice must not undo the confirmed change.
+        }
     }
 
     /// <summary>

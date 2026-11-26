@@ -25,6 +25,7 @@ public sealed class TemplateTests
             ["email-confirmation"] = new Dictionary<string, string> { ["code"] = "305718", ["lifetime"] = "30 минут" },
             ["password-reset"] = new Dictionary<string, string> { ["code"] = "620194", ["lifetime"] = "15 минут" },
             ["password-changed"] = new Dictionary<string, string> { ["when"] = "21 ноября 2026 в 14:05 (UTC)" },
+            ["email-changed"] = new Dictionary<string, string> { ["when"] = "26 ноября 2026 в 09:30 (UTC)" },
         };
 
     private static readonly MailTemplateRenderer _renderer = new(EmbeddedMailTemplateSource.Instance, TestBrand);
