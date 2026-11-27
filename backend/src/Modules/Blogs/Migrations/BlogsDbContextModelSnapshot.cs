@@ -329,6 +329,10 @@ namespace Platform.Modules.Blogs.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("nickname_changed_at");
 
+                    b.Property<DateTimeOffset?>("OnboardedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("onboarded_at");
+
                     b.Property<Guid?>("OwnerAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("owner_account_id");

@@ -40,6 +40,8 @@ public sealed class PersonalBlogFactory(SeedData data) : ObjectFactory<Subsite>(
         blog.Rename(_names[Random.Next(_names.Length)]);
         blog.Describe(_descriptions[Random.Next(_descriptions.Length)]);
         blog.SetNickname($"demo{number}");
+        // The demo accounts have filled their profiles already: they never see the onboarding (ADR-0102).
+        blog.FinishOnboarding(blog.CreatedAt);
         return blog;
     }
 }

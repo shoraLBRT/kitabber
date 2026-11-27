@@ -54,6 +54,10 @@ namespace Platform.Modules.Blogs.Profiles;
 /// The reader blocked the owner of this personal blog (E11-06, ADR-0091); <c>false</c> for a guest, for the owner and
 /// for a topic.
 /// </param>
+/// <param name="OnboardingPending">
+/// The owner has not been through the onboarding yet (E03-10, ADR-0102), so the site offers it after sign-in; only the
+/// owner of a personal blog ever sees <c>true</c>.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -71,7 +75,8 @@ public sealed record Profile(
     bool Subscribed = false,
     DateTimeOffset? NicknameChangeableFrom = null,
     Guid? AccountId = null,
-    bool Blocked = false);
+    bool Blocked = false,
+    bool OnboardingPending = false);
 
 /// <summary>A new nickname of the own personal blog (E04-05, ADR-0090).</summary>
 /// <param name="Nickname">
@@ -380,7 +385,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         return TypedResults.Ok(await ViewAsync(blog, accountId, db, media, ct));
     }
 
-    private static Task<string?> AvatarProblemAsync(Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
+    internal static Task<string?> AvatarProblemAsync(Guid avatarId, Guid accountId, IMediaLibrary media, CancellationToken ct) =>
         ImageProblemAsync(avatarId, accountId, "Аватар — это изображение.", media, ct);
 
     // Someone else's file is answered as a missing one, so the owner of a file is not given away (ADR-0034).
@@ -454,7 +459,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
                 .SingleOrDefaultAsync(ct)
             : null;
 
-    private static async Task<Profile> ViewAsync(
+    internal static async Task<Profile> ViewAsync(
         Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
     {
         var numbers = await SubscriptionCounts.OfAsync(db, blog, viewer, ct);
@@ -481,7 +486,8 @@ public sealed class ProfileEndpoints : IApiEndpoints
             await AvatarSourcesAsync(blog.AvatarMediaId, media, ct),
             await CoverAsync(blog, media, ct),
             NicknameChangeableFrom: own && blog.Type == SubsiteType.Personal ? blog.NicknameChangeableFrom : null,
-            AccountId: blog.Type == SubsiteType.Personal ? blog.OwnerAccountId : null);
+            AccountId: blog.Type == SubsiteType.Personal ? blog.OwnerAccountId : null,
+            OnboardingPending: own && blog.OnboardingPending);
     }
 
     // A file that is no longer an image of the media library shows no cover rather than a broken picture.
@@ -508,7 +514,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
             : [];
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
-    private static Guid? AccountOf(ClaimsPrincipal user) =>
+    internal static Guid? AccountOf(ClaimsPrincipal user) =>
         user.Identity?.IsAuthenticated == true
         && Guid.TryParse((user.FindFirst("sub") ?? user.FindFirst(ClaimTypes.NameIdentifier))?.Value, out var id)
             ? id

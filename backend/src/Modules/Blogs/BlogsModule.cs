@@ -41,6 +41,7 @@ public static class BlogsModule
         ArgumentNullException.ThrowIfNull(builder);
         AddServices(builder.Services, builder.Configuration);
         builder.Services.AddApiEndpoints<ProfileEndpoints>();
+        builder.Services.AddApiEndpoints<OnboardingEndpoints>();
         builder.Services.TryAddSingleton(BlogsSettings.ReadLimits(builder.Configuration));
         builder.Services.AddApiEndpoints<TopicEndpoints>();
         builder.Services.AddApiEndpoints<TopicCatalogEndpoints>();
