@@ -1,7 +1,7 @@
 import { expect, expectNoHorizontalScroll, isTouch, press, test, waitForHydration } from './fixtures'
 import type { Page } from '@playwright/test'
 
-// «Способы входа» in the settings (#91) in both profiles, against the fake API (e2e/fake-api.mjs), which keeps the
+// «Способы входа» in the settings (#119) in both profiles, against the fake API (e2e/fake-api.mjs), which keeps the
 // linked providers per client address: linking through the fake provider and back, a refusal there with its message,
 // and unlinking. Which account a provider may be linked to and the last way to sign in that stays are tested by the
 // backend (ExternalSignInTests, ExternalIdentityTests) and the component test (tests/settings/SignInMethods.spec.ts).

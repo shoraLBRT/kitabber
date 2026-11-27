@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// «Способы входа» in the settings (#91, FR-AUTH, ADR-0098, ADR-0115): every external provider the API turns on, and
+// «Способы входа» in the settings (#119, FR-AUTH, ADR-0098, ADR-0115): every external provider the API turns on, and
 // any linked one it no longer does, with when it was linked and «Отвязать», or «Привязать», a link through the
 // provider's sign-in that comes back to `returnUrl`. The last way to sign in cannot be unlinked: the API answers 409
 // and the section says why. `error` is the message of a linking that failed (the page's `externalError`). Until the

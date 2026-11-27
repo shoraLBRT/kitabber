@@ -26,6 +26,16 @@ public sealed class TemplateTests
             ["password-reset"] = new Dictionary<string, string> { ["code"] = "620194", ["lifetime"] = "15 минут" },
             ["password-changed"] = new Dictionary<string, string> { ["when"] = "21 ноября 2026 в 14:05 (UTC)" },
             ["email-changed"] = new Dictionary<string, string> { ["when"] = "26 ноября 2026 в 09:30 (UTC)" },
+            ["sign-in-method-linked"] = new Dictionary<string, string>
+            {
+                ["provider"] = "Яндекс",
+                ["when"] = "27 ноября 2026 в 12:00 (UTC)",
+            },
+            ["sign-in-method-unlinked"] = new Dictionary<string, string>
+            {
+                ["provider"] = "VK",
+                ["when"] = "27 ноября 2026 в 12:10 (UTC)",
+            },
         };
 
     private static readonly MailTemplateRenderer _renderer = new(EmbeddedMailTemplateSource.Instance, TestBrand);

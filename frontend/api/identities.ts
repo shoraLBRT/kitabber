@@ -1,4 +1,4 @@
-// The external providers linked to the account (#91, FR-AUTH, ADR-0098, ADR-0115), for «Способы входа» in the
+// The external providers linked to the account (#119, FR-AUTH, ADR-0098, ADR-0115), for «Способы входа» in the
 // settings: the list and the unlinking. Linking is the provider's sign-in itself (api/external-sign-in.ts, `link`).
 // The calls need the person's access token, which only the site's server holds (ADR-0018), so the browser goes
 // through /bff/identities (server/routes/bff/identities*.ts).

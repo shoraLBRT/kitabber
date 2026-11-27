@@ -1,4 +1,4 @@
-// Unlinking an external provider from the settings (#91, ADR-0098): DELETE /api/v1/account/identities/{id} with the
+// Unlinking an external provider from the settings (#119, ADR-0098): DELETE /api/v1/account/identities/{id} with the
 // person's access token (ADR-0018), answered with the API's status and problem (409 last_sign_in_method). No session:
 // 401.
 import { ownIdentities } from '~/api/identities'

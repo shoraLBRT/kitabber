@@ -1,4 +1,4 @@
-// The external providers linked to the account, for the settings (#91, ADR-0098): GET /api/v1/account/identities with
+// The external providers linked to the account, for the settings (#119, ADR-0098): GET /api/v1/account/identities with
 // the person's access token (ADR-0018), answered with the API's status and body. No session: 401.
 import { ownIdentities } from '~/api/identities'
 
