@@ -10,7 +10,7 @@
 // The header's search button opens the `search` slot (ShellSearch, E14-02), which gives the focus back when it closes.
 // In the phone shell the header hides while the page is scrolled down and comes back when it is scrolled up (E08-14,
 // useHideOnScroll, ADR-0111); `--shell-header-offset` is how much of the screen it covers, so what sticks under it (the
-// «Показать новые» banner, «К следующему новому») follows it up. A header holding the keyboard's focus stays.
+// «Показать новые» banner, «К следующему новому», «N новых»; each has the class `shell-sticky`) follows it up. A header holding the keyboard's focus stays.
 import { nextTick, ref } from 'vue'
 import { useHideOnScroll } from '../../composables/useHideOnScroll'
 import type { NavItem } from '../../utils/navigation'
@@ -166,8 +166,12 @@ function closeSearch() {
     display: none;
   }
 
-  /* The phone header hides above the top edge; sticky things then keep clear of the notch's safe area only. */
-  .shell--header-hidden:not(:has(.shell__header :focus-visible)) {
+  /*
+   * The phone header hides above the top edge; sticky things then keep clear of the notch's safe area only. The
+   * offset changes on them alone (class `shell-sticky`), not on the shell: a variable changed on the shell is inherited
+   * by the whole page, and every hide would restyle a tree of 1000 comments.
+   */
+  .shell--header-hidden:not(:has(.shell__header :focus-visible)) :deep(.shell-sticky) {
     --shell-header-offset: env(safe-area-inset-top);
   }
 
