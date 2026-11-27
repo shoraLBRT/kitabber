@@ -102,10 +102,12 @@ test.describe('кнопки «Заблокировать»', () => {
     await page.goto(annasPost)
     await waitForHydration(page)
     const comments = page.getByTestId('comments')
-    const foreign = comments
+    const found = comments
       .locator('[data-testid="comment"][aria-level="1"]')
       .filter({ hasText: 'Вторая ветка' })
       .first()
+    // By its id: once folded, the comment no longer shows its text.
+    const foreign = comments.locator(`[data-comment-id="${await found.getAttribute('data-comment-id')}"]`)
     const trigger = foreign
       .locator(':scope > .comment__head')
       .getByRole('button', { name: 'Меню комментария' })
