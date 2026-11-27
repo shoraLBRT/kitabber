@@ -16,6 +16,7 @@ import type { Comment } from '../../api/comments'
 import type { FeedPost } from '../../api/feeds'
 import type { Post } from '../../api/posts'
 import BookmarkButton from '../../components/bookmarks/BookmarkButton.vue'
+import CommentMenu from '../../components/comments/CommentMenu.vue'
 import FeedCard from '../../components/feed/FeedCard.vue'
 import PostActions from '../../components/post/PostActions.vue'
 import { bookmarkAction, useBookmarks, type Bookmarks } from '../../composables/useBookmarks'
@@ -234,6 +235,30 @@ describe('the comment menu', () => {
     ])
     expect(labels(null)).toEqual(['Скопировать ссылку'])
     expect(commentMenuItems({ ...comment, deleted: true }, false, 0, false, true, noBookmark)).toEqual([])
+  })
+
+  it('reads the comment’s bookmark only once its menu opens', async () => {
+    // A tree of 1000 comments draws 1000 closed menus: none of them may read the bookmarks.
+    const bookmark = vi.fn((): BookmarkState => ({ bookmarked: true, count: null }))
+    const menu = mount(CommentMenu, {
+      props: {
+        items: commentMenuItems(comment, false, 0, false, true, noBookmark),
+        remove: async () => true,
+        bookmark,
+      },
+      attachTo: document.body,
+      global: { stubs: { teleport: true } },
+    })
+    expect(bookmark).not.toHaveBeenCalled()
+
+    await menu.get('button[aria-haspopup]').trigger('click')
+    await flushPromises()
+    expect(bookmark).toHaveBeenCalled()
+    expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
+      'Скопировать ссылку',
+      'Убрать из закладок',
+    ])
+    menu.unmount()
   })
 })
 

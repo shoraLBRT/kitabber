@@ -20,7 +20,8 @@ const props = withDefaults(
   { align: 'start', side: 'below' },
 )
 
-const emit = defineEmits<{ select: [id: string] }>()
+/** `open` comes as the list opens, before it is drawn: an owner may compute its items only then. */
+const emit = defineEmits<{ select: [id: string]; open: [] }>()
 
 const open = ref(false)
 const active = ref(-1)
@@ -32,6 +33,7 @@ const menuId = useId()
 const isDisabled = (index: number) => Boolean(props.items[index]?.disabled)
 
 async function openAt(index: number) {
+  if (!open.value) emit('open')
   open.value = true
   active.value = index
   await nextTick()

@@ -40,9 +40,11 @@ export function useBookmarks() {
   const requireAccount = useRequireAccount()
   const route = useRoute()
   const toast = useToast()
+  // Changed key by key, not replaced while the person stays: a reader of one target (a card, a comment's open menu)
+  // is not run again when the state of another one comes.
   const states = ref<Record<string, BookmarkState>>({})
   /** The targets whose change the server has not answered yet, by key. */
-  const busy = ref<Record<string, true>>({})
+  const busy = ref(new Set<string>())
 
   // Another person, or none, has other bookmarks: what was read is forgotten.
   watch(
@@ -57,30 +59,29 @@ export function useBookmarks() {
   }
 
   function isBusy(target: BookmarkTarget, id: string): boolean {
-    return busy.value[bookmarkKey(target, id)] === true
+    return busy.value.has(bookmarkKey(target, id))
   }
 
   function merge(read: Record<string, BookmarkState>) {
     // A target being changed keeps the state its change shows; the answer brings the rest.
-    const kept = Object.fromEntries(Object.entries(read).filter(([key]) => !busy.value[key]))
-    states.value = { ...states.value, ...kept }
+    for (const [key, state] of Object.entries(read)) if (!busy.value.has(key)) states.value[key] = state
   }
 
   /** Makes the person keep the target (`on`) or not; nothing while its last change is not answered. */
   async function change(target: BookmarkTarget, id: string, on: boolean) {
     const key = bookmarkKey(target, id)
     const before = of(target, id)
-    if (busy.value[key] || before.bookmarked === on) return
-    busy.value = { ...busy.value, [key]: true }
-    states.value = { ...states.value, [key]: toggled(before) }
+    if (busy.value.has(key) || before.bookmarked === on) return
+    busy.value.add(key)
+    states.value[key] = toggled(before)
     const result = await send(target, id, on)
-    busy.value = Object.fromEntries(Object.entries(busy.value).filter(([k]) => k !== key))
+    busy.value.delete(key)
     if (result.status === 'done') {
-      states.value = { ...states.value, [key]: result.state }
+      states.value[key] = result.state
       toast.show(on ? t('bookmarks.added') : t('bookmarks.removed'), { tone: 'success' })
       return
     }
-    states.value = { ...states.value, [key]: before }
+    states.value[key] = before
     toast.show(
       result.status === 'refused'
         ? result.message

@@ -2,7 +2,8 @@
 // The bookmark button of a post (E10-07, FR-REACT, ADR-0113): «В закладки», pressed while the person keeps the post,
 // on the post page's action panel (`panel`) and among a feed card's counters (`card`). Its author sees beside it how
 // many people keep the post; nobody else gets that number. A press is passed on (`press`): useBookmarks puts or takes
-// out the bookmark, or opens the sign-in window for a guest.
+// out the bookmark, or opens the sign-in window for a guest. It is an icon on both (its name «В закладки» is read out and
+// shown on hovering): with a label the panel gets too wide for the post's column and its reaction row wraps.
 import { computed } from 'vue'
 import { Bookmark } from 'lucide-vue-next'
 import type { BookmarkState } from '../../api/bookmarks'
@@ -35,7 +36,7 @@ const counted = computed(() => (count.value === null ? '' : t('bookmarks.count',
     @click="$emit('press')"
   >
     <Bookmark class="bookmark__icon" aria-hidden="true" />
-    <span :class="{ 'visually-hidden': variant === 'card' }">{{ t('bookmarks.add') }}</span>
+    <span class="visually-hidden">{{ t('bookmarks.add') }}</span>
     <template v-if="count !== null">
       <span class="bookmark__count" aria-hidden="true" data-testid="bookmark-count">{{ count }}</span>
       <span class="visually-hidden">{{ counted }}</span>
@@ -59,8 +60,9 @@ const counted = computed(() => (count.value === null ? '' : t('bookmarks.count',
 }
 
 .bookmark--panel {
+  min-width: var(--size-touch);
   gap: var(--space-2);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
   color: var(--color-text);
   font-size: var(--font-size-sm);
 }
@@ -96,19 +98,9 @@ const counted = computed(() => (count.value === null ? '' : t('bookmarks.count',
   fill: currentcolor;
 }
 
-/* Icons only on a phone's action panel, as its other buttons (PostActions); the label stays for screen readers. */
 @media (max-width: 639px) {
   .bookmark--panel {
     padding: 0 var(--space-2);
-  }
-
-  .bookmark--panel > span:not(.bookmark__count) {
-    position: absolute;
-    width: var(--size-border);
-    height: var(--size-border);
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 }
 </style>

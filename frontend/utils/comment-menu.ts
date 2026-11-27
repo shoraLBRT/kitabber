@@ -46,8 +46,8 @@ export function commentMenuItems(
   return items
 }
 
-// «В закладки» or «Убрать из закладок» (E10-07, ADR-0113); the author of the comment sees how many people keep it.
-function bookmarkItem(bookmark: BookmarkState): CommentMenuItem {
+/** «В закладки» or «Убрать из закладок» (E10-07, ADR-0113); the author of the comment sees how many people keep it. */
+export function bookmarkItem(bookmark: BookmarkState): CommentMenuItem {
   const label = bookmark.bookmarked ? t('bookmarks.remove') : t('bookmarks.add')
   return {
     id: 'bookmark',
