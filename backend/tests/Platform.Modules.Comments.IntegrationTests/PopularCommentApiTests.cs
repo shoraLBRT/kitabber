@@ -16,7 +16,7 @@ namespace Platform.Modules.Comments.IntegrationTests;
 /// </summary>
 public sealed class PopularCommentApiTests(CommentsApi api) : IClassFixture<CommentsApi>, IAsyncLifetime
 {
-    private const string Path = "/api/v1/comments/popular";
+    private const string _path = "/api/v1/comments/popular";
 
     private HttpClient _client = null!;
     private Guid _author;
@@ -140,7 +140,7 @@ public sealed class PopularCommentApiTests(CommentsApi api) : IClassFixture<Comm
     [InlineData("11")]
     public async Task WrongNumberIsAValidationError(string limit)
     {
-        using var response = await SendAsync(HttpMethod.Get, $"{Path}?limit={limit}", content: null, account: null);
+        using var response = await SendAsync(HttpMethod.Get, $"{_path}?limit={limit}", content: null, account: null);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
@@ -158,7 +158,7 @@ public sealed class PopularCommentApiTests(CommentsApi api) : IClassFixture<Comm
 
     private async Task<JsonElement[]> ReadAsync(Guid? account, string query = "")
     {
-        using var response = await SendAsync(HttpMethod.Get, Path + query, content: null, account);
+        using var response = await SendAsync(HttpMethod.Get, _path + query, content: null, account);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var widget = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         return [.. widget.GetProperty("comments").EnumerateArray()];
