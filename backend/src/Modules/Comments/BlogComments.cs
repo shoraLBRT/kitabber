@@ -90,7 +90,8 @@ public static class BlogComments
             kept, !exhausted && lastSeen is not null ? CursorCodec.Encode(lastSeen) : null);
     }
 
-    private static BlogCommentView View(Comment comment, PostHeadline post) => new(
+    /// <summary>The view of a shown <paramref name="comment"/> under the published <paramref name="post"/>.</summary>
+    internal static BlogCommentView View(Comment comment, PostHeadline post) => new(
         comment.Id,
         post.Id,
         post.BlogId,

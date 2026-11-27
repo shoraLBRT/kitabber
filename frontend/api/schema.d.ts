@@ -790,6 +790,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/feeds/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The posts the signed-in person keeps in bookmarks, newest bookmark first, page by page */
+        get: operations["GetBookmarkedPosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{postId}/comments": {
         parameters: {
             query?: never;
@@ -987,6 +1004,23 @@ export interface paths {
         };
         /** The comments of a blog's owner or under a topic's posts, newest first, page by page */
         get: operations["GetBlogComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The comments the signed-in person keeps in bookmarks, newest bookmark first, page by page */
+        get: operations["GetBookmarkedComments"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1305,6 +1339,22 @@ export interface components {
             /** Format: date-time */
             editedAt: null | string;
         };
+        BookmarkedCommentView: {
+            /** Format: uuid */
+            commentId: string;
+            /** Format: uuid */
+            postId: string;
+            /** Format: date-time */
+            bookmarkedAt: string;
+            comment: null | components["schemas"]["BlogCommentView"];
+        };
+        BookmarkedPostView: {
+            /** Format: uuid */
+            postId: string;
+            /** Format: date-time */
+            bookmarkedAt: string;
+            card: null | components["schemas"]["FeedPostView"];
+        };
         BookmarkMarkView: {
             /** Format: uuid */
             id: string;
@@ -1412,6 +1462,14 @@ export interface components {
         };
         CursorPageOfBlogCommentView: {
             items: components["schemas"]["BlogCommentView"][];
+            nextCursor: null | string;
+        };
+        CursorPageOfBookmarkedCommentView: {
+            items: components["schemas"]["BookmarkedCommentView"][];
+            nextCursor: null | string;
+        };
+        CursorPageOfBookmarkedPostView: {
+            items: components["schemas"]["BookmarkedPostView"][];
             nextCursor: null | string;
         };
         CursorPageOfFeedPostView: {
@@ -3904,6 +3962,47 @@ export interface operations {
             };
         };
     };
+    GetBookmarkedPosts: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfBookmarkedPostView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetCommentTree: {
         parameters: {
             query?: {
@@ -4487,6 +4586,47 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetBookmarkedComments: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfBookmarkedCommentView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
