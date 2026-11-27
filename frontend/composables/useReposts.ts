@@ -1,7 +1,8 @@
 // The reposts of a post on its page (E10-08, ADR-0117): the list is read in the browser through
 // server/routes/bff/reposts.get.ts, so it carries the reader's token and leaves out the people they blocked; reposting
 // goes through server/routes/bff/repost.post.ts. After a repost the list is read again, so the reader sees their own
-// repost at its top. «Показать ещё» reads the next page with the cursor of the one before.
+// repost at its top. «Показать ещё» reads the next page with the cursor of the one before. The first page is read only
+// when the section asks for it (`start`), once it comes near the screen.
 import { computed, ref } from 'vue'
 import { appendReposts, type Repost, type RepostOutcome, type RepostPage } from '../api/reposts'
 import { t } from '../i18n'
@@ -25,17 +26,30 @@ export function useReposts(postId: () => string) {
   const read = (after?: string | null) =>
     $fetch<RepostPage>('/bff/reposts', { query: { postId: postId(), ...(after ? { cursor: after } : {}) } })
 
-  const { status, refresh } = useAsyncData(
-    () => `reposts:${postId()}`,
-    async () => {
+  const status = ref<'pending' | 'success' | 'error'>('pending')
+
+  async function refresh() {
+    status.value = 'pending'
+    try {
       const page = await read()
       shown.value = page.items
       cursor.value = page.nextCursor ?? null
       moreFailed.value = false
-      return page
-    },
-    { server: false, lazy: true, default: () => null },
-  )
+      status.value = 'success'
+    } catch {
+      status.value = 'error'
+    }
+  }
+
+  // Read in the browser only, when the list comes near the screen: it is under the comments, so a long tree is drawn
+  // and used first without the list competing with it.
+  let started = false
+  /** Reads the first page once; the section calls it when it comes near the screen. */
+  function start() {
+    if (started) return
+    started = true
+    void refresh()
+  }
 
   const state = computed<RepostsState>(() => {
     if (status.value === 'error') return { status: 'error' }
@@ -91,6 +105,7 @@ export function useReposts(postId: () => string) {
     loadingMore,
     moreFailed,
     loadMore,
+    start,
     retry: () => refresh(),
     sending,
     sendError,

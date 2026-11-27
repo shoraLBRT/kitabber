@@ -24,10 +24,13 @@ async function signIn(page: Page): Promise<void> {
   await page.waitForURL((url) => url.pathname === '/')
 }
 
+/** Opens the post and brings its reposts, under the comments, into view: the list is read only then. */
 async function openPost(page: Page, path: string) {
   await page.goto(path)
   await waitForHydration(page)
-  return page.getByTestId('reposts')
+  const reposts = page.getByTestId('reposts')
+  await reposts.scrollIntoViewIfNeeded()
+  return reposts
 }
 
 test.use({ actionTimeout: 10_000 })
@@ -53,8 +56,7 @@ test.describe('репосты', () => {
     await expectNoHorizontalScroll(page)
 
     // The repost stays after a reload; a second one is refused by the server.
-    await page.reload()
-    await waitForHydration(page)
+    await openPost(page, inTopic)
     await expect(reposts.getByTestId('repost-item')).toHaveCount(1)
     await press(reposts.getByTestId('repost-open'))
     await press(reposts.getByTestId('repost-submit'))

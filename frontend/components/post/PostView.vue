@@ -3,8 +3,8 @@
 // ADR-0050: the author's avatar and name leading to their blog, the topic when the post is in one, the date or
 // «черновик»), its title (a short post has none), its blocks drawn by PostBlocks (E07-03) and the floating action
 // panel PostActions; the «…» menu PostMenu in the header holds the author's or a reader's items (E07-05, ADR-0053).
-// States: loading, not found, a failure with «Повторить», and the post. Under a published post, its reposts and
-// «Сделать репост» (E10-08, ADR-0117); a repost itself shows its text and leads to the original.
+// States: loading, not found, a failure with «Повторить», and the post. Under the comments of a published post, its
+// reposts and «Сделать репост» (E10-08, ADR-0117); a repost itself shows its text and leads to the original.
 import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
@@ -146,13 +146,6 @@ const inBlog = computed(() =>
       :images="found.post.images"
       :previews="found.post.imagePreviews"
     />
-    <PostRepostsSection
-      v-if="publishedId && !repostOf"
-      :key="`reposts:${publishedId}`"
-      class="post__reposts"
-      :post-id="publishedId"
-      :can-repost="Boolean(signedIn) && !found.own"
-    />
     <div id="comments" class="post__comments">
       <PostComments
         v-if="found.post.status === 'published'"
@@ -162,6 +155,13 @@ const inBlog = computed(() =>
         :likes="likes"
       />
     </div>
+    <PostRepostsSection
+      v-if="publishedId && !repostOf"
+      :key="`reposts:${publishedId}`"
+      class="post__reposts"
+      :post-id="publishedId"
+      :can-repost="Boolean(signedIn) && !found.own"
+    />
     <PostActions
       :path="found.path"
       :title="found.post.title"
