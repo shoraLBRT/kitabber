@@ -10,10 +10,17 @@ import SignInForm from './SignInForm.vue'
 import type { RegistrationApi } from '../../api/registration'
 import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
+import type { ExternalSignInApi } from '../../api/external-sign-in'
 import type { AuthWindowMode } from '../../composables/useAuthWindow'
 import { t } from '../../i18n'
 
-defineProps<{ signInApi: SignInApi; registrationApi: RegistrationApi; passwordResetApi?: PasswordResetApi }>()
+defineProps<{
+  signInApi: SignInApi
+  registrationApi: RegistrationApi
+  passwordResetApi?: PasswordResetApi
+  externalApi?: ExternalSignInApi
+  externalReturnUrl?: string
+}>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -26,7 +33,14 @@ const title = computed(() => (mode.value === 'sign-in' ? t('auth.signIn') : t('a
   <UiModal v-model:open="open" :title="title" fullscreen>
     <div class="auth-window" data-testid="auth-window">
       <template v-if="mode === 'sign-in'">
-        <SignInForm :api="signInApi" :reset-api="passwordResetApi" embedded @signed-in="emit('signed-in')" />
+        <SignInForm
+          :api="signInApi"
+          :reset-api="passwordResetApi"
+          :external="externalApi"
+          :external-return-url="externalReturnUrl"
+          embedded
+          @signed-in="emit('signed-in')"
+        />
         <p class="auth-window__switch">
           {{ t('auth.noAccount') }}
           <button type="button" class="auth-window__link" @click="mode = 'registration'">

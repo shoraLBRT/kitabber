@@ -14,6 +14,7 @@ using Platform.Mail;
 using Platform.Messaging;
 using Platform.Modules.Identity.Captcha;
 using Platform.Modules.Identity.Email;
+using Platform.Modules.Identity.External;
 using Platform.Persistence;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -172,6 +173,7 @@ public static class IdentityModule
 
         services.AddSingleton(new AccessTokenAudience(audience));
         services.AddCaptcha(configuration, environment, encryptionKey);
+        services.AddExternalSignIn(configuration, environment);
         AddEmail(services);
         return builder;
     }
@@ -217,6 +219,9 @@ public static class IdentityModule
         services.AddApiEndpoints<SessionEndpoints>();
         services.AddScoped<External.ExternalIdentities>();
         services.AddApiEndpoints<External.ExternalIdentityEndpoints>();
+        services.AddScoped<External.ExternalSignIns>();
+        services.AddRateLimitPolicy(External.ExternalSignInEndpoints.Policy, IdentitySettings.ExternalSignInPolicy);
+        services.AddApiEndpoints<External.ExternalSignInEndpoints>();
         services.AddScoped<Passwords.AccountPasswords>();
         services.AddApiEndpoints<Passwords.PasswordEndpoints>();
     }

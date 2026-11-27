@@ -88,6 +88,18 @@ public sealed class ExternalIdentities(IdentityDbContext db, TimeProvider time)
         }
     }
 
+    /// <summary>
+    /// Adds the link of a new account, not saved yet, to the context with its journal row: the account and its first
+    /// identity are saved together (ADR-0115).
+    /// </summary>
+    internal void LinkToNew(Account account, string provider, string subject)
+    {
+        Validate(provider, subject);
+        var identity = ExternalIdentity.Link(account.Id, provider, subject, time.GetUtcNow());
+        db.ExternalIdentities.Add(identity);
+        db.ExternalIdentityLog.Add(ExternalIdentityLogEntry.Of(identity, ExternalIdentityAction.Linked, identity.LinkedAt));
+    }
+
     /// <summary>The account the pair is linked to, for signing in with the provider; null when it is linked to none.</summary>
     public async Task<Guid?> FindAccountAsync(string provider, string subject, CancellationToken cancellationToken)
     {

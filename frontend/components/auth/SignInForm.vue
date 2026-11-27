@@ -8,6 +8,8 @@
 // turns the form into the password reset (PasswordResetForm, E03-05); the reset signs in too.
 // After a series of failed attempts the API answers `captcha_required` (E03-12): the form then shows CaptchaCheck and
 // sends its solution with each attempt until the sign-in succeeds; a solution is spent by one attempt.
+// With `external` the form also offers the external providers (ExternalSignIn, #91): they sign in by going to the
+// provider and back to `externalReturnUrl`, not through `signed-in`.
 import { computed, onBeforeUnmount, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import UiField from '../ui/UiField.vue'
@@ -15,12 +17,21 @@ import { needsCaptcha } from '../../api/captcha'
 import { formatCountdown } from '../../api/registration'
 import type { PasswordResetApi } from '../../api/password'
 import type { SignInApi } from '../../api/sign-in'
+import type { ExternalSignInApi } from '../../api/external-sign-in'
 import CaptchaCheck from './CaptchaCheck.vue'
+import ExternalSignIn from './ExternalSignIn.vue'
 import PasswordResetForm from './PasswordResetForm.vue'
 import { t } from '../../i18n'
 import I18nText from '../../i18n/I18nText'
 
-const props = defineProps<{ api: SignInApi; resetApi?: PasswordResetApi; embedded?: boolean }>()
+const props = defineProps<{
+  api: SignInApi
+  resetApi?: PasswordResetApi
+  embedded?: boolean
+  external?: ExternalSignInApi
+  externalReturnUrl?: string
+  externalError?: string
+}>()
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const unreachable = t('auth.unreachable')
@@ -256,6 +267,13 @@ async function signInWithCode() {
         <UiButton variant="ghost" block @click="switchMode('code')">{{ t('auth.changeEmail') }}</UiButton>
       </div>
     </form>
+
+    <ExternalSignIn
+      v-if="external && externalReturnUrl && mode !== 'reset'"
+      :api="external"
+      :return-url="externalReturnUrl"
+      :error="externalError"
+    />
 
     <p v-if="!embedded" class="sign-in__footer">
       {{ t('auth.noAccount') }} <NuxtLink to="/register">{{ t('auth.register') }}</NuxtLink>

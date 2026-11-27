@@ -10,7 +10,7 @@
 // (the backend tests read the real ones from Mailpit). The resend timer is FAKE_RESEND_SECONDS (default 60), short
 // in the e2e run; the address taken@example.com is already taken.
 // Sign-in (E03-02): POST /api/v1/sign-in/password, /code and /code/{id}/confirmation; see signIn below. The captcha
-// (E03-12): GET /api/v1/sign-in/captcha.
+// (E03-12): GET /api/v1/sign-in/captcha. External providers (#91): GET /api/v1/sign-in/external…; see externalSignIn.
 // Password (E03-05): POST /api/v1/password-reset and /{id}/confirmation, PUT /api/v1/account/password.
 // Email (E03-06): GET/PUT /api/v1/account/email and POST /api/v1/account/email/confirmation; see accountEmailRoute.
 // Devices (E03-09): GET /api/v1/account/sessions, DELETE /{id}, POST /sign-out-others; see accountSessionsRoute.
@@ -142,6 +142,44 @@ async function signIn(request, response, url) {
   signInCodes.delete(found[0])
   response.setHeader('set-cookie', 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
   return send(response, 204)
+}
+
+// External providers (#91): the list of all four; the start shows the fake provider's page with «Разрешить» and
+// «Отказать»; its callback sets the provider's session cookie and goes on to returnUrl, or back to the site's /login
+// with externalError=denied. The real attempt cookie, state, exchange and account rules are tested by the backend
+// (ExternalSignInTests).
+function externalSignIn(response, url) {
+  if (url.pathname === '/api/v1/sign-in/external')
+    return send(
+      response,
+      200,
+      ['yandex', 'vk', 'google', 'telegram'].map((key) => ({ key })),
+    )
+  const [, provider, callback] =
+    url.pathname.match(/^\/api\/v1\/sign-in\/external\/(\w+)(\/callback)?$/) ?? []
+  const returnUrl = url.searchParams.get('returnUrl') ?? ''
+  if (!provider || !/^https?:\/\//.test(returnUrl)) return send(response, 400, { status: 400 })
+  if (!callback) {
+    const back = (query) =>
+      `/api/v1/sign-in/external/${provider}/callback?${query}&returnUrl=${encodeURIComponent(returnUrl)}`
+    return send(
+      response,
+      200,
+      `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Фейковый провайдер</title></head><body>` +
+        `<h1>Фейковый провайдер «${provider}»</h1><a href="${back('code=ok')}">Разрешить</a> ` +
+        `<a href="${back('error=access_denied')}">Отказать</a></body></html>`,
+      'text/html; charset=utf-8',
+    )
+  }
+  if (url.searchParams.has('error')) {
+    response.writeHead(302, { location: `${new URL(returnUrl).origin}/login?externalError=denied` })
+    return response.end()
+  }
+  response.writeHead(302, {
+    location: returnUrl,
+    'set-cookie': 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax',
+  })
+  return response.end()
 }
 
 // Password reset (E03-05): a letter only to an address with a password (see `passwords` above), the same answer for
@@ -1972,6 +2010,8 @@ createServer(async (request, response) => {
       signature: null,
       maxNumber: null,
     })
+  if (url.pathname.startsWith('/api/v1/sign-in/external') && request.method === 'GET')
+    return externalSignIn(response, url)
   if (url.pathname.startsWith('/api/v1/sign-in/') && request.method === 'POST')
     return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
