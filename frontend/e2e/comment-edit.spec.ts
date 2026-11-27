@@ -76,7 +76,10 @@ test.describe('правка и удаление комментария', () => {
   // Any reader copies a comment's link (E09-07): e2e/comment-link.spec.ts.
   test('у гостя в меню комментария — «Скопировать ссылку» и «В закладки»', async ({ page }) => {
     const comments = await openPost(page, titled)
-    await expect(await openMenu(page, thread(comments, 'Вторая ветка'))).toHaveText(['Скопировать ссылку', 'В закладки'])
+    await expect(await openMenu(page, thread(comments, 'Вторая ветка'))).toHaveText([
+      'Скопировать ссылку',
+      'В закладки',
+    ])
   })
 
   test('свой комментарий правится в срок и помечается «изменено»', async ({ page }) => {
