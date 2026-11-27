@@ -3,9 +3,9 @@
 // id while it has none. Static pages (/new, /write, /settings…) win over this one, and a post's address in a topic
 // (/<topic>/<id>-<slug>) is post.vue's. The first render happens on the server, so a guest and a search engine get the
 // header and the first posts; later lookups in the browser go through server/routes/bff/blog-profile.get.ts. An address
-// that names no topic is the usual 404 page; a personal blog's nickname leads to the blog at /u/<nickname>.
-import TopicFeed from '~/components/topic/TopicFeed.vue'
-import TopicView from '~/components/topic/TopicView.vue'
+// that names no topic is the usual 404 page; a personal blog's nickname leads to the blog at /u/<nickname>. The tabs are
+// child pages (/<topic> and /<topic>/comments, E09-15), so they switch without a reload and keep their addresses.
+import TopicView, { type TopicTab } from '~/components/topic/TopicView.vue'
 import { blogPath, blogTitle, lookUpProfile, type ProfileLookup } from '~/api/profiles'
 import { subsitePath } from '~/api/posts'
 import { t } from '../i18n'
@@ -13,6 +13,7 @@ import { t } from '../i18n'
 const route = useRoute()
 const { $api } = useNuxtApp()
 const segment = computed(() => String(route.params.topic))
+const tab = computed<TopicTab>(() => (route.path.endsWith('/comments') ? 'comments' : 'posts'))
 
 const { data, pending, refresh } = await useAsyncData(
   () => `topic:${segment.value}`,
@@ -48,7 +49,8 @@ if (import.meta.server) {
     // One address per topic: an id or another case of the nickname leads to the topic's own address, and a personal
     // blog's nickname to the blog.
     const canonical = found.profile.type === 'topic' ? subsitePath(found.profile) : blogPath(found.profile)
-    if (canonical !== `/${segment.value}`) await navigateTo(canonical, { redirectCode: 301 })
+    if (canonical !== `/${segment.value}`)
+      await navigateTo(tab.value === 'comments' ? `${canonical}/comments` : canonical, { redirectCode: 301 })
   }
 }
 
@@ -74,11 +76,13 @@ useHead(() => ({
   <TopicView
     :state="state"
     :subscription="{ state: subscription.state.value, busy: subscription.busy.value }"
+    :base="`/${segment}`"
+    :tab="tab"
     @retry="refresh()"
     @subscribe="subscription.toggle()"
   >
     <template #default="{ profile }">
-      <TopicFeed :key="profile.id" :topic-id="profile.id" />
+      <NuxtPage :topic-id="profile.id" />
     </template>
   </TopicView>
 </template>

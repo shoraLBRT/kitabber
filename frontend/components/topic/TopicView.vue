@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // The topic page (E11-01, FR-TOPIC, docs/ui/topic.md, ADR-0082): the header of the topic — cover, avatar, name,
-// description and its owner — and its posts below it, which the page passes as the slot. States: loading (a skeleton of
-// the header), a failure with «Повторить», and the topic. A missing topic is the page's 404 (error.vue). The subscriber
-// count and «Подписаться» are BlogSubscription.vue (E11-03), its state held by the page. Notifications, the «Комментарии» tab, the rules and moderators come with their own E11 issues; changing the cover of
-// a topic comes with the topic's management (E11-12, #114), so the cover is only shown here.
+// description and its owner — and its tabs «Посты» and «Комментарии» (E09-15), each at its own address, so the tab
+// content is the slot. States: loading (a skeleton of the header), a failure with «Повторить», and the topic. A missing
+// topic is the page's 404 (error.vue). The subscriber count and «Подписаться» are BlogSubscription.vue (E11-03), its
+// state held by the page. Notifications, the tab «О теме», the rules and moderators come with their own E11 issues;
+// changing the cover of a topic comes with the topic's management (E11-12, #114), so the cover is only shown here.
 import { computed } from 'vue'
 import BlogCover from '../blog/BlogCover.vue'
 import BlogSubscription from '../blog/BlogSubscription.vue'
@@ -14,13 +15,27 @@ import { blogPath, blogTitle, type Profile } from '../../api/profiles'
 import { subscriptionOf, type SubscriptionView } from '../../api/subscriptions'
 import { t } from '../../i18n'
 
+export type TopicTab = 'posts' | 'comments'
+
 const props = defineProps<{
   state: { status: 'loading' } | { status: 'error' } | { status: 'found'; profile: Profile }
   /** The subscription as the page holds it (useSubscription); the profile's own numbers without it. */
   subscription?: { state: SubscriptionView; busy: boolean }
+  /** The topic's address, e.g. /books; the tabs live under it. Without it the tabs are not shown. */
+  base?: string
+  tab?: TopicTab
 }>()
 
 defineEmits<{ retry: []; subscribe: [] }>()
+
+const tabs = computed(() =>
+  props.base
+    ? [
+        { id: 'posts' as const, label: t('topic.postsTab'), to: props.base },
+        { id: 'comments' as const, label: t('topic.comments'), to: `${props.base}/comments` },
+      ]
+    : [],
+)
 
 const topic = computed(() => (props.state.status === 'found' ? props.state.profile : null))
 const shownSubscription = computed(() =>
@@ -86,6 +101,18 @@ const owner = computed(() => topic.value?.owner ?? null)
       </div>
     </header>
 
+    <nav v-if="tabs.length > 0" class="topic__tabs" :aria-label="t('topic.sections')">
+      <NuxtLink
+        v-for="item in tabs"
+        :key="item.id"
+        :to="item.to"
+        class="topic__tab"
+        :aria-current="item.id === (tab ?? 'posts') ? 'page' : undefined"
+      >
+        {{ item.label }}
+      </NuxtLink>
+    </nav>
+
     <slot :profile="topic" />
   </div>
 </template>
@@ -96,6 +123,39 @@ const owner = computed(() => topic.value?.owner ?? null)
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+}
+
+/* The tabs look as the blog's do (BlogView.vue). */
+.topic__tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.topic__tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border-bottom: var(--size-focus-ring) solid transparent;
+  color: var(--color-muted);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.topic__tab:hover {
+  color: var(--color-text);
+}
+
+.topic__tab[aria-current='page'] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.topic__tab:focus-visible {
+  outline-offset: calc(-1 * var(--size-focus-ring));
 }
 
 .topic__card {

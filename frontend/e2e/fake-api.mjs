@@ -1316,6 +1316,47 @@ function popularComments(request, response, url) {
   return send(response, 200, { comments: list })
 }
 
+// The tab «Комментарии» of a blog and a topic (E09-15, ADR-0114): GET /api/v1/comments/blogs/{blogId}, newest first,
+// page by page (the cursor is the offset). A personal blog lists its owner's comments, a topic the comments under its
+// posts, guest ones too; a deleted comment never, and a signed-in person does not see the authors they blocked (Борис
+// by default). «Наука» has none; «Сбой» fails. The pages, the deleted comments and unpublished posts are tested by the
+// backend (BlogCommentApiTests).
+function blogComments(request, response, url, blogId) {
+  const blog = [...blogs, ...createdTopics].find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'comments.blog_not_found' })
+  if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  const offset = Number(url.searchParams.get('cursor') ?? 0)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0)
+    return send(response, 400, { status: 400, code: 'validation_failed' })
+  const blocked = subject(request) ? new Set(blackListOf(request).map((entry) => entry.accountId)) : new Set()
+  const inBlog = (comment) =>
+    blog.type === 'personal'
+      ? comment.authorAccountId === blog.owner
+      : posts.some((p) => p.id === comment.postId && p.blogId === blog.id)
+  const list = comments
+    .filter((c) => !c.deleted && inBlog(c) && !(c.authorAccountId && blocked.has(c.authorAccountId)))
+    .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+  const items = list.slice(offset, offset + limit).map((comment) => {
+    const post = posts.find((p) => p.id === comment.postId) ?? arabicPost
+    return {
+      id: comment.id,
+      postId: post.id,
+      postBlogId: post.blogId,
+      postTitle: post.title,
+      postSlug: post.slug,
+      kind: comment.kind,
+      authorAccountId: comment.authorAccountId,
+      guest: comment.guest,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      editedAt: comment.editedAt,
+    }
+  })
+  const next = offset + limit < list.length ? String(offset + limit) : null
+  return send(response, 200, { items, nextCursor: next })
+}
+
 // Reactions (E10-01, E10-02, ADR-0061, ADR-0101): GET /api/v1/posts/{postId}/reactions, PUT (with a kind of the set)
 // and DELETE /api/v1/posts/{postId}/reaction and /api/v1/comments/{id}/reaction, with the server's checks (a signed-in
 // account, a kind the set offers, not one's own content, not a guest comment). Others' reactions are fixed likes: three
@@ -1942,6 +1983,8 @@ createServer(async (request, response) => {
   if (visitedPost && request.method === 'POST') return visitComments(request, response, visitedPost)
   if (url.pathname === '/api/v1/comments/popular' && request.method === 'GET')
     return popularComments(request, response, url)
+  const [, commentedBlog] = url.pathname.match(/^\/api\/v1\/comments\/blogs\/([^/]+)$/) ?? []
+  if (commentedBlog && request.method === 'GET') return blogComments(request, response, url, commentedBlog)
   const [, changed] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)$/) ?? []
   if (changed && ['PATCH', 'DELETE'].includes(request.method))
     return changeComment(request, response, changed)

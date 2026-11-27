@@ -108,6 +108,8 @@ useHead(() => ({
     @unauthorized="onUnauthorized"
     @subscribe="subscription.toggle()"
   >
-    <NuxtPage :owner="owner" />
+    <template #default="{ profile }">
+      <NuxtPage :owner="owner" :blog-id="profile.id" :blocked="profile.blocked" />
+    </template>
   </BlogView>
 </template>
