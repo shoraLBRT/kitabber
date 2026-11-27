@@ -32,6 +32,12 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
     /// <summary>The directory of reactions the platform offers (ADR-0095).</summary>
     public DbSet<ReactionSetEntry> ReactionSet => Set<ReactionSetEntry>();
 
+    /// <summary>The bookmarks under a post: its page reads them with one query (ADR-0113).</summary>
+    public const string BookmarkPostIndex = "ix_bookmarks_post";
+
+    /// <summary>The bookmarks of posts and comments (E10-07, ADR-0113).</summary>
+    public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -51,6 +57,15 @@ public sealed class ReactionsDbContext(DbContextOptions<ReactionsDbContext> opti
             rating.HasKey(r => new { r.TargetKind, r.TargetId });
             rating.Property(r => r.TargetKind).HasConversion<string>().HasMaxLength(16);
             rating.HasIndex(r => r.PostId).HasDatabaseName(RatingPostIndex);
+        });
+        modelBuilder.Entity<Bookmark>(bookmark =>
+        {
+            // One bookmark per person and target: a repeated put is a no-op (ADR-0113).
+            bookmark.HasKey(b => new { b.TargetKind, b.TargetId, b.AccountId });
+            bookmark.Property(b => b.TargetKind).HasConversion<string>().HasMaxLength(16);
+            bookmark.HasIndex(b => b.PostId).HasDatabaseName(BookmarkPostIndex);
+            // The person's bookmarks, newest first, for the section «Закладки» (E04-12).
+            bookmark.HasIndex(b => new { b.AccountId, b.CreatedAt });
         });
         modelBuilder.Entity<ReactionSetEntry>(entry =>
         {

@@ -241,6 +241,45 @@ namespace Platform.Modules.Reactions.Migrations
                     b.ToTable("outbox_state", "reactions");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Reactions.Bookmark", b =>
+                {
+                    b.Property<string>("TargetKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("target_kind");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid?>("TargetAuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_author_id");
+
+                    b.HasKey("TargetKind", "TargetId", "AccountId")
+                        .HasName("pk_bookmarks");
+
+                    b.HasIndex("PostId")
+                        .HasDatabaseName("ix_bookmarks_post");
+
+                    b.HasIndex("AccountId", "CreatedAt")
+                        .HasDatabaseName("ix_bookmarks_account_id_created_at");
+
+                    b.ToTable("bookmarks", "reactions");
+                });
+
             modelBuilder.Entity("Platform.Modules.Reactions.Rating", b =>
                 {
                     b.Property<string>("TargetKind")
