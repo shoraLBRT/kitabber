@@ -71,6 +71,40 @@ export async function loadMyFeed(client: ApiClient, cursor?: string | null): Pro
   }
 }
 
+/**
+ * The periods of the top (E08-06, ADR-0104), in the order of the switch: the posts published within the last day, week,
+ * month (30 days), year (365 days) or all of them, by rating.
+ */
+export const topPeriods = ['day', 'week', 'month', 'year', 'all'] as const
+
+export type TopPeriod = (typeof topPeriods)[number]
+
+/** Whether a segment of an address is a period of the top. */
+export function isTopPeriod(value: unknown): value is TopPeriod {
+  return typeof value === 'string' && (topPeriods as readonly string[]).includes(value)
+}
+
+/** The address of the top of a period on the site: «Популярное» with the period (`/top/week`). */
+export function topPeriodPath(period: TopPeriod): string {
+  return `/top/${period}`
+}
+
+/** One page of the top of a period (E08-06, ADR-0104): GET /api/v1/feeds/top/{period}, by rating, highest first. */
+export async function loadTopFeed(
+  client: ApiClient,
+  period: TopPeriod,
+  cursor?: string | null,
+): Promise<FeedLookup> {
+  try {
+    const { data } = await client.GET('/api/v1/feeds/top/{period}', {
+      params: { path: { period }, query: cursor ? { cursor } : {} },
+    })
+    return data ? { status: 'found', page: data } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
 /** Adds a later page to the posts already shown, leaving out any post that is already there. */
 export function appendPage(shown: FeedPost[], page: FeedPage): FeedPost[] {
   const seen = new Set(shown.map((item) => item.post.id))
