@@ -22,6 +22,7 @@
         <ProjectReference Include="../Blogs.Contracts/Platform.Modules.Blogs.Contracts.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />
         <ProjectReference Include="../Media.Contracts/Platform.Modules.Media.Contracts.csproj" />
+        <ProjectReference Include="../Preferences.Contracts/Platform.Modules.Preferences.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

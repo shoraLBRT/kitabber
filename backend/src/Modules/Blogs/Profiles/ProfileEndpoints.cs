@@ -10,6 +10,7 @@ using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Blogs.Subscriptions;
 using Platform.Modules.Blogs.Topics;
 using Platform.Modules.Media.Contracts;
+using Platform.Modules.Preferences.Contracts;
 
 namespace Platform.Modules.Blogs.Profiles;
 
@@ -45,6 +46,14 @@ namespace Platform.Modules.Blogs.Profiles;
 /// From when the owner may change the nickname again (E04-05, ADR-0090): 30 days after the last change; <c>null</c> when it
 /// was never changed and for everyone but the owner of a personal blog.
 /// </param>
+/// <param name="AccountId">
+/// The account that owns a personal blog (E11-06): what a reader blocks from the blog's page, the same id a post's
+/// <c>authorAccountId</c> gives; <c>null</c> for a topic.
+/// </param>
+/// <param name="Blocked">
+/// The reader blocked the owner of this personal blog (E11-06, ADR-0091); <c>false</c> for a guest, for the owner and
+/// for a topic.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -60,7 +69,9 @@ public sealed record Profile(
     int SubscriberCount = 0,
     int? SubscriptionCount = null,
     bool Subscribed = false,
-    DateTimeOffset? NicknameChangeableFrom = null);
+    DateTimeOffset? NicknameChangeableFrom = null,
+    Guid? AccountId = null,
+    bool Blocked = false);
 
 /// <summary>A new nickname of the own personal blog (E04-05, ADR-0090).</summary>
 /// <param name="Nickname">
@@ -384,21 +395,24 @@ public sealed class ProfileEndpoints : IApiEndpoints
         };
 
     private static async Task<IResult> GetByIdAsync(
-        Guid id, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
+        Guid id, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, IBlockList blocks,
+        CancellationToken ct) =>
         await db.Subsites.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct) is { } blog
-            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, blocks, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 
     // Only finds the blog: a reader's request never creates a personal blog for someone else's account.
     private static async Task<IResult> GetByAccountAsync(
-        Guid accountId, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
+        Guid accountId, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, IBlockList blocks,
+        CancellationToken ct) =>
         await db.Subsites.AsNoTracking()
             .SingleOrDefaultAsync(s => s.Type == SubsiteType.Personal && s.OwnerAccountId == accountId, ct) is { } blog
-            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, blocks, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
 
     private static async Task<IResult> GetByNicknameAsync(
-        string nickname, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, CancellationToken ct)
+        string nickname, ClaimsPrincipal user, BlogsDbContext db, IMediaLibrary media, IBlockList blocks,
+        CancellationToken ct)
     {
         if (SubsiteRules.NormalizeNickname(nickname) is not { } normalized)
         {
@@ -414,14 +428,22 @@ public sealed class ProfileEndpoints : IApiEndpoints
         }
 
         return blog is not null
-            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, ct))
+            ? TypedResults.Ok(await ReadAsync(blog, AccountOf(user), db, media, blocks, ct))
             : ApiProblems.NotFound(ProfileNotFoundCode);
     }
 
-    // A reader's view of any blog: a topic also names its owner (ADR-0082).
+    // A reader's view of any blog: a topic also names its owner (ADR-0082); a personal blog says whether the reader
+    // blocked its owner (ADR-0091), so its page offers «Заблокировать» or «Разблокировать».
     private static async Task<Profile> ReadAsync(
-        Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, CancellationToken ct) =>
-        await ViewAsync(blog, viewer, db, media, ct) with { Owner = await TopicOwnerAsync(blog, db, ct) };
+        Subsite blog, Guid? viewer, BlogsDbContext db, IMediaLibrary media, IBlockList blocks, CancellationToken ct) =>
+        await ViewAsync(blog, viewer, db, media, ct) with
+        {
+            Owner = await TopicOwnerAsync(blog, db, ct),
+            Blocked = blog is { Type: SubsiteType.Personal, OwnerAccountId: { } owner }
+                && viewer is { } reader
+                && reader != owner
+                && await blocks.IsBlockedAsync(reader, owner, ct),
+        };
 
     // The owner of a topic is shown by the owner's personal blog; a reader's request never creates that blog.
     private static async Task<ProfileOwner?> TopicOwnerAsync(Subsite blog, BlogsDbContext db, CancellationToken ct) =>
@@ -458,7 +480,8 @@ public sealed class ProfileEndpoints : IApiEndpoints
             await AvatarUrlAsync(blog.AvatarMediaId, media, ct),
             await AvatarSourcesAsync(blog.AvatarMediaId, media, ct),
             await CoverAsync(blog, media, ct),
-            NicknameChangeableFrom: own && blog.Type == SubsiteType.Personal ? blog.NicknameChangeableFrom : null);
+            NicknameChangeableFrom: own && blog.Type == SubsiteType.Personal ? blog.NicknameChangeableFrom : null,
+            AccountId: blog.Type == SubsiteType.Personal ? blog.OwnerAccountId : null);
     }
 
     // A file that is no longer an image of the media library shows no cover rather than a broken picture.

@@ -1337,6 +1337,10 @@ export interface components {
             subscribed: boolean;
             /** Format: date-time */
             nicknameChangeableFrom?: null | string;
+            /** Format: uuid */
+            accountId?: null | string;
+            /** @default false */
+            blocked: boolean;
         };
         ProfileCover: {
             /** Format: uuid */

@@ -94,6 +94,35 @@ public sealed class ProfileApiTests(ProfilesApi api) : IClassFixture<ProfilesApi
         Assert.Equal(JsonValueKind.Null, asStranger.GetProperty("registeredAt").ValueKind);
     }
 
+    // E11-06 (ADR-0091): the blog's page blocks its owner by the account and says whether the reader already did.
+    [Fact]
+    public async Task PersonalBlogNamesItsOwnersAccountAndWhetherTheReaderBlockedIt()
+    {
+        var blog = await SaveDemoBlogAsync();
+        var owner = blog.OwnerAccountId!.Value;
+        var reader = Guid.CreateVersion7(api.Time.GetUtcNow());
+        var topic = Subsite.CreateTopic("Кино", "kino", owner, api.Time.GetUtcNow());
+        await api.SaveAsync<BlogsDbContext>(topic);
+        using var block = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/preferences/me/blocks/{owner}");
+        block.As(reader.ToString("D"));
+        using var blocked = await _client.SendAsync(block, Ct);
+        Assert.Equal(HttpStatusCode.NoContent, blocked.StatusCode);
+
+        var asReader = await GetAsync($"/api/v1/profiles/{blog.Id}", reader);
+        var asGuest = await GetAsync($"/api/v1/profiles/by-nickname/demo0");
+        var asOwner = await GetAsync($"/api/v1/profiles/by-account/{owner}", owner);
+        var topicAsReader = await GetAsync($"/api/v1/profiles/{topic.Id}", reader);
+
+        Assert.Equal(owner, asReader.GetProperty("accountId").GetGuid());
+        Assert.True(asReader.GetProperty("blocked").GetBoolean());
+        Assert.Equal(owner, asGuest.GetProperty("accountId").GetGuid());
+        Assert.False(asGuest.GetProperty("blocked").GetBoolean());
+        Assert.False(asOwner.GetProperty("blocked").GetBoolean());
+        // A topic is not a person: its owner is not blocked from its page.
+        Assert.Equal(JsonValueKind.Null, topicAsReader.GetProperty("accountId").ValueKind);
+        Assert.False(topicAsReader.GetProperty("blocked").GetBoolean());
+    }
+
     [Theory]
     [InlineData("/api/v1/profiles/0199a1b2-0000-7000-8000-000000000000")]
     [InlineData("/api/v1/profiles/by-nickname/nobody")]
