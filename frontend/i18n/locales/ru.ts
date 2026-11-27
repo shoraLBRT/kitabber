@@ -191,6 +191,7 @@ export default {
     collapse: 'Свернуть ветку: {replies}',
     expand: 'Развернуть · {replies}',
     openBranchLabel: 'Открыть ветку: {replies}',
+    permalink: 'Ссылка на комментарий, {time}',
     openBranch: 'Открыть ветку ({count}) →',
     repliesLoading: 'Загрузка ответов',
     repliesFailed: 'Не удалось загрузить ответы.',

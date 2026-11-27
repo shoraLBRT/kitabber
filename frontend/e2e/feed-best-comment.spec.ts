@@ -66,17 +66,21 @@ test.describe('лучший комментарий в ленте', () => {
     expect(new URL(page.url()).hash).toBe(`#comment-${await comment.getAttribute('data-comment-id')}`)
   })
 
-  // «Пятый уровень» of «Привет, мир»: within the six levels a wide screen reads, past the three of a phone.
+  // «Пятый уровень» of «Привет, мир»: within the six levels a wide screen reads, past the three of a phone, which opens
+  // the screen of «Второй уровень» with it in its read (E09-07, ADR-0107).
   test('комментарий глубже прочитанного открывается экраном своей ветки', async ({ page }) => {
     const post = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
     const id = '0195f3a0-0000-7000-8000-000000d00004'
     await page.goto(`${post}#comment-${id}`)
 
     if (isTouch()) {
-      await expect(page).toHaveURL(new RegExp(`${post}/comments/${id}$`))
+      await expect(page).toHaveURL(
+        new RegExp(`${post}/comments/0195f3a0-0000-7000-8000-000000d00001#comment-${id}$`),
+      )
       await expect(page.getByTestId('branch')).toBeVisible()
-    } else {
-      await expect(page.locator(`[data-comment-id="${id}"]`)).toBeInViewport()
     }
+    const comment = page.locator(`[data-comment-id="${id}"]`)
+    await expect(comment).toBeInViewport()
+    await expect(comment).toHaveAttribute('data-highlighted', 'true')
   })
 })

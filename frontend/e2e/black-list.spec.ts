@@ -112,8 +112,8 @@ test.describe('кнопки «Заблокировать»', () => {
       .locator(':scope > .comment__head')
       .getByRole('button', { name: 'Меню комментария' })
     const items = await openMenu(page, trigger, 'Меню комментария', 'comment-menu-sheet')
-    await expect(items).toHaveText(['Заблокировать автора'])
-    await press(items.first())
+    await expect(items).toHaveText(['Скопировать ссылку', 'Заблокировать автора'])
+    await press(items.last())
     await confirmBlock(page)
     await expect(foreign.locator(':scope > [data-testid="comment-folded"]')).toContainText(
       'Комментарий скрыт: вы заблокировали автора.',

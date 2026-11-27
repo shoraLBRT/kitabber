@@ -230,6 +230,45 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
     }
 
     [Fact]
+    public async Task PlaceNamesTheLevelAndTheCommentsAboveRootFirst()
+    {
+        var post = await SavePostAsync(publish: true);
+        var first = await CreateAsync(post.Id, "1", parentId: null);
+        var reply = await CreateAsync(post.Id, "1.1", first);
+        var deeper = await CreateAsync(post.Id, "1.1.1", reply);
+
+        using var root = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{first}/place", null, account: null);
+        using var deep = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{deeper}/place", null, account: null);
+
+        Assert.Equal(HttpStatusCode.OK, deep.StatusCode);
+        var rootPlace = await root.Content.ReadFromJsonAsync<CommentPlaceView>(Ct);
+        Assert.Equal(first, rootPlace!.Id);
+        Assert.Equal(post.Id, rootPlace.PostId);
+        Assert.Equal(1, rootPlace.Depth);
+        Assert.Empty(rootPlace.Ancestors);
+        var deepPlace = await deep.Content.ReadFromJsonAsync<CommentPlaceView>(Ct);
+        Assert.Equal(3, deepPlace!.Depth);
+        Assert.Equal([first, reply], deepPlace.Ancestors);
+    }
+
+    [Fact]
+    public async Task PlaceOfAnUnknownCommentOrOfADeletedPostIsNotFound()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await CreateAsync(post.Id, "Текст", parentId: null);
+        await DeletePostAsync(post.Id);
+        var unknown = Guid.CreateVersion7(api.Time.GetUtcNow());
+
+        using var ofDeleted = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{comment}/place", null, account: null);
+        using var ofUnknown = await SendAsync(HttpMethod.Get, $"/api/v1/comments/{unknown}/place", null, account: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, ofDeleted.StatusCode);
+        Assert.Equal(CommentEndpoints.CommentNotFoundCode, await CodeOf(ofDeleted));
+        Assert.Equal(HttpStatusCode.NotFound, ofUnknown.StatusCode);
+        Assert.Equal(CommentEndpoints.CommentNotFoundCode, await CodeOf(ofUnknown));
+    }
+
+    [Fact]
     public async Task ReadStopsSomeLevelsDownAndCountsTheHiddenReplies()
     {
         var post = await SavePostAsync(publish: true);

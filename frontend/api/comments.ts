@@ -102,6 +102,46 @@ export function commentOfHash(hash: string): string | null {
 }
 
 /**
+ * The permanent link of a comment (E09-07, ADR-0107): its post's canonical address with `#comment-<id>`. The address of
+ * the post page or of a branch's screen with that fragment brings the comment into view and highlights it.
+ */
+export function commentPath(postPath: string, commentId: string): string {
+  return `${postPath}${commentHash(commentId)}`
+}
+
+/** Where a comment stands in its post's tree (E09-07): its level and the comments above it, root first. */
+export type CommentPlace = components['schemas']['CommentPlaceView']
+
+/** The place of a comment of a published post; `null` when there is none or the read failed. */
+export async function loadCommentPlace(client: ApiClient, commentId: string): Promise<CommentPlace | null> {
+  try {
+    const { data } = await client.GET('/api/v1/comments/{id}/place', { params: { path: { id: commentId } } })
+    return data ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The comment to read the rest of the branch from so the comment at `place` comes in (E09-07): the deepest of its
+ * ancestors that is shown; `null` when none is.
+ */
+export function nearestShown(comments: readonly Comment[], place: CommentPlace): string | null {
+  const shown = new Set(comments.map((comment) => comment.id))
+  return place.ancestors.findLast((id) => shown.has(id)) ?? null
+}
+
+/**
+ * The root of the branch screen that shows the comment at `place` on a phone (E09-07, ADR-0060): the ancestor `levels`
+ * levels above it, so one read of the screen reaches it with the most of its thread above; the root of the thread
+ * when it is not that deep.
+ */
+export function branchRootOf(place: CommentPlace, levels: number): string {
+  const index = Math.max(0, place.depth - 1 - levels)
+  return place.ancestors[index] ?? place.id
+}
+
+/**
  * A comment in the nested tree: its replies that were read, and how many replies under it a read left out right there
  * — the ones not under any reply that was read, so «Показать ещё» stands where the tree stops, not above it.
  */

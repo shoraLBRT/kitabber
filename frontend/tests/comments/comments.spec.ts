@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   branchPath,
+  branchRootOf,
   commentCount,
   commentHash,
   commentOfHash,
+  commentPath,
   loadAuthors,
+  loadCommentPlace,
   loadBranch,
   loadComments,
+  nearestShown,
   nestComments,
   repliesText,
   unknownAuthors,
@@ -200,5 +204,46 @@ describe('reads', () => {
     expect(found.get('a3')).toEqual({ id: 'blog-a3' })
     expect(found.get('bad')).toBeNull()
     expect(most).toBeLessThanOrEqual(6)
+  })
+})
+
+describe('comment links (E09-07)', () => {
+  const place = (depth: number) => ({
+    id: `c${depth}`,
+    postId: 'p1',
+    depth,
+    ancestors: Array.from({ length: depth - 1 }, (_, n) => `c${n + 1}`),
+  })
+
+  it('puts the comment on its post page', () => {
+    expect(commentPath('/u/anna/p1-privet', 'c1')).toBe('/u/anna/p1-privet#comment-c1')
+  })
+
+  it('reads the rest of the branch from the deepest ancestor shown', () => {
+    const shown = [comment('c1', null, 1, 6), comment('c2', 'c1', 2, 5), comment('c3', 'c2', 3, 4)]
+    expect(nearestShown(shown, place(7))).toBe('c3')
+    expect(nearestShown([comment('other', null, 1)], place(7))).toBeNull()
+    expect(nearestShown(shown, place(1))).toBeNull()
+  })
+
+  it('opens on a phone the branch screen that reaches the comment in one read', () => {
+    expect(branchRootOf(place(7), 3)).toBe('c4')
+    expect(branchRootOf(place(5), 3)).toBe('c2')
+    expect(branchRootOf(place(4), 3)).toBe('c1')
+    expect(branchRootOf(place(2), 3)).toBe('c1')
+    expect(branchRootOf(place(1), 3)).toBe('c1')
+  })
+
+  it('reads the place of a comment, or nothing when it is gone or the read failed', async () => {
+    const found = place(3)
+    const client = (result: unknown) => ({ GET: async () => result }) as unknown as ApiClient
+    expect(await loadCommentPlace(client({ data: found }), 'c3')).toEqual(found)
+    expect(await loadCommentPlace(client({ data: undefined, response: { status: 404 } }), 'c3')).toBeNull()
+    const failing = {
+      GET: async () => {
+        throw new Error('offline')
+      },
+    } as unknown as ApiClient
+    expect(await loadCommentPlace(failing, 'c3')).toBeNull()
   })
 })

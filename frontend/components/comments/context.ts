@@ -61,6 +61,10 @@ export type CommentTreeContext = {
   canBlock: Readonly<Ref<boolean>>
   /** The reader blocked `accountId` from a comment's menu: that author's comments fold (ADR-0091). */
   blocked: (accountId: string) => void
+  /** The comment a link named (E09-07, ADR-0107), highlighted; `null` when none. */
+  highlighted: Readonly<Ref<string | null>>
+  /** The permanent link of a comment (E09-07): its post's address with `#comment-<id>`; `null` when unknown. */
+  commentLink: Readonly<Ref<((commentId: string) => string) | null>>
   /** A guest pressed a form's button: the sign-in window opens instead. */
   signIn: (target: FormTarget) => void
 }

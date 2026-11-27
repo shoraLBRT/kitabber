@@ -84,6 +84,16 @@ public sealed record CommentView(
 public sealed record CommentTreeView(Guid PostId, int MaxDepth, IReadOnlyList<CommentView> Comments);
 
 /// <summary>
+/// Where a comment stands in its post's tree (E09-07, ADR-0107): what a link to the comment needs to read the branch
+/// that holds it.
+/// </summary>
+/// <param name="Id">The comment.</param>
+/// <param name="PostId">The post it is under.</param>
+/// <param name="Depth">Its level: 1 for a reply to the post.</param>
+/// <param name="Ancestors">The comments above it, root first; empty for a reply to the post.</param>
+public sealed record CommentPlaceView(Guid Id, Guid PostId, int Depth, IReadOnlyList<Guid> Ancestors);
+
+/// <summary>
 /// The comments of a published post (FR-COMMENT, ADR-0048): read the whole tree or one branch, each with one query,
 /// and reply to the post or to a comment; its author changes the text for a while and deletes it (E09-05, ADR-0059).
 /// Writing needs a confirmed email (ADR-0020).
@@ -129,6 +139,11 @@ public sealed class CommentEndpoints : IApiEndpoints
             .WithName("GetCommentBranch")
             .ProducesValidationProblem()
             .WithSummary("A comment and the replies under it in the order of the tree, all or some levels down");
+        comments.MapGet("/{id:guid}/place", GetPlaceAsync)
+            .Produces<CommentPlaceView>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithName("GetCommentPlace")
+            .WithSummary("Where a comment of a published post stands in its tree: its level and the comments above it");
         comments.MapPatch("/{id:guid}", EditAsync)
             .RequireAuthorization(AccountPolicies.ConfirmedEmail)
             .Produces<CommentView>()
@@ -209,6 +224,25 @@ public sealed class CommentEndpoints : IApiEndpoints
         var shown = CommentTree.Shown(branch, branch[0].Depth, levels);
         var blocked = await BlockedByReaderAsync(user, blocks, ct);
         return TypedResults.Ok(new CommentTreeView(branch[0].PostId, limits.MaxDepth, Views(shown, limits, blocked)));
+    }
+
+    private static async Task<IResult> GetPlaceAsync(
+        Guid id,
+        CommentsDbContext db,
+        IPostDirectory posts,
+        CancellationToken ct)
+    {
+        var comment = await db.Comments.AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => new { c.PostId, c.Depth, c.Path })
+            .FirstOrDefaultAsync(ct);
+        if (comment is null || await posts.FindPublishedAsync(comment.PostId, ct) is null)
+        {
+            return ApiProblems.NotFound(CommentNotFoundCode);
+        }
+
+        var ancestors = CommentPath.Ancestors(comment.Path);
+        return TypedResults.Ok(new CommentPlaceView(id, comment.PostId, comment.Depth, ancestors));
     }
 
     private static async Task<IResult> GetOwnAsync(

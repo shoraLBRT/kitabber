@@ -10,7 +10,7 @@ import {
   withEdited,
 } from '../../api/comments'
 import type { ApiClient } from '../../api/client'
-import { commentMenuItems } from '../../utils/comment-menu'
+import { commentMenuItems, commentUrl } from '../../utils/comment-menu'
 import { comment } from './factory'
 
 // Changing and deleting an own comment (E09-05, ADR-0059) without a page: until when the text may change, the items of
@@ -60,6 +60,36 @@ describe('commentMenuItems', () => {
     expect(commentMenuItems({ ...comment('1', null, 1), deleted: true }, false, inTime, true)).toEqual([])
     const guest = { ...comment('1', null, 1), kind: 'guest' as const, authorAccountId: null }
     expect(commentMenuItems(guest, false, inTime, true)).toEqual([])
+  })
+
+  // E09-07 (ADR-0107): any reader copies the link of a comment that has one, before the other items.
+  it('puts «Скопировать ссылку» first for every reader when the comment has a link', () => {
+    const ids = (items: ReturnType<typeof commentMenuItems>) => items.map((item) => item.id)
+    expect(ids(commentMenuItems(comment('1', null, 1), false, inTime, false, true))).toEqual(['copy-link'])
+    expect(ids(commentMenuItems(comment('1', null, 1), false, inTime, true, true))).toEqual([
+      'copy-link',
+      'block',
+    ])
+    expect(ids(commentMenuItems(comment('1', null, 1), true, late, true, true))).toEqual([
+      'copy-link',
+      'delete',
+    ])
+    const guest = { ...comment('1', null, 1), kind: 'guest' as const, authorAccountId: null }
+    expect(ids(commentMenuItems(guest, false, inTime, true, true))).toEqual(['copy-link'])
+    expect(commentMenuItems({ ...comment('1', null, 1), deleted: true }, false, inTime, true, true)).toEqual(
+      [],
+    )
+  })
+})
+
+describe('commentUrl', () => {
+  it('is the full link of the comment without a query', () => {
+    expect(commentUrl('/u/anna/p1-privet#comment-c1', 'https://example.test')).toBe(
+      'https://example.test/u/anna/p1-privet#comment-c1',
+    )
+    expect(commentUrl('/u/anna/p1-privet?from=feed#comment-c1', 'https://example.test')).toBe(
+      'https://example.test/u/anna/p1-privet#comment-c1',
+    )
   })
 })
 

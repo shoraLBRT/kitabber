@@ -788,6 +788,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/comments/{id}/place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where a comment of a published post stands in its tree: its level and the comments above it */
+        get: operations["GetCommentPlace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/comments/{id}": {
         parameters: {
             query?: never;
@@ -1134,6 +1151,15 @@ export interface components {
             text: null | string;
             /** Format: uuid */
             parentId?: null | string;
+        };
+        CommentPlaceView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            postId: string;
+            /** Format: int32 */
+            depth: number;
+            ancestors: string[];
         };
         CommentReactionsView: {
             /** Format: uuid */
@@ -3737,6 +3763,37 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCommentPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPlaceView"];
                 };
             };
             /** @description Not Found */
