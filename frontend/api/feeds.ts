@@ -84,9 +84,9 @@ export function isTopPeriod(value: unknown): value is TopPeriod {
   return typeof value === 'string' && (topPeriods as readonly string[]).includes(value)
 }
 
-/** The address of the top of a period on the site: «Популярное» with the period (`/popular/week`). */
+/** The address of the top of a period on the site: «Популярное» with the period (`/top/week`). */
 export function topPeriodPath(period: TopPeriod): string {
-  return `/popular/${period}`
+  return `/top/${period}`
 }
 
 /** One page of the top of a period (E08-06, ADR-0104): GET /api/v1/feeds/top/{period}, by rating, highest first. */

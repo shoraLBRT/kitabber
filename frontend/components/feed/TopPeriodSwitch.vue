@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The switch of the period in «Популярном» (E08-06, FR-FEED, ADR-0104): a link to the top of each period, the shown
-// one marked as the current page. Each period has an address of its own (`/popular/week`), so a period is shared and
+// one marked as the current page. Each period has an address of its own (`/top/week`), so a period is shared and
 // comes back with «назад» like any page. On a phone the row scrolls sideways instead of wrapping.
 import { topPeriodPath, topPeriods, type TopPeriod } from '../../api/feeds'
 import { t } from '../../i18n'

@@ -17,11 +17,11 @@ describe('TopPeriodSwitch', () => {
       'За всё время',
     ])
     expect(links.map((link) => link.attributes('href'))).toEqual([
-      '/popular/day',
-      '/popular/week',
-      '/popular/month',
-      '/popular/year',
-      '/popular/all',
+      '/top/day',
+      '/top/week',
+      '/top/month',
+      '/top/year',
+      '/top/all',
     ])
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Период')
   })

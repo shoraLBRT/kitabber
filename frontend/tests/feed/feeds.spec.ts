@@ -106,11 +106,11 @@ describe('top periods', () => {
   it('are the day, week, month, year and all time, each at its own address', () => {
     expect([...topPeriods]).toEqual(['day', 'week', 'month', 'year', 'all'])
     expect(topPeriods.map(topPeriodPath)).toEqual([
-      '/popular/day',
-      '/popular/week',
-      '/popular/month',
-      '/popular/year',
-      '/popular/all',
+      '/top/day',
+      '/top/week',
+      '/top/month',
+      '/top/year',
+      '/top/all',
     ])
   })
 

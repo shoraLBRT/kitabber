@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The top of a period in «Популярном» (E08-06, FR-FEED, ADR-0104) at /popular/<period> — day, week, month, year, all:
+// The top of a period in «Популярном» (E08-06, FR-FEED, ADR-0104) at /top/<period> — day, week, month, year, all:
 // the posts published within the period by rating, highest first, page by page like the other feeds (useFeed,
 // ADR-0051). Each period has its own address and its own history entry; the switch above the feed leads between them.
 // The feed is public, so the first page is rendered on the server and the browser asks the API directly. An address
