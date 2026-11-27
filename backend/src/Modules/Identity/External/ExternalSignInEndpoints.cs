@@ -53,7 +53,7 @@ public sealed class ExternalSignInEndpoints : IApiEndpoints
     /// <summary>How long an attempt may take at the provider.</summary>
     public static readonly TimeSpan AttemptLifetime = TimeSpan.FromMinutes(10);
 
-    private const string CookiePath = "/api/v1/sign-in/external";
+    private const string _cookiePath = "/api/v1/sign-in/external";
 
     public void MapV1(IEndpointRouteBuilder v1)
     {
@@ -247,7 +247,7 @@ public sealed class ExternalSignInEndpoints : IApiEndpoints
         // Lax: the provider sends the browser back by a top-level GET from its own site.
         SameSite = SameSiteMode.Lax,
         Secure = context.Request.IsHttps,
-        Path = CookiePath,
+        Path = _cookiePath,
         MaxAge = lifetime,
         IsEssential = true,
     };

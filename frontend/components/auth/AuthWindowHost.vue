@@ -6,14 +6,21 @@ import AuthWindow from './AuthWindow.vue'
 import { registrationApi } from '../../api/registration'
 import { passwordResetApi } from '../../api/password'
 import { signInApi } from '../../api/sign-in'
+import { externalSignInApi } from '../../api/external-sign-in'
 import type { AuthWindowMode } from '../../composables/useAuthWindow'
 
 const { $api } = useNuxtApp()
 const signIn = signInApi($api)
 const registration = registrationApi($api)
 const passwordReset = passwordResetApi($api)
+const external = externalSignInApi($api, useRuntimeConfig().public.apiBase)
+const origin = useRequestURL().origin
 const state = useAuthWindow()
 const route = useRoute()
+// An external provider (#91) comes back to the site's own sign-in, to this same page.
+const externalReturnUrl = computed(
+  () => `${origin}/auth/sign-in?returnTo=${encodeURIComponent(route.fullPath)}`,
+)
 
 // The window is rendered from its first opening on, never on the server: an empty teleport of a closed window next
 // to the open editor window in #teleports made the hydration of /write mismatch. Once rendered it stays, so closing
@@ -55,6 +62,8 @@ async function signedIn() {
     :sign-in-api="signIn"
     :registration-api="registration"
     :password-reset-api="passwordReset"
+    :external-api="external"
+    :external-return-url="externalReturnUrl"
     @signed-in="signedIn"
   />
 </template>
