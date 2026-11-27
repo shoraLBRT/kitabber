@@ -26,7 +26,7 @@ public enum ReactionKind
 /// <summary>The codes of the reaction kinds, as the client and the directory of reactions name them (ADR-0101).</summary>
 public static class ReactionKinds
 {
-    private static readonly Dictionary<string, ReactionKind> ByCode = Enum.GetValues<ReactionKind>()
+    private static readonly Dictionary<string, ReactionKind> _byCode = Enum.GetValues<ReactionKind>()
         .ToDictionary(CodeOf, k => k, StringComparer.Ordinal);
 
     /// <summary>The code of <paramref name="kind"/>: <c>like</c>, <c>heart</c>, …</summary>
@@ -44,7 +44,7 @@ public static class ReactionKinds
 
     /// <summary>The kind of <paramref name="code"/>; <c>null</c> for a code the platform has no kind for.</summary>
     public static ReactionKind? Parse(string? code) =>
-        code is not null && ByCode.TryGetValue(code, out var kind) ? kind : null;
+        code is not null && _byCode.TryGetValue(code, out var kind) ? kind : null;
 }
 
 /// <summary>
