@@ -747,17 +747,38 @@ function sortedThreads(shown, sort) {
   return threads.flat()
 }
 
+// The comments others write while a test's page is open (E09-09, ADR-0112): POST /__comment-arrival keeps one by
+// `author` (anna or boris) under a post, and the test pushes its `comments.posted` event. Only its branch and its place
+// read it, so the trees the other tests read stay as they are. Its author's mark of the black list follows the reader
+// (Борис is blocked by default, see blackListOf).
+const arrivedComments = new Map() // id -> comment
+function commentArrival(input) {
+  const parent = input.parentId ? findComment(input.parentId) : null
+  const author = input.author === 'boris' ? blogs[1].owner : blogs[0].owner
+  const comment = {
+    ...commentPost(randomUUID(), input.postId, parent, 0, input.text ?? 'Новый комментарий', author),
+    createdAt: new Date().toISOString(),
+    editableUntil: new Date(Date.now() + editMinutes * 60_000).toISOString(),
+  }
+  arrivedComments.set(comment.id, comment)
+  return comment
+}
+
+function findComment(id) {
+  return comments.find((item) => item.id === id) ?? arrivedComments.get(id)
+}
+
 // Where a comment stands (E09-07, ADR-0107): GET /api/v1/comments/{id}/place, its level and its ancestors, root first.
 function commentPlace(comment) {
   const ancestors = []
   for (let parent = comment; parent.parentId;) {
-    parent = comments.find((item) => item.id === parent.parentId)
+    parent = findComment(parent.parentId)
     ancestors.unshift(parent.id)
   }
   return { id: comment.id, postId: comment.postId, depth: comment.depth, ancestors }
 }
 
-function commentTree(response, url) {
+function commentTree(request, response, url) {
   const levels = Number(url.searchParams.get('levels')) || null
   const sort = url.searchParams.get('sort') ?? 'popular'
   const [, postId] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
@@ -774,6 +795,18 @@ function commentTree(response, url) {
     return send(response, 200, { postId, maxDepth: 8, comments: shown })
   }
   const [, id, read] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)\/(branch|place)$/) ?? []
+  const arrival = arrivedComments.get(id)
+  if (arrival) {
+    if (read === 'place') return send(response, 200, commentPlace(arrival))
+    const blocked =
+      subject(request) !== null &&
+      blackListOf(request).some((entry) => entry.accountId === arrival.authorAccountId)
+    return send(response, 200, {
+      postId: arrival.postId,
+      maxDepth: 8,
+      comments: [{ ...arrival, replies: 0, authorBlocked: blocked }],
+    })
+  }
   const at = comments.findIndex((comment) => comment.id === id)
   if (at < 0) return send(response, 404, { status: 404, code: 'comments.comment_not_found' })
   const root = comments[at]
@@ -1803,6 +1836,8 @@ createServer(async (request, response) => {
     return send(response, 200, state(client))
   }
 
+  if (url.pathname === '/__comment-arrival' && request.method === 'POST')
+    return send(response, 201, commentArrival(JSON.parse((await readBody(request)) || '{}')))
   if (url.pathname === '/__fresh-arrival' && request.method === 'POST')
     return send(response, 201, freshArrival(client ?? '', JSON.parse((await readBody(request)) || '{}')))
 
@@ -1898,7 +1933,7 @@ createServer(async (request, response) => {
     /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/(branch|place))$/.test(url.pathname) &&
     request.method === 'GET'
   )
-    return commentTree(response, url)
+    return commentTree(request, response, url)
   const [, commentedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments$/) ?? []
   if (commentedPost && request.method === 'POST') return writeComment(request, response, commentedPost)
   const [, ownPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments\/mine$/) ?? []

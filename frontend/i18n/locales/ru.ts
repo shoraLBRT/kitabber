@@ -200,6 +200,18 @@ export default {
       many: 'К следующему новому комментарию, осталось {count}',
       other: 'К следующему новому комментарию, осталось {count}',
     },
+    arrived: {
+      one: '{count} новый',
+      few: '{count} новых',
+      many: '{count} новых',
+      other: '{count} новых',
+    },
+    arrivedLabel: {
+      one: 'Показать {count} новый комментарий',
+      few: 'Показать {count} новых комментария',
+      many: 'Показать {count} новых комментариев',
+      other: 'Показать {count} новых комментария',
+    },
     openBranch: 'Открыть ветку ({count}) →',
     repliesLoading: 'Загрузка ответов',
     repliesFailed: 'Не удалось загрузить ответы.',

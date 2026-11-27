@@ -480,3 +480,62 @@ export function withDeleted(comments: readonly Comment[], id: string): Comment[]
   }
   return rest
 }
+
+/**
+ * The realtime event of a new comment under a post (E09-09, ADR-0112), in the topic `post:<id>`: where it stands and
+ * nothing more. The page reads the comment itself, so the authors the reader blocked come folded as in any read.
+ */
+export const commentPostedType = 'comments.posted'
+
+export type CommentPosted = { commentId: string; postId: string; parentId: string | null }
+
+/**
+ * A comment that came in real time as the reader gets it (E09-09, ADR-0112), read by the site's server with the
+ * person's token so the API marks the authors they blocked: `comment` is `null` when it is not to be shown as new —
+ * gone, under another post, the reader's own, deleted or by an author they blocked. `own` are the reader's own
+ * comments under the post, which the page learns on the way.
+ */
+export type CommentArrival = { comment: Comment | null; own: string[] }
+
+export async function loadCommentArrival(
+  client: ApiClient,
+  postId: string,
+  commentId: string,
+): Promise<CommentArrival> {
+  const [found, own] = await Promise.all([loadBranch(client, commentId, 1), loadOwnComments(client, postId)])
+  const comment =
+    found.status === 'found' && found.tree.postId === postId
+      ? (found.tree.comments.find((c) => c.id === commentId) ?? null)
+      : null
+  const shown = comment !== null && !comment.deleted && !comment.authorBlocked && !own.includes(comment.id)
+  return { comment: shown ? comment : null, own }
+}
+
+/** Reads the data of a `comments.posted` event; `null` when it is not one. */
+export function parseCommentPosted(data: unknown): CommentPosted | null {
+  if (typeof data !== 'object' || data === null) return null
+  const { commentId, postId, parentId } = data as Record<string, unknown>
+  if (typeof commentId !== 'string' || typeof postId !== 'string') return null
+  if (parentId !== null && parentId !== undefined && typeof parentId !== 'string') return null
+  return { commentId, postId, parentId: parentId ?? null }
+}
+
+/**
+ * The comments with one that came in real time put in (E09-09): under its parent when the parent is shown, as a sent
+ * one is; otherwise only counted as a reply of each of its `ancestors` that is shown, so «Показать ещё» under the
+ * deepest of them brings it. Already there, it changes nothing.
+ */
+export function withArrived(
+  comments: readonly Comment[],
+  arrived: Comment,
+  ancestors: readonly string[],
+  sort: CommentSort = 'popular',
+): Comment[] {
+  if (comments.some((comment) => comment.id === arrived.id)) return [...comments]
+  if (arrived.parentId === null || comments.some((comment) => comment.id === arrived.parentId))
+    return withComment(comments, arrived, sort)
+  const above = new Set(ancestors)
+  return comments.map((comment) =>
+    above.has(comment.id) ? { ...comment, replies: comment.replies + 1 } : comment,
+  )
+}

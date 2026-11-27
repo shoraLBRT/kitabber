@@ -6,13 +6,19 @@
 // chose (E09-04, ADR-0058), remembered in the browser; another choice reads the tree again. The person's own comments
 // (read through the site's server, ADR-0059) take «Редактировать» while the time to change them lasts and «Удалить»
 // (E09-05); a deleted comment with replies stays as their stub. A branch's own screen (E09-06) reads only that branch.
+// Under a post, the comments others write while it is open come in real time (E09-09, ADR-0112): each is read and
+// waits behind «N новых», counted in the heading, so what the person reads does not move until they ask for them.
 import { onMounted, ref, shallowRef } from 'vue'
 import {
   commentLevels,
+  commentPostedType,
   loadAuthors,
   loadBranch,
+  loadCommentPlace,
   loadComments,
+  parseCommentPosted,
   replaceComment,
+  withArrived,
   unknownAuthors,
   withAuthorBlocked,
   withBranch,
@@ -21,6 +27,7 @@ import {
   withDeleted,
   withEdited,
   type Comment,
+  type CommentArrival,
   type CommentEdit,
   type CommentSend,
   type CommentSort,
@@ -36,6 +43,8 @@ import {
 import { commentDraftKey, draftStorage, forgetCommentDraft } from '../utils/comment-draft'
 import { readCommentSort, saveCommentSort } from '../utils/comment-sort'
 import { phoneQuery } from './useMediaQuery'
+import { useRealtimeTopic } from './useRealtime'
+import type { RealtimeEvent } from '../realtime/channel'
 import { t } from '../i18n'
 
 const sendFailure = t('comments.sendFailed')
@@ -58,6 +67,14 @@ async function patch(id: string, text: string): Promise<CommentEdit> {
     return await $fetch<CommentEdit>('/bff/comments', { method: 'PATCH', body: { id, text } })
   } catch {
     return { status: 'error' }
+  }
+}
+
+async function arrival(postId: string, commentId: string): Promise<CommentArrival> {
+  try {
+    return await $fetch<CommentArrival>('/bff/comment-arrival', { query: { postId, commentId } })
+  } catch {
+    return { comment: null, own: [] }
   }
 }
 
@@ -88,9 +105,15 @@ export function useComments(postId: () => string, branchId: () => string | null 
   const sort = ref<CommentSort>('popular')
   // A phone reads fewer levels and opens a deeper branch on its own screen (E09-06); known once the page is shown.
   const phone = ref(false)
+  /** The comments others wrote meanwhile (E09-09), read and waiting behind «N новых», in the order they came. */
+  const arrived = shallowRef<Comment[]>([])
+  /** The ones «N новых» put in the tree: marked «новый» like the new since the previous opening. */
+  const live = ref<string[]>([])
   let levels: number = commentLevels.wide
   let sent = 0
   let reads = 0
+  // The sends not answered yet: the event of one's own comment may come before the answer that tells it is one's own.
+  let sending: Promise<unknown> = Promise.resolve()
 
   async function read(): Promise<CommentsState> {
     const root = branchId()
@@ -123,8 +146,58 @@ export function useComments(postId: () => string, branchId: () => string | null 
     if (current !== reads) return
     state.value = found
     if (found.status !== 'found') return
+    // A new read already has the comments that came meanwhile: they no longer wait.
+    const inTree = new Set(found.comments.map((comment) => comment.id))
+    arrived.value = arrived.value.filter((comment) => !inTree.has(comment.id))
     await Promise.all([addAuthors(found.comments), addOwn()])
   }
+
+  const known = (id: string) =>
+    own.value[id] === true ||
+    arrived.value.some((comment) => comment.id === id) ||
+    (state.value.status === 'found' && state.value.comments.some((comment) => comment.id === id))
+
+  // A new comment under the post (E09-09, ADR-0112), read through the site's server with the person's token: an author
+  // the reader blocked is left out, as among the new since the previous opening (ADR-0109), and one's own, written here
+  // or in another tab, is not new either.
+  async function receive(event: RealtimeEvent) {
+    if (event.type !== commentPostedType) return
+    const posted = parseCommentPosted(event.data)
+    if (!posted || posted.postId.toLowerCase() !== postId().toLowerCase()) return
+    await sending
+    if (known(posted.commentId)) return
+    const found = await arrival(postId(), posted.commentId)
+    own.value = { ...own.value, ...Object.fromEntries(found.own.map((id) => [id, true as const])) }
+    const comment = found.comment
+    if (comment === null || known(comment.id)) return
+    arrived.value = [...arrived.value, comment]
+    await addAuthors([comment])
+  }
+
+  /** «N новых»: the comments that came are put in the tree, each in its place, and marked «новый». */
+  async function showArrived() {
+    const batch = arrived.value
+    if (batch.length === 0 || state.value.status !== 'found') return
+    arrived.value = []
+    const ids = new Set([...state.value.comments, ...batch].map((comment) => comment.id))
+    // A reply whose parent is not shown counts under the deepest of its ancestors that is (ADR-0112).
+    const places = await Promise.all(
+      batch.map((comment) =>
+        comment.parentId !== null && !ids.has(comment.parentId)
+          ? loadCommentPlace($api, comment.id)
+          : Promise.resolve(null),
+      ),
+    )
+    update((comments) =>
+      batch.reduce(
+        (tree, comment, at) => withArrived(tree, comment, places[at]?.ancestors ?? [], sort.value),
+        comments,
+      ),
+    )
+    live.value = [...live.value, ...batch.map((comment) => comment.id)]
+  }
+
+  if (branchId() === null) useRealtimeTopic(`post:${postId()}`, (event) => void receive(event))
 
   async function addOwn() {
     if (!account.value.signedIn) return
@@ -179,7 +252,9 @@ export function useComments(postId: () => string, branchId: () => string | null 
     pending.value = { ...pending.value, [local.id]: true }
     update((comments) => withComment(comments, local, sort.value))
 
-    const result = await post(postId(), local.text, parentId)
+    const request = post(postId(), local.text, parentId)
+    sending = Promise.all([sending, request])
+    const result = await request
     pending.value = Object.fromEntries(Object.entries(pending.value).filter(([id]) => id !== local.id))
     if (result.status === 'sent') {
       update((comments) => replaceComment(comments, local.id, result.comment))
@@ -260,6 +335,9 @@ export function useComments(postId: () => string, branchId: () => string | null 
     sort,
     phone,
     blocked,
+    arrived,
+    live,
+    showArrived,
     retry: load,
     more,
     send,

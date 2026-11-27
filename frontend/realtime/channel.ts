@@ -57,7 +57,9 @@ export class SignedOutError extends Error {
 
 export class RealtimeChannel {
   private readonly handlers = new Set<{ handler: RealtimeHandler; topic?: string }>()
-  private readonly topics = new Set<string>()
+  // How many listeners of the page asked for each topic (the likes and the comments of a post share its topic): the
+  // hub hears of the first ask and of the last one taken back.
+  private readonly topics = new Map<string, number>()
   private connection: HubLike | null = null
   private connected = false
   private running = false
@@ -116,13 +118,22 @@ export class RealtimeChannel {
     return () => this.handlers.delete(entry)
   }
 
-  /** Receives the events of `topic` (e.g. `post:<id>`); kept across reconnects. The own account's is always on. */
+  /**
+   * Receives the events of `topic` (e.g. `post:<id>`); kept across reconnects. The own account's is always on. Each
+   * subscribe is taken back by its own unsubscribe: the topic stays while anyone on the page still asks for it.
+   */
   async subscribe(topic: string): Promise<void> {
-    this.topics.add(topic)
-    if (this.connected) await this.send('Subscribe', topic)
+    const asks = (this.topics.get(topic) ?? 0) + 1
+    this.topics.set(topic, asks)
+    if (asks === 1 && this.connected) await this.send('Subscribe', topic)
   }
 
   async unsubscribe(topic: string): Promise<void> {
+    const asks = (this.topics.get(topic) ?? 0) - 1
+    if (asks > 0) {
+      this.topics.set(topic, asks)
+      return
+    }
     this.topics.delete(topic)
     if (this.connected) await this.send('Unsubscribe', topic)
   }
@@ -161,7 +172,7 @@ export class RealtimeChannel {
   }
 
   private resubscribe(): void {
-    for (const topic of this.topics) void this.send('Subscribe', topic)
+    for (const topic of this.topics.keys()) void this.send('Subscribe', topic)
   }
 
   private async send(method: string, topic: string): Promise<void> {
