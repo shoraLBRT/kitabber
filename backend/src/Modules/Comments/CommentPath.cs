@@ -22,4 +22,12 @@ public static class CommentPath
         var segment = id.ToString("N", CultureInfo.InvariantCulture);
         return string.IsNullOrEmpty(parentPath) ? segment : $"{parentPath}{Separator}{segment}";
     }
+
+    /// <summary>The identifiers of the comments above the one whose path is <paramref name="path"/>, root first.</summary>
+    public static IReadOnlyList<Guid> Ancestors(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        var segments = path.Split(Separator);
+        return [.. segments.Take(segments.Length - 1).Select(s => Guid.ParseExact(s, "N"))];
+    }
 }

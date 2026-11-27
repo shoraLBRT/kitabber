@@ -2715,6 +2715,48 @@
         }
       }
     },
+    "/api/v1/comments/{id}/place": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "Where a comment of a published post stands in its tree: its level and the comments above it",
+        "operationId": "GetCommentPlace",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPlaceView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/comments/{id}": {
       "patch": {
         "tags": [
@@ -3996,6 +4038,36 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "CommentPlaceView": {
+        "required": [
+          "id",
+          "postId",
+          "depth",
+          "ancestors"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "depth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ancestors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
