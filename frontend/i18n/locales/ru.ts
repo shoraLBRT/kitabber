@@ -155,6 +155,11 @@ export default {
     showMore: 'Показать ещё',
     showAll: 'Показать полностью',
   },
+  share: {
+    telegram: 'Telegram',
+    vk: 'ВКонтакте',
+    x: 'X',
+  },
   comments: {
     title: 'Комментарии',
     blockedAuthor: 'Комментарий скрыт: вы заблокировали автора.',

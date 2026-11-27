@@ -6,6 +6,7 @@
 import { Ban, EyeOff, Flag, Link, Pencil, Trash2 } from 'lucide-vue-next'
 import type { useToast } from '../composables/useToast'
 import type { MenuItem } from '../types/ui'
+import { canonicalUrl } from './share'
 import { t } from '../i18n'
 
 /** The flags of the menu items that wait for their own tasks: editing (#146 and the editor), reporting (E15-02), hiding (E11-07). */
@@ -42,10 +43,10 @@ export function postMenuItems(own: boolean, features: PostMenuFeatures, canBlock
   return items.filter((item): item is PostMenuItem => Boolean(item))
 }
 
-/** Copies the full link of a post's address and says so in a toast: «Поделиться» of the panel and the menu's item. */
+/** Copies the canonical link of a post (utils/share.ts) and says so in a toast: the share list and the menu item. */
 export async function copyPostLink(path: string, toast: ReturnType<typeof useToast>): Promise<void> {
   try {
-    await navigator.clipboard.writeText(new URL(path, window.location.origin).href)
+    await navigator.clipboard.writeText(canonicalUrl(path, window.location.origin))
     toast.show(t('actions.linkCopied'), { tone: 'success' })
   } catch {
     toast.show(t('actions.copyLinkFailed'), { tone: 'error' })
