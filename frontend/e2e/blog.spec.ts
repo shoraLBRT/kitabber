@@ -46,7 +46,7 @@ test.describe('страница блога', () => {
 
     await press(tabs.getByRole('link', { name: 'Комментарии' }))
     await page.waitForURL((url) => url.pathname === '/u/anna/comments')
-    await expect(page.getByTestId('blog-empty-comments')).toHaveText('Пока нет комментариев')
+    await expect(page.getByTestId('blog-comments')).toBeVisible()
     await expect(tabs.getByRole('link', { name: 'Комментарии' })).toHaveAttribute('aria-current', 'page')
     expect(await page.evaluate(() => (window as unknown as { kept?: boolean }).kept)).toBe(true)
 
@@ -57,7 +57,7 @@ test.describe('страница блога', () => {
 
     // The tab's address opens the tab directly.
     await page.goto('/u/anna/comments')
-    await expect(page.getByTestId('blog-empty-comments')).toBeVisible()
+    await expect(page.getByTestId('blog-comments')).toBeVisible()
     await expect(page.getByRole('heading', { level: 1, name: 'Анна' })).toBeVisible()
   })
 

@@ -31,6 +31,7 @@ public static class CommentsModule
         builder.Services.AddScoped<PopularCommentsCache>();
         builder.Services.AddApiEndpoints<PopularCommentEndpoints>();
         builder.Services.AddApiEndpoints<CommentVisitEndpoints>();
+        builder.Services.AddApiEndpoints<BlogCommentEndpoints>();
         return builder;
     }
 

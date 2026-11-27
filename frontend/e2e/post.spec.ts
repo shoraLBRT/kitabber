@@ -99,7 +99,7 @@ test.describe('адрес поста', () => {
 
   test('адреса других страниц блога постом не считаются', async ({ page }) => {
     await page.goto('/u/anna/comments')
-    await expect(page.getByTestId('blog-empty-comments')).toHaveText('Пока нет комментариев')
+    await expect(page.getByTestId('blog-comments')).toBeVisible()
   })
 })
 
