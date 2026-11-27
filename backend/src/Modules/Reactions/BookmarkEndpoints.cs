@@ -112,8 +112,8 @@ public sealed class BookmarkEndpoints : IApiEndpoints
         }
 
         var marks = await MarksAsync(db.Bookmarks.Where(b => b.PostId == postId), account, ct);
-        var post = marks.FirstOrDefault(m => m.Kind == ReactionTarget.Post) is { } own
-            ? new BookmarkView(own.Mark.Bookmarked, own.Mark.Count)
+        var post = marks.Where(m => m.Kind == ReactionTarget.Post).Select(m => m.Mark).FirstOrDefault() is { } own
+            ? new BookmarkView(own.Bookmarked, own.Count)
             : new BookmarkView(false, null);
         var commentMarks = marks
             .Where(m => m.Kind == ReactionTarget.Comment)
