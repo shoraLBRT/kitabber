@@ -1105,6 +1105,38 @@ function freshFeed(response, url, only = () => true) {
   return send(response, 200, { items: sorted.slice(start, end).map(feedItem), nextCursor })
 }
 
+// The tops (E08-06, ADR-0104): GET /api/v1/feeds/top/{period}, the posts published within the period by the others'
+// likes, then newest, two per page like the fresh feed. The periods count back from a fixed moment, so the e2e tests
+// do not depend on the clock: the posts above (20 November) are within a week of it but not within a day, and a post
+// published during a test is after it, so only in «all time» (the day stays empty for the test of the empty period).
+const topNow = Date.parse('2026-11-23T00:00:00Z')
+const topDays = { day: 1, week: 7, month: 30, year: 365, all: null }
+
+function topFeed(response, url) {
+  const [, period] = url.pathname.match(/^\/api\/v1\/feeds\/top\/([^/]+)$/) ?? []
+  if (!Object.hasOwn(topDays, period ?? ''))
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { period: ['invalid'] } })
+  const days = topDays[period]
+  const since = days === null ? -Infinity : topNow - days * 24 * 60 * 60 * 1000
+  const until = days === null ? Infinity : topNow
+  const likes = (post) => othersLikes.get(`post:${post.id}`) ?? 0
+  const sorted = posts
+    .filter(
+      (post) =>
+        post.publishedAt && Date.parse(post.publishedAt) >= since && Date.parse(post.publishedAt) <= until,
+    )
+    .sort(
+      (a, b) => likes(b) - likes(a) || b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id),
+    )
+  const cursor = url.searchParams.get('cursor')
+  const start = cursor ? Number(Buffer.from(cursor, 'base64url').toString()) : 0
+  if (!Number.isInteger(start) || start < 0)
+    return send(response, 400, { status: 400, code: 'invalid_cursor' })
+  const end = start + feedPageSize
+  const nextCursor = end < sorted.length ? Buffer.from(String(end)).toString('base64url') : null
+  return send(response, 200, { items: sorted.slice(start, end).map(feedItem), nextCursor })
+}
+
 // A feed item carries the author's personal blog and the post's topic (E08-02, ADR-0052).
 const feedBlog = ({ id, type, name, nickname }) => ({ id, type, name, nickname, avatarSources: [] })
 
@@ -1746,6 +1778,7 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/topics/menu' && request.method === 'GET') return topicMenu(request, response)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
+  if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
     return blogFeed(response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)

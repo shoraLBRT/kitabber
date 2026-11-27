@@ -8,6 +8,10 @@ import {
   loadBlogFeed,
   loadFreshFeed,
   loadMyFeed,
+  loadTopFeed,
+  isTopPeriod,
+  topPeriodPath,
+  topPeriods,
   rememberFeed,
   feedCommentPath,
   feedItemPath,
@@ -72,6 +76,49 @@ describe('loadBlogFeed', () => {
     const gone = clientAnswering(404, { code: 'posts.blog_not_found' }).client
     expect(await loadBlogFeed(gone, 'b1')).toEqual({ status: 'error' })
     expect(await loadBlogFeed(clientAnswering(500, {}).client, 'b1')).toEqual({ status: 'error' })
+  })
+})
+
+describe('loadTopFeed', () => {
+  it('reads the top of a period, passing the cursor back as it is', async () => {
+    const page = { items: [post('p1')], nextCursor: null }
+    const { client, fetch } = clientAnswering(200, page)
+    expect(await loadTopFeed(client, 'week')).toEqual({ status: 'found', page })
+    await loadTopFeed(client, 'all', 'eyJhIjoxfQ')
+    const urls = fetch.mock.calls.map((call) => (call as unknown as [Request])[0].url)
+    expect(urls).toEqual([
+      'http://api.test/api/v1/feeds/top/week',
+      'http://api.test/api/v1/feeds/top/all?cursor=eyJhIjoxfQ',
+    ])
+  })
+
+  it('is a failure when the API refuses or does not answer', async () => {
+    expect(await loadTopFeed(clientAnswering(500, {}).client, 'day')).toEqual({ status: 'error' })
+    const fetch = vi.fn(async () => {
+      throw new TypeError('offline')
+    })
+    const client = createApiClient({ baseUrl: 'http://api.test', fetch })
+    expect(await loadTopFeed(client, 'day')).toEqual({ status: 'error' })
+  })
+})
+
+describe('top periods', () => {
+  it('are the day, week, month, year and all time, each at its own address', () => {
+    expect([...topPeriods]).toEqual(['day', 'week', 'month', 'year', 'all'])
+    expect(topPeriods.map(topPeriodPath)).toEqual([
+      '/popular/day',
+      '/popular/week',
+      '/popular/month',
+      '/popular/year',
+      '/popular/all',
+    ])
+  })
+
+  it('know only their own names', () => {
+    expect(isTopPeriod('year')).toBe(true)
+    expect(isTopPeriod('Year')).toBe(false)
+    expect(isTopPeriod('century')).toBe(false)
+    expect(isTopPeriod(undefined)).toBe(false)
   })
 })
 
