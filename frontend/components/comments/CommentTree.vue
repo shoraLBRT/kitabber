@@ -196,7 +196,12 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 
     <template v-else>
       <CommentForm v-if="!branch" :inviting="roots.length === 0" />
-      <div v-if="!branch" class="comments__arrived" aria-live="polite" data-testid="comments-arrived-bar">
+      <div
+        v-if="!branch"
+        class="comments__arrived shell-sticky"
+        aria-live="polite"
+        data-testid="comments-arrived-bar"
+      >
         <button
           v-if="arrived > 0"
           type="button"
@@ -212,7 +217,7 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
       <button
         v-if="freshLeft > 0 && roots.length > 0"
         type="button"
-        class="comments__next-new"
+        class="comments__next-new shell-sticky"
         :aria-label="t('comments.nextNewLabel', { count: freshLeft })"
         data-testid="comments-next-new"
         @click="emit('next-new')"
@@ -280,6 +285,14 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
   height: 0;
   margin-bottom: calc(-1 * var(--space-4));
   overflow: visible;
+}
+
+/*
+ * The empty bar does not glide after the header: a moving sticky box lays the whole page out again on every frame of
+ * the transition, which on a tree of 1000 comments takes a fold or a press past a second (#447).
+ */
+.comments__arrived:empty {
+  transition: none;
 }
 
 .comments__arrived-button {

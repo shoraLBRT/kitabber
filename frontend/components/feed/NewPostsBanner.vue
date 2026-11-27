@@ -15,7 +15,7 @@ defineEmits<{ show: [] }>()
 </script>
 
 <template>
-  <div class="new-posts" aria-live="polite" data-testid="new-posts">
+  <div class="new-posts shell-sticky" aria-live="polite" data-testid="new-posts">
     <button
       v-if="count > 0"
       type="button"
