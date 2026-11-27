@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Platform.Http;
 using Platform.Http.Problems;
 using Platform.Messaging;
@@ -11,6 +12,7 @@ using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Preferences.Contracts;
 using Platform.Modules.Reactions.Contracts;
+using Platform.Realtime;
 
 namespace Platform.Modules.Comments;
 
@@ -362,6 +364,8 @@ public sealed class CommentEndpoints : IApiEndpoints
         CommentLimits limits,
         TimeProvider time,
         IBlockList blocks,
+        IRealtimePublisher realtime,
+        ILogger<CommentEndpoints> logger,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } account)
@@ -422,6 +426,8 @@ public sealed class CommentEndpoints : IApiEndpoints
                 comment.CreatedAt),
             ct);
         await db.SaveChangesAsync(ct);
+        // Those reading the post learn of it once it is kept (ADR-0112).
+        await CommentEvents.PublishPostedAsync(realtime, logger, comment, ct);
         return TypedResults.Created($"/api/v1/comments/{comment.Id}/branch", View(comment, replies: 0, limits));
     }
 

@@ -4,6 +4,7 @@
       The Comments module (FR-COMMENT, ADR-0048): the comment tree under a post, kept as materialized paths, and its API.
       Its tables live in the schema `comments`; it knows the author only by the account_id (FR-ID-1) and asks the Posts
       module about a post through Posts.Contracts and the Reactions module about likes through Reactions.Contracts.
+      A new comment reaches the readers of its post through the realtime channel (ADR-0112).
     -->
     <PropertyGroup>
         <RootNamespace>Platform.Modules.Comments</RootNamespace>
@@ -18,6 +19,7 @@
         <ProjectReference Include="../../Http/Platform.Http.csproj" />
         <ProjectReference Include="../../Messaging/Platform.Messaging.csproj" />
         <ProjectReference Include="../../Persistence/Platform.Persistence.csproj" />
+        <ProjectReference Include="../../Realtime/Platform.Realtime.csproj" />
         <ProjectReference Include="../../Seeding/Platform.Seeding.csproj" />
         <ProjectReference Include="../Comments.Contracts/Platform.Modules.Comments.Contracts.csproj" />
         <ProjectReference Include="../Identity.Contracts/Platform.Modules.Identity.Contracts.csproj" />

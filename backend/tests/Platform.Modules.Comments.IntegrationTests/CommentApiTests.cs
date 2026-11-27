@@ -7,13 +7,16 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Http;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
 using Platform.Persistence;
+using Platform.Realtime;
 using Platform.Testing.Api;
 using Platform.Testing.Containers;
+using Platform.Testing.Realtime;
 
 namespace Platform.Modules.Comments.IntegrationTests;
 
@@ -29,8 +32,16 @@ public sealed class CommentsApi : IntegrationApiFactory
         : base(postgres, redis)
     {
         WithSetting(CommentsSettings.MaxDepthKey, MaxDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        WithModule(services => services.AddTestAuthentication());
+        WithModule(services =>
+        {
+            services.AddTestAuthentication();
+            services.RemoveAll<IRealtimePublisher>();
+            services.AddSingleton<IRealtimePublisher>(Events);
+        });
     }
+
+    /// <summary>What the module published to the realtime channel (ADR-0112).</summary>
+    public RecordingPublisher Events { get; } = new();
 
     /// <summary>The directory of reactions is reference data from the migration (ADR-0095): reactions need it.</summary>
     protected override IEnumerable<string> KeepTables => ["reactions.reaction_set"];

@@ -14,6 +14,7 @@ using Platform.Modules.Reactions.Contracts;
 using Platform.Realtime;
 using Platform.Testing.Api;
 using Platform.Testing.Containers;
+using Platform.Testing.Realtime;
 
 namespace Platform.Modules.Reactions.IntegrationTests;
 
@@ -34,22 +35,6 @@ public sealed class ReactionsApi : IntegrationApiFactory
 
     /// <summary>What the module published to the realtime channel (ADR-0072).</summary>
     public RecordingPublisher Events { get; } = new();
-}
-
-/// <summary>Keeps every published event instead of sending it.</summary>
-public sealed class RecordingPublisher : IRealtimePublisher
-{
-    private readonly ConcurrentQueue<(RealtimeTopic Topic, string Type, object? Data)> _events = new();
-
-    public IReadOnlyList<(RealtimeTopic Topic, string Type, object? Data)> Published => [.. _events];
-
-    public void Clear() => _events.Clear();
-
-    public Task PublishAsync(RealtimeTopic topic, string type, object? data, CancellationToken cancellationToken = default)
-    {
-        _events.Enqueue((topic, type, data));
-        return Task.CompletedTask;
-    }
 }
 
 /// <summary>
