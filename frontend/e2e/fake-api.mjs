@@ -1213,12 +1213,12 @@ function topicMenu(request, response) {
 const feedPageSize = 2
 
 // The feed of one blog (E11-01): GET /api/v1/feeds/blogs/{blogId}, the same pages for the posts of that blog only.
-function blogFeed(response, url) {
+function blogFeed(request, response, url) {
   const [, blogId] = url.pathname.match(/^\/api\/v1\/feeds\/blogs\/([^/]+)$/) ?? []
   const blog = [...blogs, ...createdTopics].find((item) => item.id === blogId)
   if (!blog) return send(response, 404, { status: 404, code: 'posts.blog_not_found' })
   if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
-  return freshFeed(response, url, (post) => post.blogId === blogId)
+  return freshFeed(response, url, (post) => post.blogId === blogId, repostsBy(request))
 }
 
 // «Моя лента» (E08-04, ADR-0089): GET /api/v1/feeds/my, the same pages for the posts of the blogs and topics the client
@@ -1229,7 +1229,12 @@ function myFeed(request, response, url) {
   const followed = new Set(
     blogs.filter((blog) => blog.type === 'personal' && own.has(blog.id)).map((blog) => blog.owner),
   )
-  return freshFeed(response, url, (post) => own.has(post.blogId) || followed.has(post.authorAccountId))
+  return freshFeed(
+    response,
+    url,
+    (post) => own.has(post.blogId) || followed.has(post.authorAccountId),
+    repostsBy(request),
+  )
 }
 
 // The rating filter of the fresh feed (E08-07, ADR-0106): `minRating` keeps the posts the others' likes rate at least
@@ -1321,12 +1326,96 @@ const feedBlog = ({ id, type, name, nickname }) => ({ id, type, name, nickname, 
 function feedItem(post) {
   const author = blogs.find((blog) => blog.type === 'personal' && blog.owner === post.authorAccountId)
   const topic = blogs.find((blog) => blog.type === 'topic' && blog.id === post.blogId)
+  const reposted = post.repostOfPostId ? posts.find((item) => item.id === post.repostOfPostId) : null
+  const original = reposted ? feedItem(reposted) : null
   return {
     post,
     author: author ? feedBlog(author) : null,
     topic: topic ? feedBlog(topic) : null,
-    bestComment: bestComment(post.id),
+    bestComment: post.repostOfPostId ? null : bestComment(post.id),
+    original: original ? { post: original.post, author: original.author, topic: original.topic } : null,
   }
+}
+
+// Reposts (E10-08, ADR-0117): POST and GET /api/v1/posts/{id}/reposts. A signed-in client's reposts are kept per
+// client address, so parallel tests never see each other's; the post «Привет, мир» has one repost by Борис. A repost
+// lands in its author's blog feed and in «Моя лента» of the blog's subscribers with the original inside. Reposting one's own post is 403, again 409, a text longer
+// than 1000 characters 400, the text «сбой» fails as an unavailable API would.
+const ownReposts = new Map() // client address -> reposts, the newest first
+function repostPost(id, account, postId, text, at) {
+  const blog = blogs.find((item) => item.type === 'personal' && item.owner === account) ?? blogs[0]
+  return {
+    id,
+    blogId: blog.id,
+    authorAccountId: account,
+    title: null,
+    slug: null,
+    body: { version: 1, blocks: [] },
+    status: 'published',
+    origin: 'native',
+    source: null,
+    createdAt: at,
+    updatedAt: at,
+    publishedAt: at,
+    images: {},
+    imagePreviews: {},
+    viewCount: 0,
+    repostOfPostId: postId,
+    repostText: text,
+  }
+}
+
+const seededReposts = [
+  repostPost(
+    '0195f3a0-0000-7000-8000-0000000000d1',
+    blogs[1].owner,
+    '0195f3a0-0000-7000-8000-0000000000c1',
+    'Хороший пост, почитайте.',
+    '2026-11-21T10:00:00Z',
+  ),
+]
+
+/** The seeded reposts and the client's own, the newest first. */
+function repostsBy(request) {
+  return [...(ownReposts.get(clientOf(request)) ?? []), ...seededReposts]
+}
+
+function repostView(repost) {
+  const author = blogs.find((blog) => blog.type === 'personal' && blog.owner === repost.authorAccountId)
+  return {
+    id: repost.id,
+    authorAccountId: repost.authorAccountId,
+    author: author ? feedBlog(author) : null,
+    text: repost.repostText,
+    publishedAt: repost.publishedAt,
+  }
+}
+
+async function repostsRoute(request, response, postId) {
+  const original = posts.find((item) => item.id === postId) ?? written.get(postId)
+  if (request.method === 'GET') {
+    if (!original) return send(response, 404, { status: 404, code: 'posts.post_not_found' })
+    const items = repostsBy(request)
+      .filter((repost) => repost.repostOfPostId === postId)
+      .map(repostView)
+    return send(response, 200, { items, nextCursor: null })
+  }
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  if (!original) return send(response, 404, { status: 404, code: 'posts.post_not_found' })
+  if (original.authorAccountId === account)
+    return send(response, 403, { status: 403, code: 'posts.repost_own_post' })
+  const { text = null } = JSON.parse((await readBody(request)) || '{}')
+  if (text === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  if (typeof text === 'string' && text.trim().length > 1000)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { text: ['too long'] } })
+  const mine = ownReposts.get(clientOf(request)) ?? []
+  if (mine.some((repost) => repost.repostOfPostId === postId && repost.authorAccountId === account))
+    return send(response, 409, { status: 409, code: 'posts.already_reposted' })
+  const cleaned = typeof text === 'string' && text.trim() !== '' ? text.trim() : null
+  const repost = repostPost(randomUUID(), account, postId, cleaned, new Date().toISOString())
+  ownReposts.set(clientOf(request), [repost, ...mine])
+  return send(response, 201, repost)
 }
 
 // The best comment of a card (E08-15, ADR-0062), as CommentDirectory.BestShownAsync chooses it: the most liked shown
@@ -2164,6 +2253,9 @@ createServer(async (request, response) => {
       : subscriptionList(request, response, url, listedBlog)
   if (url.pathname === '/api/v1/bookmarks/posts' && request.method === 'GET')
     return feedBookmarks(request, response, url)
+  const [, repostedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/reposts$/) ?? []
+  if (repostedPost && ['GET', 'POST'].includes(request.method))
+    return repostsRoute(request, response, repostedPost)
   const [, bookmarkedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/bookmarks$/) ?? []
   if (bookmarkedPost && request.method === 'GET') return postBookmarks(request, response, bookmarkedPost)
   const [, bookmarkTarget, bookmarkId] =
@@ -2220,7 +2312,7 @@ createServer(async (request, response) => {
     return bookmarkSection(request, response, url, 'comment')
   if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
-    return blogFeed(response, url)
+    return blogFeed(request, response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.
   if (url.pathname.startsWith('/__images/') && request.method === 'GET') {

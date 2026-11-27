@@ -187,6 +187,11 @@ describe('PostView', () => {
       props: ['postId'],
       template: '<div data-testid="post-comments-stub" :data-post="postId" />',
     },
+    // The reposts read the API themselves; tests/reposts covers them.
+    PostRepostsSection: {
+      props: ['postId', 'canRepost'],
+      template: '<div data-testid="post-reposts-stub" :data-post="postId" />',
+    },
   }
   const mountView = (state: PostLookup | { status: 'loading' }) =>
     mount(PostView, { props: { state }, global: { stubs } })
