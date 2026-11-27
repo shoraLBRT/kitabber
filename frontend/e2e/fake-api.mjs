@@ -1408,24 +1408,27 @@ function blogComments(request, response, url, blogId) {
   const list = comments
     .filter((c) => !c.deleted && inBlog(c) && !(c.authorAccountId && blocked.has(c.authorAccountId)))
     .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
-  const items = list.slice(offset, offset + limit).map((comment) => {
-    const post = posts.find((p) => p.id === comment.postId) ?? arabicPost
-    return {
-      id: comment.id,
-      postId: post.id,
-      postBlogId: post.blogId,
-      postTitle: post.title,
-      postSlug: post.slug,
-      kind: comment.kind,
-      authorAccountId: comment.authorAccountId,
-      guest: comment.guest,
-      text: comment.text,
-      createdAt: comment.createdAt,
-      editedAt: comment.editedAt,
-    }
-  })
+  const items = list.slice(offset, offset + limit).map(blogCommentView)
   const next = offset + limit < list.length ? String(offset + limit) : null
   return send(response, 200, { items, nextCursor: next })
+}
+
+// A comment with its post, as BlogCommentView gives it (ADR-0114).
+function blogCommentView(comment) {
+  const post = posts.find((p) => p.id === comment.postId) ?? arabicPost
+  return {
+    id: comment.id,
+    postId: post.id,
+    postBlogId: post.blogId,
+    postTitle: post.title,
+    postSlug: post.slug,
+    kind: comment.kind,
+    authorAccountId: comment.authorAccountId,
+    guest: comment.guest,
+    text: comment.text,
+    createdAt: comment.createdAt,
+    editedAt: comment.editedAt,
+  }
 }
 
 // Reactions (E10-01, E10-02, ADR-0061, ADR-0101): GET /api/v1/posts/{postId}/reactions, PUT (with a kind of the set)
@@ -1512,7 +1515,52 @@ const othersBookmarks = new Map([
   [`post:${posts[0].id}`, 4],
   [`comment:${comments.find((c) => c.text === 'Ответ во второй ветке').id}`, 2],
 ])
-const ownBookmarks = new Map() // client address -> Set of `post:<id>` and `comment:<id>`
+const ownBookmarks = new Map() // client address -> Set of `post:<id>` and `comment:<id>`, in the order they were put
+
+// The section «Закладки» (E04-12, ADR-0116): every person once kept a post and a comment that are deleted since, so
+// their bookmarks start with these two, the oldest; no other route lists them, so the cards and menus never see them.
+const goneBookmarks = [
+  'post:0195f3a0-0000-7000-8000-00000000dea1',
+  'comment:0195f3a0-0000-7000-8000-00000000dea2',
+]
+
+function ownBookmarksOf(request) {
+  const mine = ownBookmarks.get(clientOf(request)) ?? new Set(goneBookmarks)
+  ownBookmarks.set(clientOf(request), mine)
+  return mine
+}
+
+// GET /api/v1/feeds/bookmarks and /api/v1/comments/bookmarks: the person's own bookmarks of one kind, newest first,
+// page by page (the cursor is an offset, as in the other lists here); a deleted target comes without its content.
+function bookmarkSection(request, response, url, kind) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  const offset = Number(url.searchParams.get('cursor') ?? 0)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0)
+    return send(response, 400, { status: 400, code: 'validation_failed' })
+  const keys = [...ownBookmarksOf(request)].filter((key) => key.startsWith(`${kind}:`)).toReversed()
+  const bookmarkedAt = '2026-11-27T10:00:00.000Z'
+  const items = keys.slice(offset, offset + limit).map((key) => {
+    const id = key.split(':')[1]
+    if (kind === 'post') {
+      const post = posts.find((p) => p.id === id) ?? written.get(id)
+      return {
+        postId: id,
+        bookmarkedAt,
+        card: post?.status === 'published' ? feedItem(post) : null,
+      }
+    }
+    const comment = comments.find((c) => c.id === id && !c.deleted)
+    return {
+      commentId: id,
+      postId: comment?.postId ?? id,
+      bookmarkedAt,
+      comment: comment ? blogCommentView(comment) : null,
+    }
+  })
+  const next = offset + limit < keys.length ? String(offset + limit) : null
+  return send(response, 200, { items, nextCursor: next })
+}
 
 function bookmarkState(request, key, account) {
   const [target, id] = key.split(':')
@@ -1570,8 +1618,7 @@ function changeBookmark(request, response, target, id) {
       : comments.find((c) => c.id === id)
   if (!item) return send(response, 404, { status: 404, code: `bookmarks.${target}_not_found` })
   const key = `${target}:${id}`
-  const mine = ownBookmarks.get(clientOf(request)) ?? new Set()
-  ownBookmarks.set(clientOf(request), mine)
+  const mine = ownBookmarksOf(request)
   if (request.method === 'PUT') mine.add(key)
   else mine.delete(key)
   return send(response, 200, bookmarkState(request, key, account))
@@ -2167,6 +2214,10 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET')
     return filteredFreshFeed(request, response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
+  if (url.pathname === '/api/v1/feeds/bookmarks' && request.method === 'GET')
+    return bookmarkSection(request, response, url, 'post')
+  if (url.pathname === '/api/v1/comments/bookmarks' && request.method === 'GET')
+    return bookmarkSection(request, response, url, 'comment')
   if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
     return blogFeed(response, url)
