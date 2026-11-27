@@ -4,7 +4,7 @@ using Platform.Realtime;
 namespace Platform.Modules.Reactions;
 
 /// <summary>How many people put one kind of reaction on a target.</summary>
-/// <param name="Kind">The reaction, as the client names it: <c>like</c>; the set of reactions (E10-02) adds more.</param>
+/// <param name="Kind">The reaction, as the client names it: <c>like</c>, <c>heart</c>, … (ADR-0101).</param>
 /// <param name="Count">How many people put it.</param>
 public sealed record ReactionCountView(string Kind, int Count);
 
@@ -25,11 +25,7 @@ internal static partial class ReactionEvents
 
     public static string NameOf(ReactionTarget target) => target == ReactionTarget.Post ? "post" : "comment";
 
-    public static string NameOf(ReactionKind kind) => kind switch
-    {
-        ReactionKind.Like => "like",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A reaction kind without a client name"),
-    };
+    public static string NameOf(ReactionKind kind) => ReactionKinds.CodeOf(kind);
 
     /// <summary>
     /// Sends the counts; a channel that cannot take the event (the backplane is down) does not undo the change, the
@@ -41,12 +37,9 @@ internal static partial class ReactionEvents
         Guid postId,
         ReactionTarget target,
         Guid targetId,
-        int likes,
+        IReadOnlyList<ReactionCountView> counts,
         CancellationToken ct)
     {
-        IReadOnlyList<ReactionCountView> counts = likes > 0
-            ? [new ReactionCountView(NameOf(ReactionKind.Like), likes)]
-            : [];
         try
         {
             await publisher.PublishAsync(

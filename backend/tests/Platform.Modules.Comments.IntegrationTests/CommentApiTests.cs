@@ -31,6 +31,9 @@ public sealed class CommentsApi : IntegrationApiFactory
         WithSetting(CommentsSettings.MaxDepthKey, MaxDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
         WithModule(services => services.AddTestAuthentication());
     }
+
+    /// <summary>The directory of reactions is reference data from the migration (ADR-0095): reactions need it.</summary>
+    protected override IEnumerable<string> KeepTables => ["reactions.reaction_set"];
 }
 
 /// <summary>
@@ -177,8 +180,8 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
         var fan = await SaveConfirmedAccountAsync(2, "fan@example.com");
         var otherFan = await SaveConfirmedAccountAsync(3, "other-fan@example.com");
 
-        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/like", null, fan);
-        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/like", null, otherFan);
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/reaction", """{"kind":"heart"}""", fan);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{quiet}/reaction", """{"kind":"heart"}""", otherFan);
         Assert.Equal(HttpStatusCode.OK, otherLiked.StatusCode);
         using var rated = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, null);
         using var byDate = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments?sort=date", null, null);
@@ -186,8 +189,8 @@ public sealed class CommentApiTests(CommentsApi api) : IClassFixture<CommentsApi
         Assert.Equal([quiet, busy, reply], IdsOf(await rated.Content.ReadFromJsonAsync<JsonElement>(Ct)));
         Assert.Equal([busy, reply, quiet], IdsOf(await byDate.Content.ReadFromJsonAsync<JsonElement>(Ct)));
 
-        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/like", null, fan);
-        using var otherTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/like", null, otherFan);
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/reaction", null, fan);
+        using var otherTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{quiet}/reaction", null, otherFan);
         using var unrated = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/comments", null, null);
 
         Assert.Equal([busy, reply, quiet], IdsOf(await unrated.Content.ReadFromJsonAsync<JsonElement>(Ct)));

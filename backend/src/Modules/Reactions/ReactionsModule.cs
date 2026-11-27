@@ -10,7 +10,7 @@ using Platform.Persistence;
 namespace Platform.Modules.Reactions;
 
 /// <summary>
-/// The Reactions module in the API host (ADR-0061): likes on posts and comments, their API and their database. It needs
+/// The Reactions module in the API host (ADR-0061): reactions on posts and comments, their API and their database. It needs
 /// the Posts module (<c>IPostDirectory</c>) and the Comments module (<c>ICommentDirectory</c>) registered in the same
 /// host, and offers other modules <see cref="ILikeCounts"/> (ADR-0062) and <see cref="IReactionRatings"/> (ADR-0081).
 /// </summary>
@@ -26,7 +26,7 @@ public static class ReactionsModule
             builder.Configuration.GetConnectionString(ConnectionStringName)!);
         builder.Services.AddScoped<ILikeCounts, LikeCounts>();
         builder.Services.AddScoped<IReactionRatings, ReactionRatings>();
-        builder.Services.AddApiEndpoints<LikeEndpoints>();
+        builder.Services.AddApiEndpoints<ReactionEndpoints>();
         builder.Services.AddApiEndpoints<ReactionSetEndpoints>();
         return builder;
     }

@@ -766,15 +766,15 @@ export interface paths {
         patch: operations["EditComment"];
         trace?: never;
     };
-    "/api/v1/posts/{postId}/likes": {
+    "/api/v1/posts/{postId}/reactions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The likes of a published post and of its comments, and which of them the account likes */
-        get: operations["GetPostLikes"];
+        /** The reactions of a published post and of its comments, and which of them are the account's */
+        get: operations["GetPostReactions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -783,7 +783,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/posts/{postId}/like": {
+    "/api/v1/posts/{postId}/reaction": {
         parameters: {
             query?: never;
             header?: never;
@@ -791,17 +791,17 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Likes a published post of another author; liking it again changes nothing */
-        put: operations["LikePost"];
+        /** Puts a reaction of the set on a published post of another author, or changes the account's one to it */
+        put: operations["PutPostReaction"];
         post?: never;
-        /** Takes back the like of a post; taking back a like that is not there changes nothing */
-        delete: operations["UnlikePost"];
+        /** Takes back the account's reaction on a post; taking back none changes nothing */
+        delete: operations["TakePostReaction"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/comments/{id}/like": {
+    "/api/v1/comments/{id}/reaction": {
         parameters: {
             query?: never;
             header?: never;
@@ -809,11 +809,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Likes a comment of another account; liking it again changes nothing */
-        put: operations["LikeComment"];
+        /** Puts a reaction of the set on a comment of another account, or changes the account's one to it */
+        put: operations["PutCommentReaction"];
         post?: never;
-        /** Takes back the like of a comment; taking back a like that is not there changes nothing */
-        delete: operations["UnlikeComment"];
+        /** Takes back the account's reaction on a comment; taking back none changes nothing */
+        delete: operations["TakeCommentReaction"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1061,12 +1061,11 @@ export interface components {
             /** Format: uuid */
             parentId?: null | string;
         };
-        CommentLikesView: {
+        CommentReactionsView: {
             /** Format: uuid */
             commentId: string;
-            /** Format: int32 */
-            count: number;
-            liked: boolean;
+            reactions: components["schemas"]["ReactionCountView"][];
+            mine: null | string;
         };
         CommentTreeView: {
             /** Format: uuid */
@@ -1203,11 +1202,6 @@ export interface components {
         };
         JsonElement: unknown;
         JsonObject: Record<string, never>;
-        LikeView: {
-            /** Format: int32 */
-            count: number;
-            liked: boolean;
-        };
         MarkNotificationsReadRequest: {
             ids: null | string[];
         };
@@ -1266,11 +1260,11 @@ export interface components {
             blogId?: null | string;
             title?: null | string;
         };
-        PostLikesView: {
+        PostReactionsView: {
             /** Format: uuid */
             postId: string;
-            post: components["schemas"]["LikeView"];
-            comments: components["schemas"]["CommentLikesView"][];
+            post: components["schemas"]["ReactionsView"];
+            comments: components["schemas"]["CommentReactionsView"][];
         };
         PostSourceView: {
             channel: string;
@@ -1364,9 +1358,21 @@ export interface components {
             name: null | string;
             nickname: null | string;
         };
+        PutReactionRequest: {
+            kind: null | string;
+        };
+        ReactionCountView: {
+            kind: string;
+            /** Format: int32 */
+            count: number;
+        };
         ReactionSetItem: {
             code: string;
             title: string;
+        };
+        ReactionsView: {
+            reactions: components["schemas"]["ReactionCountView"][];
+            mine: null | string;
         };
         ReadingInput: {
             /** Format: int32 */
@@ -3652,7 +3658,7 @@ export interface operations {
             };
         };
     };
-    GetPostLikes: {
+    GetPostReactions: {
         parameters: {
             query?: never;
             header?: never;
@@ -3669,7 +3675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostLikesView"];
+                    "application/json": components["schemas"]["PostReactionsView"];
                 };
             };
             /** @description Not Found */
@@ -3683,7 +3689,7 @@ export interface operations {
             };
         };
     };
-    LikePost: {
+    PutPostReaction: {
         parameters: {
             query?: never;
             header?: never;
@@ -3692,7 +3698,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["PutReactionRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -3700,7 +3710,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LikeView"];
+                    "application/json": components["schemas"]["ReactionsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Unauthorized */
@@ -3732,7 +3751,7 @@ export interface operations {
             };
         };
     };
-    UnlikePost: {
+    TakePostReaction: {
         parameters: {
             query?: never;
             header?: never;
@@ -3749,7 +3768,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LikeView"];
+                    "application/json": components["schemas"]["ReactionsView"];
                 };
             };
             /** @description Unauthorized */
@@ -3772,7 +3791,7 @@ export interface operations {
             };
         };
     };
-    LikeComment: {
+    PutCommentReaction: {
         parameters: {
             query?: never;
             header?: never;
@@ -3781,7 +3800,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["PutReactionRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -3789,7 +3812,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LikeView"];
+                    "application/json": components["schemas"]["ReactionsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Unauthorized */
@@ -3821,7 +3853,7 @@ export interface operations {
             };
         };
     };
-    UnlikeComment: {
+    TakeCommentReaction: {
         parameters: {
             query?: never;
             header?: never;
@@ -3838,7 +3870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LikeView"];
+                    "application/json": components["schemas"]["ReactionsView"];
                 };
             };
             /** @description Unauthorized */

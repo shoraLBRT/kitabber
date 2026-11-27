@@ -11,6 +11,20 @@ public sealed class ReactionWeightsTests
     public void LikeWeighsOne() => Assert.Equal(1, ReactionWeights.Of(ReactionKind.Like));
 
     [Fact]
+    public void EveryReactionOfTheSetWeighsAsMuchAsTheLike() =>
+        Assert.All(Enum.GetValues<ReactionKind>(), kind => Assert.Equal(1, ReactionWeights.Of(kind)));
+
+    [Fact]
+    public void EveryKindHasThePictureOfItsCodeAndBack()
+    {
+        Assert.Equal(ReactionGraphics.Codes, Enum.GetValues<ReactionKind>().Select(ReactionKinds.CodeOf));
+        Assert.All(ReactionGraphics.Codes, code => Assert.Equal(code, ReactionKinds.CodeOf(ReactionKinds.Parse(code)!.Value)));
+        Assert.Null(ReactionKinds.Parse("dislike"));
+        Assert.Null(ReactionKinds.Parse("Like"));
+        Assert.Null(ReactionKinds.Parse(null));
+    }
+
+    [Fact]
     public void RatingIsTheSumOfTheReactionsByTheirWeights()
     {
         Assert.Equal(0, ReactionWeights.RatingOf([]));

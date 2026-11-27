@@ -27,9 +27,12 @@ public sealed class Rating
 public static class ReactionWeights
 {
     /// <summary>The weight of one reaction of <paramref name="kind"/>; a kind without a weight is a programming error.</summary>
+    // Every reaction of the set is a kind word (FR-REACT: no mockery, no dislike), so each weighs the same as the like
+    // (E10-02, ADR-0101); a different weight comes with a recount of the kept ratings.
     public static int Of(ReactionKind kind) => kind switch
     {
-        ReactionKind.Like => 1,
+        ReactionKind.Like or ReactionKind.Heart or ReactionKind.Smile or ReactionKind.Clap
+            or ReactionKind.Idea or ReactionKind.Wow or ReactionKind.Sad => 1,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A reaction kind without a weight"),
     };
 
