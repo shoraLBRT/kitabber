@@ -393,6 +393,45 @@ export async function loadOwnComments(client: ApiClient, postId: string): Promis
   }
 }
 
+/** The comments new to the reader since the previous opening of the post's comments (E09-08, ADR-0109). */
+export type CommentVisit = { previousVisitAt: string | null; newIds: string[] }
+
+export const noVisit: CommentVisit = { previousVisitAt: null, newIds: [] }
+
+/**
+ * Opens the comments of the post `postId` for the signed-in reader (E09-08, ADR-0109): the comments new since the
+ * previous opening, which moves on to now. The site's server calls it with the person's token; a failure has none new.
+ */
+export async function visitComments(client: ApiClient, postId: string): Promise<CommentVisit> {
+  try {
+    const { data } = await client.POST('/api/v1/posts/{postId}/comments/visit', {
+      params: { path: { postId } },
+    })
+    return data ? { previousVisitAt: data.previousVisitAt ?? null, newIds: data.newIds } : noVisit
+  } catch {
+    return noVisit
+  }
+}
+
+/**
+ * The new comments the button «К следующему новому» goes through (E09-08), in the order they are shown, then the ones
+ * not read yet in the order of the tree; `withUnread: false` (a phone, where a deep branch opens on its own screen)
+ * leaves the unread ones out. The ones already gone to are not in it: the next one is the first of the list, and an
+ * empty list hides the button.
+ */
+export function newCommentsOrder(
+  comments: readonly Comment[],
+  newIds: readonly string[],
+  gone: ReadonlySet<string>,
+  withUnread: boolean,
+): string[] {
+  const fresh = new Set(newIds)
+  const shown = comments.filter((c) => fresh.has(c.id) && !c.deleted).map((c) => c.id)
+  const shownIds = new Set(comments.map((c) => c.id))
+  const unread = withUnread ? newIds.filter((id) => !shownIds.has(id)) : []
+  return [...shown, ...unread].filter((id) => !gone.has(id))
+}
+
 /** The comments with the changed text of `edited` in its place; the replies read stay as they are. */
 export function withEdited(comments: readonly Comment[], edited: Comment): Comment[] {
   return comments.map((comment) =>

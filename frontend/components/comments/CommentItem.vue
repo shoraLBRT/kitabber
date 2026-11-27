@@ -42,6 +42,8 @@ const folded = computed(() => comment.value.authorBlocked && !comment.value.dele
 const link = computed(() => (sending.value ? null : (tree.commentLink.value?.(comment.value.id) ?? null)))
 // The comment a link named stands out (E09-07).
 const highlighted = computed(() => tree.highlighted.value === comment.value.id)
+// New since the previous opening (E09-08, ADR-0109): an accent edge with no ground and «новый» after the time.
+const fresh = computed(() => tree.fresh.value[comment.value.id] === true && !comment.value.deleted)
 const menuItems = computed(() =>
   sending.value
     ? []
@@ -119,13 +121,14 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
 <template>
   <li
     class="comment"
-    :class="{ 'comment--sending': sending, 'comment--highlighted': highlighted }"
+    :class="{ 'comment--sending': sending, 'comment--highlighted': highlighted, 'comment--new': fresh }"
     :aria-level="comment.depth"
     :aria-labelledby="titleId"
     :aria-busy="sending ? 'true' : undefined"
     data-testid="comment"
     :data-comment-id="comment.id"
     :data-highlighted="highlighted ? 'true' : undefined"
+    :data-new="fresh ? 'true' : undefined"
   >
     <p v-if="comment.deleted" :id="titleId" class="comment__deleted" data-testid="comment-deleted">
       {{ t('comments.deleted') }}
@@ -180,6 +183,7 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
         data-testid="comment-edited"
         >{{ t('comments.edited') }}</span
       >
+      <span v-if="fresh" class="comment__new" data-testid="comment-new">{{ t('comments.fresh') }}</span>
       <CommentMenu
         v-if="menuItems.length > 0"
         :items="menuItems"
@@ -294,6 +298,8 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+  /* Brought into view by a link or «К следующему новому»: below the site's header and that button. */
+  scroll-margin-top: calc(var(--space-16) + env(safe-area-inset-top) + var(--size-touch) + var(--space-4));
 }
 
 .comment__head {
@@ -338,6 +344,21 @@ a.comment__author:hover {
   box-shadow:
     0 0 0 var(--space-1) var(--color-surface-subtle),
     calc(-1 * var(--space-1)) 0 0 var(--space-1) var(--color-accent);
+}
+
+/*
+ * New since the previous opening (E09-08, ADR-0109): an accent edge beside its own lines on the page's own ground,
+ * and «новый» — unlike the tinted ground of the comment a link named (E09-07), which wins when both apply.
+ */
+.comment--new:not(.comment--highlighted)
+  > :is(.comment__head, .comment__text, .comment__folded, .comment__actions) {
+  box-shadow: calc(-1 * var(--space-1)) 0 0 0 var(--color-accent);
+}
+
+.comment__new {
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .comment__folded {
