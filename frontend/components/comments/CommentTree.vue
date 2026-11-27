@@ -44,6 +44,8 @@ const props = withDefaults(
     branch?: boolean
     /** The comments' likes (E10-01); `null` shows no «Нравится». */
     likes?: Likes | null
+    /** The reader may block the authors of others' comments from their menus (E11-06, ADR-0091). */
+    canBlock?: boolean
   }>(),
   {
     pending: () => ({}),
@@ -56,6 +58,7 @@ const props = withDefaults(
     branchLink: null,
     branch: false,
     likes: null,
+    canBlock: false,
   },
 )
 
@@ -66,6 +69,7 @@ const emit = defineEmits<{
   send: [text: string, parentId: string | null]
   dismiss: [target: FormTarget]
   'sign-in': [target: FormTarget]
+  blocked: [accountId: string]
 }>()
 
 // The time the menus compare the end of the time to change a comment with: «Редактировать» goes once it is over.
@@ -96,6 +100,8 @@ provide(commentTreeKey, {
   send: (text, parentId) => emit('send', text, parentId),
   dismiss: (target) => emit('dismiss', target),
   signIn: (target) => emit('sign-in', target),
+  canBlock: toRef(props, 'canBlock'),
+  blocked: (accountId) => emit('blocked', accountId),
 })
 
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))

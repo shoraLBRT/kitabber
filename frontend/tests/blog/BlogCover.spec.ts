@@ -27,6 +27,7 @@ const anna: Profile = {
   avatarSources: [],
   subscriberCount: 0,
   subscribed: false,
+  blocked: false,
   cover: null,
 }
 

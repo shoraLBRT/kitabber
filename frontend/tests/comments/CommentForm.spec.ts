@@ -190,6 +190,30 @@ describe('CommentForm', () => {
     expect(view.get('[data-comment-id="1"] [role="alert"]').text()).toBe('Ветка не глубже 3 уровней.')
   })
 
+  // E11-06 (ADR-0091): the author blocked the person, so the form says so, keeps the text and sends no more.
+  it('says the author blocked the person and does not send again', async () => {
+    const failures = {
+      '1': {
+        text: 'Ответ',
+        message: 'Автор заблокировал вас: отвечать ему и комментировать его посты нельзя.',
+        blocked: true,
+      },
+    }
+    const view = mountTree()
+    await view.setProps({ failures })
+    const form = view.get('[data-comment-id="1"] [data-testid="comment-form"]')
+    expect(form.get('[data-testid="comment-form-blocked"]').text()).toBe(
+      'Автор заблокировал вас: отвечать ему и комментировать его посты нельзя.',
+    )
+    expect(form.find('[data-testid="comment-form-error"]').exists()).toBe(false)
+    expect((form.get('textarea').element as HTMLTextAreaElement).value).toBe('Ответ')
+    expect(form.get('[data-testid="comment-form-send"]').attributes('disabled')).toBeDefined()
+    await form.get('textarea').setValue('Ответ ещё раз')
+    await form.get('form').trigger('submit')
+    expect(view.emitted('dismiss')).toBeUndefined()
+    expect(view.emitted('send')).toBeUndefined()
+  })
+
   it('gives the text back to the folded form under the post when its send fails', async () => {
     const view = mountTree()
     await view.setProps({ failures: { post: { text: 'Сбой', message: 'Не удалось.' } } })

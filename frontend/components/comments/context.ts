@@ -19,8 +19,12 @@ export function formTarget(parentId: string | null): FormTarget {
   return parentId ?? 'post'
 }
 
-/** A send that did not go through: its text, given back to the form, and the reason shown under it. */
-export type CommentFailure = { text: string; message: string }
+/**
+ * A send that did not go through: its text, given back to the form, and the reason shown under it. `blocked`: the
+ * author of the post or of the comment replied to blocked the person (E11-06, `403 comments.blocked`), so sending
+ * again will not help.
+ */
+export type CommentFailure = { text: string; message: string; blocked?: boolean }
 
 export type CommentTreeContext = {
   postId: Readonly<Ref<string>>
@@ -53,6 +57,10 @@ export type CommentTreeContext = {
   remove: (id: string) => Promise<boolean>
   /** Forgets a failure once its form has shown it. */
   dismiss: (target: FormTarget) => void
+  /** The reader may block the authors of others' comments (E11-06): signed in, with the own comments read. */
+  canBlock: Readonly<Ref<boolean>>
+  /** The reader blocked `accountId` from a comment's menu: that author's comments fold (ADR-0091). */
+  blocked: (accountId: string) => void
   /** A guest pressed a form's button: the sign-in window opens instead. */
   signIn: (target: FormTarget) => void
 }

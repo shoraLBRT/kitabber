@@ -190,13 +190,18 @@ export async function loadAuthors(
 
 /**
  * What became of a comment sent (E09-03): the comment the server kept; a refusal with the server's reason (an empty
- * text, a branch too deep); the person is not signed in any more; or the request failed and may be sent again.
+ * text, a branch too deep); the author of the post or of the comment replied to blocked the person (E11-06,
+ * `403 comments.blocked`, ADR-0091); the person is not signed in any more; or the request failed and may be sent again.
  */
 export type CommentSend =
   | { status: 'sent'; comment: Comment }
   | { status: 'refused'; message: string }
+  | { status: 'blocked' }
   | { status: 'unauthorized' }
   | { status: 'error' }
+
+/** The problem code of a comment its author's black list does not let through (CommentEndpoints.BlockedCode). */
+export const commentBlockedCode = 'comments.blocked'
 
 /** Writes a comment under the post, or a reply to `parentId`: POST /posts/{postId}/comments. */
 export async function sendComment(
@@ -216,6 +221,8 @@ export async function sendComment(
       return { status: 'refused', message: Object.values(errors).flat()[0] ?? t('comments.refused') }
     }
     if (response.status === 401) return { status: 'unauthorized' }
+    if (response.status === 403 && (error as { code?: string } | undefined)?.code === commentBlockedCode)
+      return { status: 'blocked' }
     return { status: 'error' }
   } catch {
     return { status: 'error' }
@@ -352,6 +359,17 @@ export function withEdited(comments: readonly Comment[], edited: Comment): Comme
     comment.id === edited.id
       ? { ...comment, text: edited.text, editedAt: edited.editedAt, editableUntil: edited.editableUntil }
       : comment,
+  )
+}
+
+/**
+ * The comments once the reader blocked `accountId` (E11-06, ADR-0091): that author's comments come folded, as the
+ * server marks them on the next read.
+ */
+export function withAuthorBlocked(comments: readonly Comment[], accountId: string): Comment[] {
+  const blocked = accountId.toLowerCase()
+  return comments.map((comment) =>
+    comment.authorAccountId?.toLowerCase() === blocked ? { ...comment, authorBlocked: true } : comment,
   )
 }
 

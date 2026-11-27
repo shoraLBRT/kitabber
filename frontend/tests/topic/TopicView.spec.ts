@@ -19,6 +19,7 @@ const books: Profile = {
   avatarSources: [],
   subscriberCount: 0,
   subscribed: false,
+  blocked: false,
   cover: null,
   owner: { id: '0195f3a0-0000-7000-8000-0000000000b2', name: 'Борис', nickname: 'boris' },
 }

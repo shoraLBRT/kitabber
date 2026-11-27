@@ -4,9 +4,11 @@
 // not found, a failure with «Повторить», and the blog itself. The owner also sees the registration date and the
 // management buttons: «Ред.» and «Настройки» open the blog settings (E04-03, /settings/blog); statistics comes with
 // its own issue, so its button is there but disabled. The subscriber numbers and «Подписаться» are BlogSubscription.vue
-// (E11-03); the page passes their state. Other visitor actions (message, block, report) come with FR-MSG and FR-MOD.
+// (E11-03); the page passes their state. A signed-in visitor of someone else's personal blog blocks its owner with
+// «Заблокировать» (E11-06, BlogBlock.vue); the other visitor actions (message, report) come with FR-MSG and FR-MOD.
 // The cover (E04-04, BlogCover.vue) is shown to everyone; the owner's page passes coverActions to change it.
 import { computed } from 'vue'
+import BlogBlock from './BlogBlock.vue'
 import BlogCover, { type CoverActions } from './BlogCover.vue'
 import BlogSubscription from './BlogSubscription.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
@@ -26,9 +28,17 @@ const props = defineProps<{
   coverActions?: CoverActions
   /** The subscription as the page holds it (useSubscription); the profile's own numbers without it. */
   subscription?: { state: SubscriptionView; busy: boolean }
+  /** The reader is signed in: someone else's personal blog then offers «Заблокировать» (E11-06). */
+  signedIn?: boolean
 }>()
 
-defineEmits<{ retry: []; saved: [profile: Profile]; unauthorized: []; subscribe: [] }>()
+defineEmits<{
+  retry: []
+  saved: [profile: Profile]
+  unauthorized: []
+  subscribe: []
+  blocked: [blocked: boolean]
+}>()
 
 const tabs = computed(() => [
   { id: 'posts' as const, label: t('blog.posts'), to: props.base },
@@ -37,6 +47,13 @@ const tabs = computed(() => [
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
 const title = computed(() => (found.value ? blogTitle(found.value.profile) : ''))
+// The owner a signed-in reader may block: only a person's blog, never the reader's own (ADR-0091).
+const blockable = computed(() => {
+  const profile = found.value?.profile
+  return props.signedIn && profile && !found.value?.owner && profile.type === 'personal' && profile.accountId
+    ? { accountId: profile.accountId, blocked: profile.blocked }
+    : null
+})
 const shownSubscription = computed(() =>
   found.value ? (props.subscription?.state ?? subscriptionOf(found.value.profile)) : null,
 )
@@ -118,6 +135,13 @@ const registered = computed(() => {
           :own="found.owner"
           :busy="props.subscription?.busy"
           @toggle="$emit('subscribe')"
+        />
+        <BlogBlock
+          v-if="blockable"
+          :account-id="blockable.accountId"
+          :name="title"
+          :blocked="blockable.blocked"
+          @change="$emit('blocked', $event)"
         />
         <template v-if="found.owner">
           <p class="blog__muted" data-testid="blog-registered">

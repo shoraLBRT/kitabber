@@ -72,6 +72,14 @@ function onSaved(profile: Profile) {
   if (data.value?.status === 'found') data.value = { ...data.value, profile }
 }
 
+// «Заблокировать» / «Разблокировать» of the header (E11-06): the profile keeps what the black list holds now. The blog's
+// posts leave the reader's view on the next read of the list, as in every feed (ADR-0091).
+const account = useAccount()
+function onBlocked(blocked: boolean) {
+  if (data.value?.status === 'found')
+    data.value = { ...data.value, profile: { ...data.value.profile, blocked } }
+}
+
 function onUnauthorized() {
   window.location.assign(`/auth/sign-in?returnTo=${encodeURIComponent(route.fullPath)}`)
 }
@@ -93,7 +101,9 @@ useHead(() => ({
     :tab="tab"
     :cover-actions="coverActions"
     :subscription="{ state: subscription.state.value, busy: subscription.busy.value }"
+    :signed-in="account.signedIn"
     @retry="refresh()"
+    @blocked="onBlocked"
     @saved="onSaved"
     @unauthorized="onUnauthorized"
     @subscribe="subscription.toggle()"
