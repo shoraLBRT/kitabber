@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Platform.Modules.Identity;
 using Platform.Modules.Posts;
+using Platform.Modules.Reactions;
 using Platform.Testing.Api;
 
 namespace Platform.Modules.Comments.IntegrationTests;
@@ -53,11 +54,12 @@ public sealed class PopularCommentApiTests(CommentsApi api) : IClassFixture<Comm
             post.Id, parent: null, new GuestAuthor("Иван из Telegram", null), new CommentSource("-100123", "42"),
             "Гость из канала", api.Time.GetUtcNow());
         await api.SaveAsync<CommentsDbContext>(guest);
+        // A guest comment takes no reactions through the API; a rating kept for it anyway still does not bring it in.
+        await api.SaveAsync<ReactionsDbContext>(
+            new Rating { TargetKind = ReactionTarget.Comment, TargetId = guest.Id, PostId = post.Id, Value = 9 });
         await ReactAsync(liked, _fan);
         await ReactAsync(best, _fan);
         await ReactAsync(best, _otherFan);
-        await ReactAsync(guest.Id, _fan);
-        await ReactAsync(guest.Id, _otherFan);
 
         var widget = await ReadAsync(account: null);
 

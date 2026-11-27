@@ -762,6 +762,18 @@
   `tests/feed/FeedCard.spec.ts`, `e2e/feed-best-comment.spec.ts`. Не сделано: «скрытые модерацией» — модерации
   комментариев ещё нет, фильтр добавится в `BestShownAsync`; рейтинг (E10-05) заменит число лайков в одном месте;
   подсветки комментария по ссылке нет; блок пока последний в карточке — строка счётчиков (E08-06) встанет над ним.
+- Виджет «Популярные комментарии» (E08-12, #101, [ADR-0105](adr/0105-popular-comments-widget.md), FR-FEED):
+  `GET /api/v1/comments/popular?limit=1..10` (`PopularCommentEndpoints` в модуле Comments, по умолчанию 5) —
+  показанные нативные комментарии, написанные за последние сутки под опубликованными постами, с рейтингом выше нуля:
+  рейтинг по убыванию, при равенстве более ранний. Гостевые комментарии из Telegram не входят, даже с рейтингом. О постах
+  модуль спрашивает новый `IPostDirectory.PublishedHeadlinesAsync` (блог, заголовок, слаг одним запросом), о рейтингах —
+  `IReactionRatings`; окно суток читается по частичному индексу `ix_comments_day` (миграция `AddCommentsDayIndex`).
+  Выбор общий: `PopularCommentsCache` держит запас из 30 в Redis минуту, после кэша для вошедшего убираются авторы из
+  его чёрного списка (`IBlockList`). Клиент: раскладка `default` кладёт в `ShellAside` `PopularCommentList` (аватар и
+  имя блога автора через `loadAuthors`, три строки текста, заголовок поста; пункт — ссылка
+  `/u/<blogId>/<id-slug>#comment-<id>`), данные — `composables/usePopularComments.ts` через `/bff/popular-comments`,
+  только пока правая колонка на экране (`asideQuery`, от 1240 px), заново при входе и выходе; состояния `ShellWidget`.
+  Фейк API отдаёт два комментария и убирает Бориса для вошедшего. «Интересные блоги» по-прежнему пусты.
 - Лента «Свежее» (E08-01, #54, [ADR-0043](adr/0043-fresh-feed.md), FR-FEED): `GET /api/v1/feeds/fresh?cursor&limit`
   (`FreshFeedEndpoints` в модуле Posts, тег Feeds) — опубликованные посты от новых к старым по `(published_at, id)`,
   курсор `FreshFeedCursor`, сравнение строк `(published_at, id) < (…)` по частичному индексу `ix_posts_fresh_feed`;

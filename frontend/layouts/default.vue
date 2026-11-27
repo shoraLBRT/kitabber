@@ -6,6 +6,9 @@ import SettingsNav from '~/components/settings/SettingsNav.vue'
 import { notificationsApi } from '~/api/notifications'
 import ShellSearch from '~/components/shell/ShellSearch.vue'
 import { searchApi } from '~/api/search'
+import ShellAside from '~/components/shell/ShellAside.vue'
+import PopularCommentList from '~/components/comments/PopularCommentList.vue'
+import { asideQuery } from '~/composables/useMediaQuery'
 
 const route = useRoute()
 const user = useShellUser()
@@ -24,6 +27,9 @@ const notifications = notificationsApi()
 // The header's search (E14-02, ADR-0097): suggestions through /bff/search-suggestions, the history of this account.
 const search = searchApi()
 const account = useAccount()
+// The right column's «Популярные комментарии» (E08-12, ADR-0105): read only while the column is on the screen.
+const asideShown = useMediaQuery(asideQuery)
+const popular = usePopularComments(asideShown)
 // The account menu's "Выйти" (E03-03); its other items lead to pages of their own.
 function onAccount(id: string) {
   if (id === 'logout') signOut()
@@ -52,6 +58,16 @@ function onAccount(id: string) {
     <!-- The settings put their sections in the right column instead of the widgets (E04-08). -->
     <template v-if="route.meta.settingsNav" #aside>
       <SettingsNav :current-path="route.path" />
+    </template>
+    <template v-else #aside>
+      <ShellAside
+        :comments-state="popular.state.value"
+        @retry="(widget) => widget === 'comments' && popular.refresh()"
+      >
+        <template #comments>
+          <PopularCommentList :comments="popular.comments.value" :authors="popular.authors.value" />
+        </template>
+      </ShellAside>
     </template>
   </ShellLayout>
 </template>
