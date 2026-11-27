@@ -6,10 +6,30 @@ import type { ThemeChoice } from '../composables/useTheme'
 
 export type Preferences = components['schemas']['PreferencesView']
 
+/** The section «Ленты» as it is saved (E08-13, ADR-0110). */
+export type FeedPreferences = components['schemas']['FeedPreferencesView']
+
+/** The feeds the home page can open. */
+export const homeFeeds = ['popular', 'fresh', 'my'] as const
+export type HomeFeed = (typeof homeFeeds)[number]
+
+/** Where the home page sends a person whose home feed is not «Популярное» (ADR-0110); `null` keeps them on `/`. */
+export function homeFeedPath(preferences: Preferences | null): string | null {
+  switch (preferences?.feeds?.homeFeed) {
+    case 'fresh':
+      return '/new'
+    case 'my':
+      return '/my'
+    default:
+      return null
+  }
+}
+
 /** What the browser uses: the saved settings (null when they could not be read) and the save of a section. */
 export interface PreferencesApi {
   load(): Promise<Preferences | null>
   saveGeneral(theme: ThemeChoice): Promise<boolean>
+  saveFeeds(feeds: FeedPreferences): Promise<boolean>
 }
 
 /** GET /api/v1/preferences/me with the person's token; null on a failure. */
@@ -41,16 +61,25 @@ export function preferencesApi(): PreferencesApi {
         () => true,
         () => false,
       ),
+    saveFeeds: (feeds) =>
+      $fetch('/bff/preferences/feeds', { method: 'PUT', body: feeds }).then(
+        () => true,
+        () => false,
+      ),
   }
 }
 
 /**
- * PUT /api/v1/preferences/me/feeds with the person's token (E08-07, ADR-0106): the rating filter of «Свежее», `null`
- * for every post. The API's status, 0 when it could not be reached.
+ * PUT /api/v1/preferences/me/feeds with the person's token (E08-07, ADR-0106; E08-13, ADR-0110): the rating filter of
+ * «Свежее» (`null` for every post) and, when given, the home feed and the video autoplay; left out, they stay. The
+ * API's status, 0 when it could not be reached.
  */
-export async function saveOwnFeeds(client: ApiClient, freshMinRating: number | null): Promise<number> {
+export async function saveOwnFeeds(
+  client: ApiClient,
+  feeds: { freshMinRating: number | null; homeFeed?: string; autoplayVideo?: boolean },
+): Promise<number> {
   try {
-    const { response } = await client.PUT('/api/v1/preferences/me/feeds', { body: { freshMinRating } })
+    const { response } = await client.PUT('/api/v1/preferences/me/feeds', { body: feeds })
     return response.status
   } catch {
     return 0
