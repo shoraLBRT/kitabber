@@ -75,7 +75,8 @@ public sealed class MyFeedEndpoints : IApiEndpoints
             .Where(p => blogIds.Contains(p.BlogId) || followed.Contains(p.AuthorAccountId))
             .Where(p => !hiddenPosts.Contains(p.Id)
                 && !hiddenBlogs.Contains(p.BlogId)
-                && !blocked.Contains(p.AuthorAccountId));
+                && !blocked.Contains(p.AuthorAccountId))
+            .WithShownOriginals(db);
         if (page.After is { } after)
         {
             posts = posts.Where(p => EF.Functions.LessThan(
@@ -87,10 +88,10 @@ public sealed class MyFeedEndpoints : IApiEndpoints
             .Take(page.FetchCount)
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
-        var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
         // The posts are already left out by the query; this drops a blocked author's best comment from a card.
         return TypedResults.Ok(ReaderExclusions.Apply(
-            new CursorPage<FeedPostView>(await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor),
+            new CursorPage<FeedPostView>(
+                await FeedPostViews.BuildAsync(result.Items, db, media, blogs, comments, ct), result.NextCursor),
             excluded));
     }
 }

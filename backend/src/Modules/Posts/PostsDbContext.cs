@@ -24,6 +24,9 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
 
     public const int SourceUrlMaxLength = 2048;
 
+    /// <summary>One repost of a post per person (E10-08, ADR-0117).</summary>
+    public const string RepostIndex = "ux_posts_repost";
+
     public static string Schema => "posts";
 
     public DbSet<Post> Posts => Set<Post>();
@@ -60,12 +63,18 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
             post.Property(p => p.SourceChannel).HasMaxLength(SourceKeyMaxLength);
             post.Property(p => p.SourceMessage).HasMaxLength(SourceKeyMaxLength);
             post.Property(p => p.SourceUrl).HasMaxLength(SourceUrlMaxLength);
+            post.Property(p => p.RepostText).HasMaxLength(PostRules.RepostTextMaxLength);
             post.Ignore(p => p.IsDeleted);
+            post.Ignore(p => p.IsRepost);
             post.Ignore(p => p.Source);
             post.HasQueryFilter(p => p.DeletedAt == null);
             post.HasIndex(p => new { p.Origin, p.SourceChannel, p.SourceMessage }).IsUnique()
                 .HasDatabaseName(SourceIndex)
                 .HasFilter("source_channel IS NOT NULL");
+            post.HasIndex(p => new { p.AuthorAccountId, p.RepostOfPostId }).IsUnique()
+                .HasDatabaseName(RepostIndex)
+                .HasFilter("repost_of_post_id IS NOT NULL AND deleted_at IS NULL");
+            post.HasIndex(p => new { p.RepostOfPostId, p.PublishedAt }).HasFilter("repost_of_post_id IS NOT NULL");
             post.HasIndex(p => new { p.BlogId, p.PublishedAt });
             post.HasIndex(p => new { p.AuthorAccountId, p.CreatedAt });
             post.HasIndex(p => new { p.PublishedAt, p.Id }).IsDescending()

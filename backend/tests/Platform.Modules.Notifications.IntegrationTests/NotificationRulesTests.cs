@@ -1,5 +1,6 @@
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
+using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Reactions.Contracts;
 
 namespace Platform.Modules.Notifications.IntegrationTests;
@@ -97,6 +98,24 @@ public sealed class NotificationRulesTests
         Assert.Empty(NotificationRules.ForSubscription(subscribed with { Kind = BlogKind.Topic }));
         Assert.Empty(NotificationRules.ForSubscription(subscribed with { OwnerAccountId = null }));
         Assert.Empty(NotificationRules.ForSubscription(subscribed with { SubscriberAccountId = _postAuthor }));
+    }
+
+    // E10-08, ADR-0117.
+    [Fact]
+    public void RepostNotifiesTheOriginalsAuthorOncePerReposter()
+    {
+        var post = Guid.CreateVersion7(_at.AddDays(-3));
+        var reposted = new PostReposted(Guid.CreateVersion7(_at), post, _postAuthor, _actor, _at);
+
+        var draft = Assert.Single(NotificationRules.ForRepost(reposted));
+        Assert.Equal((_postAuthor, NotificationType.Repost, _actor, post), (draft.RecipientAccountId, draft.Type,
+            draft.ActorAccountId, draft.PostId));
+        Assert.Equal(_at, draft.OccurredAt);
+
+        // Another repost of the same post by the same person, after the first was deleted, is the same action.
+        var again = new PostReposted(Guid.CreateVersion7(_at.AddHours(1)), post, _postAuthor, _actor, _at.AddHours(1));
+        Assert.Equal(draft.SourceKey, Assert.Single(NotificationRules.ForRepost(again)).SourceKey);
+        Assert.Empty(NotificationRules.ForRepost(reposted with { ReposterAccountId = _postAuthor }));
     }
 
     private static CommentPosted Comment(

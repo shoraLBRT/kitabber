@@ -102,6 +102,21 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
         Assert.Empty(await NotificationsOfAsync(actor));
     }
 
+    // E10-08, ADR-0117: a repost notifies the original's author, about the original.
+    [Fact]
+    public async Task RepostNotifiesTheOriginalsAuthor()
+    {
+        var author = NewAccount();
+        var reposter = NewAccount();
+        var post = Guid.CreateVersion7(_at);
+
+        await PublishAsync(new Posts.Contracts.PostReposted(Guid.CreateVersion7(_at), post, author, reposter, _at));
+
+        var repost = Assert.Single(await NotificationsOfAsync(author));
+        Assert.Equal((NotificationType.Repost, reposter, post), (repost.Type, repost.ActorAccountId, repost.PostId));
+        Assert.Empty(await NotificationsOfAsync(reposter));
+    }
+
     [Fact]
     public async Task BlockedPersonNotifiesNoOne()
     {

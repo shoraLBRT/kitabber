@@ -23,7 +23,7 @@ public sealed record NotificationActorView(
 /// <summary>A notification in the feed of the signed-in account (E12-02, FR-NOTIFY, ADR-0093).</summary>
 /// <param name="Id">The notification's identifier; the client marks it read by it.</param>
 /// <param name="Type">
-/// <c>comment_reply</c>, <c>post_comment</c>, <c>reaction</c>, <c>mention</c> or <c>new_subscriber</c>; the set grows
+/// <c>comment_reply</c>, <c>post_comment</c>, <c>reaction</c>, <c>mention</c>, <c>new_subscriber</c> or <c>repost</c>; the set grows
 /// with the events of the spec, so a client shows an unknown type as a plain row.
 /// </param>
 /// <param name="Actor">Who acted.</param>
@@ -95,6 +95,7 @@ public sealed class NotificationEndpoints : IApiEndpoints
         NotificationType.Reaction => "reaction",
         NotificationType.Mention => "mention",
         NotificationType.NewSubscriber => "new_subscriber",
+        NotificationType.Repost => "repost",
         _ => type.ToString().ToLowerInvariant(),
     };
 

@@ -300,6 +300,15 @@ namespace Platform.Modules.Posts.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
 
+                    b.Property<Guid?>("RepostOfPostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("repost_of_post_id");
+
+                    b.Property<string>("RepostText")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("repost_text");
+
                     b.Property<string>("SourceChannel")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
@@ -339,6 +348,11 @@ namespace Platform.Modules.Posts.Migrations
                     b.HasIndex("AuthorAccountId", "CreatedAt")
                         .HasDatabaseName("ix_posts_author_account_id_created_at");
 
+                    b.HasIndex("AuthorAccountId", "RepostOfPostId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_posts_repost")
+                        .HasFilter("repost_of_post_id IS NOT NULL AND deleted_at IS NULL");
+
                     b.HasIndex("BlogId", "PublishedAt")
                         .HasDatabaseName("ix_posts_blog_id_published_at");
 
@@ -346,6 +360,10 @@ namespace Platform.Modules.Posts.Migrations
                         .IsDescending()
                         .HasDatabaseName("ix_posts_fresh_feed")
                         .HasFilter("status = 'Published' AND deleted_at IS NULL");
+
+                    b.HasIndex("RepostOfPostId", "PublishedAt")
+                        .HasDatabaseName("ix_posts_repost_of_post_id_published_at")
+                        .HasFilter("repost_of_post_id IS NOT NULL");
 
                     b.HasIndex("Origin", "SourceChannel", "SourceMessage")
                         .IsUnique()

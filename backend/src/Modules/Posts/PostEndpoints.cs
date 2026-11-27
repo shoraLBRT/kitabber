@@ -57,6 +57,11 @@ public sealed record PostSourceView(string Channel, string Message, string? Url)
 /// <param name="ViewCount">
 /// How many people opened the post, each counted once a day; bots and the author are not counted (E07-06, ADR-0071).
 /// </param>
+/// <param name="RepostOfPostId">
+/// For a repost, the post it reposts (E10-08, ADR-0117): a repost has no title and no blocks, only
+/// <paramref name="RepostText"/>; <c>null</c> for an ordinary post.
+/// </param>
+/// <param name="RepostText">What the reposter wrote over the repost; <c>null</c> without a text.</param>
 public sealed record PostView(
     Guid Id,
     Guid BlogId,
@@ -72,7 +77,9 @@ public sealed record PostView(
     DateTimeOffset? PublishedAt,
     IReadOnlyDictionary<Guid, IReadOnlyList<ImageSource>> Images,
     IReadOnlyDictionary<Guid, ImagePreview> ImagePreviews,
-    int ViewCount);
+    int ViewCount,
+    Guid? RepostOfPostId = null,
+    string? RepostText = null);
 
 /// <summary>
 /// <c>/api/v1/posts</c> (FR-POST, ADR-0029): create a draft, read, edit and softly delete a post. A draft is seen only
@@ -84,6 +91,7 @@ public sealed class PostEndpoints : IApiEndpoints
     public const string PostNotFoundCode = "posts.post_not_found";
     public const string NotAuthorCode = "posts.not_author";
     public const string BlogForbiddenCode = "posts.blog_forbidden";
+    public const string RepostNotEditableCode = "posts.repost_not_editable";
 
     public void MapV1(IEndpointRouteBuilder v1)
     {
@@ -166,7 +174,7 @@ public sealed class PostEndpoints : IApiEndpoints
 
     private static async Task<IResult> GetAsync(
         Guid id, ClaimsPrincipal user, PostsDbContext db, IMediaLibrary media, CancellationToken ct) =>
-        await db.Posts.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct) is { } post
+        await db.Posts.AsNoTracking().Where(p => p.Id == id).WithShownOriginals(db).SingleOrDefaultAsync(ct) is { } post
         && PostRules.MaySee(post, AccountOf(user))
             ? TypedResults.Ok(await ViewAsync(post, media, ct))
             : ApiProblems.NotFound(PostNotFoundCode);
@@ -193,6 +201,12 @@ public sealed class PostEndpoints : IApiEndpoints
         if (ChangeProblem(post, account) is { } refused)
         {
             return refused;
+        }
+
+        if (post!.IsRepost)
+        {
+            // A repost is only deleted, and reposted again if need be (ADR-0117).
+            return ApiProblems.Conflict(RepostNotEditableCode, "A repost is not edited.");
         }
 
         if ((CleanBody(input.Body, validator, out var body) ?? await ImageProblemAsync(body, account, media, ct))
@@ -351,7 +365,7 @@ public sealed class PostEndpoints : IApiEndpoints
             ? ApiProblems.Validation(problems, "The body names pictures the author did not upload.")
             : null;
 
-    private static async Task<PostView> ViewAsync(Post post, IMediaLibrary media, CancellationToken ct) =>
+    internal static async Task<PostView> ViewAsync(Post post, IMediaLibrary media, CancellationToken ct) =>
         (await ViewsAsync([post], media, ct))[0];
 
     /// <summary>The views of <paramref name="posts"/>, with the sources of all their pictures fetched at once.</summary>
@@ -391,7 +405,9 @@ public sealed class PostEndpoints : IApiEndpoints
             .Distinct()
             .Where(previews.ContainsKey)
             .ToDictionary(id => id, id => previews[id]),
-        post.ViewCount);
+        post.ViewCount,
+        post.RepostOfPostId,
+        post.RepostText);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     internal static Guid? AccountOf(ClaimsPrincipal user) =>

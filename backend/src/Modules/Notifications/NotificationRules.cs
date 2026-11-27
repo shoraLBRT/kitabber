@@ -1,5 +1,6 @@
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
+using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Reactions.Contracts;
 
 namespace Platform.Modules.Notifications;
@@ -83,6 +84,30 @@ public static class NotificationRules
                 PostId: put.PostId,
                 CommentId: onComment ? put.TargetId : null,
                 ReactionKind: put.Kind),
+        ];
+    }
+
+    /// <summary>
+    /// The notification of a repost (E10-08, ADR-0117): the original's author, about their post. The key is the post and
+    /// the reposter, so deleting a repost and reposting again notifies once.
+    /// </summary>
+    public static IReadOnlyList<NotificationDraft> ForRepost(PostReposted reposted)
+    {
+        ArgumentNullException.ThrowIfNull(reposted);
+        if (reposted.PostAuthorAccountId == reposted.ReposterAccountId)
+        {
+            return [];
+        }
+
+        return
+        [
+            new NotificationDraft(
+                reposted.PostAuthorAccountId,
+                NotificationType.Repost,
+                reposted.ReposterAccountId,
+                $"repost:{reposted.PostId:N}:{reposted.ReposterAccountId:N}",
+                reposted.OccurredAt,
+                PostId: reposted.PostId),
         ];
     }
 

@@ -4,6 +4,7 @@ using Platform.Messaging;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Identity.Contracts;
+using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Reactions.Contracts;
 
 namespace Platform.Modules.Notifications;
@@ -40,6 +41,17 @@ public sealed class BlogSubscribedNotificationsConsumer(NotificationWriter write
 /// <summary>The inbox of the Notifications schema for <see cref="BlogSubscribedNotificationsConsumer"/> (ADR-0005).</summary>
 public sealed class BlogSubscribedNotificationsConsumerDefinition
     : ModuleConsumerDefinition<BlogSubscribedNotificationsConsumer, NotificationsDbContext>;
+
+/// <summary>A repost notifies the author of the original (E10-08, ADR-0117).</summary>
+public sealed class PostRepostedNotificationsConsumer(NotificationWriter writer) : IConsumer<PostReposted>
+{
+    public Task Consume(ConsumeContext<PostReposted> context) =>
+        writer.AddAsync(NotificationRules.ForRepost(context.Message), context.CancellationToken);
+}
+
+/// <summary>The inbox of the Notifications schema for <see cref="PostRepostedNotificationsConsumer"/> (ADR-0005).</summary>
+public sealed class PostRepostedNotificationsConsumerDefinition
+    : ModuleConsumerDefinition<PostRepostedNotificationsConsumer, NotificationsDbContext>;
 
 /// <summary>
 /// Erases the notifications of a deleted account (FR-ID-5, ADR-0087): those it received and those its actions caused.

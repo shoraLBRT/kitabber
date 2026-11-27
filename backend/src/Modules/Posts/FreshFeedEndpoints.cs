@@ -94,7 +94,8 @@ public sealed class FreshFeedEndpoints : IApiEndpoints
         ICommentDirectory comments,
         CancellationToken ct)
     {
-        var posts = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null);
+        // Reposts stay in the blogs and in «Моя лента» (ADR-0117).
+        var posts = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null && p.RepostOfPostId == null);
         if (minRating is { } threshold)
         {
             // The rating of the hotness pass (ADR-0086, ADR-0104); a post it has not read yet has no row and counts as 0.
