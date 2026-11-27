@@ -601,7 +601,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Published posts, newest first, page by page with a cursor */
+        /**
+         * Published posts, newest first, page by page with a cursor
+         * @description `minRating` keeps only the posts rated at least that much: `-10`, `5` or `10`; without it, every post.
+         */
         get: operations["GetFreshFeed"];
         put?: never;
         post?: never;
@@ -957,6 +960,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/preferences/me/feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the section «Ленты» of the signed-in account's settings */
+        put: operations["PutOwnFeedPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/preferences/me/blocks": {
         parameters: {
             query?: never;
@@ -1218,6 +1238,14 @@ export interface components {
             topic: null | components["schemas"]["FeedBlogView"];
             bestComment: null | components["schemas"]["FeedCommentView"];
         };
+        FeedPreferencesInput: {
+            /** Format: int32 */
+            freshMinRating: null | number;
+        };
+        FeedPreferencesView: {
+            /** Format: int32 */
+            freshMinRating: null | number;
+        };
         GeneralPreferencesInput: {
             theme: null | string;
         };
@@ -1381,6 +1409,7 @@ export interface components {
         };
         PreferencesView: {
             general: components["schemas"]["GeneralPreferencesView"];
+            feeds: components["schemas"]["FeedPreferencesView"];
         };
         ProblemDetails: {
             type?: null | string;
@@ -3254,6 +3283,7 @@ export interface operations {
             query?: {
                 cursor?: string;
                 limit?: number;
+                minRating?: number;
             };
             header?: never;
             path?: never;
@@ -4245,6 +4275,48 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["GeneralPreferencesInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PutOwnFeedPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedPreferencesInput"];
             };
         };
         responses: {

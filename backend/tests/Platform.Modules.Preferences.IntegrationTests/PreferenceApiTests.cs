@@ -24,6 +24,7 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
 {
     private const string _own = "/api/v1/preferences/me";
     private const string _general = "/api/v1/preferences/me/general";
+    private const string _feeds = "/api/v1/preferences/me/feeds";
     private readonly Guid _anna = Guid.CreateVersion7();
     private readonly Guid _boris = Guid.CreateVersion7();
 
@@ -97,6 +98,62 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
     }
 
     [Fact]
+    public async Task FreshFeedThresholdIsRememberedForEveryDevice()
+    {
+        using var laptop = api.CreateClient();
+        using var phone = api.CreateClient();
+
+        using var initial = await SendAsync(phone, HttpMethod.Get, _own, _anna);
+        Assert.Equal(JsonValueKind.Null, (await FreshMinRatingOf(initial)).ValueKind);
+
+        using var saved = await SendAsync(laptop, HttpMethod.Put, _feeds, _anna, new { freshMinRating = 5 });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal(5, (await FreshMinRatingOf(saved)).GetInt32());
+
+        using var read = await SendAsync(phone, HttpMethod.Get, _own, _anna);
+        var body = await read.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal(5, body.GetProperty("feeds").GetProperty("freshMinRating").GetInt32());
+        Assert.Equal("system", body.GetProperty("general").GetProperty("theme").GetString());
+
+        // The theme saved later keeps the threshold; «все» clears it.
+        using var theme = await SendAsync(phone, HttpMethod.Put, _general, _anna, new { theme = "dark" });
+        Assert.Equal(5, (await FreshMinRatingOf(theme)).GetInt32());
+        using var all = await SendAsync(phone, HttpMethod.Put, _feeds, _anna, new { freshMinRating = (int?)null });
+        Assert.Equal(JsonValueKind.Null, (await FreshMinRatingOf(all)).ValueKind);
+        using var back = await SendAsync(laptop, HttpMethod.Get, _own, _anna);
+        Assert.Equal("dark", await ThemeOf(back));
+        Assert.Equal(1, await RowsAsync());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(7)]
+    [InlineData(-5)]
+    public async Task UnknownFreshFeedThresholdIsAValidationError(int threshold)
+    {
+        using var client = api.CreateClient();
+
+        using var response = await SendAsync(client, HttpMethod.Put, _feeds, _anna, new { freshMinRating = threshold });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("errors").TryGetProperty("freshMinRating", out _));
+        Assert.Equal(0, await RowsAsync());
+    }
+
+    [Fact]
+    public async Task GuestHasNoFeedSettings()
+    {
+        using var client = api.CreateClient();
+
+        using var write = await SendAsync(client, HttpMethod.Put, _feeds, null, new { freshMinRating = 5 });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, write.StatusCode);
+        Assert.Equal(0, await RowsAsync());
+    }
+
+    [Fact]
     public async Task GuestHasNoSettings()
     {
         using var client = api.CreateClient();
@@ -135,4 +192,8 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
     private static async Task<string?> ThemeOf(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct))
             .GetProperty("general").GetProperty("theme").GetString();
+
+    private static async Task<JsonElement> FreshMinRatingOf(HttpResponseMessage response) =>
+        (await response.Content.ReadFromJsonAsync<JsonElement>(Ct))
+            .GetProperty("feeds").GetProperty("freshMinRating");
 }

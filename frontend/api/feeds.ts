@@ -24,11 +24,38 @@ export type FeedLookup = { status: 'found'; page: FeedPage } | { status: 'error'
 export type FeedState =
   { status: 'loading' } | { status: 'error' } | { status: 'found'; posts: FeedPost[]; hasMore: boolean }
 
-/** One page of the fresh feed: the first without a cursor, the next with the previous page's `nextCursor`. */
-export async function loadFreshFeed(client: ApiClient, cursor?: string | null): Promise<FeedLookup> {
+/**
+ * The thresholds of the rating filter of «Свежее» (E08-07, FR-FEED, ADR-0106), in the order of the filter: every post
+ * (`null`), or only those rated at least −10, +5 or +10.
+ */
+export const freshRatings = [null, -10, 5, 10] as const
+
+export type FreshRating = (typeof freshRatings)[number]
+
+/** Whether a value is a threshold of the filter; anything else (a stale saved value) means «все». */
+export function isFreshRating(value: unknown): value is FreshRating {
+  return (freshRatings as readonly unknown[]).includes(value)
+}
+
+/** How a threshold reads in the filter: «Все», «От −10», «От +5». */
+export function freshRatingValue(rating: Exclude<FreshRating, null>): string {
+  return rating > 0 ? `+${rating}` : `−${Math.abs(rating)}`
+}
+
+/**
+ * One page of the fresh feed: the first without a cursor, the next with the previous page's `nextCursor`. With a
+ * threshold only the posts rated at least that much (ADR-0106); the server applies it.
+ */
+export async function loadFreshFeed(
+  client: ApiClient,
+  cursor?: string | null,
+  minRating: FreshRating = null,
+): Promise<FeedLookup> {
   try {
     const { data } = await client.GET('/api/v1/feeds/fresh', {
-      params: { query: cursor ? { cursor } : {} },
+      params: {
+        query: { ...(cursor ? { cursor } : {}), ...(minRating === null ? {} : { minRating }) },
+      },
     })
     return data ? { status: 'found', page: data } : { status: 'error' }
   } catch {
