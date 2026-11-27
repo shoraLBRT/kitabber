@@ -874,6 +874,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookmarks/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which of the given posts the account keeps, and the author's counts, for the cards of a feed */
+        get: operations["GetFeedBookmarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media": {
         parameters: {
             query?: never;
@@ -901,23 +918,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["CreateRealtimeTicket"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/comments/blogs/{blogId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The comments of a blog's owner or under a topic's posts, newest first, page by page */
-        get: operations["GetBlogComments"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -972,6 +972,59 @@ export interface paths {
         post?: never;
         /** Takes back the account's reaction on a comment; taking back none changes nothing */
         delete: operations["TakeCommentReaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{postId}/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which of a published post and its comments the account keeps, and the author's counts */
+        get: operations["GetPostBookmarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{postId}/bookmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Keeps a published post in the account's bookmarks; keeping it again changes nothing */
+        put: operations["PutPostBookmark"];
+        post?: never;
+        /** Takes a post out of the account's bookmarks; taking out none changes nothing */
+        delete: operations["TakePostBookmark"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{id}/bookmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Keeps a shown comment in the account's bookmarks; keeping it again changes nothing */
+        put: operations["PutCommentBookmark"];
+        post?: never;
+        /** Takes a comment out of the account's bookmarks; taking out none changes nothing */
+        delete: operations["TakeCommentBookmark"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1162,24 +1215,17 @@ export interface components {
             /** Format: int32 */
             max: number;
         };
-        BlogCommentView: {
+        BookmarkMarkView: {
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            postId: string;
-            /** Format: uuid */
-            postBlogId: string;
-            postTitle: null | string;
-            postSlug: null | string;
-            kind: string;
-            /** Format: uuid */
-            authorAccountId: null | string;
-            guest: null | components["schemas"]["GuestAuthorView"];
-            text: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            editedAt: null | string;
+            bookmarked: boolean;
+            /** Format: int32 */
+            count: null | number;
+        };
+        BookmarkView: {
+            bookmarked: boolean;
+            /** Format: int32 */
+            count: null | number;
         };
         CaptchaChallenge: {
             provider: string;
@@ -1274,10 +1320,6 @@ export interface components {
              */
             position: number;
         };
-        CursorPageOfBlogCommentView: {
-            items: components["schemas"]["BlogCommentView"][];
-            nextCursor: null | string;
-        };
         CursorPageOfFeedPostView: {
             items: components["schemas"]["FeedPostView"][];
             nextCursor: null | string;
@@ -1312,6 +1354,9 @@ export interface components {
             name: null | string;
             nickname: null | string;
             avatarSources: components["schemas"]["ImageSource"][];
+        };
+        FeedBookmarksView: {
+            posts: components["schemas"]["BookmarkMarkView"][];
         };
         FeedCommentView: {
             /** Format: uuid */
@@ -1455,6 +1500,12 @@ export interface components {
             rating: number;
             /** Format: date-time */
             createdAt: string;
+        };
+        PostBookmarksView: {
+            /** Format: uuid */
+            postId: string;
+            post: components["schemas"]["BookmarkView"];
+            comments: components["schemas"]["BookmarkMarkView"][];
         };
         PostInput: {
             body: components["schemas"]["JsonElement"];
@@ -4075,6 +4126,46 @@ export interface operations {
             };
         };
     };
+    GetFeedBookmarks: {
+        parameters: {
+            query?: {
+                ids?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedBookmarksView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     UploadMedia: {
         parameters: {
             query?: never;
@@ -4157,49 +4248,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    GetBlogComments: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                blogId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CursorPageOfBlogCommentView"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not Found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4422,6 +4470,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReactionsView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPostBookmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostBookmarksView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PutPostBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookmarkView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TakePostBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookmarkView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PutCommentBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookmarkView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TakeCommentBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookmarkView"];
                 };
             };
             /** @description Unauthorized */

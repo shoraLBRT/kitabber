@@ -5,9 +5,12 @@
 // comment of a post with comments (E08-15, ADR-0062). The reactions, the counters and the «…» menu come with their own
 // issues (FR-REACT, E08-06, FR-POST); the best comment stays the card's last block, under the counters. The first
 // counter is the views (E07-06, ADR-0071), and a card that half stayed on screen for a second is reported as seen.
+// «В закладки» ends the counters' row (E10-07, ADR-0113); the author sees beside it how many people keep the post.
 import { computed, ref } from 'vue'
 import { Eye } from 'lucide-vue-next'
 import FeedBestComment from './FeedBestComment.vue'
+import BookmarkButton from '../bookmarks/BookmarkButton.vue'
+import type { Bookmarks } from '../../composables/useBookmarks'
 import { useCardImpression } from '../../composables/useViews'
 import PostBlocks from '../post/PostBlocks.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
@@ -17,7 +20,17 @@ import { subsitePath } from '../../api/posts'
 import { locale, t } from '../../i18n'
 import { isolateRtlText } from '../../utils/bidi'
 
-const props = defineProps<{ item: FeedPost }>()
+const props = withDefaults(
+  defineProps<{
+    item: FeedPost
+    /** The person's bookmarks (E10-07): «В закладки» among the counters; `null` shows none. */
+    bookmarks?: Bookmarks | null
+  }>(),
+  { bookmarks: null },
+)
+
+const bookmark = computed(() => props.bookmarks?.of('post', props.item.post.id) ?? null)
+const bookmarkBusy = computed(() => props.bookmarks?.isBusy('post', props.item.post.id) === true)
 
 // A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
 const dateFormat = new Intl.DateTimeFormat(locale, {
@@ -91,6 +104,14 @@ useCardImpression(card, () => props.item.post.id)
         <Eye class="feed-card__icon" aria-hidden="true" />
         {{ views }}
       </span>
+      <BookmarkButton
+        v-if="bookmark"
+        class="feed-card__bookmark"
+        :state="bookmark"
+        :busy="bookmarkBusy"
+        testid="feed-card-bookmark"
+        @press="bookmarks?.toggle('post', item.post.id)"
+      />
     </footer>
 
     <FeedBestComment
@@ -196,6 +217,11 @@ useCardImpression(card, () => props.item.post.id)
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+/* The bookmark ends the row. */
+.feed-card__bookmark {
+  margin-left: auto;
 }
 
 .feed-card__icon {

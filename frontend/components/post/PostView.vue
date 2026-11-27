@@ -15,6 +15,7 @@ import type { PostMenuFeatures } from '../../utils/post-menu'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
 import type { Likes } from '../../composables/useLikes'
+import type { Bookmarks } from '../../composables/useBookmarks'
 import { locale, t } from '../../i18n'
 import { isolateRtlText } from '../../utils/bidi'
 
@@ -29,6 +30,8 @@ const props = defineProps<{
    * tree; without them «Нравится» is shown and disabled.
    */
   likes?: Likes | null
+  /** The bookmarks of the published post and of its comments (E10-07); without them no «В закладки» is shown. */
+  bookmarks?: Bookmarks | null
   /** The reader is signed in: someone else's post then offers «Заблокировать автора» in its menu (E11-06). */
   signedIn?: boolean
 }>()
@@ -145,6 +148,7 @@ const inBlog = computed(() =>
       :post-id="publishedId"
       :own="found.own"
       :likes="likes"
+      :bookmarks="bookmarks"
     />
   </article>
 </template>

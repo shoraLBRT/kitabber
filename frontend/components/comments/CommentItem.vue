@@ -20,12 +20,15 @@ import { blogPath, blogTitle } from '../../api/profiles'
 import { canReply, repliesText, type CommentNode } from '../../api/comments'
 import { commentMenuItems } from '../../utils/comment-menu'
 import { commentTreeKey } from './context'
+import { bookmarksKey } from '../../composables/useBookmarks'
 import { locale, t } from '../../i18n'
 import { isolateRtlText } from '../../utils/bidi'
 
 const props = defineProps<{ node: CommentNode }>()
 
 const tree = inject(commentTreeKey)!
+// The person's bookmarks (E10-07, ADR-0113): «В закладки» in the menu; none outside the app (a test of the tree alone).
+const bookmarks = inject(bookmarksKey, null)
 const expanded = ref(true)
 
 const comment = computed(() => props.node.comment)
@@ -53,6 +56,7 @@ const menuItems = computed(() =>
         tree.now.value,
         tree.canBlock.value,
         link.value !== null,
+        bookmarks ? bookmarks.of('comment', comment.value.id) : null,
       ),
 )
 const profile = computed(() =>
@@ -192,6 +196,7 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
         :link="link"
         @edit="editing = true"
         @blocked="blockable && tree.blocked(blockable.accountId)"
+        @bookmark="bookmarks?.toggle('comment', comment.id)"
       />
     </div>
     <CommentEdit

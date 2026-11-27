@@ -4,7 +4,8 @@
 // «Удалить» asks first in a dialog; `remove` deletes, and the dialog stays open with a toast when it fails.
 // «Редактировать» is passed on (`edit`): the comment opens its text in a form. «Заблокировать автора» (E11-06,
 // ADR-0091) asks first in BlockDialog and says once the author is blocked (`blocked`). «Скопировать ссылку» (E09-07,
-// ADR-0107) copies the comment's permanent link (`link`) and says so in a toast.
+// ADR-0107) copies the comment's permanent link (`link`) and says so in a toast. «В закладки» (E10-07) is passed on
+// (`bookmark`).
 import { Ellipsis } from 'lucide-vue-next'
 import { nextTick, ref } from 'vue'
 import BlockDialog from '../blocks/BlockDialog.vue'
@@ -27,7 +28,7 @@ const props = defineProps<{
   link?: string | null
 }>()
 
-const emit = defineEmits<{ edit: []; blocked: [] }>()
+const emit = defineEmits<{ edit: []; blocked: []; bookmark: [] }>()
 
 const label = t('comments.menu')
 const toast = useToast()
@@ -44,7 +45,8 @@ async function choose(id: string) {
   await nextTick()
   if (action === 'copy-link') {
     if (props.link) void copyCommentLink(props.link, toast)
-  } else if (action === 'delete') confirmOpen.value = true
+  } else if (action === 'bookmark') emit('bookmark')
+  else if (action === 'delete') confirmOpen.value = true
   else if (action === 'block') blockOpen.value = true
   else emit('edit')
 }

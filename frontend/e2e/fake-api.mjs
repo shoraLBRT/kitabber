@@ -1433,6 +1433,79 @@ async function changeReaction(request, response, target, id) {
   }
   return send(response, 200, reactionState(request, key, account))
 }
+// Bookmarks (E10-07, ADR-0113): GET /api/v1/posts/{postId}/bookmarks, GET /api/v1/bookmarks/posts?ids=…, PUT and
+// DELETE /api/v1/posts/{postId}/bookmark and /api/v1/comments/{id}/bookmark, signed in only. Others keep the first post
+// (anna's) four times and the reply «Ответ во второй ветке» (anna's too) twice; the count goes only to the author. The
+// signed-in person's bookmarks are kept per client address, as the reactions are.
+const othersBookmarks = new Map([
+  [`post:${posts[0].id}`, 4],
+  [`comment:${comments.find((c) => c.text === 'Ответ во второй ветке').id}`, 2],
+])
+const ownBookmarks = new Map() // client address -> Set of `post:<id>` and `comment:<id>`
+
+function bookmarkState(request, key, account) {
+  const [target, id] = key.split(':')
+  const item =
+    target === 'post'
+      ? (posts.find((p) => p.id === id) ?? written.get(id))
+      : comments.find((c) => c.id === id)
+  const bookmarked = ownBookmarks.get(clientOf(request))?.has(key) ?? false
+  const count = (othersBookmarks.get(key) ?? 0) + (bookmarked ? 1 : 0)
+  return { bookmarked, count: item?.authorAccountId === account ? count : null }
+}
+
+// What the API lists: a target the person keeps, or wrote and someone keeps.
+function bookmarkMark(request, key, account) {
+  const state = bookmarkState(request, key, account)
+  return state.bookmarked || state.count ? { id: key.split(':')[1], ...state } : null
+}
+
+function postBookmarks(request, response, postId) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  if (!posts.some((item) => item.id === postId) && !written.has(postId))
+    return send(response, 404, { status: 404, code: 'bookmarks.post_not_found' })
+  return send(response, 200, {
+    postId,
+    post: bookmarkState(request, `post:${postId}`, account),
+    comments: comments
+      .filter((c) => c.postId === postId)
+      .map((c) => bookmarkMark(request, `comment:${c.id}`, account))
+      .filter(Boolean),
+  })
+}
+
+function feedBookmarks(request, response, url) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const ids = url.searchParams.getAll('ids')
+  if (ids.length > 100)
+    return send(response, 400, {
+      status: 400,
+      code: 'validation',
+      errors: { ids: ['Слишком много постов.'] },
+    })
+  return send(response, 200, {
+    posts: ids.map((id) => bookmarkMark(request, `post:${id}`, account)).filter(Boolean),
+  })
+}
+
+function changeBookmark(request, response, target, id) {
+  const account = subject(request)
+  if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const item =
+    target === 'post'
+      ? (posts.find((p) => p.id === id) ?? written.get(id))
+      : comments.find((c) => c.id === id)
+  if (!item) return send(response, 404, { status: 404, code: `bookmarks.${target}_not_found` })
+  const key = `${target}:${id}`
+  const mine = ownBookmarks.get(clientOf(request)) ?? new Set()
+  ownBookmarks.set(clientOf(request), mine)
+  if (request.method === 'PUT') mine.add(key)
+  else mine.delete(key)
+  return send(response, 200, bookmarkState(request, key, account))
+}
+
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
 function subject(request) {
   try {
@@ -1964,6 +2037,14 @@ createServer(async (request, response) => {
     return listKind === 'subscribers'
       ? subscriberList(request, response, url, listedBlog)
       : subscriptionList(request, response, url, listedBlog)
+  if (url.pathname === '/api/v1/bookmarks/posts' && request.method === 'GET')
+    return feedBookmarks(request, response, url)
+  const [, bookmarkedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/bookmarks$/) ?? []
+  if (bookmarkedPost && request.method === 'GET') return postBookmarks(request, response, bookmarkedPost)
+  const [, bookmarkTarget, bookmarkId] =
+    url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/bookmark$/) ?? []
+  if (bookmarkTarget && ['PUT', 'DELETE'].includes(request.method))
+    return changeBookmark(request, response, bookmarkTarget === 'posts' ? 'post' : 'comment', bookmarkId)
   const [, reactedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/reactions$/) ?? []
   if (reactedPost && request.method === 'GET') return postReactions(request, response, reactedPost)
   const [, reactionTarget, reactionId] =

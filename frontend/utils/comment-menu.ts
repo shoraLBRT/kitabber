@@ -3,20 +3,22 @@
 // «Редактировать» while the time to change the text lasts and «Удалить» at any time. A signed-in reader's item on
 // someone else's comment: «Заблокировать автора» (E11-06, ADR-0091). The reader's report and the post author's items
 // (pin, delete the branch) come with their own tasks, into this same list.
-import { Ban, Link, Pencil, Trash2 } from 'lucide-vue-next'
+import { Ban, BookmarkMinus, BookmarkPlus, Link, Pencil, Trash2 } from 'lucide-vue-next'
+import type { BookmarkState } from '../api/bookmarks'
 import { canEdit, type Comment } from '../api/comments'
 import type { MenuItem } from '../types/ui'
 import type { useToast } from '../composables/useToast'
 import { t } from '../i18n'
 
-export type CommentMenuAction = 'copy-link' | 'edit' | 'delete' | 'block'
+export type CommentMenuAction = 'copy-link' | 'bookmark' | 'edit' | 'delete' | 'block'
 
 export interface CommentMenuItem extends MenuItem {
   id: CommentMenuAction
 }
 
 /**
- * The items of a comment's menu: «Скопировать ссылку» first when it has a link (`linked`); then the author's for their
+ * The items of a comment's menu: «Скопировать ссылку» first when it has a link (`linked`), «В закладки» when the page
+ * offers bookmarks (`bookmark`, the comment's state, E10-07); then the author's for their
  * own comment, or «Заблокировать автора» for someone else's native comment when the reader may block (`canBlock`:
  * signed in) and has not blocked its author yet; none for a deleted comment, a guest's one aside from the link, or
  * one still being sent.
@@ -27,11 +29,13 @@ export function commentMenuItems(
   now: number,
   canBlock = false,
   linked = false,
+  bookmark: BookmarkState | null = null,
 ): CommentMenuItem[] {
   if (comment.deleted) return []
   const items: CommentMenuItem[] = linked
     ? [{ id: 'copy-link', label: t('actions.copyLink'), icon: Link }]
     : []
+  if (bookmark) items.push(bookmarkItem(bookmark))
   if (!own) {
     if (canBlock && comment.kind === 'native' && comment.authorAccountId && !comment.authorBlocked)
       items.push({ id: 'block', label: t('blocks.blockAuthor'), icon: Ban, danger: true })
@@ -40,6 +44,16 @@ export function commentMenuItems(
   if (canEdit(comment, now)) items.push({ id: 'edit', label: t('actions.edit'), icon: Pencil })
   items.push({ id: 'delete', label: t('actions.delete'), icon: Trash2, danger: true })
   return items
+}
+
+// «В закладки» or «Убрать из закладок» (E10-07, ADR-0113); the author of the comment sees how many people keep it.
+function bookmarkItem(bookmark: BookmarkState): CommentMenuItem {
+  const label = bookmark.bookmarked ? t('bookmarks.remove') : t('bookmarks.add')
+  return {
+    id: 'bookmark',
+    label: bookmark.count ? `${label} · ${bookmark.count}` : label,
+    icon: bookmark.bookmarked ? BookmarkMinus : BookmarkPlus,
+  }
 }
 
 /**
