@@ -32,6 +32,9 @@ public sealed partial class FeedPageCache(IDistributedCache cache, TimeProvider 
     /// <summary>The name of the popular feed in the keys of its pages (ADR-0086).</summary>
     public const string PopularFeed = "popular";
 
+    /// <summary>The name of the top of one period in the keys of its pages (ADR-0104).</summary>
+    public static string TopFeed(string period) => $"top:{period}";
+
     /// <summary>The name of the feed of one blog in the keys of its pages.</summary>
     public static string BlogFeed(Guid blogId) => $"blog:{blogId:N}";
 

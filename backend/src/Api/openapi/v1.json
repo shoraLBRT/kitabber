@@ -2332,6 +2332,63 @@
         }
       }
     },
+    "/api/v1/feeds/top/{period}": {
+      "get": {
+        "tags": [
+          "Feeds"
+        ],
+        "summary": "Posts published within a period (day, week, month, year, all), by rating, page by page",
+        "description": "`period` is one of `day`, `week`, `month` (30 days), `year` (365 days) or `all`, counted back from now.",
+        "operationId": "GetTopFeed",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfFeedPostView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/feeds/my": {
       "get": {
         "tags": [
