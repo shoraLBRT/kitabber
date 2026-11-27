@@ -20,7 +20,9 @@ test.describe('вход через провайдера', () => {
     await page.waitForURL(
       (url) => url.pathname === '/login' && url.searchParams.get('externalError') === 'denied',
     )
-    await expect(page.getByRole('alert')).toHaveText('Вход отменён у провайдера.')
+    await expect(page.getByTestId('external-sign-in').getByRole('alert')).toHaveText(
+      'Вход отменён у провайдера.',
+    )
     expect((await page.context().cookies()).some((cookie) => cookie.name === 'identity.session')).toBe(false)
 
     await press(page.getByTestId('external-sign-in').getByRole('link', { name: 'Войти через Google' }))
