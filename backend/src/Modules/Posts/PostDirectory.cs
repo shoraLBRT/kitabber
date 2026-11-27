@@ -28,4 +28,10 @@ internal sealed class PostDirectory(PostsDbContext db) : IPostDirectory
             .ToListAsync(cancellationToken);
         return rows.ToDictionary(p => p.Id, p => new PostHeadline(p.Id, p.BlogId, p.Title, PostSlug.From(p.Title)));
     }
+
+    public async Task<IReadOnlyList<Guid>> PublishedPostIdsAsync(Guid blogId, CancellationToken cancellationToken) =>
+        await db.Posts.AsNoTracking()
+            .Where(p => p.BlogId == blogId && p.Status == PostStatus.Published)
+            .Select(p => p.Id)
+            .ToListAsync(cancellationToken);
 }

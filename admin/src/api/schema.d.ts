@@ -907,6 +907,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/comments/blogs/{blogId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The comments of a blog's owner or under a topic's posts, newest first, page by page */
+        get: operations["GetBlogComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{postId}/reactions": {
         parameters: {
             query?: never;
@@ -1145,6 +1162,25 @@ export interface components {
             /** Format: int32 */
             max: number;
         };
+        BlogCommentView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            postId: string;
+            /** Format: uuid */
+            postBlogId: string;
+            postTitle: null | string;
+            postSlug: null | string;
+            kind: string;
+            /** Format: uuid */
+            authorAccountId: null | string;
+            guest: null | components["schemas"]["GuestAuthorView"];
+            text: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            editedAt: null | string;
+        };
         CaptchaChallenge: {
             provider: string;
             algorithm: null | string;
@@ -1237,6 +1273,10 @@ export interface components {
              * @default 50
              */
             position: number;
+        };
+        CursorPageOfBlogCommentView: {
+            items: components["schemas"]["BlogCommentView"][];
+            nextCursor: null | string;
         };
         CursorPageOfFeedPostView: {
             items: components["schemas"]["FeedPostView"][];
@@ -4117,6 +4157,49 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetBlogComments: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                blogId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfBlogCommentView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -31,6 +31,13 @@ public interface IPostDirectory
     /// </summary>
     Task<IReadOnlyDictionary<Guid, PostHeadline>> PublishedHeadlinesAsync(
         IReadOnlyCollection<Guid> postIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The identifiers of the published posts of the blog <paramref name="blogId"/> — a topic or a personal blog — read
+    /// with one query (E09-15, ADR-0114): the tab «Комментарии» of a topic lists the comments under them. Empty for a
+    /// blog without published posts or one that does not exist.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> PublishedPostIdsAsync(Guid blogId, CancellationToken cancellationToken);
 }
 
 /// <summary>What other modules' demo data may rely on (ADR-0009): the demo posts the Posts seeder writes.</summary>
