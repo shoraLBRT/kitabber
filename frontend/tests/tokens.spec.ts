@@ -102,7 +102,11 @@ describe('design tokens', () => {
   })
 
   it('uses only defined tokens in the styles of both apps', () => {
-    const defined = new Set(Object.keys({ ...scales(), ...colors('light') }))
+    // Besides the tokens: the variables the shell sets for what sticks under its header (E08-14, ADR-0111).
+    const shellLayout = readFileSync(join(root, 'frontend/components/shell/ShellLayout.vue'), 'utf8')
+    const shellVariables = ['--shell-header-offset']
+    for (const name of shellVariables) expect(shellLayout).toContain(`${name}:`)
+    const defined = new Set([...Object.keys({ ...scales(), ...colors('light') }), ...shellVariables])
     const unknown = apps
       .flatMap((app) => styleFiles(join(root, app)))
       .flatMap((file) =>

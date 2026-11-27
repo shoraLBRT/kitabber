@@ -70,8 +70,10 @@ test.describe('каркас сайта', () => {
       const bar = await box(page.getByTestId('tab-bar'))
       expect(bar.y + bar.height).toBe(page.viewportSize()!.height)
     }
-    // The header stays on top in both profiles.
-    expect((await box(page.getByTestId('shell-header'))).y).toBe(0)
+    // The desktop header stays on top; the phone header hides while the page is scrolled down (E08-14, ADR-0111,
+    // e2e/feed-gestures.spec.ts).
+    if (!isTouch()) expect((await box(page.getByTestId('shell-header'))).y).toBe(0)
+    else await expect(page.getByTestId('shell-header')).not.toBeInViewport()
   })
 
   test('1100 px: правая колонка скрыта, левое меню на месте', async ({ page }) => {

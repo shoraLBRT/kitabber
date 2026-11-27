@@ -5,6 +5,7 @@
 // The feed is public, so the first page is rendered on the server and the browser asks the API directly. An address
 // with another period is the usual 404 page. The «Популярное» feed by hotness at /popular is E08-05a (#406).
 import FeedView from '~/components/feed/FeedView.vue'
+import PullToRefresh from '~/components/feed/PullToRefresh.vue'
 import TopPeriodSwitch from '~/components/feed/TopPeriodSwitch.vue'
 import { isTopPeriod, loadTopFeed, type TopPeriod } from '~/api/feeds'
 import { t } from '../../i18n'
@@ -35,25 +36,27 @@ useHead({ title: `${t('nav.popular')} · ${titles[period].toLowerCase()}` })
 </script>
 
 <template>
-  <div class="top-page">
-    <h1 class="top-page__title">{{ t('nav.popular') }}</h1>
-    <TopPeriodSwitch :current="period" />
-    <FeedView
-      :label="titles[period]"
-      :state="state"
-      :loading-more="loadingMore"
-      :more-failed="moreFailed"
-      :empty-text="t('feed.topEmpty')"
-      @retry="retry()"
-      @more="loadMore()"
-    >
-      <template #empty-actions>
-        <NuxtLink to="/new" class="top-page__fresh" data-testid="top-fresh">{{
-          t('feed.topFresh')
-        }}</NuxtLink>
-      </template>
-    </FeedView>
-  </div>
+  <PullToRefresh :refresh="retry">
+    <div class="top-page">
+      <h1 class="top-page__title">{{ t('nav.popular') }}</h1>
+      <TopPeriodSwitch :current="period" />
+      <FeedView
+        :label="titles[period]"
+        :state="state"
+        :loading-more="loadingMore"
+        :more-failed="moreFailed"
+        :empty-text="t('feed.topEmpty')"
+        @retry="retry()"
+        @more="loadMore()"
+      >
+        <template #empty-actions>
+          <NuxtLink to="/new" class="top-page__fresh" data-testid="top-fresh">{{
+            t('feed.topFresh')
+          }}</NuxtLink>
+        </template>
+      </FeedView>
+    </div>
+  </PullToRefresh>
 </template>
 
 <style scoped>

@@ -221,7 +221,9 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 /* «К следующему новому» (E09-08): it stays under the site's header while the comments are scrolled through. */
 .comments__next-new {
   position: sticky;
-  top: calc(var(--space-16) + env(safe-area-inset-top) + var(--space-2));
+  /* Higher while the phone header is hidden (E08-14, ADR-0111). */
+  top: calc(var(--shell-header-offset, calc(var(--space-16) + env(safe-area-inset-top))) + var(--space-2));
+  transition: top 0.2s ease;
   z-index: 5;
   display: inline-flex;
   align-items: center;

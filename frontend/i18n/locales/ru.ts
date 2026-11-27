@@ -293,6 +293,10 @@ export default {
       other: '{count} новых поста',
     },
     showNewMore: 'новых постов: {count} и больше',
+    // Pull to refresh (E08-14, ADR-0111).
+    pullHint: 'Потяните, чтобы обновить',
+    pullRelease: 'Отпустите, чтобы обновить',
+    refreshing: 'Обновляем ленту…',
   },
   post: {
     post: 'Пост',
