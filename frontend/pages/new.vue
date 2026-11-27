@@ -8,6 +8,7 @@
 import FeedView from '~/components/feed/FeedView.vue'
 import FreshRatingFilter from '~/components/feed/FreshRatingFilter.vue'
 import NewPostsBanner from '~/components/feed/NewPostsBanner.vue'
+import PullToRefresh from '~/components/feed/PullToRefresh.vue'
 import QuickPost from '~/components/feed/QuickPost.vue'
 import UiButton from '~/components/ui/UiButton.vue'
 import { loadFreshFeed, type FreshRating } from '~/api/feeds'
@@ -31,6 +32,14 @@ watch(rating, () => {
   void retry()
 })
 
+// Pull to refresh on a phone (E08-14, ADR-0111) is «Показать новые» asked for at once: the first page is read again and
+// its new posts go on top, the posts already shown stay. A feed that failed to load is read again from the start.
+async function refresh() {
+  if (!posts.value) return retry()
+  await newPosts.check()
+  newPosts.show()
+}
+
 function chooseRating(next: FreshRating) {
   void choose(next)
 }
@@ -39,27 +48,29 @@ useHead({ title: t('nav.new') })
 </script>
 
 <template>
-  <div class="feed-page">
-    <QuickPost class="feed-page__quick-post" />
-    <h1 class="feed-page__title">{{ t('nav.new') }}</h1>
-    <FreshRatingFilter :current="rating" @choose="chooseRating" />
-    <NewPostsBanner :count="newPosts.count.value" :more="newPosts.more.value" @show="newPosts.show()" />
-    <FeedView
-      :label="t('nav.new')"
-      :state="state"
-      :loading-more="loadingMore"
-      :more-failed="moreFailed"
-      :empty-text="rating === null ? undefined : t('feed.freshRatingEmpty')"
-      @retry="retry()"
-      @more="loadMore()"
-    >
-      <template v-if="rating !== null" #empty-actions>
-        <UiButton variant="secondary" data-testid="fresh-rating-all" @click="chooseRating(null)">
-          {{ t('feed.freshRatingShowAll') }}
-        </UiButton>
-      </template>
-    </FeedView>
-  </div>
+  <PullToRefresh :refresh="refresh">
+    <div class="feed-page">
+      <QuickPost class="feed-page__quick-post" />
+      <h1 class="feed-page__title">{{ t('nav.new') }}</h1>
+      <FreshRatingFilter :current="rating" @choose="chooseRating" />
+      <NewPostsBanner :count="newPosts.count.value" :more="newPosts.more.value" @show="newPosts.show()" />
+      <FeedView
+        :label="t('nav.new')"
+        :state="state"
+        :loading-more="loadingMore"
+        :more-failed="moreFailed"
+        :empty-text="rating === null ? undefined : t('feed.freshRatingEmpty')"
+        @retry="retry()"
+        @more="loadMore()"
+      >
+        <template v-if="rating !== null" #empty-actions>
+          <UiButton variant="secondary" data-testid="fresh-rating-all" @click="chooseRating(null)">
+            {{ t('feed.freshRatingShowAll') }}
+          </UiButton>
+        </template>
+      </FeedView>
+    </div>
+  </PullToRefresh>
 </template>
 
 <style scoped>

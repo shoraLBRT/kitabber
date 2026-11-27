@@ -8,7 +8,11 @@
 // Below 925 px navigation moves to the phone shell (E02-06): the bottom bar ShellTabBar (and below 640 px the floating
 // "Написать" ShellWriteButton) in the "mobile" slot; the left column becomes the "Меню" screen (/menu).
 // The header's search button opens the `search` slot (ShellSearch, E14-02), which gives the focus back when it closes.
+// In the phone shell the header hides while the page is scrolled down and comes back when it is scrolled up (E08-14,
+// useHideOnScroll, ADR-0111); `--shell-header-offset` is how much of the screen it covers, so what sticks under it (the
+// «Показать новые» banner, «К следующему новому») follows it up. A header holding the keyboard's focus stays.
 import { nextTick, ref } from 'vue'
+import { useHideOnScroll } from '../../composables/useHideOnScroll'
 import type { NavItem } from '../../utils/navigation'
 import ShellAside from './ShellAside.vue'
 import ShellHeader, { type ShellUser } from './ShellHeader.vue'
@@ -37,6 +41,7 @@ withDefaults(
 const emit = defineEmits<{ search: []; account: [id: string]; write: [] }>()
 
 const searchOpen = ref(false)
+const header = useHideOnScroll()
 const root = ref<HTMLElement | null>(null)
 
 function openSearch() {
@@ -51,9 +56,10 @@ function closeSearch() {
 </script>
 
 <template>
-  <div ref="root" class="shell" data-testid="shell">
+  <div ref="root" class="shell" :class="{ 'shell--header-hidden': header.hidden.value }" data-testid="shell">
     <a href="#content" class="shell__skip">{{ t('shell.skipToContent') }}</a>
     <ShellHeader
+      class="shell__header"
       :user="user"
       :unread="counts.notifications ?? 0"
       @search="openSearch()"
@@ -85,7 +91,13 @@ function closeSearch() {
 
 <style scoped>
 .shell {
+  --shell-header-offset: calc(var(--space-16) + env(safe-area-inset-top));
+
   min-height: 100vh;
+}
+
+.shell__header {
+  transition: transform 0.2s ease;
 }
 
 .shell__skip {
@@ -152,6 +164,21 @@ function closeSearch() {
 
   .shell__menu {
     display: none;
+  }
+
+  /* The phone header hides above the top edge; sticky things then keep clear of the notch's safe area only. */
+  .shell--header-hidden:not(:has(.shell__header :focus-visible)) {
+    --shell-header-offset: env(safe-area-inset-top);
+  }
+
+  .shell--header-hidden:not(:has(.shell__header :focus-visible)) .shell__header {
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell__header {
+    transition: none;
   }
 }
 

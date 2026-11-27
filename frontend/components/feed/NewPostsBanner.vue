@@ -33,7 +33,9 @@ defineEmits<{ show: [] }>()
 <style scoped>
 .new-posts {
   position: sticky;
-  top: calc(var(--space-16) + env(safe-area-inset-top) + var(--space-3));
+  /* Under the site's header, and higher while the phone header is hidden (E08-14, ADR-0111). */
+  top: calc(var(--shell-header-offset, calc(var(--space-16) + env(safe-area-inset-top))) + var(--space-3));
+  transition: top 0.2s ease;
   z-index: 5;
   display: flex;
   justify-content: center;

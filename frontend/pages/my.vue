@@ -5,6 +5,7 @@
 // empty feed offers topics to subscribe to; a guest is asked to sign in (the sign-in window, ADR-0032).
 import FeedView from '~/components/feed/FeedView.vue'
 import MyFeedSuggestions from '~/components/feed/MyFeedSuggestions.vue'
+import PullToRefresh from '~/components/feed/PullToRefresh.vue'
 import UiButton from '~/components/ui/UiButton.vue'
 import UiState from '~/components/ui/UiState.vue'
 import { loadMyFeed, type FeedLookup } from '~/api/feeds'
@@ -47,18 +48,19 @@ watch(
 </script>
 
 <template>
-  <FeedView
-    v-if="feed"
-    :title="t('nav.my')"
-    :state="feed.state.value"
-    :loading-more="feed.loadingMore.value"
-    :more-failed="feed.moreFailed.value"
-    :empty-text="t('feed.myEmpty')"
-    @retry="feed.retry()"
-    @more="feed.loadMore()"
-  >
-    <template #empty-actions><MyFeedSuggestions :topics="topics ?? []" /></template>
-  </FeedView>
+  <PullToRefresh v-if="feed" :refresh="feed.retry">
+    <FeedView
+      :title="t('nav.my')"
+      :state="feed.state.value"
+      :loading-more="feed.loadingMore.value"
+      :more-failed="feed.moreFailed.value"
+      :empty-text="t('feed.myEmpty')"
+      @retry="feed.retry()"
+      @more="feed.loadMore()"
+    >
+      <template #empty-actions><MyFeedSuggestions :topics="topics ?? []" /></template>
+    </FeedView>
+  </PullToRefresh>
   <section v-else class="my-feed-guest" aria-labelledby="feed-title" data-testid="my-feed-guest">
     <h1 id="feed-title" class="my-feed-guest__title">{{ t('nav.my') }}</h1>
     <UiState>
