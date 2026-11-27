@@ -3168,6 +3168,73 @@
         }
       }
     },
+    "/api/v1/comments/blogs/{blogId}": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "The comments of a blog's owner or under a topic's posts, newest first, page by page",
+        "operationId": "GetBlogComments",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfBlogCommentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts/{postId}/reactions": {
       "get": {
         "tags": [
@@ -4285,6 +4352,82 @@
           }
         }
       },
+      "BlogCommentView": {
+        "required": [
+          "id",
+          "postId",
+          "postBlogId",
+          "postTitle",
+          "postSlug",
+          "kind",
+          "authorAccountId",
+          "guest",
+          "text",
+          "createdAt",
+          "editedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postBlogId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postSlug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "authorAccountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "guest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GuestAuthorView"
+              }
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "BookmarkMarkView": {
         "required": [
           "id",
@@ -4686,6 +4829,27 @@
             "type": "integer",
             "format": "int32",
             "default": 50
+          }
+        }
+      },
+      "CursorPageOfBlogCommentView": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlogCommentView"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
