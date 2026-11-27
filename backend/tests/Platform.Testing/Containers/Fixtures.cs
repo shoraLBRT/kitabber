@@ -59,8 +59,18 @@ public sealed class RedisFixture : ContainerFixture<RedisContainer>
     protected override RedisContainer Build(string image) => new RedisBuilder(image).Build();
 }
 
+/// <summary>
+/// PostgreSQL shared by the tests of an assembly; each test class works in a database of its own (ADR-0008). Every
+/// database gets its own Npgsql pool, and a pool keeps idle connections for 300 s by default, long after the class that
+/// opened them has finished: with two dozen test hosts in one assembly that went past the 100 connections of a default
+/// server ("53300: sorry, too many clients already"). So the test databases close idle connections within seconds, and
+/// the server allows more connections than the default.
+/// </summary>
 public sealed class PostgresFixture : ContainerFixture<PostgreSqlContainer>
 {
+    /// <summary>The connection limit of the test server.</summary>
+    public const int MaxConnections = 500;
+
     protected override string ImageName => "postgres";
 
     /// <summary>Creates a new empty database and returns its connection string.</summary>
@@ -75,10 +85,17 @@ public sealed class PostgresFixture : ContainerFixture<PostgreSqlContainer>
             await create.ExecuteNonQueryAsync();
         }
 
-        return new NpgsqlConnectionStringBuilder(server) { Database = name }.ConnectionString;
+        return new NpgsqlConnectionStringBuilder(server)
+        {
+            Database = name,
+            ConnectionIdleLifetime = 10,
+            ConnectionPruningInterval = 2,
+        }.ConnectionString;
     }
 
-    protected override PostgreSqlContainer Build(string image) => new PostgreSqlBuilder(image).Build();
+    protected override PostgreSqlContainer Build(string image) => new PostgreSqlBuilder(image)
+        .WithCommand("-c", $"max_connections={MaxConnections}")
+        .Build();
 }
 
 /// <summary>
