@@ -9,9 +9,11 @@
 // its own screen (`branchLink`, E09-06); that screen draws the same tree for one branch (`branch`), without the
 // heading, the order and the form under the post, and says so when the branch is gone. The comment a link named stands
 // out (highlighted, E09-07). The comments new since the previous opening are marked «новый» (`fresh`, E09-08,
-// ADR-0109), and «К следующему новому · N» stays under the site's header while the comments are on screen.
+// ADR-0109), and «К следующему новому · N» stays under the site's header while the comments are on screen. Those others
+// write meanwhile wait behind «N новых» (E09-09, ADR-0112), which floats there too and takes no room: the tree does
+// not move when it comes.
 import { computed, onBeforeUnmount, onMounted, provide, ref, toRef } from 'vue'
-import { ArrowDown } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp } from 'lucide-vue-next'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
@@ -57,6 +59,8 @@ const props = withDefaults(
     fresh?: Readonly<Record<string, true>>
     /** How many new comments «К следующему новому» has still to go to; none hides it. */
     freshLeft?: number
+    /** How many comments others wrote meanwhile wait behind «N новых» (E09-09, ADR-0112); none hides it. */
+    arrived?: number
   }>(),
   {
     pending: () => ({}),
@@ -74,6 +78,7 @@ const props = withDefaults(
     commentLink: null,
     fresh: () => ({}),
     freshLeft: 0,
+    arrived: 0,
   },
 )
 
@@ -86,6 +91,7 @@ const emit = defineEmits<{
   'sign-in': [target: FormTarget]
   blocked: [accountId: string]
   'next-new': []
+  'show-arrived': []
 }>()
 
 // The time the menus compare the end of the time to change a comment with: «Редактировать» goes once it is over.
@@ -125,7 +131,8 @@ provide(commentTreeKey, {
 
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))
 const roots = computed(() => nestComments(comments.value))
-const count = computed(() => commentCount(comments.value))
+// The heading counts the comments that came meanwhile too, before they are shown (E09-09).
+const count = computed(() => commentCount(comments.value) + props.arrived)
 const sortable = computed(() => props.state.status !== 'found' || roots.value.length > 0)
 </script>
 
@@ -189,6 +196,19 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 
     <template v-else>
       <CommentForm v-if="!branch" :inviting="roots.length === 0" />
+      <div v-if="!branch" class="comments__arrived" aria-live="polite" data-testid="comments-arrived-bar">
+        <button
+          v-if="arrived > 0"
+          type="button"
+          class="comments__arrived-button"
+          :aria-label="t('comments.arrivedLabel', { count: arrived })"
+          data-testid="comments-arrived"
+          @click="emit('show-arrived')"
+        >
+          <ArrowUp class="comments__next-new-icon" aria-hidden="true" />
+          {{ t('comments.arrived', { count: arrived }) }}
+        </button>
+      </div>
       <button
         v-if="freshLeft > 0 && roots.length > 0"
         type="button"
@@ -243,6 +263,43 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 }
 
 .comments__next-new:hover {
+  background: var(--color-accent-hover);
+}
+
+/*
+ * «N новых» (E09-09, ADR-0112): a bar of no height under the site's header, always there once the tree is read, so the
+ * button that comes into it covers the comments instead of pushing them down; the negative margin takes back the gap
+ * of the column. It stands at the left, «К следующему новому» at the right.
+ */
+.comments__arrived {
+  position: sticky;
+  top: calc(var(--shell-header-offset, calc(var(--space-16) + env(safe-area-inset-top))) + var(--space-2));
+  transition: top 0.2s ease;
+  z-index: 6;
+  display: flex;
+  height: 0;
+  margin-bottom: calc(-1 * var(--space-4));
+  overflow: visible;
+}
+
+.comments__arrived-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-shadow);
+  cursor: pointer;
+}
+
+.comments__arrived-button:hover {
   background: var(--color-accent-hover);
 }
 

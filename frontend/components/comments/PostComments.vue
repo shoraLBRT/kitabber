@@ -5,7 +5,7 @@
 // `branchId` it is one branch on its own screen (E09-06); with `postPath`, on a phone, a branch deeper than one read
 // opens on such a screen. A link to one comment brings it into view and highlights it (E09-07, ADR-0107). For a
 // signed-in reader the comments new since the previous opening are marked, and «К следующему новому» goes through them
-// (E09-08, ADR-0109).
+// (E09-08, ADR-0109). Those others write meanwhile wait behind «N новых» and join them once shown (E09-09, ADR-0112).
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import CommentTree from './CommentTree.vue'
 import type { FormTarget } from './context'
@@ -58,6 +58,9 @@ const {
   dismiss,
   order,
   blocked,
+  arrived,
+  live,
+  showArrived,
 } = useComments(
   () => props.postId,
   () => props.branchId,
@@ -135,18 +138,13 @@ const visit = useState<{ at: number; visit: CommentVisit } | null>(
   `comment-visit:${props.postId}`,
   () => null,
 )
-const fresh = computed(() =>
-  Object.fromEntries((visit.value?.visit.newIds ?? []).map((id) => [id, true as const])),
-)
+// The comments that came in real time and were put in the tree (E09-09, ADR-0112) are new as well.
+const newIds = computed(() => [...(visit.value?.visit.newIds ?? []), ...live.value])
+const fresh = computed(() => Object.fromEntries(newIds.value.map((id) => [id, true as const])))
 const gone = ref<string[]>([])
 const freshOrder = computed(() =>
   state.value.status === 'found'
-    ? newCommentsOrder(
-        state.value.comments,
-        visit.value?.visit.newIds ?? [],
-        new Set(gone.value),
-        !phone.value,
-      )
+    ? newCommentsOrder(state.value.comments, newIds.value, new Set(gone.value), !phone.value)
     : [],
 )
 
@@ -226,6 +224,7 @@ onMounted(() => {
     :comment-link="commentLink"
     :fresh="fresh"
     :fresh-left="freshOrder.length"
+    :arrived="arrived.length"
     @retry="retry()"
     @sort="order"
     @more="more"
@@ -234,5 +233,6 @@ onMounted(() => {
     @sign-in="signIn"
     @blocked="blocked"
     @next-new="nextNew()"
+    @show-arrived="showArrived()"
   />
 </template>

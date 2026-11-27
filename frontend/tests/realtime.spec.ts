@@ -130,6 +130,22 @@ describe('realtime channel', () => {
     expect(hub().invoked).toEqual([['Subscribe', 'post:1']])
   })
 
+  it('keeps a topic two listeners share until both take it back', async () => {
+    const { channel, hub } = setup(counter())
+    channel.start()
+    await flush()
+    await channel.subscribe('post:1')
+    await channel.subscribe('post:1')
+    await channel.unsubscribe('post:1')
+    expect(hub().invoked).toEqual([['Subscribe', 'post:1']])
+
+    await channel.unsubscribe('post:1')
+    expect(hub().invoked).toEqual([
+      ['Subscribe', 'post:1'],
+      ['Unsubscribe', 'post:1'],
+    ])
+  })
+
   it('retries the first connect and starts over when SignalR gives up', async () => {
     const { channel, timers, hub } = setup(counter())
     channel.start()
