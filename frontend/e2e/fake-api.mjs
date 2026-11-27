@@ -1243,7 +1243,57 @@ function edited(blog, request) {
   const edit = clientOf(request) && edits.get(clientOf(request))
   const empty = { avatarId: null, avatarUrl: null, avatarSources: [], cover: null }
   const shown = { ...empty, ...blog, ...subscriptionFields(blog, request) }
-  return edit && blog.owner === owner ? { ...shown, ...edit } : shown
+  const own = blog.owner === owner && blog.type === 'personal'
+  const withOnboarding = own
+    ? { ...shown, onboardingPending: onboarding.get(clientOf(request)) === 'pending' }
+    : shown
+  return edit && blog.owner === owner ? { ...withOnboarding, ...edit } : withOnboarding
+}
+
+// The onboarding (E03-10, ADR-0102): POST /__newcomer?client= makes the person of that client address a new account —
+// an empty name and the onboarding ahead — so only that client is led through it after sign-in. POST
+// /api/v1/profiles/me/onboarding saves the name, the avatar and the topics as the edits and subscriptions do, once; a
+// second answer is 409 like the API's. The name сбой fails as an unavailable API would.
+const onboarding = new Map() // client address -> 'pending' | 'done'
+
+async function finishOnboarding(request, response) {
+  const reader = subject(request)
+  const own = blogs.find((blog) => reader && blog.owner === reader)
+  if (!own) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const client = clientOf(request)
+  const input = JSON.parse((await readBody(request)) || '{}')
+  if (input.name?.trim() === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  if (onboarding.get(client) !== 'pending')
+    return send(response, 409, { status: 409, code: 'blogs.onboarding_done' })
+  const errors = {}
+  const name = clean(input.name)
+  if (name && (length(name) < 2 || length(name) > 25)) errors.name = ['Имя — от 2 до 25 символов.']
+  if (input.avatarId && !uploads.some((file) => file.id === input.avatarId))
+    errors.avatarId = ['Такого загруженного файла нет.']
+  const topicIds = input.topicIds ?? []
+  if (topicIds.some((id) => !blogs.some((blog) => blog.id === id && blog.type === 'topic')))
+    errors.topicIds = ['Такой темы нет.']
+  if (Object.keys(errors).length > 0)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors })
+  const edit = edits.get(client) ?? {}
+  edits.set(client, {
+    ...edit,
+    ...(name ? { name } : {}),
+    ...(input.avatarId
+      ? {
+          avatarId: input.avatarId,
+          avatarUrl: `http://127.0.0.1:${port}/__images/${input.avatarId}-128.webp`,
+          avatarSources: [64, 128, 192].map((width) => ({
+            url: `http://127.0.0.1:${port}/__images/${input.avatarId}-${width}.webp`,
+            width,
+          })),
+        }
+      : {}),
+  })
+  const followed = subscribedBy(request)
+  for (const id of topicIds) followed.add(id)
+  onboarding.set(client, 'done')
+  return send(response, 200, { ...edited(own, request), owner: undefined })
 }
 
 // Subscriptions (E11-03, ADR-0085): PUT and DELETE /api/v1/blogs/{id}/subscription. Like the edits, they are kept per
@@ -1636,6 +1686,14 @@ createServer(async (request, response) => {
     return saveGeneral(request, response)
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
+  if (url.pathname === '/api/v1/profiles/me/onboarding' && request.method === 'POST')
+    return finishOnboarding(request, response)
+  if (url.pathname === '/__newcomer' && request.method === 'POST') {
+    const client = url.searchParams.get('client') ?? ''
+    onboarding.set(client, 'pending')
+    edits.set(client, { ...edits.get(client), name: null })
+    return send(response, 204)
+  }
   if (url.pathname === '/api/v1/profiles/me/nickname' && request.method === 'PUT')
     return changeNickname(request, response)
   if (url.pathname === '/api/v1/profiles/me/cover' && ['PUT', 'DELETE'].includes(request.method))

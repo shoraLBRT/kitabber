@@ -23,6 +23,7 @@ const anna: Profile = {
   subscriberCount: 0,
   subscribed: false,
   blocked: false,
+  onboardingPending: false,
   cover: null,
 }
 

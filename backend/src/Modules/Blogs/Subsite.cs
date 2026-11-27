@@ -221,6 +221,30 @@ public sealed class Subsite
         Nickname = value;
         return former;
     }
+
+    /// <summary>
+    /// When the owner of a personal blog finished or skipped the onboarding (E03-10, ADR-0102); <c>null</c> while it is
+    /// still ahead. The blogs that existed before the onboarding have the time of their creation, so only new accounts see it.
+    /// </summary>
+    public DateTimeOffset? OnboardedAt { get; private set; }
+
+    /// <summary>The owner of this personal blog has not been through the onboarding yet (ADR-0102).</summary>
+    public bool OnboardingPending => Type == SubsiteType.Personal && OnboardedAt is null;
+
+    /// <summary>
+    /// Marks the onboarding as done at <paramref name="now"/>. Returns <c>false</c> and changes nothing when it was done
+    /// already or the blog is a topic: the onboarding happens once (ADR-0102).
+    /// </summary>
+    public bool FinishOnboarding(DateTimeOffset now)
+    {
+        if (!OnboardingPending)
+        {
+            return false;
+        }
+
+        OnboardedAt = now;
+        return true;
+    }
 }
 
 /// <summary>
@@ -276,6 +300,19 @@ public static partial class SubsiteRules
     public static int LengthOf(string? text) => string.IsNullOrEmpty(text) ? 0 : new StringInfo(text).LengthInTextElements;
 
     public static bool IsValidName(string? name) => LengthOf(Clean(name)) <= NameMaxLength;
+
+    /// <summary>
+    /// The shortest name the onboarding takes (E03-10, FR-AUTH: «имя (2–30 символов)», ADR-0102). The longest is
+    /// <see cref="NameMaxLength"/>: the onboarding sets the same name the blog settings edit.
+    /// </summary>
+    public const int OnboardingNameMinLength = 2;
+
+    /// <summary>
+    /// The name of the onboarding's first step (ADR-0102): from <see cref="OnboardingNameMinLength"/> to
+    /// <see cref="NameMaxLength"/> characters, spaces at the ends not counted. An empty name is a skipped step, not this.
+    /// </summary>
+    public static bool IsValidOnboardingName(string? name) =>
+        LengthOf(Clean(name)) is var length && length >= OnboardingNameMinLength && length <= NameMaxLength;
 
     public static bool IsValidDescription(string? description) => LengthOf(Clean(description)) <= DescriptionMaxLength;
 

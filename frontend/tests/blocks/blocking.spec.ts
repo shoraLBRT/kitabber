@@ -41,6 +41,7 @@ const anna: Profile = {
   cover: null,
   accountId: boris,
   blocked: false,
+  onboardingPending: false,
 }
 
 let wrapper: VueWrapper | undefined
