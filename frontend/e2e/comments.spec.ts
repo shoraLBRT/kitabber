@@ -137,10 +137,31 @@ test.describe('дерево комментариев', () => {
     )
     expect(longest).toBeLessThan(2000)
 
-    const started = Date.now()
+    // The fold is timed inside the page, from the first touch or press of the button to the frame after the tree
+    // changed (#449): the time of the Playwright step mostly measured Playwright itself walking ~23 000 nodes.
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-testid="comments"]')!
+      const fold = new Promise<number>((resolve, reject) => {
+        let started = 0
+        const begin = () => {
+          if (!started) started = performance.now()
+        }
+        for (const type of ['touchstart', 'pointerdown', 'mousedown', 'click'])
+          root.addEventListener(type, begin, { capture: true, once: true })
+        const observer = new MutationObserver(() => {
+          if (!started || !root.querySelector('[data-testid="comment-expand"]')) return
+          observer.disconnect()
+          requestAnimationFrame(() => resolve(performance.now() - started))
+        })
+        observer.observe(root, { childList: true, subtree: true, attributes: true })
+        setTimeout(() => reject(new Error('the branch did not fold in 10 s')), 10_000)
+      })
+      ;(window as unknown as { __fold: Promise<number> }).__fold = fold
+    })
     await press(comments.getByTestId('comment-collapse').first())
     await expect(comments.getByTestId('comment-expand')).toHaveCount(1)
-    expect(Date.now() - started).toBeLessThan(1000)
+    const fold = await page.evaluate(() => (window as unknown as { __fold: Promise<number> }).__fold)
+    expect(fold).toBeLessThan(1000)
     await expectNoHorizontalScroll(page)
   })
 })
