@@ -7,6 +7,7 @@
 // go through server/routes/bff/post.get.ts.
 import PostView from '~/components/post/PostView.vue'
 import { lookUpPost, subsitePath, type PostLookup } from '~/api/posts'
+import { bookmarksKey } from '~/composables/useBookmarks'
 import { t } from '../i18n'
 
 definePageMeta({
@@ -58,6 +59,20 @@ const likes = useLikes(() =>
   state.value.status === 'found' && state.value.post.status === 'published' ? state.value.post.id : null,
 )
 
+// The bookmarks of the published post and of its comments (E10-07, ADR-0113), read in the browser for a signed-in
+// person into the store app.vue provides; the comment menus take them from the same store.
+const bookmarks = inject(bookmarksKey, null)
+onMounted(() => {
+  watch(
+    () =>
+      state.value.status === 'found' && state.value.post.status === 'published' ? state.value.post.id : null,
+    (id) => {
+      if (id !== null) void bookmarks?.loadPost(id)
+    },
+    { immediate: true },
+  )
+})
+
 // The view counter (E07-06, ADR-0071): the opening of a reader's published post and, with consent, its reading time.
 usePostViews(() =>
   state.value.status === 'found' && state.value.post.status === 'published' && !state.value.own
@@ -98,6 +113,7 @@ useHead(() => ({
     :features="features"
     :remove="remove"
     :likes="likes"
+    :bookmarks="bookmarks"
     :signed-in="account.signedIn"
     @retry="refresh()"
   />

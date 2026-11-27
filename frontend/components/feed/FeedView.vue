@@ -4,12 +4,13 @@
 // States: loading, empty, a failure with «Повторить», and the posts. The next page loads by itself when the end of the
 // list comes near (E08-03, ADR-0051); a failure of a later page keeps the posts shown and offers «Повторить» instead
 // of trying again on its own. Without IntersectionObserver «Показать ещё» asks for the next page.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import FeedCard from './FeedCard.vue'
 import FeedCardSkeleton from './FeedCardSkeleton.vue'
 import UiState from '../ui/UiState.vue'
 import type { FeedState } from '../../api/feeds'
+import { bookmarksKey } from '../../composables/useBookmarks'
 import { t } from '../../i18n'
 
 // A page with its own heading (the topic page, E11-01) gives no `title` but a `label` for the list's region, and may
@@ -55,6 +56,17 @@ watch(sentinel, (element, previous) => {
 onBeforeUnmount(() => observer?.disconnect())
 
 const items = computed(() => (props.state.status === 'found' ? props.state.posts : []))
+
+// The bookmarks of the cards (E10-07, ADR-0113), in the store app.vue provides: read in the browser for a signed-in
+// person, each new page's posts at once.
+const bookmarks = inject(bookmarksKey, null)
+onMounted(() => {
+  watch(
+    () => items.value.map((item) => item.post.id),
+    (ids) => void bookmarks?.loadPosts(ids),
+    { immediate: true },
+  )
+})
 </script>
 
 <template>
@@ -86,7 +98,7 @@ const items = computed(() => (props.state.status === 'found' ? props.state.posts
     <template v-else>
       <ol class="feed__list" data-testid="feed-list">
         <li v-for="item in items" :key="item.post.id" class="feed__item" data-testid="feed-item">
-          <FeedCard :item="item" />
+          <FeedCard :item="item" :bookmarks="bookmarks" />
         </li>
       </ol>
       <div v-if="state.status === 'found' && state.hasMore" class="feed__more">

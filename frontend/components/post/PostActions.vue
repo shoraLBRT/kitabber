@@ -6,12 +6,15 @@
 // ReactionRow: most popular first, the own one marked, live counts); the whole set opens over it by hovering, a long
 // press on a phone or «Выбрать реакцию», and choosing in it changes the reaction (E10-02, ADR-0101). On one's own post
 // and on a draft the row only shows the counts. A guest's press opens the sign-in window (useLikes). «Комментарии» leads to the comments under the post
-// (#comments; the tree is E09-02). «Поделиться» (E07-07, ADR-0103, PostShare) opens the phone's system share menu, or
+// (#comments; the tree is E09-02). «В закладки» (E10-07, ADR-0113, BookmarkButton) keeps the published post in the
+// person's bookmarks; its author sees how many people keep it. «Поделиться» (E07-07, ADR-0103, PostShare) opens the phone's system share menu, or
 // a list with copying the canonical link and the social networks. The arrow keys move between the buttons, as in a
 // toolbar.
 import { computed } from 'vue'
 import { MessageCircle } from 'lucide-vue-next'
 import type { Likes } from '../../composables/useLikes'
+import type { Bookmarks } from '../../composables/useBookmarks'
+import BookmarkButton from '../bookmarks/BookmarkButton.vue'
 import ReactionRow from '../reactions/ReactionRow.vue'
 import PostShare from './PostShare.vue'
 import type { ReactionKind } from '../../api/reactions'
@@ -27,9 +30,22 @@ const props = withDefaults(
     /** The person's own post: the like is not theirs to put. */
     own?: boolean
     likes?: Likes | null
+    /** The page's bookmarks (E10-07): «В закладки» on a published post; `null` shows none. */
+    bookmarks?: Bookmarks | null
   }>(),
-  { title: null, postId: null, own: false, likes: null },
+  { title: null, postId: null, own: false, likes: null, bookmarks: null },
 )
+
+const bookmark = computed(() =>
+  props.bookmarks && props.postId !== null ? props.bookmarks.of('post', props.postId) : null,
+)
+const bookmarkBusy = computed(
+  () => props.postId !== null && props.bookmarks?.isBusy('post', props.postId) === true,
+)
+
+function pressBookmark() {
+  if (props.postId !== null) props.bookmarks?.toggle('post', props.postId)
+}
 
 const reactions = computed(() =>
   props.likes && props.postId !== null ? props.likes.reactions('post', props.postId) : [],
@@ -76,6 +92,14 @@ function move(event: KeyboardEvent) {
       <MessageCircle class="post-actions__icon" aria-hidden="true" />
       <span>{{ t('comments.title') }}</span>
     </a>
+    <BookmarkButton
+      v-if="bookmark"
+      :state="bookmark"
+      :busy="bookmarkBusy"
+      variant="panel"
+      testid="post-bookmark"
+      @press="pressBookmark"
+    />
     <PostShare :path="path" :title="title" />
   </div>
 </template>

@@ -4,9 +4,11 @@
 // «Удалить» asks first in a dialog; `remove` deletes, and the dialog stays open with a toast when it fails.
 // «Редактировать» is passed on (`edit`): the comment opens its text in a form. «Заблокировать автора» (E11-06,
 // ADR-0091) asks first in BlockDialog and says once the author is blocked (`blocked`). «Скопировать ссылку» (E09-07,
-// ADR-0107) copies the comment's permanent link (`link`) and says so in a toast.
+// ADR-0107) copies the comment's permanent link (`link`) and says so in a toast. «В закладки» (E10-07) is passed on
+// (`bookmark`).
 import { Ellipsis } from 'lucide-vue-next'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import type { BookmarkState } from '../../api/bookmarks'
 import BlockDialog from '../blocks/BlockDialog.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
@@ -14,7 +16,12 @@ import UiModal from '../ui/UiModal.vue'
 import UiSheet from '../ui/UiSheet.vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { useToast } from '../../composables/useToast'
-import { copyCommentLink, type CommentMenuAction, type CommentMenuItem } from '../../utils/comment-menu'
+import {
+  bookmarkItem,
+  copyCommentLink,
+  type CommentMenuAction,
+  type CommentMenuItem,
+} from '../../utils/comment-menu'
 import { t } from '../../i18n'
 
 const props = defineProps<{
@@ -25,9 +32,22 @@ const props = defineProps<{
   author?: { accountId: string; name: string } | null
   /** The comment's permanent link «Скопировать ссылку» copies. */
   link?: string | null
+  /**
+   * The comment's bookmark state (E10-07, ADR-0113), read only once the menu opens: until then the «bookmark» item
+   * of `items` is a placeholder, so a closed menu does no bookmark work.
+   */
+  bookmark?: (() => BookmarkState) | null
 }>()
 
-const emit = defineEmits<{ edit: []; blocked: [] }>()
+// Opened once: from then on the item follows the comment's state.
+const opened = ref(false)
+const shown = computed(() => {
+  const bookmark = props.bookmark
+  if (!opened.value || !bookmark) return props.items
+  return props.items.map((item) => (item.id === 'bookmark' ? bookmarkItem(bookmark()) : item))
+})
+
+const emit = defineEmits<{ edit: []; blocked: []; bookmark: [] }>()
 
 const label = t('comments.menu')
 const toast = useToast()
@@ -37,6 +57,11 @@ const confirmOpen = ref(false)
 const blockOpen = ref(false)
 const deleting = ref(false)
 
+function openSheet() {
+  opened.value = true
+  sheetOpen.value = true
+}
+
 // The confirmation opens only once the sheet is gone, so one dialog closes (and gives focus back) before the next.
 async function choose(id: string) {
   const action = id as CommentMenuAction
@@ -44,7 +69,8 @@ async function choose(id: string) {
   await nextTick()
   if (action === 'copy-link') {
     if (props.link) void copyCommentLink(props.link, toast)
-  } else if (action === 'delete') confirmOpen.value = true
+  } else if (action === 'bookmark') emit('bookmark')
+  else if (action === 'delete') confirmOpen.value = true
   else if (action === 'block') blockOpen.value = true
   else emit('edit')
 }
@@ -71,13 +97,13 @@ async function confirmDelete() {
         class="comment-menu__trigger"
         aria-haspopup="dialog"
         :aria-label="label"
-        @click="sheetOpen = true"
+        @click="openSheet"
       >
         <Ellipsis class="comment-menu__icon" aria-hidden="true" />
       </button>
       <UiSheet v-model:open="sheetOpen" :title="label">
         <ul class="comment-menu__sheet" data-testid="comment-menu-sheet">
-          <li v-for="item in items" :key="item.id">
+          <li v-for="item in shown" :key="item.id">
             <button
               type="button"
               class="comment-menu__sheet-item"
@@ -92,7 +118,7 @@ async function confirmDelete() {
         </ul>
       </UiSheet>
     </template>
-    <UiMenu v-else :items="items" :label="label" align="end" @select="choose">
+    <UiMenu v-else :items="shown" :label="label" align="end" @open="opened = true" @select="choose">
       <template #trigger>
         <Ellipsis class="comment-menu__icon" aria-hidden="true" />
       </template>

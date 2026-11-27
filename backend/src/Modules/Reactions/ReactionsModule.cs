@@ -28,6 +28,7 @@ public static class ReactionsModule
         builder.Services.AddScoped<IReactionRatings, ReactionRatings>();
         builder.Services.AddApiEndpoints<ReactionEndpoints>();
         builder.Services.AddApiEndpoints<ReactionSetEndpoints>();
+        builder.Services.AddApiEndpoints<BookmarkEndpoints>();
         return builder;
     }
 
