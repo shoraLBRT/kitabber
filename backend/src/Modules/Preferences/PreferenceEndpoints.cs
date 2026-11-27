@@ -14,12 +14,14 @@ namespace Platform.Modules.Preferences;
 /// <param name="Theme">The colour theme: <c>system</c>, <c>light</c> or <c>dark</c>.</param>
 public sealed record GeneralPreferencesView(string Theme);
 
-/// <summary>The section «Ленты» of the settings (E08-07, ADR-0106).</summary>
+/// <summary>The section «Ленты» of the settings (E08-07, ADR-0106; E08-13, ADR-0110).</summary>
 /// <param name="FreshMinRating">
 /// The rating filter of «Свежее»: the lowest rating shown (<c>-10</c>, <c>5</c> or <c>10</c>), or <c>null</c> for
 /// every post.
 /// </param>
-public sealed record FeedPreferencesView(int? FreshMinRating);
+/// <param name="HomeFeed">The feed the home page opens: <c>popular</c>, <c>fresh</c> or <c>my</c>.</param>
+/// <param name="AutoplayVideo">Whether videos in a feed start playing without sound.</param>
+public sealed record FeedPreferencesView(int? FreshMinRating, string HomeFeed, bool AutoplayVideo);
 
 /// <summary>The settings of the signed-in account that every device applies (ADR-0070).</summary>
 /// <param name="General">The section «Основные».</param>
@@ -30,11 +32,18 @@ public sealed record PreferencesView(GeneralPreferencesView General, FeedPrefere
 /// <param name="Theme">The colour theme: <c>system</c>, <c>light</c> or <c>dark</c>.</param>
 public sealed record GeneralPreferencesInput(string? Theme);
 
-/// <summary>A new choice in the section «Ленты».</summary>
+/// <summary>
+/// A new choice in the section «Ленты» (ADR-0110). The rating filter is always taken (<c>null</c> is «все»); the home
+/// feed and the autoplay keep their saved values when left out, so the feed's own filter sends only its choice.
+/// </summary>
 /// <param name="FreshMinRating">
 /// The rating filter of «Свежее»: <c>-10</c>, <c>5</c>, <c>10</c>, or <c>null</c> for every post.
 /// </param>
-public sealed record FeedPreferencesInput(int? FreshMinRating);
+/// <param name="HomeFeed">
+/// The feed the home page opens: <c>popular</c>, <c>fresh</c> or <c>my</c>; left out, the saved one stays.
+/// </param>
+/// <param name="AutoplayVideo">Whether videos in a feed start playing without sound; left out, the saved one stays.</param>
+public sealed record FeedPreferencesInput(int? FreshMinRating, string? HomeFeed = null, bool? AutoplayVideo = null);
 
 /// <summary>
 /// The settings of the signed-in account (E04-08, ADR-0070): read on every device and changed by section. An account
@@ -111,15 +120,34 @@ public sealed class PreferenceEndpoints : IApiEndpoints
             return TypedResults.Unauthorized();
         }
 
+        var errors = new Dictionary<string, string[]>();
         if (!FreshFeedRating.IsAllowed(input.FreshMinRating))
         {
-            return ApiProblems.Validation(new Dictionary<string, string[]>
-            {
-                ["freshMinRating"] = ["Порог рейтинга — все, −10, 5 или 10."],
-            });
+            errors["freshMinRating"] = ["Порог рейтинга — все, −10, 5 или 10."];
         }
 
-        return await SaveAsync(account, saved => saved.FreshMinRating = input.FreshMinRating, db, time, ct);
+        var home = PreferenceRules.ParseHomeFeed(input.HomeFeed);
+        if (input.HomeFeed is not null && home is null)
+        {
+            errors["homeFeed"] = ["Главная лента — popular, fresh или my."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return ApiProblems.Validation(errors);
+        }
+
+        return await SaveAsync(
+            account,
+            saved =>
+            {
+                saved.FreshMinRating = input.FreshMinRating;
+                saved.HomeFeed = home ?? saved.HomeFeed;
+                saved.AutoplayVideo = input.AutoplayVideo ?? saved.AutoplayVideo;
+            },
+            db,
+            time,
+            ct);
     }
 
     private static async Task<IResult> SaveAsync(
@@ -159,7 +187,10 @@ public sealed class PreferenceEndpoints : IApiEndpoints
     private static PreferencesView View(AccountPreferences preferences) =>
         new(
             new GeneralPreferencesView(PreferenceRules.NameOf(preferences.Theme)),
-            new FeedPreferencesView(preferences.FreshMinRating));
+            new FeedPreferencesView(
+                preferences.FreshMinRating,
+                PreferenceRules.NameOf(preferences.HomeFeed),
+                preferences.AutoplayVideo));
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>

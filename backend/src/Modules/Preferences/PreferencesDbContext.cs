@@ -29,6 +29,7 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
             // One row per account; an account without a row has the defaults (ADR-0070).
             preferences.HasKey(p => p.AccountId);
             preferences.Property(p => p.Theme).HasConversion<string>().HasMaxLength(16);
+            preferences.Property(p => p.HomeFeed).HasConversion<string>().HasMaxLength(16);
         });
         modelBuilder.Entity<BlockedAccount>(blocked =>
         {
