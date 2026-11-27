@@ -694,6 +694,133 @@
         }
       }
     },
+    "/api/v1/sign-in/external": {
+      "get": {
+        "tags": [
+          "SignIn"
+        ],
+        "summary": "Lists the external sign-in providers the settings turn on",
+        "operationId": "ListExternalSignInProviders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalProviderView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sign-in/external/{provider}": {
+      "get": {
+        "tags": [
+          "SignIn"
+        ],
+        "summary": "Sends the browser to an external provider to sign in or to link it",
+        "description": "A browser navigation, not a call: the answer sends the browser to the provider. returnUrl is where it goes once signed in, a path or an address of the site; link=true links the provider to the account signed in at the provider instead of signing in.",
+        "operationId": "StartExternalSignIn",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "link",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sign-in/external/{provider}/callback": {
+      "get": {
+        "tags": [
+          "SignIn"
+        ],
+        "summary": "Takes the browser back from an external provider and signs the person in or links the provider",
+        "operationId": "CompleteExternalSignIn",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found"
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/password-reset": {
       "post": {
         "tags": [
@@ -4967,6 +5094,17 @@
           "linkedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ExternalProviderView": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
           }
         }
       },

@@ -74,6 +74,12 @@ public static class IdentitySettings
     /// </summary>
     public static RateLimitPolicy SignInAddressFailurePolicy { get; } = new(5, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
 
+    /// <summary>
+    /// Starts and callbacks of the sign-in with an external provider (ADR-0115) per network address: a person needs a
+    /// few, a script trying codes or flooding the providers many.
+    /// </summary>
+    public static RateLimitPolicy ExternalSignInPolicy { get; } = new(30, TimeSpan.FromMinutes(15), RateLimitPartition.Ip);
+
     public static IReadOnlyList<Setting> All { get; } =
     [
         new(DatabaseKey, "PostgreSQL of the platform: Host=...;Database=...;Username=...;Password=...")
@@ -127,5 +133,7 @@ public static class IdentitySettings
         .. RateLimitingSettings.Policy(SignInEndpoints.AddressFailurePolicy, SignInAddressFailurePolicy, "failed sign-ins to one email address before a captcha is required"),
         .. RateLimitingSettings.Policy(SignInEndpoints.CodePolicy, SignInCodePolicy, "sign-in code requests"),
         .. RateLimitingSettings.Policy(SignInEndpoints.AddressCodePolicy, SignInCodeAddressPolicy, "sign-in code letters to one email address"),
+        .. RateLimitingSettings.Policy(External.ExternalSignInEndpoints.Policy, ExternalSignInPolicy, "starts and callbacks of the sign-in with an external provider"),
+        .. External.ExternalSignInSettings.All,
     ];
 }
