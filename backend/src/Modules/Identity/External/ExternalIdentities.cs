@@ -1,5 +1,7 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Platform.Mail;
 
 namespace Platform.Modules.Identity.External;
 
@@ -39,18 +41,25 @@ public sealed record ExternalIdentityView(Guid Id, string Provider, DateTimeOffs
 
 /// <summary>
 /// The external identities of accounts (FR-ID-4, ADR-0098): linking a pair «provider, subject», finding the account of a
-/// pair at sign-in, listing and unlinking. Every link and unlink is written to the journal in the same save. Proving that
-/// the person really is that subject is the job of the provider's sign-in (#91), behind its own interface; this class
+/// pair at sign-in, listing and unlinking. Every link and unlink is written to the journal in the same save, and the
+/// owner learns of it by a letter to the confirmed email, through the module's outbox (E03-08, #119). Proving that the
+/// person really is that subject is the job of the provider's sign-in (#91), behind its own interface; this class
 /// trusts its caller.
 /// </summary>
-public sealed class ExternalIdentities(IdentityDbContext db, TimeProvider time)
+public sealed class ExternalIdentities(IdentityDbContext db, IMailer<IdentityDbContext> mailer, TimeProvider time)
 {
+    public const string LinkedTemplate = "sign-in-method-linked";
+    public const string UnlinkedTemplate = "sign-in-method-unlinked";
+
+    private static readonly CultureInfo _culture = CultureInfo.GetCultureInfo("ru");
+
     /// <summary>Links the pair to the account (ADR-0098, п. 2–3).</summary>
     public async Task<LinkOutcome> LinkAsync(
         Guid accountId, string provider, string subject, CancellationToken cancellationToken)
     {
         Validate(provider, subject);
-        if (!await db.Accounts.AnyAsync(a => a.Id == accountId, cancellationToken))
+        var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == accountId, cancellationToken);
+        if (account is null)
         {
             return LinkOutcome.AccountNotFound;
         }
@@ -67,6 +76,7 @@ public sealed class ExternalIdentities(IdentityDbContext db, TimeProvider time)
         var identity = ExternalIdentity.Link(accountId, provider, subject, time.GetUtcNow());
         db.ExternalIdentities.Add(identity);
         db.ExternalIdentityLog.Add(ExternalIdentityLogEntry.Of(identity, ExternalIdentityAction.Linked, identity.LinkedAt));
+        await NotifyAsync(account, LinkedTemplate, provider, identity.LinkedAt, cancellationToken);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -78,6 +88,7 @@ public sealed class ExternalIdentities(IdentityDbContext db, TimeProvider time)
         })
         {
             // Another request linked the same pair, or the same provider, at the same moment: answer as it would have.
+            // Clearing the tracker drops the letter from the outbox too: nothing was linked.
             db.ChangeTracker.Clear();
             existing = await db.ExternalIdentities.AsNoTracking()
                 .Where(i => (i.Provider == provider && i.Subject == subject)
@@ -144,12 +155,31 @@ public sealed class ExternalIdentities(IdentityDbContext db, TimeProvider time)
             return UnlinkOutcome.LastSignInMethod;
         }
 
+        var now = time.GetUtcNow();
         db.ExternalIdentities.Remove(identity);
-        db.ExternalIdentityLog.Add(
-            ExternalIdentityLogEntry.Of(identity, ExternalIdentityAction.Unlinked, time.GetUtcNow()));
+        db.ExternalIdentityLog.Add(ExternalIdentityLogEntry.Of(identity, ExternalIdentityAction.Unlinked, now));
+        await NotifyAsync(account, UnlinkedTemplate, identity.Provider, now, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return UnlinkOutcome.Unlinked;
+    }
+
+    // The owner learns of every change of the ways to sign in, by a letter to the confirmed address; an account without
+    // one has nowhere to be told. The letter leaves with the save of the change, or not at all.
+    private async Task NotifyAsync(
+        Account account, string template, string provider, DateTimeOffset at, CancellationToken cancellationToken)
+    {
+        if (account is not { HasConfirmedEmail: true, Email: { } email })
+        {
+            return;
+        }
+
+        var when = at.UtcDateTime.ToString("d MMMM yyyy 'в' HH:mm '(UTC)'", _culture);
+        await mailer.SendAsync(email, template, _culture, new Dictionary<string, string>
+        {
+            ["provider"] = ExternalProviders.DisplayName(provider),
+            ["when"] = when,
+        }, cancellationToken);
     }
 
     private static LinkOutcome? Outcome(List<ExternalIdentity> existing, Guid accountId, string subject)

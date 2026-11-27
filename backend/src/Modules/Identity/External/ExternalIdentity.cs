@@ -52,6 +52,16 @@ public static partial class ExternalProviders
     public const string Google = "google";
     public const string Telegram = "telegram";
 
+    /// <summary>The provider's name as people know it, for letters; the key itself for a provider not named here.</summary>
+    public static string DisplayName(string provider) => provider switch
+    {
+        Yandex => "Яндекс",
+        Vk => "VK",
+        Google => "Google",
+        Telegram => "Telegram",
+        _ => provider,
+    };
+
     /// <summary>Whether <paramref name="provider"/> is a well-formed provider key.</summary>
     public static bool IsValid(string? provider) => provider is not null && KeyPattern().IsMatch(provider);
 

@@ -148,7 +148,24 @@ async function signIn(request, response, url) {
 // «Отказать»; its callback sets the provider's session cookie and goes on to returnUrl, or back to the site's /login
 // with externalError=denied. The real attempt cookie, state, exchange and account rules are tested by the backend
 // (ExternalSignInTests).
-function externalSignIn(response, url) {
+const externalIdentities = new Map() // client address -> [{ id, provider, linkedAt }], in the order linked
+
+function identitiesOf(request) {
+  const client = clientOf(request)
+  if (!externalIdentities.has(client)) externalIdentities.set(client, [])
+  return externalIdentities.get(client)
+}
+
+function redirect(response, location, cookie) {
+  response.writeHead(302, { location, ...(cookie ? { 'set-cookie': cookie } : {}) })
+  return response.end()
+}
+
+function withError(target, error) {
+  return `${target}${target.includes('?') ? '&' : '?'}externalError=${error}`
+}
+
+function externalSignIn(request, response, url) {
   if (url.pathname === '/api/v1/sign-in/external')
     return send(
       response,
@@ -158,10 +175,11 @@ function externalSignIn(response, url) {
   const [, provider, callback] =
     url.pathname.match(/^\/api\/v1\/sign-in\/external\/(\w+)(\/callback)?$/) ?? []
   const returnUrl = url.searchParams.get('returnUrl') ?? ''
+  const link = url.searchParams.get('link') === 'true'
   if (!provider || !/^https?:\/\//.test(returnUrl)) return send(response, 400, { status: 400 })
   if (!callback) {
     const back = (query) =>
-      `/api/v1/sign-in/external/${provider}/callback?${query}&returnUrl=${encodeURIComponent(returnUrl)}`
+      `/api/v1/sign-in/external/${provider}/callback?${query}&link=${link}&returnUrl=${encodeURIComponent(returnUrl)}`
     return send(
       response,
       200,
@@ -171,17 +189,32 @@ function externalSignIn(response, url) {
       'text/html; charset=utf-8',
     )
   }
-  if (url.searchParams.has('error')) {
-    response.writeHead(302, { location: `${new URL(returnUrl).origin}/login?externalError=denied` })
-    return response.end()
-  }
-  response.writeHead(302, {
-    location: returnUrl,
-    'set-cookie': 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax',
-  })
-  return response.end()
+  const failure = link ? returnUrl : `${new URL(returnUrl).origin}/login`
+  if (url.searchParams.has('error')) return redirect(response, withError(failure, 'denied'))
+  if (!link)
+    return redirect(response, returnUrl, 'identity.session=fake-session; Path=/; HttpOnly; SameSite=Lax')
+  const identities = identitiesOf(request)
+  if (identities.some((i) => i.provider === provider))
+    return redirect(response, withError(failure, 'provider_already_linked'))
+  identities.push({ id: randomUUID(), provider, linkedAt: new Date().toISOString() })
+  return redirect(response, returnUrl)
 }
 
+// The linked providers in the settings (#91): GET /api/v1/account/identities and DELETE /{id}. The last way to sign in,
+// which the API refuses to unlink, is tested by the backend (ExternalIdentityTests).
+function identitiesRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const identities = identitiesOf(request)
+  if (request.method === 'GET') return send(response, 200, identities)
+  const id = decodeURIComponent(url.pathname.split('/').at(-1))
+  if (!identities.some((i) => i.id === id))
+    return send(response, 404, { status: 404, code: 'external_identity_not_found' })
+  externalIdentities.set(
+    clientOf(request),
+    identities.filter((i) => i.id !== id),
+  )
+  return send(response, 204)
+}
 // Password reset (E03-05): a letter only to an address with a password (see `passwords` above), the same answer for
 // every address; the new password replaces the old one and the answer sets the provider's session cookie.
 const passwordResets = new Map() // email -> { id, code, sentAt }
@@ -2011,7 +2044,12 @@ createServer(async (request, response) => {
       maxNumber: null,
     })
   if (url.pathname.startsWith('/api/v1/sign-in/external') && request.method === 'GET')
-    return externalSignIn(response, url)
+    return externalSignIn(request, response, url)
+  if (
+    (url.pathname === '/api/v1/account/identities' && request.method === 'GET') ||
+    (url.pathname.startsWith('/api/v1/account/identities/') && request.method === 'DELETE')
+  )
+    return identitiesRoute(request, response, url)
   if (url.pathname.startsWith('/api/v1/sign-in/') && request.method === 'POST')
     return signIn(request, response, url)
   if (url.pathname.startsWith('/api/v1/registration') && request.method === 'POST')
