@@ -143,11 +143,60 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
     }
 
     [Fact]
+    public async Task HomeFeedAndAutoplayAreRememberedForEveryDevice()
+    {
+        using var laptop = api.CreateClient();
+        using var phone = api.CreateClient();
+
+        using var initial = await SendAsync(phone, HttpMethod.Get, _own, _anna);
+        var feeds = await FeedsOf(initial);
+        Assert.Equal("popular", feeds.GetProperty("homeFeed").GetString());
+        Assert.True(feeds.GetProperty("autoplayVideo").GetBoolean());
+
+        using var saved = await SendAsync(
+            laptop, HttpMethod.Put, _feeds, _anna, new { freshMinRating = 5, homeFeed = "fresh", autoplayVideo = false });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var read = await SendAsync(phone, HttpMethod.Get, _own, _anna);
+        feeds = await FeedsOf(read);
+        Assert.Equal("fresh", feeds.GetProperty("homeFeed").GetString());
+        Assert.False(feeds.GetProperty("autoplayVideo").GetBoolean());
+        Assert.Equal(5, feeds.GetProperty("freshMinRating").GetInt32());
+
+        // The feed's own filter sends only the threshold: the home feed and the autoplay stay.
+        using var filter = await SendAsync(phone, HttpMethod.Put, _feeds, _anna, new { freshMinRating = 10 });
+        feeds = await FeedsOf(filter);
+        Assert.Equal(10, feeds.GetProperty("freshMinRating").GetInt32());
+        Assert.Equal("fresh", feeds.GetProperty("homeFeed").GetString());
+        Assert.False(feeds.GetProperty("autoplayVideo").GetBoolean());
+
+        using var my = await SendAsync(phone, HttpMethod.Put, _feeds, _anna, new { freshMinRating = 10, homeFeed = "my" });
+        Assert.Equal("my", (await FeedsOf(my)).GetProperty("homeFeed").GetString());
+        Assert.Equal(1, await RowsAsync());
+    }
+
+    [Fact]
+    public async Task UnknownHomeFeedIsAValidationError()
+    {
+        using var client = api.CreateClient();
+
+        using var response = await SendAsync(
+            client, HttpMethod.Put, _feeds, _anna, new { freshMinRating = (int?)null, homeFeed = "best" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("errors").TryGetProperty("homeFeed", out _));
+        Assert.Equal(0, await RowsAsync());
+    }
+
+    [Fact]
     public async Task GuestHasNoFeedSettings()
     {
         using var client = api.CreateClient();
 
-        using var write = await SendAsync(client, HttpMethod.Put, _feeds, null, new { freshMinRating = 5 });
+        using var write = await SendAsync(
+            client, HttpMethod.Put, _feeds, null, new { freshMinRating = 5, homeFeed = "fresh", autoplayVideo = false });
 
         Assert.Equal(HttpStatusCode.Unauthorized, write.StatusCode);
         Assert.Equal(0, await RowsAsync());
@@ -192,6 +241,9 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
     private static async Task<string?> ThemeOf(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct))
             .GetProperty("general").GetProperty("theme").GetString();
+
+    private static async Task<JsonElement> FeedsOf(HttpResponseMessage response) =>
+        (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("feeds");
 
     private static async Task<JsonElement> FreshMinRatingOf(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct))

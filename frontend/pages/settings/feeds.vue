@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// «Ленты» of the settings (E04-08, FR-FEED, docs/ui/settings.md) at /settings/feeds. Only the section's place for now:
-// the feed on the home page, the sorting and the video autoplay come with E08-13 (#102), hiding what was seen with
-// E08-10 (#184). A guest signs in first and comes back here.
+// «Ленты» of the settings (E04-08, E08-13, FR-FEED, docs/ui/settings.md, ADR-0110) at /settings/feeds: the feed on the
+// home page, the rating threshold of «Свежее» and the video autoplay, kept in the account. Hiding what was seen comes
+// with E08-10 (#184); the sorting of «Моя лента» with #412. A guest signs in first and comes back here.
+import type { FeedPreferences } from '~/api/preferences'
+import { preferencesApi } from '~/api/preferences'
+import type { FreshRating } from '~/api/feeds'
+import FeedSettingsForm from '~/components/settings/FeedSettingsForm.vue'
 import SettingsScreen from '~/components/settings/SettingsScreen.vue'
 import { t } from '../../i18n'
 
@@ -10,17 +14,19 @@ useHead({ title: t('settings.feeds') })
 
 const account = useAccount()
 if (!account.value.signedIn) await navigateTo('/auth/sign-in?returnTo=/settings/feeds', { external: true })
+
+const api = preferencesApi()
+// «Свежее» in this tab reads with the threshold chosen here (composables/useFreshRating.ts).
+const freshRating = useState<FreshRating>('fresh:min-rating', () => null)
+const freshKnown = useState('fresh:min-rating-known', () => false)
+function adopt(feeds: FeedPreferences) {
+  freshRating.value = feeds.freshMinRating as FreshRating
+  freshKnown.value = true
+}
 </script>
 
 <template>
   <SettingsScreen :title="t('settings.feeds')" testid="settings-feeds">
-    <p class="settings-coming">{{ t('settings.feedsComing') }}</p>
+    <FeedSettingsForm :api="api" @saved="adopt" />
   </SettingsScreen>
 </template>
-
-<style scoped>
-.settings-coming {
-  margin: 0;
-  color: var(--color-muted);
-}
-</style>

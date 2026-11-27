@@ -248,9 +248,19 @@ namespace Platform.Modules.Preferences.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("account_id");
 
+                    b.Property<bool>("AutoplayVideo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("autoplay_video");
+
                     b.Property<int?>("FreshMinRating")
                         .HasColumnType("integer")
                         .HasColumnName("fresh_min_rating");
+
+                    b.Property<string>("HomeFeed")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("home_feed");
 
                     b.Property<string>("Theme")
                         .IsRequired()

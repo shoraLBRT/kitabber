@@ -1647,13 +1647,16 @@ async function setCover(request, response) {
 // Kept per client address, as the profile edits are: two browsers of one test sending the same `x-forwarded-for` are
 // two devices of the same person.
 const preferences = new Map() // client address -> { theme }
-const feedPreferences = new Map() // client address -> { freshMinRating } (E08-07, PUT /api/v1/preferences/me/feeds)
+// client address -> { freshMinRating, homeFeed, autoplayVideo } (E08-07, E08-13, PUT /api/v1/preferences/me/feeds)
+const feedPreferences = new Map()
+const feedDefaults = { freshMinRating: null, homeFeed: 'popular', autoplayVideo: true }
+const homeFeeds = ['popular', 'fresh', 'my']
 const themes = ['system', 'light', 'dark']
 
 function preferencesOf(request) {
   return {
     general: preferences.get(clientOf(request)) ?? { theme: 'system' },
-    feeds: feedPreferences.get(clientOf(request)) ?? { freshMinRating: null },
+    feeds: feedPreferences.get(clientOf(request)) ?? feedDefaults,
   }
 }
 
@@ -1672,7 +1675,15 @@ async function saveFeeds(request, response) {
       code: 'validation_failed',
       errors: { freshMinRating: ['invalid'] },
     })
-  feedPreferences.set(clientOf(request), { freshMinRating: rating })
+  if (input.homeFeed != null && !homeFeeds.includes(input.homeFeed))
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { homeFeed: ['invalid'] } })
+  // The home feed and the autoplay keep their saved values when left out (ADR-0110).
+  const saved = feedPreferences.get(clientOf(request)) ?? feedDefaults
+  feedPreferences.set(clientOf(request), {
+    freshMinRating: rating,
+    homeFeed: input.homeFeed ?? saved.homeFeed,
+    autoplayVideo: typeof input.autoplayVideo === 'boolean' ? input.autoplayVideo : saved.autoplayVideo,
+  })
   return send(response, 200, preferencesOf(request))
 }
 

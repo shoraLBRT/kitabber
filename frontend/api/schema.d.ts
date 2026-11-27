@@ -1291,10 +1291,14 @@ export interface components {
         FeedPreferencesInput: {
             /** Format: int32 */
             freshMinRating: null | number;
+            homeFeed?: null | string;
+            autoplayVideo?: null | boolean;
         };
         FeedPreferencesView: {
             /** Format: int32 */
             freshMinRating: null | number;
+            homeFeed: string;
+            autoplayVideo: boolean;
         };
         GeneralPreferencesInput: {
             theme: null | string;
