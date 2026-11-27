@@ -20,6 +20,12 @@ public sealed class AccountPreferences
     /// <summary>The theme of «Основные»; the left menu's switch changes the same choice.</summary>
     public ThemeChoice Theme { get; set; } = ThemeChoice.System;
 
+    /// <summary>
+    /// The rating filter of «Свежее» (E08-07, ADR-0106): the lowest rating shown, one of
+    /// <see cref="Platform.Modules.Posts.Contracts.FreshFeedRating.Thresholds"/>, or <c>null</c> for every post.
+    /// </summary>
+    public int? FreshMinRating { get; set; }
+
     public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>What an account has before it changes anything.</summary>

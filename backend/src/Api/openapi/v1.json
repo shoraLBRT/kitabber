@@ -2051,6 +2051,7 @@
           "Feeds"
         ],
         "summary": "Published posts, newest first, page by page with a cursor",
+        "description": "`minRating` keeps only the posts rated at least that much: `-10`, `5` or `10`; without it, every post.",
         "operationId": "GetFreshFeed",
         "parameters": [
           {
@@ -2062,6 +2063,14 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "minRating",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -3412,6 +3421,57 @@
         }
       }
     },
+    "/api/v1/preferences/me/feeds": {
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Changes the section «Ленты» of the signed-in account's settings",
+        "operationId": "PutOwnFeedPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedPreferencesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/preferences/me/blocks": {
       "get": {
         "tags": [
@@ -4364,6 +4424,36 @@
           }
         }
       },
+      "FeedPreferencesInput": {
+        "required": [
+          "freshMinRating"
+        ],
+        "type": "object",
+        "properties": {
+          "freshMinRating": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "FeedPreferencesView": {
+        "required": [
+          "freshMinRating"
+        ],
+        "type": "object",
+        "properties": {
+          "freshMinRating": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "GeneralPreferencesInput": {
         "required": [
           "theme"
@@ -5001,12 +5091,16 @@
       },
       "PreferencesView": {
         "required": [
-          "general"
+          "general",
+          "feeds"
         ],
         "type": "object",
         "properties": {
           "general": {
             "$ref": "#/components/schemas/GeneralPreferencesView"
+          },
+          "feeds": {
+            "$ref": "#/components/schemas/FeedPreferencesView"
           }
         }
       },

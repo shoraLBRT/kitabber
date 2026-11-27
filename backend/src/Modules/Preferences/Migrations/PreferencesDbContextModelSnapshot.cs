@@ -248,6 +248,10 @@ namespace Platform.Modules.Preferences.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("account_id");
 
+                    b.Property<int?>("FreshMinRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("fresh_min_rating");
+
                     b.Property<string>("Theme")
                         .IsRequired()
                         .HasMaxLength(16)
