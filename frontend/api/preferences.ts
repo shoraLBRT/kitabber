@@ -43,3 +43,16 @@ export function preferencesApi(): PreferencesApi {
       ),
   }
 }
+
+/**
+ * PUT /api/v1/preferences/me/feeds with the person's token (E08-07, ADR-0106): the rating filter of «Свежее», `null`
+ * for every post. The API's status, 0 when it could not be reached.
+ */
+export async function saveOwnFeeds(client: ApiClient, freshMinRating: number | null): Promise<number> {
+  try {
+    const { response } = await client.PUT('/api/v1/preferences/me/feeds', { body: { freshMinRating } })
+    return response.status
+  } catch {
+    return 0
+  }
+}

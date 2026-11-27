@@ -268,6 +268,13 @@ export default {
     topAll: 'За всё время',
     topEmpty: 'За этот период постов пока нет. Загляните в другой период или в «Свежее».',
     topFresh: 'Открыть «Свежее»',
+    // The rating filter of «Свежее» (E08-07, ADR-0106).
+    freshRating: 'Рейтинг',
+    freshRatingAll: 'Все',
+    freshRatingFrom: 'От {value}',
+    freshRatingEmpty: 'С таким рейтингом постов пока нет. Выберите порог пониже или посмотрите все посты.',
+    freshRatingShowAll: 'Показать все',
+    freshRatingNotSaved: 'Фильтр применён, но не сохранился в настройках.',
   },
   post: {
     post: 'Пост',

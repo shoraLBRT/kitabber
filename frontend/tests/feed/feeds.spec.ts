@@ -48,6 +48,19 @@ describe('loadFreshFeed', () => {
     )
   })
 
+  it('asks the server for the threshold of the rating filter, with the cursor or without', async () => {
+    const { client, fetch } = clientAnswering(200, { items: [], nextCursor: null })
+    await loadFreshFeed(client, null, 5)
+    await loadFreshFeed(client, 'Mg', -10)
+    await loadFreshFeed(client, null, null)
+    const urls = (fetch.mock.calls as unknown as [Request][]).map(([request]) => request.url)
+    expect(urls).toEqual([
+      'http://api.test/api/v1/feeds/fresh?minRating=5',
+      'http://api.test/api/v1/feeds/fresh?cursor=Mg&minRating=-10',
+      'http://api.test/api/v1/feeds/fresh',
+    ])
+  })
+
   it('is an error when the API fails or cannot be reached', async () => {
     expect(await loadFreshFeed(clientAnswering(400, { code: 'invalid_cursor' }).client, 'x')).toEqual({
       status: 'error',

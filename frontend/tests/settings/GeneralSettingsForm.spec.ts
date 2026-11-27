@@ -32,7 +32,7 @@ function fakeAccount(theme: ThemeChoice, options: { load?: boolean; save?: boole
   const saved: ThemeChoice[] = []
   const api: PreferencesApi = {
     load: vi.fn(async (): Promise<Preferences | null> =>
-      options.load === false ? null : { general: { theme } },
+      options.load === false ? null : { general: { theme }, feeds: { freshMinRating: null } },
     ),
     saveGeneral: vi.fn(async (value: ThemeChoice) => {
       if (options.save === false) return false
@@ -108,7 +108,7 @@ describe('GeneralSettingsForm', () => {
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toBe('Проверьте соединение и попробуйте ещё раз.')
-    vi.mocked(api.load).mockResolvedValueOnce({ general: { theme: 'dark' } })
+    vi.mocked(api.load).mockResolvedValueOnce({ general: { theme: 'dark' }, feeds: { freshMinRating: null } })
     await wrapper.get('button').trigger('click')
     await flushPromises()
 

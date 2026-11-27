@@ -1092,6 +1092,19 @@ function myFeed(request, response, url) {
   return freshFeed(response, url, (post) => own.has(post.blogId) || followed.has(post.authorAccountId))
 }
 
+// The rating filter of the fresh feed (E08-07, ADR-0106): `minRating` keeps the posts the others' likes rate at least
+// that much (none of the posts above reaches +5, every one reaches −10); another value is refused as the API does.
+const freshThresholds = ['-10', '5', '10']
+
+function filteredFreshFeed(response, url) {
+  const threshold = url.searchParams.get('minRating')
+  if (threshold === null) return freshFeed(response, url)
+  if (!freshThresholds.includes(threshold))
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { minRating: ['invalid'] } })
+  const rating = (post) => othersLikes.get(`post:${post.id}`) ?? 0
+  return freshFeed(response, url, (post) => rating(post) >= Number(threshold))
+}
+
 function freshFeed(response, url, only = () => true) {
   const sorted = [...posts]
     .filter(only)
@@ -1573,11 +1586,33 @@ async function setCover(request, response) {
 // Kept per client address, as the profile edits are: two browsers of one test sending the same `x-forwarded-for` are
 // two devices of the same person.
 const preferences = new Map() // client address -> { theme }
+const feedPreferences = new Map() // client address -> { freshMinRating } (E08-07, PUT /api/v1/preferences/me/feeds)
 const themes = ['system', 'light', 'dark']
+
+function preferencesOf(request) {
+  return {
+    general: preferences.get(clientOf(request)) ?? { theme: 'system' },
+    feeds: feedPreferences.get(clientOf(request)) ?? { freshMinRating: null },
+  }
+}
 
 function ownPreferences(request, response) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
-  return send(response, 200, { general: preferences.get(clientOf(request)) ?? { theme: 'system' } })
+  return send(response, 200, preferencesOf(request))
+}
+
+async function saveFeeds(request, response) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = JSON.parse((await readBody(request)) || '{}')
+  const rating = input.freshMinRating ?? null
+  if (rating !== null && !freshThresholds.includes(String(rating)))
+    return send(response, 400, {
+      status: 400,
+      code: 'validation_failed',
+      errors: { freshMinRating: ['invalid'] },
+    })
+  feedPreferences.set(clientOf(request), { freshMinRating: rating })
+  return send(response, 200, preferencesOf(request))
 }
 
 async function saveGeneral(request, response) {
@@ -1590,7 +1625,7 @@ async function saveGeneral(request, response) {
       errors: { theme: ['Тема — system, light или dark.'] },
     })
   preferences.set(clientOf(request), { theme: input.theme })
-  return send(response, 200, { general: { theme: input.theme } })
+  return send(response, 200, preferencesOf(request))
 }
 
 async function uploadMedia(request, response) {
@@ -1751,6 +1786,8 @@ createServer(async (request, response) => {
     return ownPreferences(request, response)
   if (url.pathname === '/api/v1/preferences/me/general' && request.method === 'PUT')
     return saveGeneral(request, response)
+  if (url.pathname === '/api/v1/preferences/me/feeds' && request.method === 'PUT')
+    return saveFeeds(request, response)
   if (url.pathname === '/api/v1/profiles/me' && request.method === 'PUT')
     return editProfile(request, response)
   if (url.pathname === '/api/v1/profiles/me/onboarding' && request.method === 'POST')
@@ -1813,7 +1850,8 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/topics/catalog' && request.method === 'GET')
     return topicCatalog(request, response, url)
   if (url.pathname === '/api/v1/topics/menu' && request.method === 'GET') return topicMenu(request, response)
-  if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET') return freshFeed(response, url)
+  if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET')
+    return filteredFreshFeed(response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
   if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
