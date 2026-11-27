@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The onboarding after sign-up (E03-10, FR-AUTH, ADR-0102, docs/ui/onboarding.md) at /onboarding?returnTo=…: the sign-in
+// The onboarding after sign-up (E03-10, FR-AUTH, ADR-0102) at /onboarding?returnTo=…: the sign-in
 // callback leads a new account here once, and the page leads on to `returnTo` when it is done or was done already. A
 // guest signs in first. The own profile is read on the server with the person's access token, later loads and the save
 // go through the site's server (server/routes/bff, ADR-0018); the topics come from the open catalogue.

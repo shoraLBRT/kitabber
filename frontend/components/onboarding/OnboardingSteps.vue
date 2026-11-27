@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The onboarding after sign-up (E03-10, FR-AUTH, ADR-0102, docs/ui/onboarding.md): the name, the avatar and the
+// The onboarding after sign-up (E03-10, FR-AUTH, ADR-0102): the name, the avatar and the
 // topics, one step at a time. Every step has «Пропустить»: it drops that step's choice and goes on, so nothing here
 // can keep the person from the site. The choices are sent once, on the last step: the avatar is uploaded through the
 // media service first (ADR-0034), then the name, the avatar and the topics go to the API together. A field error of

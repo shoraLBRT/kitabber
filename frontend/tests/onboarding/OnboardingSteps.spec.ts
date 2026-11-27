@@ -14,7 +14,7 @@ import {
 import type { Profile } from '../../api/profiles'
 import type { TopicCard } from '../../api/topics'
 
-// The onboarding (E03-10, ADR-0102, docs/ui/onboarding.md): the name checked before it is sent, every step skippable,
+// The onboarding (E03-10, ADR-0102): the name checked before it is sent, every step skippable,
 // the chosen topics and the avatar sent once at the end, and the states of the topic step (loading, error, empty).
 // The crop needs a real canvas, so the cropper is a stand-in; e2e/onboarding.spec.ts checks the flow in a browser.
 const newcomer: Profile = {
