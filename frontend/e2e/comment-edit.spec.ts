@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, expectNoHorizontalScroll, isTouch, press, test, waitForHydration } from './fixtures'
 
 // Changing and deleting an own comment (E09-05, FR-COMMENT, ADR-0059) in both profiles against the fake API
-// (e2e/fake-api.mjs, which answers a change without keeping it): the «…» menu only on the person's own comments, a
+// (e2e/fake-api.mjs, which answers a change without keeping it): the author's «…» menu on the person's own comments, a
 // dropdown on a wide screen and a bottom sheet on a phone; «Редактировать» only while the time to change the text
 // lasts, then the mark «изменено»; a deleted comment with replies stays as the stub «Комментарий удалён», one without
 // replies goes. The states of the menu and the form are in tests/comments/CommentEdit.spec.ts.
@@ -59,13 +59,13 @@ async function deleteComment(page: Page, comment: Locator) {
 test.use({ actionTimeout: 10_000 })
 
 test.describe('правка и удаление комментария', () => {
-  test('меню есть только у своих комментариев, после срока — только «Удалить»', async ({ page }) => {
+  // Someone else's comment has its own menu with «Заблокировать автора» (E11-06): e2e/black-list.spec.ts.
+  test('у своего комментария после срока — только «Удалить»', async ({ page }) => {
     await signIn(page)
     const comments = await openPost(page, titled)
     const own = thread(comments, 'Первый уровень')
     const foreign = thread(comments, 'Вторая ветка')
     await expect(menuOf(own)).toBeVisible()
-    await expect(menuOf(foreign)).toHaveCount(0)
     await expect(foreign.locator(':scope > .comment__head').getByTestId('comment-edited')).toHaveText(
       '· изменено',
     )

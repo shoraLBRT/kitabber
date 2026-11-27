@@ -4,8 +4,10 @@
 // keeps the items whose feature is not built yet behind their flags. A dropdown menu (UiMenu) on a wide screen, a
 // bottom sheet on a phone (narrower than 640 px). Deleting asks first in a dialog; `remove` deletes, and the dialog
 // stays open with a toast when it fails. The flagged items are only passed on (`action`) to the tasks that build them.
+// «Заблокировать автора» (E11-06, ADR-0091), for a signed-in reader with the author known, asks first in BlockDialog.
 import { Ellipsis } from 'lucide-vue-next'
 import { computed, nextTick, ref } from 'vue'
+import BlockDialog from '../blocks/BlockDialog.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
 import UiModal from '../ui/UiModal.vue'
@@ -28,18 +30,21 @@ const props = withDefaults(
     features?: PostMenuFeatures
     /** Deletes the post; `true` once it is deleted (the page then leaves), `false` when it failed. */
     remove?: () => Promise<boolean>
+    /** The author a signed-in reader may block: the account and its blog's title; `null` offers no blocking. */
+    author?: { accountId: string; name: string } | null
   }>(),
-  { features: () => noPostMenuFeatures, remove: undefined },
+  { features: () => noPostMenuFeatures, remove: undefined, author: null },
 )
 
-const emit = defineEmits<{ action: [action: Exclude<PostMenuAction, 'delete' | 'copy-link'>] }>()
+const emit = defineEmits<{ action: [action: Exclude<PostMenuAction, 'delete' | 'copy-link' | 'block'>] }>()
 
 const label = t('post.menu')
 const toast = useToast()
 const isPhone = useMediaQuery(phoneQuery)
-const items = computed(() => postMenuItems(props.own, props.features))
+const items = computed(() => postMenuItems(props.own, props.features, props.author !== null))
 const sheetOpen = ref(false)
 const confirmOpen = ref(false)
+const blockOpen = ref(false)
 const deleting = ref(false)
 
 // The link is copied at once, while the tap still counts as the person's gesture; the confirmation opens only once the
@@ -50,6 +55,7 @@ async function choose(id: string) {
   sheetOpen.value = false
   await nextTick()
   if (action === 'delete') confirmOpen.value = true
+  else if (action === 'block') blockOpen.value = true
   else if (action !== 'copy-link') emit('action', action)
 }
 
@@ -116,6 +122,7 @@ async function confirmDelete() {
         </UiButton>
       </template>
     </UiModal>
+    <BlockDialog v-if="author" v-model:open="blockOpen" :account-id="author.accountId" :name="author.name" />
   </div>
 </template>
 

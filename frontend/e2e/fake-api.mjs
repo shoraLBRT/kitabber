@@ -295,14 +295,19 @@ function sessionsOf(request) {
 // Kept per client address; the fake provider's account starts with Борис (whose blog is in `blogs`) blocked.
 const blackLists = new Map() // client address -> [{ accountId, blockedAt }], the latest first
 
-function blocksRoute(request, response, url) {
-  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+function blackListOf(request) {
   const client = clientOf(request)
   if (!blackLists.has(client))
     blackLists.set(client, [
       { accountId: '0195f3a0-0000-7000-8000-000000000002', blockedAt: '2026-11-25T10:00:00Z' },
     ])
-  const list = blackLists.get(client)
+  return blackLists.get(client)
+}
+
+function blocksRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const client = clientOf(request)
+  const list = blackListOf(request)
   if (request.method === 'GET') return send(response, 200, { accounts: list, max: 1000 })
   const accountId = decodeURIComponent(url.pathname.split('/').pop() ?? '')
   const rest = list.filter((entry) => entry.accountId !== accountId)
@@ -770,12 +775,20 @@ function commentTree(response, url) {
 
 // Writing a comment (E09-03): POST /api/v1/posts/{postId}/comments with the checks of the server (a signed-in account,
 // a text, a parent under the post that takes replies). The comment is answered, not kept: tests run in parallel against
-// one fake, and the trees the other tests read stay as they are. A text «сбой» fails as the server would.
+// one fake, and the trees the other tests read stay as they are. A text «сбой» fails as the server would. Борис has
+// blocked the fake provider's account (E11-06, ADR-0091): a comment under his post «Книги осени» is refused with
+// `403 comments.blocked`.
 async function writeComment(request, response, postId) {
   const account = subject(request)
   if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
-  if (!posts.some((item) => item.id === postId))
-    return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+  const post = posts.find((item) => item.id === postId)
+  if (!post) return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+  if (post.authorAccountId === blogs[1].owner && account !== blogs[1].owner)
+    return send(response, 403, {
+      status: 403,
+      code: 'comments.blocked',
+      detail: 'Автор заблокировал вас: отвечать ему нельзя.',
+    })
   const input = JSON.parse((await readBody(request)) || '{}')
   const text = typeof input.text === 'string' ? input.text.trim() : ''
   if (text === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
@@ -1490,10 +1503,18 @@ function profile(request, response, url) {
     // A topic names its owner's personal blog (ADR-0082).
     const ownersBlog =
       blog.type === 'topic' && blogs.find((item) => item.type === 'personal' && item.owner === blogOwner)
+    // A personal blog names its owner's account and whether the reader blocked it (E11-06, ADR-0091).
+    const personal = blog.type === 'personal'
     return {
       ...rest,
       registeredAt: blogOwner === reader ? registeredAt : null,
       owner: ownersBlog ? { id: ownersBlog.id, name: ownersBlog.name, nickname: ownersBlog.nickname } : null,
+      accountId: personal ? blogOwner : null,
+      blocked:
+        Boolean(reader) &&
+        personal &&
+        blogOwner !== reader &&
+        blackListOf(request).some((entry) => entry.accountId === blogOwner),
     }
   }
   const [, kind, value] =

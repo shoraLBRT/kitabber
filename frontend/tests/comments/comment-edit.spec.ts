@@ -5,6 +5,7 @@ import {
   deleteComment,
   editComment,
   loadOwnComments,
+  withAuthorBlocked,
   withDeleted,
   withEdited,
 } from '../../api/comments'
@@ -44,6 +45,33 @@ describe('commentMenuItems', () => {
   it('has nothing for someone else’s comment or a deleted one', () => {
     expect(commentMenuItems(comment('1', null, 1), false, inTime)).toEqual([])
     expect(commentMenuItems({ ...comment('1', null, 1), deleted: true }, true, inTime)).toEqual([])
+  })
+
+  // E11-06 (ADR-0091): a reader who may block gets «Заблокировать автора» on someone else's native comment only.
+  it('offers a reader who may block «Заблокировать автора» on someone else’s comment', () => {
+    const ids = (items: ReturnType<typeof commentMenuItems>) => items.map((item) => item.id)
+    expect(commentMenuItems(comment('1', null, 1), false, inTime, true).map((item) => item.label)).toEqual([
+      'Заблокировать автора',
+    ])
+    expect(ids(commentMenuItems(comment('1', null, 1), true, inTime, true))).toEqual(['edit', 'delete'])
+    expect(commentMenuItems({ ...comment('1', null, 1), authorBlocked: true }, false, inTime, true)).toEqual(
+      [],
+    )
+    expect(commentMenuItems({ ...comment('1', null, 1), deleted: true }, false, inTime, true)).toEqual([])
+    const guest = { ...comment('1', null, 1), kind: 'guest' as const, authorAccountId: null }
+    expect(commentMenuItems(guest, false, inTime, true)).toEqual([])
+  })
+})
+
+describe('withAuthorBlocked', () => {
+  it('folds every comment of the blocked author and leaves the others', () => {
+    const tree = [
+      comment('1', null, 1, 1, 'a1'),
+      comment('1.1', '1', 2, 0, 'a2'),
+      comment('2', null, 1, 0, 'A1'),
+    ]
+    const after = withAuthorBlocked(tree, 'a1')
+    expect(after.map((c) => c.authorBlocked)).toEqual([true, false, true])
   })
 })
 

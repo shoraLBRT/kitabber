@@ -2,9 +2,11 @@
 // The «…» menu of a comment (E09-05, docs/ui/comments.md, ADR-0059): its items come from utils/comment-menu.ts. A
 // dropdown menu (UiMenu) on a wide screen, a bottom sheet on a phone (narrower than 640 px), as the post's menu.
 // «Удалить» asks first in a dialog; `remove` deletes, and the dialog stays open with a toast when it fails.
-// «Редактировать» is passed on (`edit`): the comment opens its text in a form.
+// «Редактировать» is passed on (`edit`): the comment opens its text in a form. «Заблокировать автора» (E11-06,
+// ADR-0091) asks first in BlockDialog and says once the author is blocked (`blocked`).
 import { Ellipsis } from 'lucide-vue-next'
 import { nextTick, ref } from 'vue'
+import BlockDialog from '../blocks/BlockDialog.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiMenu from '../ui/UiMenu.vue'
 import UiModal from '../ui/UiModal.vue'
@@ -18,15 +20,18 @@ const props = defineProps<{
   items: CommentMenuItem[]
   /** Deletes the comment; `false` when it failed. */
   remove: () => Promise<boolean>
+  /** The author «Заблокировать автора» blocks: the account and its blog's title. */
+  author?: { accountId: string; name: string } | null
 }>()
 
-const emit = defineEmits<{ edit: [] }>()
+const emit = defineEmits<{ edit: []; blocked: [] }>()
 
 const label = t('comments.menu')
 const toast = useToast()
 const isPhone = useMediaQuery(phoneQuery)
 const sheetOpen = ref(false)
 const confirmOpen = ref(false)
+const blockOpen = ref(false)
 const deleting = ref(false)
 
 // The confirmation opens only once the sheet is gone, so one dialog closes (and gives focus back) before the next.
@@ -35,6 +40,7 @@ async function choose(id: string) {
   sheetOpen.value = false
   await nextTick()
   if (action === 'delete') confirmOpen.value = true
+  else if (action === 'block') blockOpen.value = true
   else emit('edit')
 }
 
@@ -105,6 +111,13 @@ async function confirmDelete() {
         </UiButton>
       </template>
     </UiModal>
+    <BlockDialog
+      v-if="author"
+      v-model:open="blockOpen"
+      :account-id="author.accountId"
+      :name="author.name"
+      @blocked="emit('blocked')"
+    />
   </div>
 </template>
 

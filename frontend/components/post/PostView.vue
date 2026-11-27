@@ -29,6 +29,8 @@ const props = defineProps<{
    * tree; without them «Нравится» is shown and disabled.
    */
   likes?: Likes | null
+  /** The reader is signed in: someone else's post then offers «Заблокировать автора» in its menu (E11-06). */
+  signedIn?: boolean
 }>()
 
 defineEmits<{ retry: [] }>()
@@ -46,6 +48,16 @@ const dateFormat = new Intl.DateTimeFormat(locale, {
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
 
 const publishedId = computed(() => (found.value?.post.status === 'published' ? found.value.post.id : null))
+
+// The author a signed-in reader may block from the menu (E11-06, ADR-0091): never the reader themselves.
+const blockable = computed(() =>
+  found.value && props.signedIn && !found.value.own
+    ? {
+        accountId: found.value.post.authorAccountId,
+        name: found.value.author ? blogTitle(found.value.author) : t('common.author'),
+      }
+    : null,
+)
 
 // The blog is named apart from the author only when it is not the author's own: a topic.
 const inBlog = computed(() =>
@@ -102,7 +114,13 @@ const inBlog = computed(() =>
           dateFormat.format(new Date(found.post.publishedAt))
         }}</time>
       </p>
-      <PostMenu :own="found.own" :path="found.path" :features="features" :remove="remove" />
+      <PostMenu
+        :own="found.own"
+        :path="found.path"
+        :features="features"
+        :remove="remove"
+        :author="blockable"
+      />
     </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title" dir="auto">
       {{ isolateRtlText(found.post.title) }}

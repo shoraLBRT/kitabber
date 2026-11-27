@@ -32,6 +32,7 @@ const {
   pending,
   failures,
   own,
+  ownRead,
   sort,
   phone,
   retry,
@@ -41,6 +42,7 @@ const {
   remove,
   dismiss,
   order,
+  blocked,
 } = useComments(
   () => props.postId,
   () => props.branchId,
@@ -107,11 +109,13 @@ onMounted(() => {
     :branch-link="branchLink"
     :branch="branchId !== null"
     :likes="likes"
+    :can-block="account.signedIn && ownRead"
     @retry="retry()"
     @sort="order"
     @more="more"
     @send="send"
     @dismiss="dismiss"
     @sign-in="signIn"
+    @blocked="blocked"
   />
 </template>

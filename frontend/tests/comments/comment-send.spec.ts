@@ -124,6 +124,17 @@ describe('sendComment', () => {
     })
     expect(await sendComment(thrown.api, 'p1', 'Текст', null)).toEqual({ status: 'error' })
   })
+
+  // E11-06 (ADR-0091): the author blocked the person; another 403 stays a plain failure.
+  it('tells a black list apart from other refusals', async () => {
+    const blocked = client(async () => ({
+      error: { code: 'comments.blocked', detail: 'Автор заблокировал вас: отвечать ему нельзя.' },
+      response: { status: 403 },
+    }))
+    expect(await sendComment(blocked.api, 'p1', 'Ответ', '1')).toEqual({ status: 'blocked' })
+    const forbidden = client(async () => ({ error: { code: 'forbidden' }, response: { status: 403 } }))
+    expect(await sendComment(forbidden.api, 'p1', 'Ответ', '1')).toEqual({ status: 'error' })
+  })
 })
 
 describe('comment drafts', () => {

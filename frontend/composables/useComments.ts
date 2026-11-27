@@ -14,6 +14,7 @@ import {
   loadComments,
   replaceComment,
   unknownAuthors,
+  withAuthorBlocked,
   withBranch,
   withComment,
   withoutComment,
@@ -39,6 +40,7 @@ import { t } from '../i18n'
 
 const sendFailure = t('comments.sendFailed')
 const signedOut = t('comments.signedOut')
+const blockedByAuthor = t('comments.blockedByAuthor')
 const editFailure = t('comments.editFailed')
 const editSignedOut = t('comments.editSignedOut')
 
@@ -80,6 +82,9 @@ export function useComments(postId: () => string, branchId: () => string | null 
   const pending = ref<Record<string, true>>({})
   const failures = ref<Record<FormTarget, CommentFailure>>({})
   const own = ref<Record<string, true>>({})
+  // The own comments are known (E11-06): only then may someone else's comment offer «Заблокировать автора», so the
+  // person's own comment never does while they are read.
+  const ownRead = ref(false)
   const sort = ref<CommentSort>('popular')
   // A phone reads fewer levels and opens a deeper branch on its own screen (E09-06); known once the page is shown.
   const phone = ref(false)
@@ -125,6 +130,12 @@ export function useComments(postId: () => string, branchId: () => string | null 
     if (!account.value.signedIn) return
     const ids = await ownComments(postId())
     own.value = { ...own.value, ...Object.fromEntries(ids.map((id) => [id, true as const])) }
+    ownRead.value = true
+  }
+
+  /** The reader blocked `accountId` (E11-06): that author's comments fold at once. */
+  function blocked(accountId: string) {
+    update((comments) => withAuthorBlocked(comments, accountId))
   }
 
   async function more(commentId: string) {
@@ -178,6 +189,10 @@ export function useComments(postId: () => string, branchId: () => string | null 
       return
     }
     update((comments) => withoutComment(comments, local.id))
+    if (result.status === 'blocked') {
+      failures.value = { ...failures.value, [target]: { text, message: blockedByAuthor, blocked: true } }
+      return
+    }
     const message =
       result.status === 'refused'
         ? result.message
@@ -241,8 +256,10 @@ export function useComments(postId: () => string, branchId: () => string | null 
     pending,
     failures,
     own,
+    ownRead,
     sort,
     phone,
+    blocked,
     retry: load,
     more,
     send,

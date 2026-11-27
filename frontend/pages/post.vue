@@ -67,6 +67,7 @@ usePostViews(() =>
 
 const features = useRuntimeConfig().public.features
 const toast = useToast()
+const account = useAccount()
 
 async function remove(): Promise<boolean> {
   const found = data.value
@@ -92,5 +93,12 @@ useHead(() => ({
 </script>
 
 <template>
-  <PostView :state="state" :features="features" :remove="remove" :likes="likes" @retry="refresh()" />
+  <PostView
+    :state="state"
+    :features="features"
+    :remove="remove"
+    :likes="likes"
+    :signed-in="account.signedIn"
+    @retry="refresh()"
+  />
 </template>

@@ -56,13 +56,16 @@ async function unfold() {
   field.value?.focus()
 }
 
+// The author blocked the person (E11-06, ADR-0091): the form says so and does not send again, but keeps the text.
+const blocked = computed(() => failure.value?.blocked === true)
+
 function onInput() {
   saveCommentDraft(draftStorage(), draftKey.value, text.value)
-  if (failure.value) tree.dismiss(target.value)
+  if (failure.value && !blocked.value) tree.dismiss(target.value)
 }
 
 function submit() {
-  if (blank.value) return
+  if (blank.value || blocked.value) return
   if (!tree.signedIn.value) {
     tree.signIn(target.value)
     return
@@ -123,7 +126,7 @@ onMounted(() => {
         :id="`${fieldId}-error`"
         class="comment-form__error"
         role="alert"
-        data-testid="comment-form-error"
+        :data-testid="blocked ? 'comment-form-blocked' : 'comment-form-error'"
       >
         {{ failure.message }}
       </p>
@@ -137,7 +140,7 @@ onMounted(() => {
         >
           {{ t('actions.cancel') }}
         </UiButton>
-        <UiButton type="submit" size="sm" :disabled="blank" data-testid="comment-form-send">{{
+        <UiButton type="submit" size="sm" :disabled="blank || blocked" data-testid="comment-form-send">{{
           t('actions.send')
         }}</UiButton>
       </div>

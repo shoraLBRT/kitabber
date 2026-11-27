@@ -4899,6 +4899,17 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "accountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "blocked": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

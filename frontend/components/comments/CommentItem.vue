@@ -35,10 +35,17 @@ const editing = ref(false)
 // A comment of an author the reader blocked comes folded, with «Показать» (E11-06, ADR-0091).
 const revealed = ref(false)
 const folded = computed(() => comment.value.authorBlocked && !comment.value.deleted && !revealed.value)
+// Someone else's comment has «Заблокировать автора» in the menu for a signed-in reader (E11-06): once blocked, every
+// comment of that author in the tree folds.
 const menuItems = computed(() =>
   sending.value
     ? []
-    : commentMenuItems(comment.value, tree.own.value[comment.value.id] === true, tree.now.value),
+    : commentMenuItems(
+        comment.value,
+        tree.own.value[comment.value.id] === true,
+        tree.now.value,
+        tree.canBlock.value,
+      ),
 )
 const profile = computed(() =>
   comment.value.authorAccountId ? tree.authors.value.get(comment.value.authorAccountId) : undefined,
@@ -53,6 +60,9 @@ const name = computed(() =>
       : sending.value
         ? t('comments.you')
         : t('common.author'),
+)
+const blockable = computed(() =>
+  comment.value.authorAccountId ? { accountId: comment.value.authorAccountId, name: name.value } : null,
 )
 
 // «Нравится» (E10-01, ADR-0061): on a native comment that is kept and not deleted; a guest comment takes no likes, and
@@ -153,7 +163,14 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
         data-testid="comment-edited"
         >{{ t('comments.edited') }}</span
       >
-      <CommentMenu v-if="menuItems.length > 0" :items="menuItems" :remove="remove" @edit="editing = true" />
+      <CommentMenu
+        v-if="menuItems.length > 0"
+        :items="menuItems"
+        :remove="remove"
+        :author="blockable"
+        @edit="editing = true"
+        @blocked="blockable && tree.blocked(blockable.accountId)"
+      />
     </div>
     <CommentEdit
       v-if="editing && !comment.deleted"
