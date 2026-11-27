@@ -111,8 +111,9 @@ public sealed class PreferenceApiTests(PreferencesApi api) : IClassFixture<Prefe
         Assert.Equal(5, (await FreshMinRatingOf(saved)).GetInt32());
 
         using var read = await SendAsync(phone, HttpMethod.Get, _own, _anna);
-        Assert.Equal(5, (await FreshMinRatingOf(read)).GetInt32());
-        Assert.Equal("system", await ThemeOf(read));
+        var body = await read.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal(5, body.GetProperty("feeds").GetProperty("freshMinRating").GetInt32());
+        Assert.Equal("system", body.GetProperty("general").GetProperty("theme").GetString());
 
         // The theme saved later keeps the threshold; «все» clears it.
         using var theme = await SendAsync(phone, HttpMethod.Put, _general, _anna, new { theme = "dark" });
