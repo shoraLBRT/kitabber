@@ -7,7 +7,8 @@
 // The person's own comment has the «…» menu (E09-05, ADR-0059): «Редактировать» opens its text in a form while the time
 // lasts, «Удалить» asks first. A changed text is marked «изменено»; a deleted comment with replies is the stub
 // «Комментарий удалён», with no author, no text and no actions, over its replies. «Нравится» with the count stands
-// before «Ответить» (E10-01).
+// before «Ответить» (E10-01). The time links to the comment itself (E09-07, ADR-0107), «Скопировать ссылку» in the menu
+// copies that link, and the comment a link named is highlighted.
 import { computed, inject, ref, watch } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import CommentEdit from './CommentEdit.vue'
@@ -37,6 +38,10 @@ const revealed = ref(false)
 const folded = computed(() => comment.value.authorBlocked && !comment.value.deleted && !revealed.value)
 // Someone else's comment has «Заблокировать автора» in the menu for a signed-in reader (E11-06): once blocked, every
 // comment of that author in the tree folds.
+// The permanent link of the comment (E09-07, ADR-0107): its time leads there and the menu copies it.
+const link = computed(() => (sending.value ? null : (tree.commentLink.value?.(comment.value.id) ?? null)))
+// The comment a link named stands out (E09-07).
+const highlighted = computed(() => tree.highlighted.value === comment.value.id)
 const menuItems = computed(() =>
   sending.value
     ? []
@@ -45,6 +50,7 @@ const menuItems = computed(() =>
         tree.own.value[comment.value.id] === true,
         tree.now.value,
         tree.canBlock.value,
+        link.value !== null,
       ),
 )
 const profile = computed(() =>
@@ -113,12 +119,13 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
 <template>
   <li
     class="comment"
-    :class="{ 'comment--sending': sending }"
+    :class="{ 'comment--sending': sending, 'comment--highlighted': highlighted }"
     :aria-level="comment.depth"
     :aria-labelledby="titleId"
     :aria-busy="sending ? 'true' : undefined"
     data-testid="comment"
     :data-comment-id="comment.id"
+    :data-highlighted="highlighted ? 'true' : undefined"
   >
     <p v-if="comment.deleted" :id="titleId" class="comment__deleted" data-testid="comment-deleted">
       {{ t('comments.deleted') }}
@@ -153,6 +160,16 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
       <span v-if="sending" class="comment__time" data-testid="comment-sending">{{
         t('comments.sending')
       }}</span>
+      <NuxtLink
+        v-else-if="link"
+        :to="link"
+        class="comment__time comment__permalink"
+        :aria-label="t('comments.permalink', { time: timeFormat.format(new Date(comment.createdAt)) })"
+        data-testid="comment-permalink"
+        ><time :datetime="comment.createdAt">{{
+          timeFormat.format(new Date(comment.createdAt))
+        }}</time></NuxtLink
+      >
       <time v-else class="comment__time" :datetime="comment.createdAt">{{
         timeFormat.format(new Date(comment.createdAt))
       }}</time>
@@ -168,6 +185,7 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
         :items="menuItems"
         :remove="remove"
         :author="blockable"
+        :link="link"
         @edit="editing = true"
         @blocked="blockable && tree.blocked(blockable.accountId)"
       />
@@ -301,6 +319,25 @@ a.comment__author:hover {
   flex: none;
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+}
+
+.comment__permalink {
+  text-decoration: none;
+}
+
+.comment__permalink:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* The comment a link named (E09-07): its own lines, not its replies, on a tinted ground with an accent edge. */
+.comment--highlighted
+  > :is(.comment__head, .comment__text, .comment__deleted, .comment__folded, .comment__actions) {
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  box-shadow:
+    0 0 0 var(--space-1) var(--color-surface-subtle),
+    calc(-1 * var(--space-1)) 0 0 var(--space-1) var(--color-accent);
 }
 
 .comment__folded {

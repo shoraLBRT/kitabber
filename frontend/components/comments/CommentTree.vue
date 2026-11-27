@@ -7,7 +7,8 @@
 // comments to order. The person's own comments (`own`) take the «…» menu with «Редактировать» and «Удалить» (E09-05,
 // ADR-0059); `edit` and `remove` do the work and answer how it went. On a phone a branch deeper than one read opens on
 // its own screen (`branchLink`, E09-06); that screen draws the same tree for one branch (`branch`), without the
-// heading, the order and the form under the post, and says so when the branch is gone.
+// heading, the order and the form under the post, and says so when the branch is gone. The comment a link named stands
+// out (highlighted, E09-07).
 import { computed, onBeforeUnmount, onMounted, provide, ref, toRef } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
@@ -46,6 +47,10 @@ const props = withDefaults(
     likes?: Likes | null
     /** The reader may block the authors of others' comments from their menus (E11-06, ADR-0091). */
     canBlock?: boolean
+    /** The comment a link named (E09-07, ADR-0107): it stands out once brought into view. */
+    highlighted?: string | null
+    /** The permanent link of a comment (E09-07): its time links there and «Скопировать ссылку» copies it. */
+    commentLink?: ((commentId: string) => string) | null
   }>(),
   {
     pending: () => ({}),
@@ -59,6 +64,8 @@ const props = withDefaults(
     branch: false,
     likes: null,
     canBlock: false,
+    highlighted: null,
+    commentLink: null,
   },
 )
 
@@ -102,6 +109,8 @@ provide(commentTreeKey, {
   signIn: (target) => emit('sign-in', target),
   canBlock: toRef(props, 'canBlock'),
   blocked: (accountId) => emit('blocked', accountId),
+  highlighted: toRef(props, 'highlighted'),
+  commentLink: toRef(props, 'commentLink'),
 })
 
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))

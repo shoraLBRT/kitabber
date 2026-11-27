@@ -69,13 +69,14 @@ test.describe('правка и удаление комментария', () => {
     await expect(foreign.locator(':scope > .comment__head').getByTestId('comment-edited')).toHaveText(
       '· изменено',
     )
-    await expect(await openMenu(page, own)).toHaveText(['Удалить'])
+    await expect(await openMenu(page, own)).toHaveText(['Скопировать ссылку', 'Удалить'])
     await expectNoHorizontalScroll(page)
   })
 
-  test('гость не видит меню комментариев', async ({ page }) => {
+  // Any reader copies a comment's link (E09-07): e2e/comment-link.spec.ts.
+  test('у гостя в меню комментария — только «Скопировать ссылку»', async ({ page }) => {
     const comments = await openPost(page, titled)
-    await expect(comments.getByRole('button', { name: 'Меню комментария' })).toHaveCount(0)
+    await expect(await openMenu(page, thread(comments, 'Вторая ветка'))).toHaveText(['Скопировать ссылку'])
   })
 
   test('свой комментарий правится в срок и помечается «изменено»', async ({ page }) => {

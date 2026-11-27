@@ -747,6 +747,16 @@ function sortedThreads(shown, sort) {
   return threads.flat()
 }
 
+// Where a comment stands (E09-07, ADR-0107): GET /api/v1/comments/{id}/place, its level and its ancestors, root first.
+function commentPlace(comment) {
+  const ancestors = []
+  for (let parent = comment; parent.parentId;) {
+    parent = comments.find((item) => item.id === parent.parentId)
+    ancestors.unshift(parent.id)
+  }
+  return { id: comment.id, postId: comment.postId, depth: comment.depth, ancestors }
+}
+
 function commentTree(response, url) {
   const levels = Number(url.searchParams.get('levels')) || null
   const sort = url.searchParams.get('sort') ?? 'popular'
@@ -763,10 +773,11 @@ function commentTree(response, url) {
     const shown = sortedThreads(shownComments(ordered, 0, levels), sort)
     return send(response, 200, { postId, maxDepth: 8, comments: shown })
   }
-  const [, id] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)\/branch$/) ?? []
+  const [, id, read] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)\/(branch|place)$/) ?? []
   const at = comments.findIndex((comment) => comment.id === id)
   if (at < 0) return send(response, 404, { status: 404, code: 'comments.comment_not_found' })
   const root = comments[at]
+  if (read === 'place') return send(response, 200, commentPlace(root))
   let end = at + 1
   while (comments[end]?.depth > root.depth) end++
   const branch = shownComments(comments.slice(at, end), root.depth, levels)
@@ -1820,7 +1831,7 @@ createServer(async (request, response) => {
   if (reactionTarget && ['PUT', 'DELETE'].includes(request.method))
     return changeReaction(request, response, reactionTarget === 'posts' ? 'post' : 'comment', reactionId)
   if (
-    /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/branch)$/.test(url.pathname) &&
+    /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/(branch|place))$/.test(url.pathname) &&
     request.method === 'GET'
   )
     return commentTree(response, url)

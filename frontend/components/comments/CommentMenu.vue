@@ -3,7 +3,8 @@
 // dropdown menu (UiMenu) on a wide screen, a bottom sheet on a phone (narrower than 640 px), as the post's menu.
 // «Удалить» asks first in a dialog; `remove` deletes, and the dialog stays open with a toast when it fails.
 // «Редактировать» is passed on (`edit`): the comment opens its text in a form. «Заблокировать автора» (E11-06,
-// ADR-0091) asks first in BlockDialog and says once the author is blocked (`blocked`).
+// ADR-0091) asks first in BlockDialog and says once the author is blocked (`blocked`). «Скопировать ссылку» (E09-07,
+// ADR-0107) copies the comment's permanent link (`link`) and says so in a toast.
 import { Ellipsis } from 'lucide-vue-next'
 import { nextTick, ref } from 'vue'
 import BlockDialog from '../blocks/BlockDialog.vue'
@@ -13,7 +14,7 @@ import UiModal from '../ui/UiModal.vue'
 import UiSheet from '../ui/UiSheet.vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { useToast } from '../../composables/useToast'
-import type { CommentMenuAction, CommentMenuItem } from '../../utils/comment-menu'
+import { copyCommentLink, type CommentMenuAction, type CommentMenuItem } from '../../utils/comment-menu'
 import { t } from '../../i18n'
 
 const props = defineProps<{
@@ -22,6 +23,8 @@ const props = defineProps<{
   remove: () => Promise<boolean>
   /** The author «Заблокировать автора» blocks: the account and its blog's title. */
   author?: { accountId: string; name: string } | null
+  /** The comment's permanent link «Скопировать ссылку» copies. */
+  link?: string | null
 }>()
 
 const emit = defineEmits<{ edit: []; blocked: [] }>()
@@ -39,7 +42,9 @@ async function choose(id: string) {
   const action = id as CommentMenuAction
   sheetOpen.value = false
   await nextTick()
-  if (action === 'delete') confirmOpen.value = true
+  if (action === 'copy-link') {
+    if (props.link) void copyCommentLink(props.link, toast)
+  } else if (action === 'delete') confirmOpen.value = true
   else if (action === 'block') blockOpen.value = true
   else emit('edit')
 }
