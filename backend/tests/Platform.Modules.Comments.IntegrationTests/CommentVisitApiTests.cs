@@ -66,8 +66,8 @@ public sealed class CommentVisitApiTests(CommentsApi api) : IClassFixture<Commen
     {
         var post = await SavePostAsync();
         var old = await CreateAsync(post, "Старый", parentId: null, _other);
-        await VisitAsync(post, _reader);
         var opened = api.Time.GetUtcNow();
+        await VisitAsync(post, _reader);
         api.Time.Advance(TimeSpan.FromMinutes(5));
 
         var laterRoot = await CreateAsync(post, "Новый в корне", parentId: null, _other);
