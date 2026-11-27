@@ -6,6 +6,8 @@
 // issues (FR-REACT, E08-06, FR-POST); the best comment stays the card's last block, under the counters. The first
 // counter is the views (E07-06, ADR-0071), and a card that half stayed on screen for a second is reported as seen.
 // «В закладки» ends the counters' row (E10-07, ADR-0113); the author sees beside it how many people keep the post.
+// A repost (E10-08, ADR-0117) is the reposter, «сделал репост», the date and their text over the original's card in a
+// frame: the original's author, topic, title and blocks, leading to the original; the counters are the original's.
 import { computed, ref } from 'vue'
 import { Eye } from 'lucide-vue-next'
 import FeedBestComment from './FeedBestComment.vue'
@@ -16,6 +18,7 @@ import PostBlocks from '../post/PostBlocks.vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import { feedCommentPath, feedItemPath, feedPreview, type FeedPost } from '../../api/feeds'
 import { blogTitle } from '../../api/profiles'
+import { isRepost } from '../../api/reposts'
 import { subsitePath } from '../../api/posts'
 import { locale, t } from '../../i18n'
 import { isolateRtlText } from '../../utils/bidi'
@@ -29,8 +32,21 @@ const props = withDefaults(
   { bookmarks: null },
 )
 
-const bookmark = computed(() => props.bookmarks?.of('post', props.item.post.id) ?? null)
-const bookmarkBusy = computed(() => props.bookmarks?.isBusy('post', props.item.post.id) === true)
+// A repost shows the original inside: what the card's title, blocks and counters are about.
+const repost = computed(() => (isRepost(props.item) ? props.item : null))
+const shownItem = computed(() =>
+  repost.value
+    ? {
+        post: repost.value.original.post,
+        author: repost.value.original.author,
+        topic: repost.value.original.topic,
+      }
+    : props.item,
+)
+const shownPost = computed(() => shownItem.value.post)
+
+const bookmark = computed(() => props.bookmarks?.of('post', shownPost.value.id) ?? null)
+const bookmarkBusy = computed(() => props.bookmarks?.isBusy('post', shownPost.value.id) === true)
 
 // A fixed time zone keeps the server and the browser on the same text, so hydration does not differ.
 const dateFormat = new Intl.DateTimeFormat(locale, {
@@ -43,61 +59,90 @@ const dateFormat = new Intl.DateTimeFormat(locale, {
 
 const expanded = ref(false)
 
-const path = computed(() => feedItemPath(props.item))
-const author = computed(() => props.item.author)
+const path = computed(() => feedItemPath(shownItem.value))
+const author = computed(() => shownItem.value.author)
 const authorName = computed(() => (author.value ? blogTitle(author.value) : t('common.author')))
-const date = computed(() =>
-  props.item.post.publishedAt ? dateFormat.format(new Date(props.item.post.publishedAt)) : '',
-)
-const preview = computed(() => feedPreview(props.item.post.body))
-const shown = computed(() => (expanded.value ? props.item.post.body : preview.value.document))
-const views = computed(() => t('views.count', { count: props.item.post.viewCount }))
+const formatted = (at: string | null | undefined) => (at ? dateFormat.format(new Date(at)) : '')
+const date = computed(() => formatted(shownPost.value.publishedAt))
+const reposter = computed(() => props.item.author)
+const reposterName = computed(() => (reposter.value ? blogTitle(reposter.value) : t('common.author')))
+const preview = computed(() => feedPreview(shownPost.value.body))
+const shown = computed(() => (expanded.value ? shownPost.value.body : preview.value.document))
+const views = computed(() => t('views.count', { count: shownPost.value.viewCount }))
 
 const card = ref<HTMLElement | null>(null)
-useCardImpression(card, () => props.item.post.id)
+useCardImpression(card, () => shownPost.value.id)
 </script>
 
 <template>
   <article ref="card" class="feed-card" data-testid="feed-card">
-    <header class="feed-card__meta">
-      <NuxtLink
-        v-if="author"
-        :to="subsitePath(author)"
-        class="feed-card__author"
-        data-testid="feed-card-author"
-      >
-        <UiAvatar :name="authorName" :sources="author.avatarSources" size="sm" decorative />
-        <span class="feed-card__name">{{ authorName }}</span>
-      </NuxtLink>
-      <template v-if="item.topic">
-        <span class="feed-card__muted" aria-hidden="true">·</span>
-        <NuxtLink :to="subsitePath(item.topic)" class="feed-card__topic" data-testid="feed-card-topic">{{
-          blogTitle(item.topic)
-        }}</NuxtLink>
-      </template>
-      <template v-if="item.post.publishedAt">
-        <span class="feed-card__muted" aria-hidden="true">·</span>
-        <NuxtLink :to="path" class="feed-card__muted feed-card__date" data-testid="feed-card-date">
-          <time :datetime="item.post.publishedAt">{{ date }}</time>
+    <template v-if="repost">
+      <header class="feed-card__meta" data-testid="feed-card-repost">
+        <NuxtLink v-if="reposter" :to="subsitePath(reposter)" class="feed-card__author">
+          <UiAvatar :name="reposterName" :sources="reposter.avatarSources" size="sm" decorative />
+          <span class="feed-card__name">{{ reposterName }}</span>
         </NuxtLink>
-      </template>
-    </header>
+        <span class="feed-card__muted">{{ t('reposts.reposted') }}</span>
+        <template v-if="item.post.publishedAt">
+          <span class="feed-card__muted" aria-hidden="true">·</span>
+          <time class="feed-card__muted" :datetime="item.post.publishedAt">{{
+            formatted(item.post.publishedAt)
+          }}</time>
+        </template>
+      </header>
+      <p
+        v-if="item.post.repostText"
+        class="feed-card__repost-text"
+        dir="auto"
+        data-testid="feed-card-repost-text"
+      >
+        {{ item.post.repostText }}
+      </p>
+    </template>
+    <div :class="['feed-card__body', { 'feed-card__body--original': repost }]">
+      <header class="feed-card__meta">
+        <NuxtLink
+          v-if="author"
+          :to="subsitePath(author)"
+          class="feed-card__author"
+          data-testid="feed-card-author"
+        >
+          <UiAvatar :name="authorName" :sources="author.avatarSources" size="sm" decorative />
+          <span class="feed-card__name">{{ authorName }}</span>
+        </NuxtLink>
+        <template v-if="shownItem.topic">
+          <span class="feed-card__muted" aria-hidden="true">·</span>
+          <NuxtLink
+            :to="subsitePath(shownItem.topic)"
+            class="feed-card__topic"
+            data-testid="feed-card-topic"
+            >{{ blogTitle(shownItem.topic) }}</NuxtLink
+          >
+        </template>
+        <template v-if="shownPost.publishedAt">
+          <span class="feed-card__muted" aria-hidden="true">·</span>
+          <NuxtLink :to="path" class="feed-card__muted feed-card__date" data-testid="feed-card-date">
+            <time :datetime="shownPost.publishedAt">{{ date }}</time>
+          </NuxtLink>
+        </template>
+      </header>
 
-    <NuxtLink v-if="item.post.title" :to="path" class="feed-card__link" data-testid="feed-card-title">
-      <h2 class="feed-card__title" dir="auto">{{ isolateRtlText(item.post.title) }}</h2>
-    </NuxtLink>
+      <NuxtLink v-if="shownPost.title" :to="path" class="feed-card__link" data-testid="feed-card-title">
+        <h2 class="feed-card__title" dir="auto">{{ isolateRtlText(shownPost.title) }}</h2>
+      </NuxtLink>
 
-    <PostBlocks :document="shown" :images="item.post.images" :previews="item.post.imagePreviews" />
+      <PostBlocks :document="shown" :images="shownPost.images" :previews="shownPost.imagePreviews" />
 
-    <button
-      v-if="preview.cut && !expanded"
-      type="button"
-      class="feed-card__more"
-      data-testid="feed-card-more"
-      @click="expanded = true"
-    >
-      {{ t('actions.showAll') }}
-    </button>
+      <button
+        v-if="preview.cut && !expanded"
+        type="button"
+        class="feed-card__more"
+        data-testid="feed-card-more"
+        @click="expanded = true"
+      >
+        {{ t('actions.showAll') }}
+      </button>
+    </div>
 
     <footer class="feed-card__counters">
       <span class="feed-card__counter" data-testid="feed-card-views">
@@ -110,7 +155,7 @@ useCardImpression(card, () => props.item.post.id)
         :state="bookmark"
         :busy="bookmarkBusy"
         testid="feed-card-bookmark"
-        @press="bookmarks?.toggle('post', item.post.id)"
+        @press="bookmarks?.toggle('post', shownPost.id)"
       />
     </footer>
 
@@ -128,6 +173,26 @@ useCardImpression(card, () => props.item.post.id)
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
+}
+
+.feed-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The original inside a repost, in a frame. */
+.feed-card__body--original {
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.feed-card__repost-text {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .feed-card__meta {

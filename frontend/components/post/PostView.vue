@@ -3,7 +3,8 @@
 // ADR-0050: the author's avatar and name leading to their blog, the topic when the post is in one, the date or
 // «черновик»), its title (a short post has none), its blocks drawn by PostBlocks (E07-03) and the floating action
 // panel PostActions; the «…» menu PostMenu in the header holds the author's or a reader's items (E07-05, ADR-0053).
-// States: loading, not found, a failure with «Повторить», and the post.
+// States: loading, not found, a failure with «Повторить», and the post. Under the comments of a published post, its
+// reposts and «Сделать репост» (E10-08, ADR-0117); a repost itself shows its text and leads to the original.
 import { computed } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
@@ -11,6 +12,7 @@ import PostActions from './PostActions.vue'
 import PostBlocks from './PostBlocks.vue'
 import PostComments from '../comments/PostComments.vue'
 import PostMenu from './PostMenu.vue'
+import PostRepostsSection from './PostRepostsSection.vue'
 import type { PostMenuFeatures } from '../../utils/post-menu'
 import { blogPath, blogTitle } from '../../api/profiles'
 import { subsitePath, type PostLookup } from '../../api/posts'
@@ -49,6 +51,8 @@ const dateFormat = new Intl.DateTimeFormat(locale, {
 })
 
 const found = computed(() => (props.state.status === 'found' ? props.state : null))
+
+const repostOf = computed(() => found.value?.post.repostOfPostId ?? null)
 
 const publishedId = computed(() => (found.value?.post.status === 'published' ? found.value.post.id : null))
 
@@ -128,7 +132,16 @@ const inBlog = computed(() =>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title" dir="auto">
       {{ isolateRtlText(found.post.title) }}
     </h1>
+    <template v-if="repostOf">
+      <p v-if="found.post.repostText" class="post__repost-text" dir="auto" data-testid="post-repost-text">
+        {{ found.post.repostText }}
+      </p>
+      <NuxtLink :to="`/u/-/${repostOf}`" class="post__repost-link" data-testid="post-repost-original">{{
+        t('reposts.original')
+      }}</NuxtLink>
+    </template>
     <PostBlocks
+      v-else
       :document="found.post.body"
       :images="found.post.images"
       :previews="found.post.imagePreviews"
@@ -142,6 +155,13 @@ const inBlog = computed(() =>
         :likes="likes"
       />
     </div>
+    <PostRepostsSection
+      v-if="publishedId && !repostOf"
+      :key="`reposts:${publishedId}`"
+      class="post__reposts"
+      :post-id="publishedId"
+      :can-repost="Boolean(signedIn) && !found.own"
+    />
     <PostActions
       :path="found.path"
       :title="found.post.title"
@@ -212,6 +232,22 @@ const inBlog = computed(() =>
 }
 
 /* The comments under the post (E09-02); «Комментарии» of the action panel leads to them. */
+.post__repost-text {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.post__repost-link {
+  align-self: flex-start;
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.post__reposts {
+  margin-top: var(--space-6);
+}
+
 .post__comments {
   margin-top: var(--space-6);
   scroll-margin-top: calc(var(--space-16) + var(--space-4));

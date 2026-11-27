@@ -62,6 +62,17 @@ public sealed class Post
     /// <summary>The link to the original; may be missing even for a carried-over post.</summary>
     public string? SourceUrl { get; init; }
 
+    /// <summary>
+    /// The post this one reposts (E10-08, ADR-0117); <c>null</c> for an ordinary post. A repost is published at once in
+    /// its author's personal blog, has no title and no blocks, only <see cref="RepostText"/>, and is not edited after.
+    /// </summary>
+    public Guid? RepostOfPostId { get; init; }
+
+    /// <summary>What the reposter wrote over the repost; <c>null</c> without a text and for an ordinary post.</summary>
+    public string? RepostText { get; init; }
+
+    public bool IsRepost => RepostOfPostId is not null;
+
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -105,10 +116,44 @@ public sealed class Post
         return Create(Guid.CreateVersion7(now), authorAccountId, blogId, title, body, now, source);
     }
 
+    /// <summary>The body of a repost: a block document without blocks (ADR-0023).</summary>
+    public const string EmptyBody = """{"version":1,"blocks":[]}""";
+
+    /// <summary>
+    /// A repost of <paramref name="originalPostId"/> by <paramref name="authorAccountId"/> in their personal blog
+    /// (E10-08, ADR-0117): published at once, with the text cleaned by <see cref="PostRules.CleanRepostText"/>.
+    /// </summary>
+    public static Post CreateRepost(
+        Guid authorAccountId, Guid blogId, Guid originalPostId, string? text, DateTimeOffset now)
+    {
+        if (originalPostId == Guid.Empty)
+        {
+            throw new ArgumentException("A repost needs the post it reposts.", nameof(originalPostId));
+        }
+
+        var post = Create(
+            Guid.CreateVersion7(now),
+            authorAccountId,
+            blogId,
+            title: null,
+            EmptyBody,
+            now,
+            source: null,
+            originalPostId,
+            PostRules.CleanRepostText(text));
+        post.Publish(now);
+        return post;
+    }
+
     /// <summary>Replaces the blog, the title and the body.</summary>
     public void Edit(Guid blogId, string? title, string body, DateTimeOffset now)
     {
         EnsureNotDeleted();
+        if (IsRepost)
+        {
+            throw new InvalidOperationException("A repost is not edited.");
+        }
+
         EnsureBlog(blogId);
         BlogId = blogId;
         Title = PostRules.CleanTitle(title);
@@ -140,7 +185,15 @@ public sealed class Post
     }
 
     private static Post Create(
-        Guid id, Guid authorAccountId, Guid blogId, string? title, string body, DateTimeOffset now, PostSource? source)
+        Guid id,
+        Guid authorAccountId,
+        Guid blogId,
+        string? title,
+        string body,
+        DateTimeOffset now,
+        PostSource? source,
+        Guid? repostOf = null,
+        string? repostText = null)
     {
         if (authorAccountId == Guid.Empty)
         {
@@ -160,6 +213,8 @@ public sealed class Post
             SourceChannel = source?.Channel,
             SourceMessage = source?.Message,
             SourceUrl = source?.Url?.AbsoluteUri,
+            RepostOfPostId = repostOf,
+            RepostText = repostText,
             CreatedAt = now,
             UpdatedAt = now,
         };

@@ -125,7 +125,7 @@ public sealed class TopFeedEndpoints : IApiEndpoints
         ICommentDirectory comments,
         CancellationToken ct)
     {
-        var published = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null);
+        var published = db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null && p.RepostOfPostId == null);
         if (since is { } from)
         {
             published = published.Where(p => p.PublishedAt >= from);

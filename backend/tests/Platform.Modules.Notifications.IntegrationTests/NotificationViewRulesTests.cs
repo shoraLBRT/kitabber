@@ -9,7 +9,7 @@ public sealed class NotificationViewRulesTests
         var names = Enum.GetValues<NotificationType>().Select(NotificationEndpoints.TypeName).ToList();
 
         Assert.Equal(
-            ["comment_reply", "post_comment", "reaction", "mention", "new_subscriber"],
+            ["comment_reply", "post_comment", "reaction", "mention", "new_subscriber", "repost"],
             names);
     }
 

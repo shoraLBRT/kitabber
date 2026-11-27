@@ -807,6 +807,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/posts/{id}/reposts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The reposts of a published post, newest first, page by page with a cursor */
+        get: operations["GetPostReposts"];
+        put?: never;
+        /** Reposts someone else's published post into the signed-in person's blog, with a text or without */
+        post: operations["RepostPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{postId}/comments": {
         parameters: {
             query?: never;
@@ -1480,6 +1498,10 @@ export interface components {
             items: components["schemas"]["NotificationView"][];
             nextCursor: null | string;
         };
+        CursorPageOfRepostView: {
+            items: components["schemas"]["RepostView"][];
+            nextCursor: null | string;
+        };
         CursorPageOfSubscriptionCard: {
             items: components["schemas"]["SubscriptionCard"][];
             nextCursor: null | string;
@@ -1522,11 +1544,17 @@ export interface components {
             /** Format: uuid */
             authorAccountId?: null | string;
         };
+        FeedOriginalView: {
+            post: components["schemas"]["PostView"];
+            author: null | components["schemas"]["FeedBlogView"];
+            topic: null | components["schemas"]["FeedBlogView"];
+        };
         FeedPostView: {
             post: components["schemas"]["PostView"];
             author: null | components["schemas"]["FeedBlogView"];
             topic: null | components["schemas"]["FeedBlogView"];
             bestComment: null | components["schemas"]["FeedCommentView"];
+            original?: null | components["schemas"]["FeedOriginalView"];
         };
         FeedPreferencesInput: {
             /** Format: int32 */
@@ -1706,6 +1734,9 @@ export interface components {
             };
             /** Format: int32 */
             viewCount: number;
+            /** Format: uuid */
+            repostOfPostId?: null | string;
+            repostText?: null | string;
         };
         PreferencesView: {
             general: components["schemas"]["GeneralPreferencesView"];
@@ -1807,6 +1838,19 @@ export interface components {
             registrationId: string;
             /** Format: int32 */
             resendAfterSeconds: number;
+        };
+        RepostInput: {
+            text?: null | string;
+        };
+        RepostView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            authorAccountId: string;
+            author: null | components["schemas"]["FeedBlogView"];
+            text: null | string;
+            /** Format: date-time */
+            publishedAt: string;
         };
         SearchSuggestionsView: {
             query: string;
@@ -3994,6 +4038,120 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPostReposts: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPageOfRepostView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RepostPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["RepostInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

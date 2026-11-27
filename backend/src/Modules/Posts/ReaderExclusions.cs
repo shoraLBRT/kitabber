@@ -50,7 +50,11 @@ public static class ReaderExclusions
                 .. page.Items
                     .Where(i => !posts.Contains(i.Post.Id)
                         && !blogs.Contains(i.Post.BlogId)
-                        && !authors.Contains(i.Post.AuthorAccountId))
+                        && !authors.Contains(i.Post.AuthorAccountId)
+                        && (i.Original is not { } original
+                            || (!posts.Contains(original.Post.Id)
+                                && !blogs.Contains(original.Post.BlogId)
+                                && !authors.Contains(original.Post.AuthorAccountId))))
                     .Select(i => i.BestComment?.AuthorAccountId is { } commenter && authors.Contains(commenter)
                         ? i with { BestComment = null }
                         : i),

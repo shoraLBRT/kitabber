@@ -43,6 +43,7 @@ public static class PostsModule
         builder.Services.AddApiEndpoints<TopFeedEndpoints>();
         builder.Services.AddApiEndpoints<MyFeedEndpoints>();
         builder.Services.AddApiEndpoints<BookmarkFeedEndpoints>();
+        builder.Services.AddApiEndpoints<RepostEndpoints>();
         return builder;
     }
 

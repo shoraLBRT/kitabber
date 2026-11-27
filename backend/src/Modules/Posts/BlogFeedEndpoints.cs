@@ -74,7 +74,8 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
         }
 
         var posts = db.Posts.AsNoTracking()
-            .Where(p => p.BlogId == blogId && p.Status == PostStatus.Published && p.PublishedAt != null);
+            .Where(p => p.BlogId == blogId && p.Status == PostStatus.Published && p.PublishedAt != null)
+            .WithShownOriginals(db);
         if (page.After is { } after)
         {
             posts = posts.Where(p => EF.Functions.LessThan(
@@ -86,8 +87,7 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
             .Take(page.FetchCount)
             .ToListAsync(ct);
         var result = page.ToPage(rows, p => new FreshFeedCursor(p.PublishedAt!.Value, p.Id));
-        var views = await PostEndpoints.ViewsAsync(result.Items, media, ct);
         return new CursorPage<FeedPostView>(
-            await FeedPostViews.BuildAsync(views, blogs, comments, ct), result.NextCursor);
+            await FeedPostViews.BuildAsync(result.Items, db, media, blogs, comments, ct), result.NextCursor);
     }
 }

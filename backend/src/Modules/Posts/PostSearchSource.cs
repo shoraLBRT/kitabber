@@ -22,7 +22,9 @@ internal sealed class PostSearchSource(PostsDbContext db) : IPostSearchSource
     }
 
     private IQueryable<Post> Visible() =>
-        db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.DeletedAt == null);
+        // A repost is not searched: it has no text of its own to find (ADR-0117).
+        db.Posts.AsNoTracking()
+            .Where(p => p.Status == PostStatus.Published && p.DeletedAt == null && p.RepostOfPostId == null);
 
     private static PostSearchDocument Document(Post post) => new(
         post.Id, post.BlogId, post.AuthorAccountId, post.Title, PostText.Of(post.Body), post.PublishedAt!.Value);

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Media.Contracts;
@@ -34,6 +35,12 @@ public sealed record FeedBlogView(
 public sealed record FeedCommentView(
     Guid Id, FeedBlogView? Author, string? GuestName, string Text, Guid? AuthorAccountId = null);
 
+/// <summary>The post a repost carries, as its card shows it inside the repost (E10-08, ADR-0117).</summary>
+/// <param name="Post">The original post, as <c>/api/v1/posts/{id}</c> gives it.</param>
+/// <param name="Author">The personal blog of the original's author; <c>null</c> when the account has none.</param>
+/// <param name="Topic">The topic the original is in; <c>null</c> for a post in a personal blog.</param>
+public sealed record FeedOriginalView(PostView Post, FeedBlogView? Author, FeedBlogView? Topic);
+
 /// <summary>A post in a feed with what its card shows around it (E08-02, E08-15, FR-FEED, ADR-0052, ADR-0062).</summary>
 /// <param name="Post">The post itself, as <c>/api/v1/posts/{id}</c> gives it.</param>
 /// <param name="Author">
@@ -44,8 +51,28 @@ public sealed record FeedCommentView(
 /// <param name="BestComment">
 /// The most liked shown comment under the post, the earlier one on a tie; <c>null</c> when the post has no comments.
 /// </param>
+/// <param name="Original">
+/// For a repost (<c>post.repostOfPostId</c>), the post it reposts with its author and topic (E10-08, ADR-0117); a repost
+/// whose original is deleted is not in a feed at all. <c>null</c> for an ordinary post.
+/// </param>
 public sealed record FeedPostView(
-    PostView Post, FeedBlogView? Author, FeedBlogView? Topic, FeedCommentView? BestComment);
+    PostView Post,
+    FeedBlogView? Author,
+    FeedBlogView? Topic,
+    FeedCommentView? BestComment,
+    FeedOriginalView? Original = null);
+
+/// <summary>What the feeds read of the reposts (E10-08, ADR-0117).</summary>
+internal static class RepostQueries
+{
+    /// <summary>
+    /// <paramref name="posts"/> without the reposts whose original is no longer shown: deleting a post hides its reposts
+    /// (the query filter of <see cref="PostsDbContext"/> leaves the deleted original out of the subquery).
+    /// </summary>
+    public static IQueryable<Post> WithShownOriginals(this IQueryable<Post> posts, PostsDbContext db) =>
+        posts.Where(p => p.RepostOfPostId == null
+            || db.Posts.Any(o => o.Id == p.RepostOfPostId && o.Status == PostStatus.Published));
+}
 
 /// <summary>
 /// Builds the feed views of a page of posts with one read of the best comments and one read of the blogs, the blogs of
@@ -53,14 +80,45 @@ public sealed record FeedPostView(
 /// </summary>
 internal static class FeedPostViews
 {
+    /// <summary>
+    /// The feed views of <paramref name="rows"/>, with the originals of the reposts among them read in one more query
+    /// (ADR-0117). A repost whose original is gone by now is left out.
+    /// </summary>
     public static async Task<IReadOnlyList<FeedPostView>> BuildAsync(
-        IReadOnlyList<PostView> posts, IBlogDirectory blogs, ICommentDirectory comments, CancellationToken ct)
+        IReadOnlyList<Post> rows,
+        PostsDbContext db,
+        IMediaLibrary media,
+        IBlogDirectory blogs,
+        ICommentDirectory comments,
+        CancellationToken ct)
     {
-        var best = await comments.BestShownAsync([.. posts.Select(p => p.Id)], ct);
+        var originalIds = rows.Select(r => r.RepostOfPostId).OfType<Guid>().Distinct().ToList();
+        var originalRows = originalIds.Count == 0
+            ? []
+            : await db.Posts.AsNoTracking()
+                .Where(p => originalIds.Contains(p.Id) && p.Status == PostStatus.Published)
+                .ToListAsync(ct);
+        var shown = rows.Where(r => r.RepostOfPostId is not { } of || originalRows.Any(o => o.Id == of)).ToList();
+        var views = await PostEndpoints.ViewsAsync([.. shown, .. originalRows], media, ct);
+        var originals = views.Skip(shown.Count).ToDictionary(v => v.Id);
+        return await BuildAsync([.. views.Take(shown.Count)], blogs, comments, ct, originals);
+    }
+
+    public static async Task<IReadOnlyList<FeedPostView>> BuildAsync(
+        IReadOnlyList<PostView> posts,
+        IBlogDirectory blogs,
+        ICommentDirectory comments,
+        CancellationToken ct,
+        IReadOnlyDictionary<Guid, PostView>? originals = null)
+    {
+        originals ??= new Dictionary<Guid, PostView>();
+        // A repost has no comments of its own on its card: the card leads to the original.
+        var best = await comments.BestShownAsync([.. posts.Where(p => p.RepostOfPostId is null).Select(p => p.Id)], ct);
         var cards = await blogs.CardsAsync(
-            [.. posts.Select(p => p.BlogId).Distinct()],
+            [.. posts.Select(p => p.BlogId).Concat(originals.Values.Select(o => o.BlogId)).Distinct()],
             [
                 .. posts.Select(p => p.AuthorAccountId)
+                    .Concat(originals.Values.Select(o => o.AuthorAccountId))
                     .Concat(best.Values.Select(c => c.AuthorAccountId).OfType<Guid>())
                     .Distinct(),
             ],
@@ -87,12 +145,20 @@ internal static class FeedPostViews
                         found.Excerpt,
                         found.AuthorAccountId)
                     : null;
-                return new FeedPostView(post, author, topic, comment);
+                var original = post.RepostOfPostId is { } of && originals.TryGetValue(of, out var reposted)
+                    ? new FeedOriginalView(
+                        reposted,
+                        byOwner.TryGetValue(reposted.AuthorAccountId, out var originalAuthor) ? View(originalAuthor) : null,
+                        byId.GetValueOrDefault(reposted.BlogId) is { Kind: BlogKind.Topic } originalTopic
+                            ? View(originalTopic)
+                            : null)
+                    : null;
+                return new FeedPostView(post, author, topic, comment, original);
             }),
         ];
     }
 
-    private static FeedBlogView View(BlogCard card) => new(
+    internal static FeedBlogView View(BlogCard card) => new(
         card.Id,
         card.Kind == BlogKind.Personal ? "personal" : "topic",
         card.Name,

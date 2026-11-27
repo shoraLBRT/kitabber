@@ -21,6 +21,9 @@ public enum NotificationType
 
     /// <summary>Someone subscribed to the recipient's personal blog.</summary>
     NewSubscriber = 5,
+
+    /// <summary>Someone reposted the recipient's post into their blog (E10-08, ADR-0117).</summary>
+    Repost = 6,
 }
 
 /// <summary>

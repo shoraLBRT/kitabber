@@ -77,7 +77,7 @@ public sealed class PopularFeedEndpoints : IApiEndpoints
         CancellationToken ct)
     {
         var ranked = db.Hotness.AsNoTracking().Join(
-            db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null),
+            db.Posts.AsNoTracking().Where(p => p.Status == PostStatus.Published && p.PublishedAt != null && p.RepostOfPostId == null),
             h => h.PostId,
             p => p.Id,
             (h, p) => new { h.Score, Post = p });
