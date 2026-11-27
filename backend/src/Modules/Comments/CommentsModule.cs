@@ -28,6 +28,8 @@ public static class CommentsModule
         builder.Services.TryAddSingleton(CommentsSettings.ReadLimits(builder.Configuration));
         builder.Services.AddScoped<ICommentDirectory, CommentDirectory>();
         builder.Services.AddApiEndpoints<CommentEndpoints>();
+        builder.Services.AddScoped<PopularCommentsCache>();
+        builder.Services.AddApiEndpoints<PopularCommentEndpoints>();
         return builder;
     }
 

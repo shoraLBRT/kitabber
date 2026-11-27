@@ -2841,6 +2841,47 @@
         }
       }
     },
+    "/api/v1/comments/popular": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "The highest rated native comments of the last day, for the widget of the right column",
+        "operationId": "GetPopularComments",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PopularCommentsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/posts/{postId}/reactions": {
       "get": {
         "tags": [
@@ -4718,6 +4759,75 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PopularCommentsView": {
+        "required": [
+          "comments"
+        ],
+        "type": "object",
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PopularCommentView"
+            }
+          }
+        }
+      },
+      "PopularCommentView": {
+        "required": [
+          "id",
+          "postId",
+          "postBlogId",
+          "postTitle",
+          "postSlug",
+          "authorAccountId",
+          "text",
+          "rating",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postBlogId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postSlug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authorAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

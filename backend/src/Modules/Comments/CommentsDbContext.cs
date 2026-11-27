@@ -18,6 +18,9 @@ public sealed class CommentsDbContext(DbContextOptions<CommentsDbContext> option
     /// <summary>One guest comment per outside message: it makes the import idempotent (ADR-0003).</summary>
     public const string SourceIndex = "ux_comments_source";
 
+    /// <summary>The shown native comments by the time they were written: the widget of the day reads it (ADR-0105).</summary>
+    public const string DayIndex = "ix_comments_day";
+
     /// <summary>A native comment has an author account; a guest one has none, but has a name and a source.</summary>
     public const string KindCheck = "ck_comments_kind";
 
@@ -57,6 +60,8 @@ public sealed class CommentsDbContext(DbContextOptions<CommentsDbContext> option
                 .HasDatabaseName(SourceIndex)
                 .HasFilter("source_channel IS NOT NULL");
             comment.HasIndex(c => new { c.AuthorAccountId, c.CreatedAt });
+            comment.HasIndex(c => c.CreatedAt).HasDatabaseName(DayIndex)
+                .HasFilter("kind = 'Native' AND deleted_at IS NULL");
         });
     }
 }
