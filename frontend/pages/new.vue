@@ -4,8 +4,10 @@
 // same place (E08-03, useFeed, ADR-0051). The feed is public, so the browser asks the API directly. Above it on a
 // desktop is the quick post (E05-29, ADR-0055); on a phone the floating «Написать» opens it. Above the feed is the
 // rating filter (E08-07, ADR-0106): the server applies the threshold, and the choice is remembered (useFreshRating).
+// New posts are announced by «Показать новые» and put on top only when it is pressed (E08-08, useNewPosts, ADR-0108).
 import FeedView from '~/components/feed/FeedView.vue'
 import FreshRatingFilter from '~/components/feed/FreshRatingFilter.vue'
+import NewPostsBanner from '~/components/feed/NewPostsBanner.vue'
 import QuickPost from '~/components/feed/QuickPost.vue'
 import UiButton from '~/components/ui/UiButton.vue'
 import { loadFreshFeed, type FreshRating } from '~/api/feeds'
@@ -15,12 +17,19 @@ const { $api } = useNuxtApp()
 
 const { rating, choose } = await useFreshRating()
 
-const { state, loadingMore, moreFailed, loadMore, retry } = await useFeed('fresh', (cursor) =>
+const { state, posts, cursor, loadingMore, moreFailed, loadMore, retry } = await useFeed('fresh', (cursor) =>
   loadFreshFeed($api, cursor, rating.value),
 )
 
-// Another threshold is another feed: it is read again from its first page.
-watch(rating, () => retry())
+// «Показать новые» (E08-08, ADR-0108): the first page is read again with the same threshold, so only the new posts that
+// pass it are counted; new posts never enter the feed until the banner is pressed.
+const newPosts = useNewPosts(posts, cursor, () => loadFreshFeed($api, null, rating.value))
+
+// Another threshold is another feed: it is read again from its first page, and what was counted for the old one goes.
+watch(rating, () => {
+  newPosts.reset()
+  void retry()
+})
 
 function chooseRating(next: FreshRating) {
   void choose(next)
@@ -34,6 +43,7 @@ useHead({ title: t('nav.new') })
     <QuickPost class="feed-page__quick-post" />
     <h1 class="feed-page__title">{{ t('nav.new') }}</h1>
     <FreshRatingFilter :current="rating" @choose="chooseRating" />
+    <NewPostsBanner :count="newPosts.count.value" :more="newPosts.more.value" @show="newPosts.show()" />
     <FeedView
       :label="t('nav.new')"
       :state="state"

@@ -1107,17 +1107,42 @@ function myFeed(request, response, url) {
 // that much (none of the posts above reaches +5, every one reaches −10); another value is refused as the API does.
 const freshThresholds = ['-10', '5', '10']
 
-function filteredFreshFeed(response, url) {
+function filteredFreshFeed(request, response, url) {
   const threshold = url.searchParams.get('minRating')
-  if (threshold === null) return freshFeed(response, url)
+  const arrived = arrivals.get(clientOf(request)) ?? []
+  if (threshold === null) return freshFeed(response, url, undefined, arrived)
   if (!freshThresholds.includes(threshold))
     return send(response, 400, { status: 400, code: 'validation_failed', errors: { minRating: ['invalid'] } })
   const rating = (post) => othersLikes.get(`post:${post.id}`) ?? 0
-  return freshFeed(response, url, (post) => rating(post) >= Number(threshold))
+  return freshFeed(response, url, (post) => rating(post) >= Number(threshold), arrived)
 }
 
-function freshFeed(response, url, only = () => true) {
-  const sorted = [...posts]
+// «Показать новые» (E08-08, ADR-0108): POST /__fresh-arrival?client=<address> with `{ title }` publishes a post, rated 0,
+// that only the fresh feed of that client address shows, so a test sees a new post and the other tests do not.
+const arrivals = new Map() // client address -> posts
+
+function freshArrival(client, input) {
+  const now = new Date().toISOString()
+  const arrived = {
+    ...posts[0],
+    id: randomUUID(),
+    title: input.title ?? 'Новый пост',
+    slug: null,
+    body: {
+      version: 1,
+      blocks: [{ id: 'b1', type: 'paragraph', data: { text: input.title ?? 'Новый пост' } }],
+    },
+    createdAt: now,
+    updatedAt: now,
+    publishedAt: now,
+    viewCount: 0,
+  }
+  arrivals.set(client, [...(arrivals.get(client) ?? []), arrived])
+  return arrived
+}
+
+function freshFeed(response, url, only = () => true, arrived = []) {
+  const sorted = [...posts, ...arrived]
     .filter(only)
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
   const cursor = url.searchParams.get('cursor')
@@ -1742,6 +1767,9 @@ createServer(async (request, response) => {
     return send(response, 200, state(client))
   }
 
+  if (url.pathname === '/__fresh-arrival' && request.method === 'POST')
+    return send(response, 201, freshArrival(client ?? '', JSON.parse((await readBody(request)) || '{}')))
+
   if (url.pathname === '/__letters' && request.method === 'GET') {
     const to = url.searchParams.get('to')
     return send(
@@ -1862,7 +1890,7 @@ createServer(async (request, response) => {
     return topicCatalog(request, response, url)
   if (url.pathname === '/api/v1/topics/menu' && request.method === 'GET') return topicMenu(request, response)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET')
-    return filteredFreshFeed(response, url)
+    return filteredFreshFeed(request, response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)
   if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // A feed (FR-FEED, docs/ui/feed.md): the posts in the feed's order, each as its card (FeedCard, E08-02, ADR-0052).
-// «Показать новые» is E08-08 (#100).
+// «Показать новые» is the page's (NewPostsBanner, useNewPosts, E08-08, ADR-0108): the feed itself never moves.
 // States: loading, empty, a failure with «Повторить», and the posts. The next page loads by itself when the end of the
 // list comes near (E08-03, ADR-0051); a failure of a later page keeps the posts shown and offers «Повторить» instead
 // of trying again on its own. Without IntersectionObserver «Показать ещё» asks for the next page.

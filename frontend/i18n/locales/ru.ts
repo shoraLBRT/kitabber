@@ -276,6 +276,15 @@ export default {
     freshRatingEmpty: 'С таким рейтингом постов пока нет. Выберите порог пониже или посмотрите все посты.',
     freshRatingShowAll: 'Показать все',
     freshRatingNotSaved: 'Фильтр применён, но не сохранился в настройках.',
+    // «Показать новые» (E08-08, ADR-0108).
+    showNew: 'Показать новые',
+    showNewCount: {
+      one: '{count} новый пост',
+      few: '{count} новых поста',
+      many: '{count} новых постов',
+      other: '{count} новых поста',
+    },
+    showNewMore: 'новых постов: {count} и больше',
   },
   post: {
     post: 'Пост',

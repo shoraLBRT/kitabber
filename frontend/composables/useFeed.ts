@@ -68,5 +68,6 @@ export async function useFeed(name: string, load: (cursor?: string | null) => Pr
     cursor.value = next.page.nextCursor
   }
 
-  return { state, loadingMore, moreFailed, loadMore, retry: () => refresh() }
+  // `posts` and `cursor` are what the feed shows; «Показать новые» puts new posts on top of them (useNewPosts).
+  return { state, posts, cursor, loadingMore, moreFailed, loadMore, retry: () => refresh() }
 }
