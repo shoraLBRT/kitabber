@@ -33,6 +33,9 @@ public sealed class CommentsDbContext(DbContextOptions<CommentsDbContext> option
 
     public DbSet<Comment> Comments => Set<Comment>();
 
+    /// <summary>When each account last opened the comments of each post (E09-08, ADR-0109).</summary>
+    public DbSet<CommentVisit> Visits => Set<CommentVisit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -62,6 +65,12 @@ public sealed class CommentsDbContext(DbContextOptions<CommentsDbContext> option
             comment.HasIndex(c => new { c.AuthorAccountId, c.CreatedAt });
             comment.HasIndex(c => c.CreatedAt).HasDatabaseName(DayIndex)
                 .HasFilter("kind = 'Native' AND deleted_at IS NULL");
+        });
+        // The visit endpoint writes the row with ON CONFLICT on this key (CommentVisitEndpoints).
+        modelBuilder.Entity<CommentVisit>(visit =>
+        {
+            visit.ToTable("comment_visits");
+            visit.HasKey(v => new { v.AccountId, v.PostId });
         });
     }
 }

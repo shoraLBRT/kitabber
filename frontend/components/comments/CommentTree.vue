@@ -8,8 +8,10 @@
 // ADR-0059); `edit` and `remove` do the work and answer how it went. On a phone a branch deeper than one read opens on
 // its own screen (`branchLink`, E09-06); that screen draws the same tree for one branch (`branch`), without the
 // heading, the order and the form under the post, and says so when the branch is gone. The comment a link named stands
-// out (highlighted, E09-07).
+// out (highlighted, E09-07). The comments new since the previous opening are marked «новый» (`fresh`, E09-08,
+// ADR-0109), and «К следующему новому · N» stays under the site's header while the comments are on screen.
 import { computed, onBeforeUnmount, onMounted, provide, ref, toRef } from 'vue'
+import { ArrowDown } from 'lucide-vue-next'
 import UiButton from '../ui/UiButton.vue'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
@@ -51,6 +53,10 @@ const props = withDefaults(
     highlighted?: string | null
     /** The permanent link of a comment (E09-07): its time links there and «Скопировать ссылку» copies it. */
     commentLink?: ((commentId: string) => string) | null
+    /** The comments new since the previous opening (E09-08, ADR-0109): each is marked «новый». */
+    fresh?: Readonly<Record<string, true>>
+    /** How many new comments «К следующему новому» has still to go to; none hides it. */
+    freshLeft?: number
   }>(),
   {
     pending: () => ({}),
@@ -66,6 +72,8 @@ const props = withDefaults(
     canBlock: false,
     highlighted: null,
     commentLink: null,
+    fresh: () => ({}),
+    freshLeft: 0,
   },
 )
 
@@ -77,6 +85,7 @@ const emit = defineEmits<{
   dismiss: [target: FormTarget]
   'sign-in': [target: FormTarget]
   blocked: [accountId: string]
+  'next-new': []
 }>()
 
 // The time the menus compare the end of the time to change a comment with: «Редактировать» goes once it is over.
@@ -111,6 +120,7 @@ provide(commentTreeKey, {
   blocked: (accountId) => emit('blocked', accountId),
   highlighted: toRef(props, 'highlighted'),
   commentLink: toRef(props, 'commentLink'),
+  fresh: toRef(props, 'fresh'),
 })
 
 const comments = computed(() => (props.state.status === 'found' ? props.state.comments : []))
@@ -179,6 +189,17 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
 
     <template v-else>
       <CommentForm v-if="!branch" :inviting="roots.length === 0" />
+      <button
+        v-if="freshLeft > 0 && roots.length > 0"
+        type="button"
+        class="comments__next-new"
+        :aria-label="t('comments.nextNewLabel', { count: freshLeft })"
+        data-testid="comments-next-new"
+        @click="emit('next-new')"
+      >
+        <ArrowDown class="comments__next-new-icon" aria-hidden="true" />
+        {{ t('comments.nextNew', { count: formatNumber(freshLeft) }) }}
+      </button>
       <p v-if="roots.length === 0" class="comments__muted" data-testid="comments-empty">
         {{ t('comments.empty') }}
       </p>
@@ -195,6 +216,37 @@ const sortable = computed(() => props.state.status !== 'found' || roots.value.le
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+}
+
+/* «К следующему новому» (E09-08): it stays under the site's header while the comments are scrolled through. */
+.comments__next-new {
+  position: sticky;
+  top: calc(var(--space-16) + env(safe-area-inset-top) + var(--space-2));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-shadow);
+  cursor: pointer;
+}
+
+.comments__next-new:hover {
+  background: var(--color-accent-hover);
+}
+
+.comments__next-new-icon {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
 }
 
 .comments__head {

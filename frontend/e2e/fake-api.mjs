@@ -833,6 +833,31 @@ async function writeComment(request, response, postId) {
 // change the text, as the server does. Like a comment written, a change is answered, not kept. A comment the fake does
 // not know is one the test has just written (it was not kept either): it is the caller's, still in its time. A text
 // «сбой» fails as the server would.
+// The opening of a post's comments (E09-08, ADR-0109): POST /api/v1/posts/{postId}/comments/visit. Kept per client
+// address and post: the first opening has nothing new, every later one names the comments of `freshTexts` under the
+// post, in the order of the tree. A request with no client address (most tests) always opens for the first time, so no
+// other test meets the marks. Which comments are new by the real rules is tested by the backend
+// (CommentVisitApiTests).
+const freshTexts = new Set([
+  'Седьмой уровень',
+  'Ещё ответ во второй ветке',
+  'Комментарий из обсуждения канала',
+])
+const commentVisits = new Map() // `${client} ${postId}` -> the previous opening
+function visitComments(request, response, postId) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  if (!posts.some((item) => item.id === postId))
+    return send(response, 404, { status: 404, code: 'comments.post_not_found' })
+  const client = clientOf(request)
+  const key = `${client} ${postId}`
+  const previousVisitAt = client ? (commentVisits.get(key) ?? null) : null
+  if (client) commentVisits.set(key, new Date().toISOString())
+  const newIds = previousVisitAt
+    ? comments.filter((c) => c.postId === postId && freshTexts.has(c.text)).map((c) => c.id)
+    : []
+  return send(response, 200, { postId, previousVisitAt, newIds })
+}
+
 function ownComments(request, response, postId) {
   const account = subject(request)
   if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
@@ -1867,6 +1892,8 @@ createServer(async (request, response) => {
   if (commentedPost && request.method === 'POST') return writeComment(request, response, commentedPost)
   const [, ownPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments\/mine$/) ?? []
   if (ownPost && request.method === 'GET') return ownComments(request, response, ownPost)
+  const [, visitedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments\/visit$/) ?? []
+  if (visitedPost && request.method === 'POST') return visitComments(request, response, visitedPost)
   if (url.pathname === '/api/v1/comments/popular' && request.method === 'GET')
     return popularComments(request, response, url)
   const [, changed] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)$/) ?? []
