@@ -36,4 +36,35 @@ public sealed class PreferenceRulesTests
         Assert.Equal(ThemeChoice.System, preferences.Theme);
         Assert.Throws<ArgumentException>(() => AccountPreferences.For(Guid.Empty));
     }
+
+    [Theory]
+    [InlineData("popular", HomeFeed.Popular)]
+    [InlineData(" Fresh ", HomeFeed.Fresh)]
+    [InlineData("my", HomeFeed.My)]
+    public void KnownHomeFeedIsTaken(string name, HomeFeed feed) =>
+        Assert.Equal(feed, PreferenceRules.ParseHomeFeed(name));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("best")]
+    public void UnknownHomeFeedIsRefused(string? name) => Assert.Null(PreferenceRules.ParseHomeFeed(name));
+
+    [Fact]
+    public void HomeFeedNamesGoBothWays()
+    {
+        foreach (var feed in Enum.GetValues<HomeFeed>())
+        {
+            Assert.Equal(feed, PreferenceRules.ParseHomeFeed(PreferenceRules.NameOf(feed)));
+        }
+    }
+
+    [Fact]
+    public void NewAccountOpensPopularAndAutoplaysVideo()
+    {
+        var preferences = AccountPreferences.For(Guid.CreateVersion7());
+
+        Assert.Equal(HomeFeed.Popular, preferences.HomeFeed);
+        Assert.True(preferences.AutoplayVideo);
+    }
 }

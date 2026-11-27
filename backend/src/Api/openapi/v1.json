@@ -4588,12 +4588,26 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "homeFeed": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "autoplayVideo": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
       "FeedPreferencesView": {
         "required": [
-          "freshMinRating"
+          "freshMinRating",
+          "homeFeed",
+          "autoplayVideo"
         ],
         "type": "object",
         "properties": {
@@ -4603,6 +4617,12 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "homeFeed": {
+            "type": "string"
+          },
+          "autoplayVideo": {
+            "type": "boolean"
           }
         }
       },
