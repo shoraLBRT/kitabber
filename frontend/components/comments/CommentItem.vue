@@ -12,7 +12,7 @@ import { computed, inject, ref, watch } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import CommentEdit from './CommentEdit.vue'
 import ReactionRow from '../reactions/ReactionRow.vue'
-import { reactionsOfLikes } from '../../api/reactions'
+import type { ReactionKind } from '../../api/reactions'
 import CommentForm from './CommentForm.vue'
 import CommentMenu from './CommentMenu.vue'
 import { blogPath, blogTitle } from '../../api/profiles'
@@ -62,10 +62,9 @@ const likeShown = computed(
   () =>
     tree.likes.value !== null && !sending.value && !comment.value.deleted && comment.value.kind === 'native',
 )
-// The row of reactions (E10-03, ReactionRow): only likes so far, with live counts from the post's topic.
-const reactions = computed(() =>
-  reactionsOfLikes(tree.likes.value?.of('comment', comment.value.id) ?? { count: 0, liked: false }),
-)
+// The row of reactions (E10-02, E10-03, ReactionRow): the set to choose from, live counts from the post's topic.
+const reactions = computed(() => tree.likes.value?.reactions('comment', comment.value.id) ?? [])
+const chooseReaction = (kind: ReactionKind) => tree.likes.value?.choose('comment', comment.value.id, kind)
 const likeBusy = computed(() => tree.likes.value?.isBusy('comment', comment.value.id) === true)
 
 function startReply() {
@@ -180,7 +179,9 @@ const timeFormat = new Intl.DateTimeFormat(locale, {
         :hint="ownComment ? t('comments.ownLike') : undefined"
         variant="compact"
         testid="comment-like"
-        @toggle="tree.likes.value?.toggle('comment', comment.id)"
+        :set="tree.likes.value?.set.value ?? null"
+        @choose="chooseReaction"
+        @open="tree.likes.value?.loadSet()"
       />
       <button
         v-if="replyable && !replying"

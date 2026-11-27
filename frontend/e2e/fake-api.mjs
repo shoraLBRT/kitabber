@@ -1129,67 +1129,82 @@ function bestComment(postId) {
   }
 }
 
-// Likes (E10-01, ADR-0061): GET /api/v1/posts/{postId}/likes, PUT and DELETE /api/v1/posts/{postId}/like and
-// /api/v1/comments/{id}/like, with the server's checks (a signed-in account, not one's own content, not a guest
-// comment). Others' likes are fixed: three on the post in the topic, two on «Вторая ветка». The signed-in person's
-// likes are kept per client address (`x-forwarded-for`), as the profile edits are, so parallel tests never see each
-// other's. A comment the fake does not know is one the test has just written: it is the caller's own.
+// Reactions (E10-01, E10-02, ADR-0061, ADR-0101): GET /api/v1/posts/{postId}/reactions, PUT (with a kind of the set)
+// and DELETE /api/v1/posts/{postId}/reaction and /api/v1/comments/{id}/reaction, with the server's checks (a signed-in
+// account, a kind the set offers, not one's own content, not a guest comment). Others' reactions are fixed likes: three
+// on the post in the topic, two on «Вторая ветка». The signed-in person's reactions are kept per client address
+// (`x-forwarded-for`), as the profile edits are, so parallel tests never see each other's. A comment the fake does not
+// know is one the test has just written: it is the caller's own.
 const othersLikes = new Map([
   [`post:${posts[2].id}`, 3],
   [`comment:${comments.find((c) => c.text === 'Вторая ветка').id}`, 2],
 ])
-const ownLikes = new Map() // client address -> Set of `post:<id>` and `comment:<id>`
+const ownReactions = new Map() // client address -> Map of `post:<id>` and `comment:<id>` -> kind
 
-function likeState(request, key, account) {
-  const liked = Boolean(account) && (ownLikes.get(clientOf(request))?.has(key) ?? false)
-  return { count: (othersLikes.get(key) ?? 0) + (liked ? 1 : 0), liked }
+function reactionState(request, key, account) {
+  const mine = account ? (ownReactions.get(clientOf(request))?.get(key) ?? null) : null
+  const counts = new Map()
+  if (othersLikes.has(key)) counts.set('like', othersLikes.get(key))
+  if (mine) counts.set(mine, (counts.get(mine) ?? 0) + 1)
+  const reactions = reactionSet
+    .filter((item) => counts.has(item.code))
+    .map((item) => ({ kind: item.code, count: counts.get(item.code) }))
+  return { reactions, mine }
 }
 
-function postLikes(request, response, postId) {
-  // A post a test has just published (`written`) has no likes yet.
+function postReactions(request, response, postId) {
+  // A post a test has just published (`written`) has no reactions yet.
   if (!posts.some((item) => item.id === postId) && !written.has(postId))
     return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
   const account = subject(request)
-  const keys = new Set([...othersLikes.keys(), ...(ownLikes.get(clientOf(request)) ?? [])])
+  const keys = new Set([...othersLikes.keys(), ...(ownReactions.get(clientOf(request))?.keys() ?? [])])
   const under = comments.filter((c) => c.postId === postId && keys.has(`comment:${c.id}`))
   return send(response, 200, {
     postId,
-    post: likeState(request, `post:${postId}`, account),
-    comments: under.map((c) => ({ commentId: c.id, ...likeState(request, `comment:${c.id}`, account) })),
+    post: reactionState(request, `post:${postId}`, account),
+    comments: under.map((c) => ({ commentId: c.id, ...reactionState(request, `comment:${c.id}`, account) })),
   })
 }
 
-function changeLike(request, response, target, id) {
+async function changeReaction(request, response, target, id) {
   const account = subject(request)
   if (!account) return send(response, 401, { status: 401, code: 'unauthorized' })
   const item =
     target === 'post'
       ? (posts.find((p) => p.id === id) ?? written.get(id))
       : comments.find((c) => c.id === id)
-  if (!item && target === 'post')
-    return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
   const key = `${target}:${id}`
   if (request.method === 'PUT') {
+    const { kind } = JSON.parse((await readBody(request)) || '{}')
+    if (!reactionSet.some((r) => r.code === kind))
+      return send(response, 400, {
+        status: 400,
+        code: 'validation',
+        errors: { kind: ['Такой реакции нет в наборе.'] },
+      })
+    if (!item && target === 'post')
+      return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
     if (item?.kind === 'guest')
       return send(response, 403, {
         status: 403,
         code: 'reactions.guest_comment',
-        detail: 'Комментарий гостя оценить нельзя: у его автора нет аккаунта.',
+        detail: 'На комментарий гостя реакцию не поставить: у его автора нет аккаунта.',
       })
     if (!item || item.authorAccountId === account)
       return send(response, 403, {
         status: 403,
         code: 'reactions.own_content',
-        detail: 'Свой пост или комментарий оценить нельзя.',
+        detail: 'На свой пост или комментарий реакцию не ставят.',
       })
-    const mine = ownLikes.get(clientOf(request)) ?? new Set()
-    ownLikes.set(clientOf(request), mine.add(key))
+    const mine = ownReactions.get(clientOf(request)) ?? new Map()
+    ownReactions.set(clientOf(request), mine.set(key, kind))
   } else {
-    ownLikes.get(clientOf(request))?.delete(key)
+    if (!item && target === 'post')
+      return send(response, 404, { status: 404, code: 'reactions.post_not_found' })
+    ownReactions.get(clientOf(request))?.delete(key)
   }
-  return send(response, 200, likeState(request, key, account))
+  return send(response, 200, reactionState(request, key, account))
 }
-
 /** The `sub` of the bearer token (the fake provider's JWT; the fake does not check the signature). */
 function subject(request) {
   try {
@@ -1615,11 +1630,12 @@ createServer(async (request, response) => {
     return listKind === 'subscribers'
       ? subscriberList(request, response, url, listedBlog)
       : subscriptionList(request, response, url, listedBlog)
-  const [, likedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/likes$/) ?? []
-  if (likedPost && request.method === 'GET') return postLikes(request, response, likedPost)
-  const [, likeTarget, likeId] = url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/like$/) ?? []
-  if (likeTarget && ['PUT', 'DELETE'].includes(request.method))
-    return changeLike(request, response, likeTarget === 'posts' ? 'post' : 'comment', likeId)
+  const [, reactedPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/reactions$/) ?? []
+  if (reactedPost && request.method === 'GET') return postReactions(request, response, reactedPost)
+  const [, reactionTarget, reactionId] =
+    url.pathname.match(/^\/api\/v1\/(posts|comments)\/([^/]+)\/reaction$/) ?? []
+  if (reactionTarget && ['PUT', 'DELETE'].includes(request.method))
+    return changeReaction(request, response, reactionTarget === 'posts' ? 'post' : 'comment', reactionId)
   if (
     /^\/api\/v1\/(posts\/[^/]+\/comments|comments\/[^/]+\/branch)$/.test(url.pathname) &&
     request.method === 'GET'
