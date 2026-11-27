@@ -29,6 +29,7 @@ const newcomer: Profile = {
   avatarSources: [],
   subscriberCount: 0,
   subscribed: false,
+  blocked: false,
   cover: null,
   onboardingPending: true,
 }
