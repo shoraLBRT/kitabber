@@ -264,7 +264,9 @@ describe('PostView', () => {
     expect(bar.get('[data-testid="post-like"]').attributes('disabled')).toBeDefined()
     expect(bar.get('[data-testid="post-comments"]').attributes('href')).toBe('#comments')
     expect(wrapper.find('#comments').exists()).toBe(true)
-    await bar.get('[data-testid="post-share"]').trigger('click')
+    // E07-07: on a wide screen «Поделиться» opens the list; tests/post/PostShare.spec.ts covers the rest of it.
+    await bar.get('[data-testid="post-share"] button').trigger('click')
+    await bar.get('[role="menuitem"][data-id="copy-link"]').trigger('click')
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/u/anna/${id}-privet-mir`)
   })
 
@@ -297,7 +299,7 @@ describe('PostView', () => {
       attachTo: document.body,
     })
     const comments = wrapper.get('[data-testid="post-comments"]').element as HTMLElement
-    const share = wrapper.get('[data-testid="post-share"]').element as HTMLElement
+    const share = wrapper.get('[data-testid="post-share"] button').element as HTMLElement
     comments.focus()
     await wrapper.get('[role="toolbar"]').trigger('keydown', { key: 'ArrowRight' })
     expect(document.activeElement).toBe(share)

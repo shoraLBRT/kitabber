@@ -14,8 +14,10 @@ const props = withDefaults(
     /** Trigger text; also its accessible name when the trigger slot shows only an icon or an avatar. */
     label: string
     align?: 'start' | 'end'
+    /** Where the list opens: under the trigger, or over it (a toolbar at the bottom of the window). */
+    side?: 'below' | 'above'
   }>(),
-  { align: 'start' },
+  { align: 'start', side: 'below' },
 )
 
 const emit = defineEmits<{ select: [id: string] }>()
@@ -137,7 +139,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       :id="menuId"
       role="menu"
       class="ui-menu__list"
-      :class="`ui-menu__list--${align}`"
+      :class="[`ui-menu__list--${align}`, `ui-menu__list--${side}`]"
       :aria-label="label"
       @keydown="onMenuKeydown"
     >
@@ -211,6 +213,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
 
 .ui-menu__list--end {
   right: 0;
+}
+
+.ui-menu__list--above {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
 }
 
 .ui-menu__item {

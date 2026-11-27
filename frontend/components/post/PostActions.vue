@@ -6,27 +6,29 @@
 // ReactionRow: most popular first, the own one marked, live counts); the whole set opens over it by hovering, a long
 // press on a phone or «Выбрать реакцию», and choosing in it changes the reaction (E10-02, ADR-0101). On one's own post
 // and on a draft the row only shows the counts. A guest's press opens the sign-in window (useLikes). «Комментарии» leads to the comments under the post
-// (#comments; the tree is E09-02). «Поделиться» copies the post's link; the phone's system menu and the social
-// networks are E07-07 (#97). The arrow keys move between the buttons, as in a toolbar.
+// (#comments; the tree is E09-02). «Поделиться» (E07-07, ADR-0103, PostShare) opens the phone's system share menu, or
+// a list with copying the canonical link and the social networks. The arrow keys move between the buttons, as in a
+// toolbar.
 import { computed } from 'vue'
-import { MessageCircle, Share2 } from 'lucide-vue-next'
-import { useToast } from '../../composables/useToast'
+import { MessageCircle } from 'lucide-vue-next'
 import type { Likes } from '../../composables/useLikes'
 import ReactionRow from '../reactions/ReactionRow.vue'
+import PostShare from './PostShare.vue'
 import type { ReactionKind } from '../../api/reactions'
-import { copyPostLink } from '../../utils/post-menu'
 import { t } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
     path: string
+    /** The post's title for the share menu; `null` for a short post without one. */
+    title?: string | null
     /** The published post's id; `null` for a draft, which takes no likes. */
     postId?: string | null
     /** The person's own post: the like is not theirs to put. */
     own?: boolean
     likes?: Likes | null
   }>(),
-  { postId: null, own: false, likes: null },
+  { title: null, postId: null, own: false, likes: null },
 )
 
 const reactions = computed(() =>
@@ -39,15 +41,11 @@ function choose(kind: ReactionKind) {
   if (likable.value && props.postId !== null) props.likes?.choose('post', props.postId, kind)
 }
 
-const toast = useToast()
-
-const share = () => copyPostLink(props.path, toast)
-
 function move(event: KeyboardEvent) {
   const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
   if (!step) return
   const bar = event.currentTarget as HTMLElement
-  const items = [...bar.querySelectorAll<HTMLElement>('a, button:not(:disabled)')]
+  const items = [...bar.querySelectorAll<HTMLElement>('a, button:not(:disabled):not([role="menuitem"])')]
   const at = items.indexOf(document.activeElement as HTMLElement)
   if (at < 0) return
   event.preventDefault()
@@ -78,10 +76,7 @@ function move(event: KeyboardEvent) {
       <MessageCircle class="post-actions__icon" aria-hidden="true" />
       <span>{{ t('comments.title') }}</span>
     </a>
-    <button type="button" class="post-actions__item" data-testid="post-share" @click="share">
-      <Share2 class="post-actions__icon" aria-hidden="true" />
-      <span>{{ t('actions.share') }}</span>
-    </button>
+    <PostShare :path="path" :title="title" />
   </div>
 </template>
 

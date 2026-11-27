@@ -143,17 +143,7 @@ test.describe('страница поста: шапка и панель дейс�
     await expectNoHorizontalScroll(page)
   })
 
-  test('«Поделиться» копирует ссылку на пост', async ({ page, context, baseURL }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-    await page.goto(address)
-    await waitForHydration(page)
-    await page
-      .getByRole('toolbar', { name: 'Действия с постом' })
-      .getByRole('button', { name: 'Поделиться' })
-      .click()
-    await expect(page.getByText('Ссылка скопирована')).toBeVisible()
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(new URL(address, baseURL).href)
-  })
+  // «Поделиться» itself — the system menu, the list and the canonical link — is E07-07, e2e/post-share.spec.ts.
 })
 
 test.describe('страница поста: телефон', () => {

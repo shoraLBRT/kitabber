@@ -139,7 +139,13 @@ const inBlog = computed(() =>
         :likes="likes"
       />
     </div>
-    <PostActions :path="found.path" :post-id="publishedId" :own="found.own" :likes="likes" />
+    <PostActions
+      :path="found.path"
+      :title="found.post.title"
+      :post-id="publishedId"
+      :own="found.own"
+      :likes="likes"
+    />
   </article>
 </template>
 
