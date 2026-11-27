@@ -3,8 +3,9 @@
 // and «Поделиться» in a toolbar that sticks to the bottom of the window within the post's column while the post is
 // read, and on a phone (below 925 px, where the bottom bar is) right above the bottom bar. «Нравится» (E10-01,
 // ADR-0061) puts and takes back the like, with the count beside it, as the first chip of the row of reactions (E10-03,
-// ReactionRow: most popular first, the own one marked, live counts); on one's own post and on a draft it only shows the
-// count. A guest's press opens the sign-in window (useLikes). «Комментарии» leads to the comments under the post
+// ReactionRow: most popular first, the own one marked, live counts); the whole set opens over it by hovering, a long
+// press on a phone or «Выбрать реакцию», and choosing in it changes the reaction (E10-02, ADR-0101). On one's own post
+// and on a draft the row only shows the counts. A guest's press opens the sign-in window (useLikes). «Комментарии» leads to the comments under the post
 // (#comments; the tree is E09-02). «Поделиться» copies the post's link; the phone's system menu and the social
 // networks are E07-07 (#97). The arrow keys move between the buttons, as in a toolbar.
 import { computed } from 'vue'
@@ -12,7 +13,7 @@ import { MessageCircle, Share2 } from 'lucide-vue-next'
 import { useToast } from '../../composables/useToast'
 import type { Likes } from '../../composables/useLikes'
 import ReactionRow from '../reactions/ReactionRow.vue'
-import { reactionsOfLikes } from '../../api/reactions'
+import type { ReactionKind } from '../../api/reactions'
 import { copyPostLink } from '../../utils/post-menu'
 import { t } from '../../i18n'
 
@@ -28,12 +29,14 @@ const props = withDefaults(
   { postId: null, own: false, likes: null },
 )
 
-const reactions = computed(() => reactionsOfLikes(props.likes?.post.value ?? { count: 0, liked: false }))
+const reactions = computed(() =>
+  props.likes && props.postId !== null ? props.likes.reactions('post', props.postId) : [],
+)
 const likable = computed(() => props.likes !== null && props.postId !== null && !props.own)
 const likeBusy = computed(() => props.postId !== null && props.likes?.isBusy('post', props.postId) === true)
 
-function toggleLike() {
-  if (likable.value && props.postId !== null) props.likes?.toggle('post', props.postId)
+function choose(kind: ReactionKind) {
+  if (likable.value && props.postId !== null) props.likes?.choose('post', props.postId, kind)
 }
 
 const toast = useToast()
@@ -67,7 +70,9 @@ function move(event: KeyboardEvent) {
       :hint="own ? t('post.ownLike') : undefined"
       variant="panel"
       testid="post-like"
-      @toggle="toggleLike"
+      :set="likes?.set.value ?? null"
+      @choose="choose"
+      @open="likes?.loadSet()"
     />
     <a href="#comments" class="post-actions__item" data-testid="post-comments">
       <MessageCircle class="post-actions__icon" aria-hidden="true" />

@@ -53,11 +53,12 @@ public sealed class RecordingPublisher : IRealtimePublisher
 }
 
 /// <summary>
-/// E10-01: likes on posts and comments through <c>/api/v1/posts/{postId}/like</c>, <c>/api/v1/comments/{id}/like</c>
-/// and <c>/api/v1/posts/{postId}/likes</c> — put and taken back, idempotent, never on one's own content or a guest
-/// comment, and only by a signed-in account with a confirmed email.
+/// E10-01, E10-02: reactions on posts and comments through <c>/api/v1/posts/{postId}/reaction</c>,
+/// <c>/api/v1/comments/{id}/reaction</c> and <c>/api/v1/posts/{postId}/reactions</c> — put, changed and taken back,
+/// idempotent, one per person, never on one's own content or a guest comment, and only by a signed-in account with a
+/// confirmed email. A request without a kind here puts «Нравится».
 /// </summary>
-public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>, IAsyncLifetime
+public sealed class ReactionApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>, IAsyncLifetime
 {
     private HttpClient _client = null!;
     private Guid _author;
@@ -87,14 +88,14 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
     {
         var post = await SavePostAsync(publish: true);
 
-        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
         Assert.Equal(HttpStatusCode.OK, liked.StatusCode);
         Assert.Equal((1, true), await StateOf(liked));
 
-        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
         Assert.Equal((2, true), await StateOf(otherLiked));
 
-        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _reader);
         Assert.Equal(HttpStatusCode.OK, taken.StatusCode);
         Assert.Equal((1, false), await StateOf(taken));
         Assert.Equal(1, await CountAsync());
@@ -117,10 +118,10 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
             var post = await SavePostAsync(publish: true);
             var comment = await SaveCommentAsync(post.Id, _other);
 
-            using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-            using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-            using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
-            using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+            using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+            using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+            using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
+            using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
             var deadline = DateTime.UtcNow.AddSeconds(30);
             while (events.Count(e => e.PostId == post.Id) < 2)
@@ -130,7 +131,7 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
             }
 
             // A marker after them: the repeated like and the taken one would have come before it.
-            using var marker = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
+            using var marker = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
             while (!events.Any(e => e.AccountId == _other))
             {
                 Assert.True(DateTime.UtcNow < deadline, "the marker was not published in 30s");
@@ -156,19 +157,19 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var post = await SavePostAsync(publish: true);
         var comment = await SaveCommentAsync(post.Id, _author);
 
-        using var first = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var commentFirst = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
-        using var commentAgain = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var first = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var commentFirst = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
+        using var commentAgain = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         Assert.Equal((1, true), await StateOf(again));
         Assert.Equal((1, true), await StateOf(commentAgain));
         Assert.Equal(2, await CountAsync());
 
-        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var takenAgain = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _other);
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var takenAgain = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/reaction", _other);
 
         Assert.Equal(HttpStatusCode.OK, takenAgain.StatusCode);
         Assert.Equal((0, false), await StateOf(takenAgain));
@@ -183,10 +184,10 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var post = await SavePostAsync(publish: true);
         var comment = await SaveCommentAsync(post.Id, _author);
 
-        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
-        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
-        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
+        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
+        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
         var events = api.Events.Published;
         Assert.All(events, e =>
@@ -209,11 +210,11 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
     {
         var post = await SavePostAsync(publish: true);
 
-        using var first = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
+        using var first = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
         api.Events.Clear();
-        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var own = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _author);
-        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _other);
+        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var own = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _author);
+        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _other);
 
         Assert.Equal(HttpStatusCode.Forbidden, own.StatusCode);
         Assert.Empty(api.Events.Published);
@@ -228,13 +229,13 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var post = await SavePostAsync(publish: true);
         var comment = await SaveCommentAsync(post.Id, _reader);
 
-        using var ownPost = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _author);
-        using var ownComment = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var ownPost = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _author);
+        using var ownComment = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
         Assert.Equal(HttpStatusCode.Forbidden, ownPost.StatusCode);
-        Assert.Equal(LikeEndpoints.OwnContentCode, await CodeOf(ownPost));
+        Assert.Equal(ReactionEndpoints.OwnContentCode, await CodeOf(ownPost));
         Assert.Equal(HttpStatusCode.Forbidden, ownComment.StatusCode);
-        Assert.Equal(LikeEndpoints.OwnContentCode, await CodeOf(ownComment));
+        Assert.Equal(ReactionEndpoints.OwnContentCode, await CodeOf(ownComment));
         Assert.Equal(0, await CountAsync());
     }
 
@@ -247,43 +248,46 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
             "Привет из канала", api.Time.GetUtcNow());
         await api.SaveAsync<CommentsDbContext>(guest);
 
-        using var response = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{guest.Id}/like", _reader);
+        using var response = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{guest.Id}/reaction", _reader);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Equal(LikeEndpoints.GuestCommentCode, await CodeOf(response));
+        Assert.Equal(ReactionEndpoints.GuestCommentCode, await CodeOf(response));
         Assert.Equal(0, await CountAsync());
     }
 
     [Fact]
-    public async Task PostPageReadsTheLikesOfThePostAndItsComments()
+    public async Task PostPageReadsTheReactionsOfThePostAndItsComments()
     {
         var post = await SavePostAsync(publish: true);
         var liked = await SaveCommentAsync(post.Id, _author);
         var quiet = await SaveCommentAsync(post.Id, _author);
         var otherPost = await SavePostAsync(publish: true);
-        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader)).Dispose();
-        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other)).Dispose();
-        (await SendAsync(HttpMethod.Put, $"/api/v1/comments/{liked.Id}/like", _other)).Dispose();
-        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{otherPost.Id}/like", _reader)).Dispose();
+        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader)).Dispose();
+        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other, "heart")).Dispose();
+        (await SendAsync(HttpMethod.Put, $"/api/v1/comments/{liked.Id}/reaction", _other)).Dispose();
+        (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{otherPost.Id}/reaction", _reader)).Dispose();
 
-        using var asReader = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/likes", _reader);
-        using var asGuest = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/likes", account: null);
+        using var asReader = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/reactions", _reader);
+        using var asGuest = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/reactions", account: null);
 
         Assert.Equal(HttpStatusCode.OK, asReader.StatusCode);
         var reader = await asReader.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal(post.Id, reader.GetProperty("postId").GetGuid());
-        Assert.Equal(2, reader.GetProperty("post").GetProperty("count").GetInt32());
-        Assert.True(reader.GetProperty("post").GetProperty("liked").GetBoolean());
+        Assert.Equal(("heart:1,like:1", "like"), ShownOf(reader.GetProperty("post")));
         var comment = Assert.Single(reader.GetProperty("comments").EnumerateArray());
         Assert.Equal(liked.Id, comment.GetProperty("commentId").GetGuid());
-        Assert.Equal(1, comment.GetProperty("count").GetInt32());
-        Assert.False(comment.GetProperty("liked").GetBoolean());
+        Assert.Equal(("like:1", null), ShownOf(comment));
         Assert.DoesNotContain(
             reader.GetProperty("comments").EnumerateArray(), c => c.GetProperty("commentId").GetGuid() == quiet.Id);
 
         var guest = await asGuest.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.Equal(2, guest.GetProperty("post").GetProperty("count").GetInt32());
-        Assert.False(guest.GetProperty("post").GetProperty("liked").GetBoolean());
+        Assert.Equal(("heart:1,like:1", null), ShownOf(guest.GetProperty("post")));
+
+        static (string, string?) ShownOf(JsonElement state)
+        {
+            var (counts, mine) = ReactionsOf(state);
+            return (Shown(new Dictionary<string, int>(counts.OrderBy(c => c.Key, StringComparer.Ordinal))), mine);
+        }
     }
 
     [Fact]
@@ -294,16 +298,16 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var deleted = await SaveCommentAsync(post.Id, _author);
         await DeleteCommentAsync(deleted.Id);
 
-        using var draftLike = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{draft.Id}/like", _reader);
-        using var draftLikes = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{draft.Id}/likes", account: null);
-        using var unknown = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{Guid.CreateVersion7()}/like", _reader);
-        using var stub = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{deleted.Id}/like", _reader);
+        using var draftLike = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{draft.Id}/reaction", _reader);
+        using var draftLikes = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{draft.Id}/reactions", account: null);
+        using var unknown = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{Guid.CreateVersion7()}/reaction", _reader);
+        using var stub = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{deleted.Id}/reaction", _reader);
 
         Assert.Equal(HttpStatusCode.NotFound, draftLike.StatusCode);
-        Assert.Equal(LikeEndpoints.PostNotFoundCode, await CodeOf(draftLike));
+        Assert.Equal(ReactionEndpoints.PostNotFoundCode, await CodeOf(draftLike));
         Assert.Equal(HttpStatusCode.NotFound, draftLikes.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal(LikeEndpoints.CommentNotFoundCode, await CodeOf(unknown));
+        Assert.Equal(ReactionEndpoints.CommentNotFoundCode, await CodeOf(unknown));
         Assert.Equal(HttpStatusCode.NotFound, stub.StatusCode);
     }
 
@@ -313,9 +317,9 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var post = await SavePostAsync(publish: true);
         var unconfirmed = await SaveAccountAsync(4, "new@example.com", confirmed: false);
 
-        using var guest = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", account: null);
-        using var guestUnlike = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", account: null);
-        using var notConfirmed = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", unconfirmed);
+        using var guest = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", account: null);
+        using var guestUnlike = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", account: null);
+        using var notConfirmed = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", unconfirmed);
 
         Assert.Equal(HttpStatusCode.Unauthorized, guest.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, guestUnlike.StatusCode);
@@ -330,10 +334,10 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         var comment = await SaveCommentAsync(post.Id, _author);
         var quiet = await SaveCommentAsync(post.Id, _author);
 
-        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
-        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", _other);
-        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
+        using var again = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
+        using var commentLiked = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
         var weight = ReactionWeights.Of(ReactionKind.Like);
         Assert.Equal(new Dictionary<Guid, int> { [post.Id] = 2 * weight }, await PostRatingsAsync(post.Id));
@@ -341,9 +345,9 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         Assert.Equal(new Dictionary<Guid, int> { [comment.Id] = weight }, comments);
         Assert.False(comments.ContainsKey(quiet.Id));
 
-        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", _reader);
-        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/like", _reader);
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var neverLiked = await SendAsync(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var commentTaken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/reaction", _reader);
 
         Assert.Equal(new Dictionary<Guid, int> { [post.Id] = weight }, await PostRatingsAsync(post.Id));
         Assert.Empty(await CommentRatingsAsync(post.Id));
@@ -362,12 +366,12 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         // Every fan likes twice at once, and half of them take the like back at the same time as the others like.
         await Task.WhenAll(fans.SelectMany(fan => new[]
         {
-            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan),
-            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan),
+            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", fan),
+            Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", fan),
         }));
         await Task.WhenAll(fans.Select((fan, i) => i % 2 == 0
-            ? Send(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/like", fan)
-            : Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/like", fan)));
+            ? Send(HttpMethod.Delete, $"/api/v1/posts/{post.Id}/reaction", fan)
+            : Send(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", fan)));
 
         Assert.Equal(6, await CountAsync());
         Assert.Equal(
@@ -381,6 +385,113 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         }
     }
 
+    [Fact]
+    public async Task ChoosingAnotherReactionChangesTheOneThereInOneStep()
+    {
+        var post = await SavePostAsync(publish: true);
+        using var liked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader);
+        using var otherLiked = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other);
+        api.Events.Clear();
+
+        using var changed = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader, "clap");
+
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var (counts, mine) = await ReactionsOf(changed);
+        Assert.Equal("clap", mine);
+        Assert.Equal("like:1,clap:1", Shown(counts));
+        Assert.Equal(2, await CountAsync());
+        Assert.Equal(new Dictionary<Guid, int> { [post.Id] = 2 }, await PostRatingsAsync(post.Id));
+        var published = Assert.Single(api.Events.Published);
+        Assert.Equal(("post", post.Id, "like:1,clap:1"), Shown((ReactionsChangedEvent)published.Data!));
+
+        using var same = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader, "clap");
+        var again = await ReactionsOf(same);
+        Assert.Equal(("like:1,clap:1", "clap"), (Shown(again.Counts), again.Mine));
+        Assert.Single(api.Events.Published);
+    }
+
+    [Fact]
+    public async Task TakingBackRemovesTheReactionOfAnyKind()
+    {
+        var post = await SavePostAsync(publish: true);
+        var comment = await SaveCommentAsync(post.Id, _author);
+        using var put = await SendAsync(HttpMethod.Put, $"/api/v1/comments/{comment.Id}/reaction", _reader, "idea");
+
+        using var taken = await SendAsync(HttpMethod.Delete, $"/api/v1/comments/{comment.Id}/reaction", _reader);
+
+        Assert.Equal(HttpStatusCode.OK, taken.StatusCode);
+        var (counts, mine) = await ReactionsOf(taken);
+        Assert.Empty(counts);
+        Assert.Null(mine);
+        Assert.Equal(0, await CountAsync());
+        Assert.Empty(await CommentRatingsAsync(post.Id));
+    }
+
+    [Theory]
+    [InlineData("dislike")]
+    [InlineData("")]
+    [InlineData("LIKE")]
+    [InlineData(null)]
+    public async Task AReactionOutsideTheSetIsAValidationError(string? kind)
+    {
+        var post = await SavePostAsync(publish: true);
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { kind }), Encoding.UTF8, "application/json"),
+        };
+        request.As(_reader.ToString("D"));
+        using var response = await _client.SendAsync(request, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("kind", out _));
+        Assert.Equal(0, await CountAsync());
+    }
+
+    [Fact]
+    public async Task AReactionTheSetNoLongerOffersIsNotPutButStaysWhereItWas()
+    {
+        var post = await SavePostAsync(publish: true);
+        using var put = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader, "sad");
+        await SetOfferedAsync("sad", offered: false);
+        try
+        {
+            using var refused = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _other, "sad");
+            using var read = await SendAsync(HttpMethod.Get, $"/api/v1/posts/{post.Id}/reactions", _reader);
+
+            Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+            var (counts, mine) = ReactionsOf((await read.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("post"));
+            Assert.Equal(("sad:1", "sad"), (Shown(counts), mine));
+        }
+        finally
+        {
+            await SetOfferedAsync("sad", offered: true);
+        }
+    }
+
+    [Fact]
+    public async Task SimultaneousChoicesLeaveOneReactionPerPerson()
+    {
+        var post = await SavePostAsync(publish: true);
+        string[] kinds = ["like", "heart", "smile", "clap", "idea", "wow", "sad"];
+
+        await Task.WhenAll(kinds.Select(async kind =>
+        {
+            using var response = await SendAsync(HttpMethod.Put, $"/api/v1/posts/{post.Id}/reaction", _reader, kind);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }));
+
+        Assert.Equal(1, await CountAsync());
+        Assert.Equal(new Dictionary<Guid, int> { [post.Id] = 1 }, await PostRatingsAsync(post.Id));
+    }
+
+    private async Task SetOfferedAsync(string code, bool offered)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReactionsDbContext>();
+        await db.ReactionSet.Where(e => e.Code == code).ExecuteUpdateAsync(s => s.SetProperty(e => e.Enabled, offered), Ct);
+    }
     private async Task<IReadOnlyDictionary<Guid, int>> PostRatingsAsync(Guid postId)
     {
         await using var scope = api.Services.CreateAsyncScope();
@@ -446,12 +557,13 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         return await scope.ServiceProvider.GetRequiredService<ReactionsDbContext>().Reactions.CountAsync(Ct);
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, Guid? account)
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, Guid? account, string kind = "like")
     {
         using var request = new HttpRequestMessage(method, path);
         if (method == HttpMethod.Put)
         {
-            request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(new { kind }), Encoding.UTF8, "application/json");
         }
 
         if (account is { } id)
@@ -462,11 +574,23 @@ public sealed class LikeApiTests(ReactionsApi api) : IClassFixture<ReactionsApi>
         return await _client.SendAsync(request, Ct);
     }
 
+    // The likes of the answer and whether the account's reaction is the like.
     private static async Task<(int Count, bool Liked)> StateOf(HttpResponseMessage response)
     {
-        var state = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        return (state.GetProperty("count").GetInt32(), state.GetProperty("liked").GetBoolean());
+        var (counts, mine) = await ReactionsOf(response);
+        return (counts.GetValueOrDefault("like"), mine == "like");
     }
+
+    private static async Task<(Dictionary<string, int> Counts, string? Mine)> ReactionsOf(HttpResponseMessage response) =>
+        ReactionsOf(await response.Content.ReadFromJsonAsync<JsonElement>(Ct));
+
+    private static (Dictionary<string, int> Counts, string? Mine) ReactionsOf(JsonElement state) =>
+        (state.GetProperty("reactions").EnumerateArray()
+                .ToDictionary(r => r.GetProperty("kind").GetString()!, r => r.GetProperty("count").GetInt32()),
+            state.GetProperty("mine").GetString());
+
+    private static string Shown(Dictionary<string, int> counts) =>
+        string.Join(',', counts.Select(c => $"{c.Key}:{c.Value}"));
 
     private static async Task<string?> CodeOf(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString();

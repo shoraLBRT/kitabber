@@ -2723,13 +2723,13 @@
         }
       }
     },
-    "/api/v1/posts/{postId}/likes": {
+    "/api/v1/posts/{postId}/reactions": {
       "get": {
         "tags": [
           "Reactions"
         ],
-        "summary": "The likes of a published post and of its comments, and which of them the account likes",
-        "operationId": "GetPostLikes",
+        "summary": "The reactions of a published post and of its comments, and which of them are the account's",
+        "operationId": "GetPostReactions",
         "parameters": [
           {
             "name": "postId",
@@ -2747,7 +2747,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PostLikesView"
+                  "$ref": "#/components/schemas/PostReactionsView"
                 }
               }
             }
@@ -2765,13 +2765,13 @@
         }
       }
     },
-    "/api/v1/posts/{postId}/like": {
+    "/api/v1/posts/{postId}/reaction": {
       "put": {
         "tags": [
           "Reactions"
         ],
-        "summary": "Likes a published post of another author; liking it again changes nothing",
-        "operationId": "LikePost",
+        "summary": "Puts a reaction of the set on a published post of another author, or changes the account's one to it",
+        "operationId": "PutPostReaction",
         "parameters": [
           {
             "name": "postId",
@@ -2783,13 +2783,39 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PutReactionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LikeView"
+                  "$ref": "#/components/schemas/ReactionsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -2830,8 +2856,8 @@
         "tags": [
           "Reactions"
         ],
-        "summary": "Takes back the like of a post; taking back a like that is not there changes nothing",
-        "operationId": "UnlikePost",
+        "summary": "Takes back the account's reaction on a post; taking back none changes nothing",
+        "operationId": "TakePostReaction",
         "parameters": [
           {
             "name": "postId",
@@ -2849,7 +2875,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LikeView"
+                  "$ref": "#/components/schemas/ReactionsView"
                 }
               }
             }
@@ -2877,13 +2903,13 @@
         }
       }
     },
-    "/api/v1/comments/{id}/like": {
+    "/api/v1/comments/{id}/reaction": {
       "put": {
         "tags": [
           "Reactions"
         ],
-        "summary": "Likes a comment of another account; liking it again changes nothing",
-        "operationId": "LikeComment",
+        "summary": "Puts a reaction of the set on a comment of another account, or changes the account's one to it",
+        "operationId": "PutCommentReaction",
         "parameters": [
           {
             "name": "id",
@@ -2895,13 +2921,39 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PutReactionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LikeView"
+                  "$ref": "#/components/schemas/ReactionsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -2942,8 +2994,8 @@
         "tags": [
           "Reactions"
         ],
-        "summary": "Takes back the like of a comment; taking back a like that is not there changes nothing",
-        "operationId": "UnlikeComment",
+        "summary": "Takes back the account's reaction on a comment; taking back none changes nothing",
+        "operationId": "TakeCommentReaction",
         "parameters": [
           {
             "name": "id",
@@ -2961,7 +3013,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LikeView"
+                  "$ref": "#/components/schemas/ReactionsView"
                 }
               }
             }
@@ -3728,11 +3780,11 @@
           }
         }
       },
-      "CommentLikesView": {
+      "CommentReactionsView": {
         "required": [
           "commentId",
-          "count",
-          "liked"
+          "reactions",
+          "mine"
         ],
         "type": "object",
         "properties": {
@@ -3740,12 +3792,17 @@
             "type": "string",
             "format": "uuid"
           },
-          "count": {
-            "type": "integer",
-            "format": "int32"
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionCountView"
+            }
           },
-          "liked": {
-            "type": "boolean"
+          "mine": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4294,22 +4351,6 @@
       "JsonObject": {
         "type": "object"
       },
-      "LikeView": {
-        "required": [
-          "count",
-          "liked"
-        ],
-        "type": "object",
-        "properties": {
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "liked": {
-            "type": "boolean"
-          }
-        }
-      },
       "MarkNotificationsReadRequest": {
         "required": [
           "ids"
@@ -4558,7 +4599,7 @@
           }
         }
       },
-      "PostLikesView": {
+      "PostReactionsView": {
         "required": [
           "postId",
           "post",
@@ -4571,12 +4612,12 @@
             "format": "uuid"
           },
           "post": {
-            "$ref": "#/components/schemas/LikeView"
+            "$ref": "#/components/schemas/ReactionsView"
           },
           "comments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CommentLikesView"
+              "$ref": "#/components/schemas/CommentReactionsView"
             }
           }
         }
@@ -4946,6 +4987,36 @@
           }
         }
       },
+      "PutReactionRequest": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ReactionCountView": {
+        "required": [
+          "kind",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ReactionSetItem": {
         "required": [
           "code",
@@ -4958,6 +5029,27 @@
           },
           "title": {
             "type": "string"
+          }
+        }
+      },
+      "ReactionsView": {
+        "required": [
+          "reactions",
+          "mine"
+        ],
+        "type": "object",
+        "properties": {
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionCountView"
+            }
+          },
+          "mine": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
