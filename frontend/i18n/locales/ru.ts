@@ -60,7 +60,7 @@ export default {
   shell: {
     aside: 'Боковая колонка',
     popularComments: 'Популярные комментарии',
-    popularCommentsEmpty: 'Здесь появятся обсуждаемые комментарии',
+    popularCommentsEmpty: 'За сутки популярных комментариев пока нет',
     blogs: 'Интересные блоги',
     blogsEmpty: 'Здесь появятся блоги, на которые стоит подписаться',
     account: 'Аккаунт',

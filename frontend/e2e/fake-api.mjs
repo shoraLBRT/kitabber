@@ -1174,6 +1174,41 @@ function bestComment(postId) {
   }
 }
 
+// The widget «Популярные комментарии» (E08-12, ADR-0105): GET /api/v1/comments/popular with its fixed ratings of the
+// day — «Вторая ветка» by Борис, then «Первый уровень» by Анна; the guest comment from the channel never enters it. A
+// signed-in person does not see the authors they blocked (Борис by default, see blackListOf). The real choice of the
+// day, its cache and the guest rule are tested by the backend (PopularCommentApiTests).
+const popularRatings = [
+  ['Вторая ветка', 4],
+  ['Первый уровень', 2],
+]
+
+function popularComments(request, response, url) {
+  const limit = Number(url.searchParams.get('limit') ?? 5)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10)
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { limit: ['invalid'] } })
+  const blocked = subject(request) ? new Set(blackListOf(request).map((entry) => entry.accountId)) : new Set()
+  const list = popularRatings
+    .map(([text, rating]) => ({ comment: comments.find((c) => c.text === text), rating }))
+    .filter(({ comment }) => comment && comment.authorAccountId && !blocked.has(comment.authorAccountId))
+    .slice(0, limit)
+    .map(({ comment, rating }) => {
+      const post = posts.find((p) => p.id === comment.postId)
+      return {
+        id: comment.id,
+        postId: post.id,
+        postBlogId: post.blogId,
+        postTitle: post.title,
+        postSlug: post.slug,
+        authorAccountId: comment.authorAccountId,
+        text: comment.text,
+        rating,
+        createdAt: comment.createdAt,
+      }
+    })
+  return send(response, 200, { comments: list })
+}
+
 // Reactions (E10-01, E10-02, ADR-0061, ADR-0101): GET /api/v1/posts/{postId}/reactions, PUT (with a kind of the set)
 // and DELETE /api/v1/posts/{postId}/reaction and /api/v1/comments/{id}/reaction, with the server's checks (a signed-in
 // account, a kind the set offers, not one's own content, not a guest comment). Others' reactions are fixed likes: three
@@ -1756,6 +1791,8 @@ createServer(async (request, response) => {
   if (commentedPost && request.method === 'POST') return writeComment(request, response, commentedPost)
   const [, ownPost] = url.pathname.match(/^\/api\/v1\/posts\/([^/]+)\/comments\/mine$/) ?? []
   if (ownPost && request.method === 'GET') return ownComments(request, response, ownPost)
+  if (url.pathname === '/api/v1/comments/popular' && request.method === 'GET')
+    return popularComments(request, response, url)
   const [, changed] = url.pathname.match(/^\/api\/v1\/comments\/([^/]+)$/) ?? []
   if (changed && ['PATCH', 'DELETE'].includes(request.method))
     return changeComment(request, response, changed)

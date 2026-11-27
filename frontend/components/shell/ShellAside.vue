@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Right column of the desktop shell (E02-05, docs/spec.md section 5): "Популярные комментарии" and "Интересные
-// блоги". Their data comes with the feed widgets (FR-FEED); until then both widgets show the empty state.
+// блоги". The default layout fills «Популярные комментарии» (E08-12, usePopularComments); «Интересные блоги» has no
+// data yet and shows the empty state.
 import ShellWidget, { type WidgetState } from './ShellWidget.vue'
 import { t } from '../../i18n'
 

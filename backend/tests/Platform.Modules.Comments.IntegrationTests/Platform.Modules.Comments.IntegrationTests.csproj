@@ -23,6 +23,7 @@
         <ProjectReference Include="../../src/Modules/Comments/Platform.Modules.Comments.csproj" />
         <ProjectReference Include="../../src/Modules/Identity/Platform.Modules.Identity.csproj" />
         <ProjectReference Include="../../src/Modules/Posts/Platform.Modules.Posts.csproj" />
+        <ProjectReference Include="../../src/Modules/Reactions/Platform.Modules.Reactions.csproj" />
         <ProjectReference Include="../Platform.Testing/Platform.Testing.csproj" />
     </ItemGroup>
 

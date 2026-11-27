@@ -803,6 +803,23 @@ export interface paths {
         patch: operations["EditComment"];
         trace?: never;
     };
+    "/api/v1/comments/popular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The highest rated native comments of the last day, for the widget of the right column */
+        get: operations["GetPopularComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{postId}/reactions": {
         parameters: {
             query?: never;
@@ -1296,6 +1313,26 @@ export interface components {
             email: null | string;
             password: null | string;
             captcha?: null | string;
+        };
+        PopularCommentsView: {
+            comments: components["schemas"]["PopularCommentView"][];
+        };
+        PopularCommentView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            postId: string;
+            /** Format: uuid */
+            postBlogId: string;
+            postTitle: null | string;
+            postSlug: null | string;
+            /** Format: uuid */
+            authorAccountId: string;
+            text: string;
+            /** Format: int32 */
+            rating: number;
+            /** Format: date-time */
+            createdAt: string;
         };
         PostInput: {
             body: components["schemas"]["JsonElement"];
@@ -3788,6 +3825,37 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPopularComments: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PopularCommentsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
         };
