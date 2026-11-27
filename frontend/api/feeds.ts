@@ -138,6 +138,42 @@ export function appendPage(shown: FeedPost[], page: FeedPage): FeedPost[] {
   return [...shown, ...page.items.filter((item) => !seen.has(item.post.id))]
 }
 
+/** Whether post `a` comes before post `b` in the fresh feed: published later, the larger id on the same moment. */
+function newerThan(a: FeedPost, b: FeedPost): boolean {
+  const at = Date.parse(a.post.publishedAt ?? '')
+  const bt = Date.parse(b.post.publishedAt ?? '')
+  return at !== bt ? at > bt : a.post.id > b.post.id
+}
+
+/**
+ * The posts of a first page read again that came after the newest post shown (E08-08, ADR-0108), newest first: what
+ * «Показать новые» counts. Every post of the page is new to an empty feed.
+ */
+export function newerPosts(shown: FeedPost[], page: FeedPage): FeedPost[] {
+  const seen = new Set(shown.map((item) => item.post.id))
+  const [top] = shown
+  return page.items.filter((item) => !seen.has(item.post.id) && (!top || newerThan(item, top)))
+}
+
+/** Whether the whole first page is new and posts between it and the ones shown may be missing. */
+export function newerOverflow(shown: FeedPost[], page: FeedPage): boolean {
+  return (
+    shown.length > 0 &&
+    page.nextCursor !== null &&
+    page.items.length > 0 &&
+    newerPosts(shown, page).length === page.items.length
+  )
+}
+
+/**
+ * What the feed shows after «Показать новые» (E08-08, ADR-0108): the new posts on top of those shown. When the whole
+ * first page is new, the feed starts again from that page instead, so no post between the two is skipped.
+ */
+export function showNewer(shown: FeedSnapshot, page: FeedPage): FeedSnapshot {
+  if (newerOverflow(shown.posts, page)) return { posts: page.items, cursor: page.nextCursor }
+  return { posts: [...newerPosts(shown.posts, page), ...shown.posts], cursor: shown.cursor }
+}
+
 /**
  * The address of a post by its blog id. The post page leads an address with a blog id to the canonical one
  * (ADR-0041), so a card whose blog is unknown still leads to the post.
