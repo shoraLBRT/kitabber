@@ -3,11 +3,13 @@
 // description and its owner — and its tabs «Посты» and «Комментарии» (E09-15), each at its own address, so the tab
 // content is the slot. States: loading (a skeleton of the header), a failure with «Повторить», and the topic. A missing
 // topic is the page's 404 (error.vue). The subscriber count and «Подписаться» are BlogSubscription.vue (E11-03), its
-// state held by the page. Notifications, the tab «О теме», the rules and moderators come with their own E11 issues;
+// state held by the page. «Скрыть из лент» is TopicHide.vue (E11-07), for a signed-in reader. Notifications, the tab «О теме», the rules and moderators come with their own E11 issues;
 // changing the cover of a topic comes with the topic's management (E11-12, #114), so the cover is only shown here.
 import { computed } from 'vue'
 import BlogCover from '../blog/BlogCover.vue'
 import BlogSubscription from '../blog/BlogSubscription.vue'
+import TopicHide from './TopicHide.vue'
+import type { HiddenApi } from '../../api/hidden'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiState from '../ui/UiState.vue'
@@ -24,6 +26,8 @@ const props = defineProps<{
   /** The topic's address, e.g. /books; the tabs live under it. Without it the tabs are not shown. */
   base?: string
   tab?: TopicTab
+  /** The calls that hide the topic from the reader's feeds (E11-07); only for a signed-in reader. */
+  hidden?: HiddenApi | null
 }>()
 
 defineEmits<{ retry: []; subscribe: []; bell: [] }>()
@@ -99,6 +103,7 @@ const owner = computed(() => topic.value?.owner ?? null)
           @toggle="$emit('subscribe')"
           @bell="$emit('bell')"
         />
+        <TopicHide v-if="hidden" :key="topic.id" :blog-id="topic.id" :api="hidden" />
       </div>
     </header>
 

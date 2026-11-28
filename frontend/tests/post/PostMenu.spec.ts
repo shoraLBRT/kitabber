@@ -6,7 +6,8 @@ import { noPostMenuFeatures, postMenuItems, type PostMenuFeatures } from '../../
 
 // The «…» menu of a post (E07-05, ADR-0053): its items by role and by flag, the confirmation before deleting, a failed
 // deletion, copying the link, and the bottom sheet on a phone. The page against the fake API is in e2e/post-menu.spec.ts.
-const allOn: PostMenuFeatures = { postEdit: true, postReport: true, postHide: true }
+const allOn: PostMenuFeatures = { postEdit: true, postReport: true }
+const postId = '0195f3a0-0000-7000-8000-0000000000c1'
 const path = '/u/anna/0195f3a0-0000-7000-8000-0000000000c1-privet-mir'
 
 const phone = (matches: boolean) =>
@@ -45,15 +46,25 @@ afterEach(() => {
 
 describe('postMenuItems', () => {
   it('gives the author edit and delete, a reader report, hide and the link', () => {
-    expect(postMenuItems(true, allOn).map((item) => item.id)).toEqual(['edit', 'delete'])
-    expect(postMenuItems(false, allOn).map((item) => item.id)).toEqual(['report', 'hide', 'copy-link'])
+    expect(postMenuItems(true, allOn, true, true).map((item) => item.id)).toEqual(['edit', 'delete'])
+    expect(postMenuItems(false, allOn, false, true).map((item) => item.id)).toEqual([
+      'report',
+      'hide',
+      'copy-link',
+    ])
   })
 
   it('hides the items of features that are not built behind their flags', () => {
     expect(postMenuItems(true, noPostMenuFeatures).map((item) => item.id)).toEqual(['delete'])
     expect(postMenuItems(false, noPostMenuFeatures).map((item) => item.id)).toEqual(['copy-link'])
-    expect(postMenuItems(false, { ...noPostMenuFeatures, postHide: true }).map((item) => item.id)).toEqual([
+  })
+
+  it('offers «Скрыть» only to a reader who may hide the post (E11-07)', () => {
+    expect(postMenuItems(false, noPostMenuFeatures, false, true).map((item) => item.id)).toEqual([
       'hide',
+      'copy-link',
+    ])
+    expect(postMenuItems(false, noPostMenuFeatures, false, false).map((item) => item.id)).toEqual([
       'copy-link',
     ])
   })
@@ -72,7 +83,7 @@ describe('PostMenu', () => {
     expect(labels()).toEqual(['Редактировать', 'Удалить'])
     wrapper.unmount()
 
-    mountMenu({ own: false, path, features: allOn })
+    mountMenu({ own: false, path, features: allOn, hidePostId: postId })
     await open()
     expect(labels()).toEqual(['Пожаловаться', 'Скрыть', 'Скопировать ссылку'])
   })
@@ -135,6 +146,26 @@ describe('PostMenu', () => {
     await open()
     await choose('report')
     expect(wrapper.emitted('action')).toEqual([['report']])
+  })
+
+  it('hides the post from the reader’s feeds and says so, or says that it failed', async () => {
+    phone(false)
+    const hide = vi.fn().mockResolvedValueOnce({ status: 204 }).mockResolvedValueOnce({ status: 500 })
+    const hidden = { load: vi.fn(), topicState: vi.fn(), hide, show: vi.fn() }
+    mountMenu({ own: false, path, hidePostId: postId, hidden })
+    await open()
+    await choose('hide')
+    expect(hide).toHaveBeenCalledWith('posts', postId)
+    expect(useToast().toasts.map((toast) => toast.message)).toContain(
+      'Пост скрыт из ваших лент. Вернуть его можно в настройках.',
+    )
+    expect(wrapper.emitted('action')).toBeUndefined()
+
+    await open()
+    await choose('hide')
+    expect(useToast().toasts.map((toast) => toast.message)).toContain(
+      'Не удалось скрыть. Попробуйте ещё раз.',
+    )
   })
 
   it('opens a bottom sheet on a phone', async () => {

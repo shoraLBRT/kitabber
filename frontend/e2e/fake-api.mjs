@@ -389,6 +389,46 @@ function blocksRoute(request, response, url) {
   return send(response, 204)
 }
 
+// Hidden from the feeds (E11-07, ADR-0119): GET /api/v1/preferences/me/hidden, GET …/topics/{id}, PUT and DELETE
+// …/{posts|topics}/{id}, idempotent. Kept per client address and empty at first; the names come from `posts` and
+// `blogs`, and only a topic may be hidden as a topic.
+const hiddenLists = new Map() // client address -> { posts: [{ postId, hiddenAt }], topics: [{ blogId, hiddenAt }] }
+
+function hiddenRoute(request, response, url) {
+  if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const client = clientOf(request)
+  if (!hiddenLists.has(client)) hiddenLists.set(client, { posts: [], topics: [] })
+  const lists = hiddenLists.get(client)
+  if (url.pathname === '/api/v1/preferences/me/hidden')
+    return send(response, 200, {
+      posts: lists.posts.map((entry) => {
+        const post = posts.find((p) => p.id === entry.postId)
+        return { ...entry, title: post?.title ?? null, gone: !post }
+      }),
+      topics: lists.topics.map((entry) => {
+        const topic = blogs.find((b) => b.id === entry.blogId)
+        return { ...entry, name: topic?.name ?? null, nickname: topic?.nickname ?? null }
+      }),
+      max: 1000,
+    })
+  const [kind, id] = url.pathname.split('/').slice(-2).map(decodeURIComponent)
+  const key = kind === 'posts' ? 'postId' : 'blogId'
+  if (request.method === 'GET')
+    return send(response, 200, { hidden: lists.topics.some((entry) => entry.blogId === id) })
+  if (request.method === 'PUT') {
+    const known =
+      kind === 'posts' ? posts.some((p) => p.id === id) : blogs.some((b) => b.id === id && b.type === 'topic')
+    if (!known)
+      return send(response, 404, {
+        status: 404,
+        code: `preferences.${kind === 'posts' ? 'post' : 'topic'}_not_found`,
+      })
+  }
+  const rest = lists[kind].filter((entry) => entry[key] !== id)
+  lists[kind] = request.method === 'PUT' ? [{ [key]: id, hiddenAt: new Date().toISOString() }, ...rest] : rest
+  return send(response, 204)
+}
+
 // The set of reactions (E02-12, ADR-0095): GET /api/v1/reactions/set, the default directory of the Reactions module.
 const reactionSet = [
   { code: 'like', title: 'Нравится' },
@@ -2241,6 +2281,13 @@ createServer(async (request, response) => {
     (url.pathname.startsWith('/api/v1/preferences/me/blocks/') && ['PUT', 'DELETE'].includes(request.method))
   )
     return blocksRoute(request, response, url)
+  if (
+    (url.pathname === '/api/v1/preferences/me/hidden' && request.method === 'GET') ||
+    (/^\/api\/v1\/preferences\/me\/hidden\/topics\/[^/]+$/.test(url.pathname) && request.method === 'GET') ||
+    (/^\/api\/v1\/preferences\/me\/hidden\/(posts|topics)\/[^/]+$/.test(url.pathname) &&
+      ['PUT', 'DELETE'].includes(request.method))
+  )
+    return hiddenRoute(request, response, url)
   if (url.pathname === '/api/v1/search/suggestions' && request.method === 'GET')
     return searchSuggestions(response, url)
   if (

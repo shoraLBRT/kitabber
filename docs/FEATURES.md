@@ -122,6 +122,9 @@
   [ADR-0118](adr/0118-subscription-post-notifications.md) («колокольчик» — столбец `notify_new_posts` подписки,
   `PUT`/`DELETE …/subscription/notifications`, событие `PostPublished` при первой публикации, получателей называет
   Blogs через `IBlogSubscriptions.NewPostRecipientsAsync`, уведомление `subscription_post`; предложено, задача E11-04).
+  [ADR-0119](adr/0119-hide-from-feeds.md) (скрытые посты и темы в Preferences, второй `IFeedExclusionSource`, проверки и
+  названия через `IPostDirectory` и `IBlogDirectory`, лента самой темы её не убирает; предел 1000 — предложение,
+  требует подтверждения; предложено, задача E11-07).
   [ADR-0089](adr/0089-my-feed.md) («Моя лента»: посты блогов подписки и людей, на чьи блоги подписан читатель, по дате
   с курсором «Свежего»; исключения читателя — контракт `IFeedExclusionSource`, источники добавят #81 и #112; без общего
   кэша, `Cache-Control: private, no-store`; предложено, задача E08-04).
@@ -506,6 +509,17 @@
   Тесты: `NewPostNotificationApiTests`, `NotificationGenerationTests`, `NotificationRulesTests`, `PublishApiTests`,
   `tests/blog/subscription-bell.spec.ts`, `e2e/subscription-bell.spec.ts`. Нет здесь: пакетной записи уведомлений для
   блогов с тысячами подписчиков (ADR-0118, последствия), каналов push и писем (E12-03).
+- Скрытие темы и поста из лент (E11-07, #112, FR-TOPIC, FR-SUB, [ADR-0119](adr/0119-hide-from-feeds.md)): таблицы
+  `preferences.hidden_posts` и `preferences.hidden_topics` (миграция `AddHiddenFromFeeds`), стираются по
+  `account.deleted`. `GET /api/v1/preferences/me/hidden` (оба списка, последний первым, с названиями, `gone` у
+  ушедшего поста, `max` 1000), идемпотентные `PUT`/`DELETE …/posts/{postId}` и `…/topics/{blogId}`, `GET
+  …/topics/{blogId}` → `{ hidden }`; неопубликованный пост и нет темы — 404, личный блог — 400. `HiddenFromFeeds` —
+  второй `IFeedExclusionSource` модуля Preferences; лента блога (`BlogFeedEndpoints`) не убирает саму открытую тему.
+  Клиент: «Скрыть» в `PostMenu` (флаг `postHide` убран), `TopicHide.vue` на странице темы, `HiddenList.vue` в
+  `/settings/privacy`, `api/hidden.ts`, BFF `server/routes/bff/hidden*`. Тесты: `HiddenApiTests`, `HiddenRulesTests`,
+  `AccountDeletedErasureTests`, `SharedFeedExclusionsApiTests`, `tests/hidden/hidden.spec.ts`,
+  `tests/post/PostMenu.spec.ts`, `e2e/hidden.spec.ts`. Нет здесь: «Скрыть» в карточке ленты (у карточки ещё нет меню
+  «…»), меню «…» темы.
 - Списки подписчиков и подписок (E04-06, #96, FR-PROFILE, [ADR-0099](adr/0099-subscriber-lists.md)), **частично: нет
   правила скрытого профиля — самой настройки ещё нет, критерий проверяется вместе с #181**. `GET
   /api/v1/blogs/{id}/subscribers` (у блога и темы) и `GET /api/v1/blogs/{id}/subscriptions` (только у личного блога,

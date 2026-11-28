@@ -92,7 +92,7 @@ test.describe('кнопки «Заблокировать»', () => {
     await waitForHydration(page)
     const trigger = page.getByTestId('post-header').getByRole('button', { name: 'Меню поста' })
     const items = await openMenu(page, trigger, 'Меню поста', 'post-menu-sheet')
-    await expect(items).toHaveText(['Скопировать ссылку', 'Заблокировать автора'])
+    await expect(items).toHaveText(['Скрыть', 'Скопировать ссылку', 'Заблокировать автора'])
     await press(items.filter({ hasText: 'Заблокировать автора' }))
     await confirmBlock(page)
   })

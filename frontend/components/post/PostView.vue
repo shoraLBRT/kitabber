@@ -34,7 +34,10 @@ const props = defineProps<{
   likes?: Likes | null
   /** The bookmarks of the published post and of its comments (E10-07); without them no «В закладки» is shown. */
   bookmarks?: Bookmarks | null
-  /** The reader is signed in: someone else's post then offers «Заблокировать автора» in its menu (E11-06). */
+  /**
+   * The reader is signed in: someone else's post then offers «Заблокировать автора» (E11-06) and, once published,
+   * «Скрыть» (E11-07) in its menu.
+   */
   signedIn?: boolean
 }>()
 
@@ -64,6 +67,11 @@ const blockable = computed(() =>
         name: found.value.author ? blogTitle(found.value.author) : t('common.author'),
       }
     : null,
+)
+
+// The published post a signed-in reader may hide from their feeds (E11-07, ADR-0119): never their own.
+const hideable = computed(() =>
+  props.signedIn && found.value && !found.value.own ? publishedId.value : null,
 )
 
 // The blog is named apart from the author only when it is not the author's own: a topic.
@@ -127,6 +135,7 @@ const inBlog = computed(() =>
         :features="features"
         :remove="remove"
         :author="blockable"
+        :hide-post-id="hideable"
       />
     </header>
     <h1 v-if="found.post.title" class="post__title" data-testid="post-title" dir="auto">

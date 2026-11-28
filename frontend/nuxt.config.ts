@@ -43,7 +43,7 @@ export default defineNuxtConfig({
     // The flags of features that are shown before they are built (E07-05, ADR-0053): off until their own tasks turn
     // them on; NUXT_PUBLIC_FEATURES_POST_EDIT=true and the like turn one on at start, without a new build. The flags
     // of E01-14 (#118) replace them.
-    public: { apiBase: '', features: { postEdit: false, postReport: false, postHide: false } },
+    public: { apiBase: '', features: { postEdit: false, postReport: false } },
   },
   // `nuxt dev` signs in at the API of `dotnet run` (backend/src/Api, launchSettings.json); its key is made at start.
   // The realtime hub (E01-11) and the API calls of the browser (registration, E03-01) are reached on the same origin, as
