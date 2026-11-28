@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Platform.Messaging;
 using Platform.Modules.Blogs.Subscriptions;
+using Platform.Modules.Blogs.Topics;
 using Platform.Persistence;
 
 namespace Platform.Modules.Blogs;
@@ -36,6 +37,12 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
     /// <summary>Who follows which blog or topic (E11-03, ADR-0085).</summary>
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
+    /// <summary>The moderators the owners of topics appointed (E11-12, ADR-0121).</summary>
+    public DbSet<TopicModerator> TopicModerators => Set<TopicModerator>();
+
+    /// <summary>The offers to hand a topic to another account, waiting for its consent (E11-12, ADR-0121).</summary>
+    public DbSet<TopicTransferOffer> TopicTransferOffers => Set<TopicTransferOffer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,6 +56,7 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
             // UTF-16 units of emoji and combining marks, the rules keep the real limit.
             subsite.Property(s => s.Name).HasMaxLength(SubsiteRules.NameMaxLength * 8);
             subsite.Property(s => s.Description).HasMaxLength(SubsiteRules.DescriptionMaxLength * 8);
+            subsite.Property(s => s.Rules).HasMaxLength(SubsiteRules.RulesMaxLength * 8);
             subsite.Property(s => s.Nickname).HasMaxLength(SubsiteRules.NicknameMaxLength);
             subsite.HasIndex(s => s.Nickname).IsUnique().HasDatabaseName(NicknameIndex);
             subsite.HasIndex(s => s.OwnerAccountId).IsUnique().HasDatabaseName(PersonalBlogIndex)
@@ -68,6 +76,20 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
             subscription.HasKey(s => new { s.AccountId, s.SubsiteId });
             subscription.HasIndex(s => s.SubsiteId).HasDatabaseName(SubscriptionBlogIndex);
             subscription.HasOne<Subsite>().WithMany().HasForeignKey(s => s.SubsiteId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<TopicModerator>(moderator =>
+        {
+            // One appointment per topic and account; the second index serves «where is this account a moderator» (E15).
+            moderator.HasKey(m => new { m.SubsiteId, m.AccountId });
+            moderator.HasIndex(m => m.AccountId);
+            moderator.HasOne<Subsite>().WithMany().HasForeignKey(m => m.SubsiteId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<TopicTransferOffer>(offer =>
+        {
+            // At most one offer per topic (ADR-0121): a new offer replaces the old one.
+            offer.HasKey(o => o.SubsiteId);
+            offer.HasIndex(o => o.ToAccountId);
+            offer.HasOne<Subsite>().WithMany().HasForeignKey(o => o.SubsiteId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

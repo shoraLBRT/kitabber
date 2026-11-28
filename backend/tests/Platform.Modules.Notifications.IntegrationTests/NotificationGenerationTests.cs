@@ -167,6 +167,21 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
         Assert.Empty(await NotificationsOfAsync(reposter));
     }
 
+    // E11-12, ADR-0121: an offer of a topic notifies the person it is offered to, about the topic.
+    [Fact]
+    public async Task AnOfferOfATopicNotifiesItsRecipient()
+    {
+        var owner = NewAccount();
+        var recipient = NewAccount();
+        var topic = Guid.CreateVersion7(_at);
+
+        await PublishAsync(new TopicTransferOffered(topic, owner, recipient, _at));
+
+        var offer = Assert.Single(await NotificationsOfAsync(recipient));
+        Assert.Equal((NotificationType.TopicTransferOffer, owner, topic), (offer.Type, offer.ActorAccountId, offer.BlogId));
+        Assert.Empty(await NotificationsOfAsync(owner));
+    }
+
     [Fact]
     public async Task BlockedPersonNotifiesNoOne()
     {

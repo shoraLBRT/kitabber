@@ -51,6 +51,7 @@ public static class NotificationsModule
         bus.AddConsumer<BlogSubscribedNotificationsConsumer, BlogSubscribedNotificationsConsumerDefinition>();
         bus.AddConsumer<PostRepostedNotificationsConsumer, PostRepostedNotificationsConsumerDefinition>();
         bus.AddConsumer<PostPublishedNotificationsConsumer, PostPublishedNotificationsConsumerDefinition>();
+        bus.AddConsumer<TopicTransferOfferedNotificationsConsumer, TopicTransferOfferedNotificationsConsumerDefinition>();
         bus.AddConsumer<AccountDeletedNotificationsConsumer, AccountDeletedNotificationsConsumerDefinition>();
         bus.AddEntityFrameworkOutbox<NotificationsDbContext>(outbox =>
         {

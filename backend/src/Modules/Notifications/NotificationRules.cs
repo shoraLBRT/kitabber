@@ -134,6 +134,30 @@ public static class NotificationRules
     }
 
     /// <summary>
+    /// The notification of an offer of a topic (E11-12, ADR-0121): the recipient learns it from the owner. The key is the
+    /// offer, so a repeated event notifies once and a new offer after a declined one notifies again.
+    /// </summary>
+    public static IReadOnlyList<NotificationDraft> ForTopicTransfer(TopicTransferOffered offered)
+    {
+        ArgumentNullException.ThrowIfNull(offered);
+        if (offered.ToAccountId == offered.FromAccountId)
+        {
+            return [];
+        }
+
+        return
+        [
+            new NotificationDraft(
+                offered.ToAccountId,
+                NotificationType.TopicTransferOffer,
+                offered.FromAccountId,
+                $"topic-transfer:{offered.TopicId:N}:{offered.OccurredAt.UtcTicks}",
+                offered.OccurredAt,
+                BlogId: offered.TopicId),
+        ];
+    }
+
+    /// <summary>
     /// The notification of a subscription: the owner of a personal blog learns about a new subscriber, once per
     /// subscriber. A subscription to a topic notifies no one (ADR-0092, a proposal).
     /// </summary>

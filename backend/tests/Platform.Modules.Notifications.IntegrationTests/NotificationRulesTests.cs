@@ -118,6 +118,24 @@ public sealed class NotificationRulesTests
         Assert.Empty(NotificationRules.ForRepost(reposted with { ReposterAccountId = _postAuthor }));
     }
 
+    // E11-12, ADR-0121: an offer of a topic notifies the person it is offered to, about the topic; once per offer.
+    [Fact]
+    public void AnOfferOfATopicNotifiesItsRecipientOncePerOffer()
+    {
+        var topic = Guid.CreateVersion7(_at.AddDays(-5));
+        var offered = new TopicTransferOffered(topic, _postAuthor, _actor, _at);
+
+        var draft = Assert.Single(NotificationRules.ForTopicTransfer(offered));
+
+        Assert.Equal((_actor, NotificationType.TopicTransferOffer, _postAuthor, topic),
+            (draft.RecipientAccountId, draft.Type, draft.ActorAccountId, draft.BlogId));
+        Assert.Null(draft.PostId);
+        Assert.Equal(draft.SourceKey, Assert.Single(NotificationRules.ForTopicTransfer(offered)).SourceKey);
+        Assert.NotEqual(
+            draft.SourceKey, Assert.Single(NotificationRules.ForTopicTransfer(offered with { OccurredAt = _at.AddDays(1) })).SourceKey);
+        Assert.Empty(NotificationRules.ForTopicTransfer(offered with { ToAccountId = _postAuthor }));
+    }
+
     // E11-04, ADR-0118: a new post notifies each subscriber who asked for it once, about the post; never its author.
     [Fact]
     public void ANewPostNotifiesTheSubscribersWithTheBellButNotItsAuthor()
