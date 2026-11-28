@@ -5,14 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Platform.Http;
 using Platform.Messaging;
 using Platform.Persistence;
+using Platform.Realtime;
 
 namespace Platform.Modules.Notifications;
 
 /// <summary>
 /// The Notifications module in the workers host (ADR-0092): its consumers turn the events of Comments, Reactions and
 /// Blogs into notifications and keep them in the schema <c>notifications</c>. In the API host it gives the feed and the
-/// counter of the unread ones (E12-02, ADR-0093); the delivery in real time, by push and by mail comes with E12-04,
-/// E12-06 and E12-07.
+/// counter of the unread ones (E12-02, ADR-0093) and tells the reader's open pages that it changed (E12-04, ADR-0123);
+/// the delivery by push and by mail comes with E12-06 and E12-07.
 /// </summary>
 public static class NotificationsModule
 {
@@ -39,10 +40,15 @@ public static class NotificationsModule
         ArgumentNullException.ThrowIfNull(configuration);
         services.AddModuleDbContext<NotificationsDbContext>(configuration.GetConnectionString(ConnectionStringName)!);
         services.AddScoped<NotificationWriter>();
+        services.AddPlatformRealtimePublisher(configuration);
         return services;
     }
 
-    /// <summary>The module's consumers with the inbox in its schema (ADR-0005); the module publishes nothing.</summary>
+    /// <summary>
+    /// The module's consumers with the inbox in its schema (ADR-0005). A consumer that adds notifications publishes
+    /// <see cref="NotificationsArrived"/> through its own outbox, and <see cref="NotificationsArrivedRealtimeConsumer"/>
+    /// tells the recipients' pages once that is committed (ADR-0123).
+    /// </summary>
     public static IBusRegistrationConfigurator AddNotificationsConsumers(this IBusRegistrationConfigurator bus)
     {
         ArgumentNullException.ThrowIfNull(bus);
@@ -53,6 +59,7 @@ public static class NotificationsModule
         bus.AddConsumer<PostPublishedNotificationsConsumer, PostPublishedNotificationsConsumerDefinition>();
         bus.AddConsumer<TopicTransferOfferedNotificationsConsumer, TopicTransferOfferedNotificationsConsumerDefinition>();
         bus.AddConsumer<AccountDeletedNotificationsConsumer, AccountDeletedNotificationsConsumerDefinition>();
+        bus.AddConsumer<NotificationsArrivedRealtimeConsumer>();
         bus.AddEntityFrameworkOutbox<NotificationsDbContext>(outbox =>
         {
             outbox.UseModulePostgres();

@@ -1,3 +1,4 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Platform.Modules.Notifications.Contracts;
 
@@ -16,10 +17,11 @@ public sealed class NotificationWriter(
     IEnumerable<INotificationSuppression> suppressions,
     TimeProvider time)
 {
-    public async Task<int> AddAsync(IReadOnlyList<NotificationDraft> drafts, CancellationToken ct)
+    /// <summary>Adds what is not left out and gives the accounts that got a new notification, each once.</summary>
+    public async Task<IReadOnlyList<Guid>> AddAsync(IReadOnlyList<NotificationDraft> drafts, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(drafts);
-        var added = 0;
+        var added = new List<Guid>();
         foreach (var draft in drafts)
         {
             if (await SuppressedAsync(draft, ct))
@@ -47,10 +49,27 @@ public sealed class NotificationWriter(
                 SourceKey = draft.SourceKey,
                 CreatedAt = draft.OccurredAt,
             });
-            added++;
+            if (!added.Contains(draft.RecipientAccountId))
+            {
+                added.Add(draft.RecipientAccountId);
+            }
         }
 
         return added;
+    }
+
+    /// <summary>
+    /// Adds the drafts inside a consumer and, when anyone got a new notification, publishes
+    /// <see cref="NotificationsArrived"/> through the consumer's outbox: it leaves with the rows' commit (ADR-0123).
+    /// </summary>
+    public async Task AddAndAnnounceAsync(ConsumeContext context, IReadOnlyList<NotificationDraft> drafts)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var recipients = await AddAsync(drafts, context.CancellationToken);
+        if (recipients.Count > 0)
+        {
+            await context.Publish(new NotificationsArrived(recipients), context.CancellationToken);
+        }
     }
 
     private async Task<bool> SuppressedAsync(NotificationDraft draft, CancellationToken ct)

@@ -66,6 +66,9 @@ export class RealtimeChannel {
   private signedOut = false
   private attempts = 0
   private timer: unknown = null
+  // Called after every connect but the first of a start: the events of the break are lost, so pages read again.
+  private readonly reconnectHandlers = new Set<() => void>()
+  private everConnected = false
 
   constructor(private readonly options: ChannelOptions) {}
 
@@ -80,6 +83,7 @@ export class RealtimeChannel {
     this.running = true
     this.signedOut = false
     this.attempts = 0
+    this.everConnected = false
     const connection = this.options.connect({
       accessTokenFactory: () => this.nextTicket(),
       retry: {
@@ -91,6 +95,7 @@ export class RealtimeChannel {
     connection.onreconnected(() => {
       this.connected = true
       this.resubscribe()
+      this.reconnectedNow()
     })
     connection.onclose(() => {
       this.connected = false
@@ -116,6 +121,15 @@ export class RealtimeChannel {
     const entry = { handler, topic }
     this.handlers.add(entry)
     return () => this.handlers.delete(entry)
+  }
+
+  /**
+   * Calls `handler` each time the channel connects again after a break (not on the first connect): what happened in
+   * the break is not replayed, so a page reads its state again. Returns the function that stops listening.
+   */
+  onReconnect(handler: () => void): () => void {
+    this.reconnectHandlers.add(handler)
+    return () => this.reconnectHandlers.delete(handler)
   }
 
   /**
@@ -156,6 +170,7 @@ export class RealtimeChannel {
       this.connected = true
       this.attempts = 0
       this.resubscribe()
+      this.reconnectedNow()
     } catch {
       // The first connect is not retried by SignalR itself; a break after it is (the retry policy above).
       if (this.running && !this.signedOut && connection === this.connection) this.schedule()
@@ -169,6 +184,11 @@ export class RealtimeChannel {
       this.timer = null
       void this.attempt()
     }, delay)
+  }
+
+  private reconnectedNow(): void {
+    if (this.everConnected) for (const handler of this.reconnectHandlers) handler()
+    this.everConnected = true
   }
 
   private resubscribe(): void {

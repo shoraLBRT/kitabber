@@ -30,8 +30,34 @@ public static class RealtimeServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddPlatformRealtime(this IServiceCollection services, IConfiguration configuration)
     {
+        AddPlatformRealtimePublisher(services, configuration);
+        services.TryAddSingleton<RealtimeTicketStore>();
+        services.AddSingleton<IRealtimeTopicPolicy, AccountTopicPolicy>();
+        services.AddSingleton<IRealtimeTopicPolicy, PostTopicPolicy>();
+        services.AddApiEndpoints<RealtimeEndpoints>();
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, RealtimeTicketHandler>(RealtimeTicketHandler.SchemeName, null);
+        services.AddAuthorizationBuilder().AddPolicy(HubPolicy, policy => policy
+            .AddAuthenticationSchemes(RealtimeTicketHandler.SchemeName)
+            .RequireAuthenticatedUser());
+        return services;
+    }
+
+    /// <summary>
+    /// Only the sending half of the channel: SignalR with the same Redis backplane and <see cref="IRealtimePublisher"/>,
+    /// without the hub's tickets, policies and endpoint. A host that serves no clients (the workers host, ADR-0123)
+    /// sends through the backplane to the clients of the API instances; with the in-memory cache its events reach no
+    /// one (tests). A second call adds nothing.
+    /// </summary>
+    public static IServiceCollection AddPlatformRealtimePublisher(this IServiceCollection services, IConfiguration configuration)
+    {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+        if (services.Any(d => d.ServiceType == typeof(HubRealtimePublisher)))
+        {
+            return services;
+        }
+
         services.AddPlatformCache(configuration);
         services.TryAddSingleton(TimeProvider.System);
 
@@ -46,16 +72,8 @@ public static class RealtimeServiceCollectionExtensions
             });
         }
 
-        services.TryAddSingleton<RealtimeTicketStore>();
-        services.TryAddSingleton<IRealtimePublisher, HubRealtimePublisher>();
-        services.AddSingleton<IRealtimeTopicPolicy, AccountTopicPolicy>();
-        services.AddSingleton<IRealtimeTopicPolicy, PostTopicPolicy>();
-        services.AddApiEndpoints<RealtimeEndpoints>();
-        services.AddAuthentication()
-            .AddScheme<AuthenticationSchemeOptions, RealtimeTicketHandler>(RealtimeTicketHandler.SchemeName, null);
-        services.AddAuthorizationBuilder().AddPolicy(HubPolicy, policy => policy
-            .AddAuthenticationSchemes(RealtimeTicketHandler.SchemeName)
-            .RequireAuthenticatedUser());
+        services.AddSingleton<HubRealtimePublisher>();
+        services.TryAddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<HubRealtimePublisher>());
         return services;
     }
 

@@ -182,6 +182,28 @@ describe('realtime channel', () => {
     expect(timers).toEqual([])
   })
 
+  it('tells the reconnect handlers after a break, not on the first connect (E12-04)', async () => {
+    const { channel, hub, timers } = setup(counter())
+    const reconnected = vi.fn()
+    const off = channel.onReconnect(reconnected)
+    channel.start()
+    await flush()
+    expect(reconnected).not.toHaveBeenCalled()
+
+    await hub().breakAndReconnect()
+    expect(reconnected).toHaveBeenCalledTimes(1)
+
+    // SignalR gave up and the channel started over by itself: that is a reconnect too.
+    hub().close()
+    timers.shift()!.callback()
+    await flush()
+    expect(reconnected).toHaveBeenCalledTimes(2)
+
+    off()
+    await hub().breakAndReconnect()
+    expect(reconnected).toHaveBeenCalledTimes(2)
+  })
+
   it('gives events to the handlers of their topic', async () => {
     const { channel, hub } = setup(counter())
     const all = vi.fn()
