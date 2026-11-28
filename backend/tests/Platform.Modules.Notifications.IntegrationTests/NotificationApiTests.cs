@@ -3,9 +3,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Modules.Blogs.Contracts;
+using Platform.Realtime;
 using Platform.Testing.Api;
 using Platform.Testing.Containers;
+using Platform.Testing.Realtime;
 
 namespace Platform.Modules.Notifications.IntegrationTests;
 
@@ -13,7 +16,15 @@ namespace Platform.Modules.Notifications.IntegrationTests;
 public sealed class NotificationsApi : IntegrationApiFactory
 {
     public NotificationsApi(PostgresFixture postgres, RedisFixture redis)
-        : base(postgres, redis) => WithModule(services => services.AddTestAuthentication());
+        : base(postgres, redis) => WithModule(services =>
+        {
+            services.AddTestAuthentication();
+            services.RemoveAll<IRealtimePublisher>();
+            services.AddSingleton<IRealtimePublisher>(Events);
+        });
+
+    /// <summary>What the module published to the realtime channel (E12-04, ADR-0123).</summary>
+    public RecordingPublisher Events { get; } = new();
 }
 
 /// <summary>
@@ -34,7 +45,11 @@ public sealed class NotificationApiTests(NotificationsApi api) : IClassFixture<N
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public async ValueTask InitializeAsync() => await api.ResetAsync();
+    public async ValueTask InitializeAsync()
+    {
+        await api.ResetAsync();
+        api.Events.Clear();
+    }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
@@ -144,6 +159,27 @@ public sealed class NotificationApiTests(NotificationsApi api) : IClassFixture<N
         Assert.Equal(0, await UnreadAsync(client, _anna));
         Assert.Equal(1, await UnreadAsync(client, _boris));
         Assert.All((await FeedAsync(client, string.Empty)).Items, r => Assert.True(r.GetProperty("read").GetBoolean()));
+    }
+
+    // E12-04, ADR-0123: marking rows read in one tab tells the account's other tabs, which ask for the counter again;
+    // a mark that changed nothing tells no one, and another account's tabs hear nothing.
+    [Fact]
+    public async Task MarkingReadTellsTheAccountsOtherTabs()
+    {
+        var saved = await SaveAsync(_anna, 3);
+        await SaveAsync(_boris, 1);
+        using var client = api.CreateClient();
+
+        using var read = await SendAsync(client, HttpMethod.Post, _read, _anna, new { ids = new[] { saved[0].Id } });
+        using var readAgain = await SendAsync(client, HttpMethod.Post, _read, _anna, new { ids = new[] { saved[0].Id } });
+        using var all = await SendAsync(client, HttpMethod.Post, _readAll, _anna);
+        using var allAgain = await SendAsync(client, HttpMethod.Post, _readAll, _anna);
+
+        Assert.All([read, readAgain, all, allAgain], r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        Assert.Equal(
+            [(RealtimeTopic.Account(_anna), "notifications.changed", (object?)null),
+                (RealtimeTopic.Account(_anna), "notifications.changed", null)],
+            api.Events.Published);
     }
 
     [Fact]

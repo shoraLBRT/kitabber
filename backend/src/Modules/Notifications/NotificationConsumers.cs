@@ -13,7 +13,7 @@ namespace Platform.Modules.Notifications;
 public sealed class CommentPostedNotificationsConsumer(NotificationWriter writer) : IConsumer<CommentPosted>
 {
     public Task Consume(ConsumeContext<CommentPosted> context) =>
-        writer.AddAsync(NotificationRules.ForComment(context.Message), context.CancellationToken);
+        writer.AddAndAnnounceAsync(context, NotificationRules.ForComment(context.Message));
 }
 
 /// <summary>The inbox of the Notifications schema for <see cref="CommentPostedNotificationsConsumer"/> (ADR-0005).</summary>
@@ -24,7 +24,7 @@ public sealed class CommentPostedNotificationsConsumerDefinition
 public sealed class ReactionPutNotificationsConsumer(NotificationWriter writer) : IConsumer<ReactionPut>
 {
     public Task Consume(ConsumeContext<ReactionPut> context) =>
-        writer.AddAsync(NotificationRules.ForReaction(context.Message), context.CancellationToken);
+        writer.AddAndAnnounceAsync(context, NotificationRules.ForReaction(context.Message));
 }
 
 /// <summary>The inbox of the Notifications schema for <see cref="ReactionPutNotificationsConsumer"/> (ADR-0005).</summary>
@@ -35,7 +35,7 @@ public sealed class ReactionPutNotificationsConsumerDefinition
 public sealed class BlogSubscribedNotificationsConsumer(NotificationWriter writer) : IConsumer<BlogSubscribed>
 {
     public Task Consume(ConsumeContext<BlogSubscribed> context) =>
-        writer.AddAsync(NotificationRules.ForSubscription(context.Message), context.CancellationToken);
+        writer.AddAndAnnounceAsync(context, NotificationRules.ForSubscription(context.Message));
 }
 
 /// <summary>The inbox of the Notifications schema for <see cref="BlogSubscribedNotificationsConsumer"/> (ADR-0005).</summary>
@@ -46,7 +46,7 @@ public sealed class BlogSubscribedNotificationsConsumerDefinition
 public sealed class PostRepostedNotificationsConsumer(NotificationWriter writer) : IConsumer<PostReposted>
 {
     public Task Consume(ConsumeContext<PostReposted> context) =>
-        writer.AddAsync(NotificationRules.ForRepost(context.Message), context.CancellationToken);
+        writer.AddAndAnnounceAsync(context, NotificationRules.ForRepost(context.Message));
 }
 
 /// <summary>The inbox of the Notifications schema for <see cref="PostRepostedNotificationsConsumer"/> (ADR-0005).</summary>
@@ -57,7 +57,7 @@ public sealed class PostRepostedNotificationsConsumerDefinition
 public sealed class TopicTransferOfferedNotificationsConsumer(NotificationWriter writer) : IConsumer<TopicTransferOffered>
 {
     public Task Consume(ConsumeContext<TopicTransferOffered> context) =>
-        writer.AddAsync(NotificationRules.ForTopicTransfer(context.Message), context.CancellationToken);
+        writer.AddAndAnnounceAsync(context, NotificationRules.ForTopicTransfer(context.Message));
 }
 
 /// <summary>The inbox of the Notifications schema for <see cref="TopicTransferOfferedNotificationsConsumer"/> (ADR-0005).</summary>
@@ -76,7 +76,7 @@ public sealed class PostPublishedNotificationsConsumer(NotificationWriter writer
         var published = context.Message;
         var subscribers = await subscriptions.NewPostRecipientsAsync(
             published.BlogId, published.AuthorAccountId, context.CancellationToken);
-        await writer.AddAsync(NotificationRules.ForNewPost(published, subscribers), context.CancellationToken);
+        await writer.AddAndAnnounceAsync(context, NotificationRules.ForNewPost(published, subscribers));
     }
 }
 

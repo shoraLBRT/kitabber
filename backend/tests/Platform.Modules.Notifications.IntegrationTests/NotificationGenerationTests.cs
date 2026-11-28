@@ -10,8 +10,10 @@ using Platform.Modules.Comments.Contracts;
 using Platform.Modules.Identity.Contracts;
 using Platform.Modules.Notifications.Contracts;
 using Platform.Modules.Reactions.Contracts;
+using Platform.Realtime;
 using Platform.Testing.Containers;
 using Platform.Testing.Hosting;
+using Platform.Testing.Realtime;
 using Platform.Workers;
 
 namespace Platform.Modules.Notifications.IntegrationTests;
@@ -42,6 +44,7 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
     private static readonly DateTimeOffset _at = new(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
     private readonly FakeSuppression _suppression = new();
+    private readonly RecordingPublisher _realtime = new();
     private IHost _host = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -53,6 +56,7 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
             ["--environment", PlatformEnvironments.Test, "--Messaging:Transport", "InMemory", "--Cache:Provider", "InMemory",
                 "--Mail:Provider", "InMemory", $"--ConnectionStrings:Platform={database}"]);
         builder.Services.AddSingleton<INotificationSuppression>(_suppression);
+        builder.Services.AddSingleton<IRealtimePublisher>(_realtime);
         _host = builder.Build();
         await HostStartGate.RunAsync(async () =>
         {
@@ -269,7 +273,41 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
         Assert.Equal(third, kept.ActorAccountId);
     }
 
+    // E12-04, ADR-0123: once the notifications of a comment are committed, each recipient's open pages hear
+    // `notifications.changed` in their own account topic; the person who acted, who got nothing, hears nothing.
+    [Fact]
+    public async Task NewNotificationsTellTheRecipientsPages()
+    {
+        var postAuthor = NewAccount();
+        var parentAuthor = NewAccount();
+        var mentioned = NewAccount();
+        var actor = NewAccount();
+        var post = Guid.CreateVersion7(_at);
+
+        await PublishAsync(new CommentPosted(Guid.CreateVersion7(_at), post, postAuthor, actor, Guid.CreateVersion7(_at),
+            parentAuthor, [mentioned], _at));
+
+        foreach (var recipient in new[] { postAuthor, parentAuthor, mentioned })
+        {
+            await ChangedAsync(recipient);
+        }
+
+        Assert.DoesNotContain(_realtime.Published, e => e.Topic == RealtimeTopic.Account(actor));
+    }
+
     private static Guid NewAccount() => Guid.NewGuid();
+
+    // Waits until the account's topic has heard that its notifications changed.
+    private async Task ChangedAsync(Guid account)
+    {
+        var deadline = DateTime.UtcNow + _timeout;
+        while (!_realtime.Published.Any(e => e.Topic == RealtimeTopic.Account(account)
+            && e.Type == "notifications.changed" && e.Data is null))
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"account:{account} heard nothing in {_timeout.TotalSeconds:0}s");
+            await Task.Delay(100, Ct);
+        }
+    }
 
     // Publishes the event and waits until the consumer of the Notifications schema has handled it: its inbox record is
     // marked consumed in the same transaction as the notifications.

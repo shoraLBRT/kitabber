@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Platform.Http;
 using Platform.Http.Pagination;
 using Platform.Http.Problems;
 using Platform.Modules.Blogs.Contracts;
 using Platform.Modules.Media.Contracts;
+using Platform.Realtime;
 
 namespace Platform.Modules.Notifications;
 
@@ -217,6 +219,8 @@ public sealed class NotificationEndpoints : IApiEndpoints
         ClaimsPrincipal user,
         NotificationsDbContext db,
         TimeProvider time,
+        IRealtimePublisher realtime,
+        ILogger<NotificationEndpoints> logger,
         CancellationToken ct)
     {
         if (AccountOf(user) is not { } recipient)
@@ -236,16 +240,22 @@ public sealed class NotificationEndpoints : IApiEndpoints
         var now = time.GetUtcNow();
         // A named notification marks its row: every unread one of its group up to it, not one that came after the row
         // was shown. Only the recipient's own: another's id and a repeated mark change nothing.
-        await db.Notifications
+        var marked = await db.Notifications
             .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null
                 && db.Notifications.Any(s => s.RecipientAccountId == recipient && ids.Contains(s.Id)
                     && s.GroupKey == n.GroupKey && s.CreatedAt >= n.CreatedAt))
             .ExecuteUpdateAsync(set => set.SetProperty(n => n.ReadAt, now), ct);
+        await TellPagesAsync(realtime, logger, recipient, marked, ct);
         return TypedResults.Ok(new UnreadNotificationsView(await UnreadAsync(db, recipient, ct)));
     }
 
     private static async Task<IResult> MarkAllReadAsync(
-        ClaimsPrincipal user, NotificationsDbContext db, TimeProvider time, CancellationToken ct)
+        ClaimsPrincipal user,
+        NotificationsDbContext db,
+        TimeProvider time,
+        IRealtimePublisher realtime,
+        ILogger<NotificationEndpoints> logger,
+        CancellationToken ct)
     {
         if (AccountOf(user) is not { } recipient)
         {
@@ -253,11 +263,18 @@ public sealed class NotificationEndpoints : IApiEndpoints
         }
 
         var now = time.GetUtcNow();
-        await db.Notifications
+        var marked = await db.Notifications
             .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null)
             .ExecuteUpdateAsync(set => set.SetProperty(n => n.ReadAt, now), ct);
+        await TellPagesAsync(realtime, logger, recipient, marked, ct);
         return TypedResults.Ok(new UnreadNotificationsView(await UnreadAsync(db, recipient, ct)));
     }
+
+    // Rows marked read here change the counter in the account's other tabs too (E12-04, ADR-0123); a mark that changed
+    // nothing tells no one.
+    private static Task TellPagesAsync(
+        IRealtimePublisher realtime, ILogger logger, Guid recipient, int marked, CancellationToken ct) =>
+        marked == 0 ? Task.CompletedTask : NotificationEvents.PublishChangedAsync(realtime, logger, recipient, ct);
 
     // The unread rows, as the feed shows them: a group with several unread notifications counts once.
     private static Task<int> UnreadAsync(NotificationsDbContext db, Guid recipient, CancellationToken ct) =>
