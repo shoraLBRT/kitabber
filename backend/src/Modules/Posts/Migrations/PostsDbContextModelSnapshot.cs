@@ -330,6 +330,11 @@ namespace Platform.Modules.Posts.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
+
                     b.Property<string>("Title")
                         .HasColumnType("text")
                         .HasColumnName("title");
@@ -344,6 +349,12 @@ namespace Platform.Modules.Posts.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_posts");
+
+                    b.HasIndex("Tags")
+                        .HasDatabaseName("ix_posts_tags")
+                        .HasFilter("status = 'Published' AND deleted_at IS NULL");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Tags"), "gin");
 
                     b.HasIndex("AuthorAccountId", "CreatedAt")
                         .HasDatabaseName("ix_posts_author_account_id_created_at");

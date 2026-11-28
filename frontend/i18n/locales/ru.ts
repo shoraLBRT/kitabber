@@ -534,6 +534,10 @@ export default {
     noPosts: 'В этой теме пока нет постов',
     writeHere: 'Написать в тему',
   },
+  hashtag: {
+    posts: 'Посты с тегом',
+    noPosts: 'С этим тегом пока нет постов',
+  },
   subscription: {
     subscribe: 'Подписаться',
     subscribed: 'Вы подписаны',

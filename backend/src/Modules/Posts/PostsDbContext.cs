@@ -76,6 +76,8 @@ public sealed class PostsDbContext(DbContextOptions<PostsDbContext> options)
                 .HasFilter("repost_of_post_id IS NOT NULL AND deleted_at IS NULL");
             post.HasIndex(p => new { p.RepostOfPostId, p.PublishedAt }).HasFilter("repost_of_post_id IS NOT NULL");
             post.HasIndex(p => new { p.BlogId, p.PublishedAt });
+            // The feed of a tag (E11-08, ADR-0120): which published posts carry it.
+            post.HasIndex(p => p.Tags).HasMethod("gin").HasFilter("status = 'Published' AND deleted_at IS NULL");
             post.HasIndex(p => new { p.AuthorAccountId, p.CreatedAt });
             post.HasIndex(p => new { p.PublishedAt, p.Id }).IsDescending()
                 .HasDatabaseName(FreshFeedIndex)

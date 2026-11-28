@@ -715,7 +715,7 @@ const extraBlocks = {
 const posts = [
   ['0195f3a0-0000-7000-8000-0000000000c1', 0, 'Привет, мир', 'privet-mir', 'Первый абзац поста.'],
   ['0195f3a0-0000-7000-8000-0000000000c2', 0, null, null, 'Короткий пост без заголовка.'],
-  ['0195f3a0-0000-7000-8000-0000000000c3', 3, 'Книги осени', 'knigi-oseni', 'Что почитать в ноябре.'],
+  ['0195f3a0-0000-7000-8000-0000000000c3', 3, 'Книги осени', 'knigi-oseni', 'Что почитать в ноябре. #Книги'],
 ].map(([id, blog, title, slug, text]) => ({
   id,
   blogId: blogs[blog].id,
@@ -1259,6 +1259,21 @@ function blogFeed(request, response, url) {
   if (!blog) return send(response, 404, { status: 404, code: 'posts.blog_not_found' })
   if (blog.nickname === 'outage') return send(response, 500, { status: 500, code: 'internal' })
   return freshFeed(response, url, (post) => post.blogId === blogId, repostsBy(request))
+}
+
+// The feed of a hashtag (E11-08, ADR-0120): GET /api/v1/feeds/tags/{tag}, the same pages for the posts whose text has
+// the tag in any case. The tag `сбой` is a failing API; a word that is not a tag is refused as the API does.
+function tagFeed(request, response, url) {
+  const [, raw] = url.pathname.match(/^\/api\/v1\/feeds\/tags\/([^/]+)$/) ?? []
+  const tag = decodeURIComponent(raw ?? '')
+    .replace(/^#/, '')
+    .toLowerCase()
+  if (!/^[\p{L}\p{M}\p{N}_]{1,64}$/u.test(tag) || !/\p{L}/u.test(tag))
+    return send(response, 400, { status: 400, code: 'validation_failed', errors: { tag: ['invalid'] } })
+  if (tag === 'сбой') return send(response, 500, { status: 500, code: 'internal' })
+  const word = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}_&#])#${tag}(?![\\p{L}\\p{M}\\p{N}_])`, 'iu')
+  const carries = (post) => post.body.blocks.some((block) => word.test(String(block.data?.text ?? '')))
+  return freshFeed(response, url, carries, repostsBy(request))
 }
 
 // «Моя лента» (E08-04, ADR-0089): GET /api/v1/feeds/my, the same pages for the posts of the blogs and topics the client
@@ -2393,6 +2408,8 @@ createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/v1/feeds/top/') && request.method === 'GET') return topFeed(response, url)
   if (url.pathname.startsWith('/api/v1/feeds/blogs/') && request.method === 'GET')
     return blogFeed(request, response, url)
+  if (url.pathname.startsWith('/api/v1/feeds/tags/') && request.method === 'GET')
+    return tagFeed(request, response, url)
   if (url.pathname === '/api/v1/media' && request.method === 'POST') return uploadMedia(request, response)
   // imgproxy stands in: any delivered image is the same 1×1 WebP.
   if (url.pathname.startsWith('/__images/') && request.method === 'GET') {

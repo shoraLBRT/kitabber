@@ -30,11 +30,22 @@ const props = withDefaults(
 const imageSizes = '(max-width: 720px) 100vw, 680px'
 
 const blocks = computed(() => viewBlocks(props.document))
+
+// A hashtag (E11-08, ADR-0120) is a link to the feed of the tag drawn by v-html: a plain click moves inside the app,
+// with no reload, as a NuxtLink would; a click to open it elsewhere stays the browser's.
+function openTag(event: MouseEvent) {
+  const link = (event.target as Element | null)?.closest?.('a.hashtag')
+  if (!link || event.defaultPrevented || event.button !== 0) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  event.stopPropagation()
+  void navigateTo(link.getAttribute('href')!)
+}
 </script>
 
 <!-- eslint-disable vue/no-v-html -- every text is cleaned by cleanInlineHtml (ADR-0023, ADR-0045) -->
 <template>
-  <div class="post-blocks" data-testid="post-blocks">
+  <div class="post-blocks" data-testid="post-blocks" @click="openTag">
     <p v-if="blocks.length === 0" class="post-blocks__empty" data-testid="post-blocks-empty">
       {{ t('post.empty') }}
     </p>

@@ -38,6 +38,9 @@ public sealed partial class FeedPageCache(IDistributedCache cache, TimeProvider 
     /// <summary>The name of the feed of one blog in the keys of its pages.</summary>
     public static string BlogFeed(Guid blogId) => $"blog:{blogId:N}";
 
+    /// <summary>The name of the feed of one hashtag (in its stored form, ADR-0120) in the keys of its pages.</summary>
+    public static string TagFeed(string tag) => $"tag:{tag}";
+
     /// <summary>
     /// The page of <paramref name="page"/> of <paramref name="feed"/> from the cache, or <paramref name="read"/> from
     /// the database, which is then cached; a <c>null</c> read (the feed does not exist) is not cached. The generation is

@@ -5,6 +5,7 @@
 import { headerAnchor } from '../editor/document'
 import { isolateRtlHtml } from './bidi'
 import { cleanInlineHtml } from './inline-html'
+import { linkHashtags } from './hashtags'
 
 export interface ListNode {
   html: string
@@ -24,8 +25,8 @@ type Data = Record<string, unknown>
 
 const isString = (value: unknown): value is string => typeof value === 'string'
 
-/** A text field cleaned against the whitelist, its right-to-left runs isolated (E02-14, ADR-0068). */
-const inlineHtml = (text: string) => isolateRtlHtml(cleanInlineHtml(text))
+/** A text field cleaned against the whitelist, its hashtags links (ADR-0120), its right-to-left runs isolated (ADR-0068). */
+const inlineHtml = (text: string) => isolateRtlHtml(linkHashtags(cleanInlineHtml(text)))
 
 /** Flat items with levels (ADR-0033) as a tree: an item of level n + 1 goes under the closest item above it. */
 export function listTree(items: string[], levels: number[]): ListNode[] {
