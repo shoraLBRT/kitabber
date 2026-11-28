@@ -5,6 +5,7 @@
 // bottom sheet on a phone (narrower than 640 px). Deleting asks first in a dialog; `remove` deletes, and the dialog
 // stays open with a toast when it fails. The flagged items are only passed on (`action`) to the tasks that build them.
 // «Заблокировать автора» (E11-06, ADR-0091), for a signed-in reader with the author known, asks first in BlockDialog.
+// «Скрыть» (E11-07, ADR-0119), for a signed-in reader of a published post, hides it from their feeds with a toast.
 import { Ellipsis } from 'lucide-vue-next'
 import { computed, nextTick, ref } from 'vue'
 import BlockDialog from '../blocks/BlockDialog.vue'
@@ -14,6 +15,7 @@ import UiModal from '../ui/UiModal.vue'
 import UiSheet from '../ui/UiSheet.vue'
 import { phoneQuery, useMediaQuery } from '../../composables/useMediaQuery'
 import { useToast } from '../../composables/useToast'
+import { hiddenApi, type HiddenApi } from '../../api/hidden'
 import {
   copyPostLink,
   noPostMenuFeatures,
@@ -32,16 +34,39 @@ const props = withDefaults(
     remove?: () => Promise<boolean>
     /** The author a signed-in reader may block: the account and its blog's title; `null` offers no blocking. */
     author?: { accountId: string; name: string } | null
+    /** The published post a signed-in reader may hide from their feeds (E11-07); `null` offers no hiding. */
+    hidePostId?: string | null
+    /** The calls that hide the post; the site's server makes them (api/hidden.ts). */
+    hidden?: HiddenApi
   }>(),
-  { features: () => noPostMenuFeatures, remove: undefined, author: null },
+  {
+    features: () => noPostMenuFeatures,
+    remove: undefined,
+    author: null,
+    hidePostId: null,
+    hidden: undefined,
+  },
 )
 
-const emit = defineEmits<{ action: [action: Exclude<PostMenuAction, 'delete' | 'copy-link' | 'block'>] }>()
+const emit = defineEmits<{
+  action: [action: Exclude<PostMenuAction, 'delete' | 'copy-link' | 'block' | 'hide'>]
+}>()
 
 const label = t('post.menu')
 const toast = useToast()
 const isPhone = useMediaQuery(phoneQuery)
-const items = computed(() => postMenuItems(props.own, props.features, props.author !== null))
+const items = computed(() =>
+  postMenuItems(props.own, props.features, props.author !== null, props.hidePostId !== null),
+)
+
+// «Скрыть» (E11-07, ADR-0119): the post leaves the reader's feeds; the page stays, and the settings bring it back.
+async function hide() {
+  if (!props.hidePostId) return
+  const result = await (props.hidden ?? hiddenApi()).hide('posts', props.hidePostId)
+  if (result.status === 204) toast.show(t('hidden.postHidden'), { tone: 'success' })
+  else
+    toast.show(result.status === 401 ? t('settings.sessionEnded') : t('hidden.hideFailed'), { tone: 'error' })
+}
 const sheetOpen = ref(false)
 const confirmOpen = ref(false)
 const blockOpen = ref(false)
@@ -56,6 +81,7 @@ async function choose(id: string) {
   await nextTick()
   if (action === 'delete') confirmOpen.value = true
   else if (action === 'block') blockOpen.value = true
+  else if (action === 'hide') await hide()
   else if (action !== 'copy-link') emit('action', action)
 }
 

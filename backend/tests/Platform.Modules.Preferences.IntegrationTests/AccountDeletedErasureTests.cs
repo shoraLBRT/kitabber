@@ -117,6 +117,44 @@ public sealed class AccountDeletedErasureTests(PostgresFixture postgres) : IAsyn
         }
     }
 
+    [Fact]
+    public async Task DeletedAccountLosesItsHiddenPostsAndTopics()
+    {
+        var deletedAt = new DateTimeOffset(2026, 11, 28, 12, 0, 0, TimeSpan.Zero);
+        var account = Guid.CreateVersion7(deletedAt.AddDays(-30));
+        var other = Guid.CreateVersion7(deletedAt.AddDays(-20));
+        var post = Guid.CreateVersion7();
+        var topic = Guid.CreateVersion7();
+        await using (var scope = _host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PreferencesDbContext>();
+            db.HiddenPosts.AddRange(
+                new Hidden.HiddenPost { OwnerAccountId = account, PostId = post, HiddenAt = deletedAt },
+                new Hidden.HiddenPost { OwnerAccountId = other, PostId = post, HiddenAt = deletedAt });
+            db.HiddenTopics.Add(new Hidden.HiddenTopic { OwnerAccountId = account, BlogId = topic, HiddenAt = deletedAt });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await _host.Services.GetRequiredService<IBus>().Publish(new AccountDeleted(account, deletedAt), Ct);
+
+        var deadline = DateTime.UtcNow + _timeout;
+        while (true)
+        {
+            await using var scope = _host.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<PreferencesDbContext>();
+            var posts = await db.HiddenPosts.AsNoTracking().Select(h => h.OwnerAccountId).ToListAsync(Ct);
+            var topics = await db.HiddenTopics.AsNoTracking().CountAsync(Ct);
+            if (posts.Count == 1 && topics == 0)
+            {
+                Assert.Equal(other, posts[0]);
+                return;
+            }
+
+            Assert.True(DateTime.UtcNow < deadline, $"the hidden lists of {account} are still there after {_timeout.TotalSeconds:0}s");
+            await Task.Delay(100, Ct);
+        }
+    }
+
     private async Task GoneAsync(Guid account)
     {
         var deadline = DateTime.UtcNow + _timeout;

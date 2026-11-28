@@ -52,7 +52,7 @@ test.describe('меню поста', () => {
   test('на чужом посте вошедший видит меню читателя', async ({ page }) => {
     await signIn(page)
     await openPost(page, boriss)
-    await expect(await openMenu(page)).toHaveText(['Скопировать ссылку', 'Заблокировать автора'])
+    await expect(await openMenu(page)).toHaveText(['Скрыть', 'Скопировать ссылку', 'Заблокировать автора'])
   })
 
   test('автор удаляет свой пост после подтверждения', async ({ page }) => {

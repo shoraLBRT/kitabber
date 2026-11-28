@@ -26,6 +26,14 @@ public sealed class AccountDeletedConsumer(PreferencesDbContext db) : IConsumer<
         db.BlockedAccounts.RemoveRange(await db.BlockedAccounts
             .Where(b => b.OwnerAccountId == account || b.AccountId == account)
             .ToListAsync(context.CancellationToken));
+
+        // The posts and topics the account hid (ADR-0119).
+        db.HiddenPosts.RemoveRange(await db.HiddenPosts
+            .Where(h => h.OwnerAccountId == account)
+            .ToListAsync(context.CancellationToken));
+        db.HiddenTopics.RemoveRange(await db.HiddenTopics
+            .Where(h => h.OwnerAccountId == account)
+            .ToListAsync(context.CancellationToken));
     }
 }
 

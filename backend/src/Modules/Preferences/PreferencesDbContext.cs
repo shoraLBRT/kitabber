@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Platform.Messaging;
 using Platform.Modules.Preferences.Blocks;
+using Platform.Modules.Preferences.Hidden;
 using Platform.Persistence;
 
 namespace Platform.Modules.Preferences;
@@ -18,6 +19,10 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
     public DbSet<AccountPreferences> AccountPreferences => Set<AccountPreferences>();
 
     public DbSet<BlockedAccount> BlockedAccounts => Set<BlockedAccount>();
+
+    public DbSet<HiddenPost> HiddenPosts => Set<HiddenPost>();
+
+    public DbSet<HiddenTopic> HiddenTopics => Set<HiddenTopic>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +43,9 @@ public sealed class PreferencesDbContext(DbContextOptions<PreferencesDbContext> 
             blocked.HasKey(b => new { b.OwnerAccountId, b.AccountId });
             blocked.HasIndex(b => b.AccountId);
         });
+        // One entry per person and post or topic (ADR-0119); the key serves the reads of one person's lists.
+        modelBuilder.Entity<HiddenPost>(hidden => hidden.HasKey(h => new { h.OwnerAccountId, h.PostId }));
+        modelBuilder.Entity<HiddenTopic>(hidden => hidden.HasKey(h => new { h.OwnerAccountId, h.BlogId }));
     }
 }
 

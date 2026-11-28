@@ -4579,6 +4579,253 @@
         }
       }
     },
+    "/api/v1/preferences/me/hidden": {
+      "get": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "The posts and topics the signed-in account hid from its feeds, the latest hidden first",
+        "operationId": "GetOwnHiddenList",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiddenListView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences/me/hidden/posts/{postId}": {
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Hides a published post from the feeds of the signed-in account",
+        "operationId": "HidePost",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Brings a hidden post back to the feeds of the signed-in account",
+        "operationId": "ShowHiddenPost",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences/me/hidden/topics/{blogId}": {
+      "get": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Whether the signed-in account hid a topic from its feeds",
+        "operationId": "GetHiddenTopicState",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiddenTopicStateView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Hides a topic from the feeds of the signed-in account",
+        "operationId": "HideTopic",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Brings a hidden topic back to the feeds of the signed-in account",
+        "operationId": "ShowHiddenTopic",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notifications/me": {
       "get": {
         "tags": [
@@ -5898,6 +6145,102 @@
             "type": "string"
           },
           "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "HiddenListView": {
+        "required": [
+          "posts",
+          "topics",
+          "max"
+        ],
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiddenPostView"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiddenTopicView"
+            }
+          },
+          "max": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "HiddenPostView": {
+        "required": [
+          "postId",
+          "hiddenAt",
+          "title",
+          "gone"
+        ],
+        "type": "object",
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hiddenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gone": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HiddenTopicStateView": {
+        "required": [
+          "hidden"
+        ],
+        "type": "object",
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HiddenTopicView": {
+        "required": [
+          "blogId",
+          "hiddenAt",
+          "name",
+          "nickname"
+        ],
+        "type": "object",
+        "properties": {
+          "blogId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hiddenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nickname": {
             "type": [
               "null",
               "string"

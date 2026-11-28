@@ -8,6 +8,7 @@
 import TopicView, { type TopicTab } from '~/components/topic/TopicView.vue'
 import { blogPath, blogTitle, lookUpProfile, type ProfileLookup } from '~/api/profiles'
 import { subsitePath } from '~/api/posts'
+import { hiddenApi } from '~/api/hidden'
 import { t } from '../i18n'
 
 const route = useRoute()
@@ -36,6 +37,10 @@ const state = computed(() => {
 
 // The subscriber count and «Подписаться» (E11-03, ADR-0085).
 const subscription = useSubscription(() => (state.value.status === 'found' ? state.value.profile : null))
+
+// «Скрыть из лент» (E11-07, ADR-0119) for a signed-in reader, through the site's server.
+const account = useAccount()
+const hidden = computed(() => (account.value.signedIn ? hiddenApi() : null))
 
 const notFound = computed(() => data.value?.status === 'not-found')
 
@@ -78,6 +83,7 @@ useHead(() => ({
     :subscription="{ state: subscription.state.value, busy: subscription.busy.value }"
     :base="`/${segment}`"
     :tab="tab"
+    :hidden="hidden"
     @retry="refresh()"
     @subscribe="subscription.toggle()"
     @bell="subscription.toggleBell()"
