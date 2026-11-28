@@ -5,7 +5,7 @@ import NotificationList from '~/components/notifications/NotificationList.vue'
 import SettingsNav from '~/components/settings/SettingsNav.vue'
 import { notificationsApi } from '~/api/notifications'
 import ShellSearch from '~/components/shell/ShellSearch.vue'
-import { searchApi } from '~/api/search'
+import { searchApi, searchResultsPath } from '~/api/search'
 import ShellAside from '~/components/shell/ShellAside.vue'
 import PopularCommentList from '~/components/comments/PopularCommentList.vue'
 import { asideQuery } from '~/composables/useMediaQuery'
@@ -37,6 +37,11 @@ const notifications = notificationsApi()
 // The header's search (E14-02, ADR-0097): suggestions through /bff/search-suggestions, the history of this account.
 const search = searchApi()
 const account = useAccount()
+// Enter with no suggestion picked opens the results in the section «Рейтинг» (E14-03, ADR-0124).
+async function openResults(query: string, close: () => void) {
+  close()
+  await navigateTo(searchResultsPath(query))
+}
 // The right column's «Популярные комментарии» (E08-12, ADR-0105): read only while the column is on the screen.
 const asideShown = useMediaQuery(asideQuery)
 const popular = usePopularComments(asideShown)
@@ -61,7 +66,12 @@ function onAccount(id: string) {
     <slot />
     <span class="visually-hidden" aria-live="polite" data-testid="notifications-arrived">{{ arrived }}</span>
     <template #search="{ close }">
-      <ShellSearch :api="search" :history-key="account.historyKey ?? null" @close="close()" />
+      <ShellSearch
+        :api="search"
+        :history-key="account.historyKey ?? null"
+        @close="close()"
+        @search="(q: string) => openResults(q, close)"
+      />
     </template>
     <template #notifications="{ close }">
       <NotificationList :api="notifications" compact @unread="setUnread" @open="close()" />

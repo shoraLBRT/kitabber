@@ -207,12 +207,14 @@ describe('ShellSearch', () => {
     expect(JSON.parse(localStorage.getItem(searchHistoryKey('k1'))!)).toEqual(['кош'])
   })
 
-  it('Enter with no row picked keeps the query; Esc and the backdrop close the search', async () => {
+  it('Enter with no row picked keeps the query and asks for its results; Esc and the backdrop close the search', async () => {
     const view = mountSearch()
     await type(view, '  кошки   и  собаки ')
 
     await key(view, 'Enter')
     expect(JSON.parse(localStorage.getItem(searchHistoryKey('k1'))!)).toEqual(['кошки и собаки'])
+    // The results page (E14-03): the layout opens it and closes the search.
+    expect(view.emitted('search')).toEqual([['кошки и собаки']])
     expect(view.emitted('close')).toBeUndefined()
     await key(view, 'Escape')
     await view.get('[data-testid="search-backdrop"]').trigger('click')

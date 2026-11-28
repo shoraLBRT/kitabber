@@ -10,7 +10,6 @@ import SubscriptionList, { type SubscriptionListState } from './SubscriptionList
 import {
   appendSubscriptionCards,
   type SubscriptionCard,
-  type SubscriptionChange,
   type SubscriptionListKind,
   type SubscriptionListLookup,
 } from '../../api/subscriptions'
@@ -19,15 +18,11 @@ import { t } from '../../i18n'
 const props = defineProps<{ blogId: string; kind: SubscriptionListKind }>()
 const open = defineModel<boolean>('open', { default: false })
 
-const requireAccount = useRequireAccount()
-const toast = useToast()
-
 const status = ref<'loading' | 'error' | 'found'>('loading')
 const cards = ref<SubscriptionCard[]>([])
 const nextCursor = ref<string | null>(null)
 const loadingMore = ref(false)
 const moreFailed = ref(false)
-const busy = ref<string[]>([])
 
 const state = computed<SubscriptionListState>(() =>
   status.value === 'found'
@@ -80,34 +75,7 @@ function mark(id: string, subscribed: boolean) {
   cards.value = cards.value.map((card) => (card.id === id ? { ...card, subscribed } : card))
 }
 
-async function change(card: SubscriptionCard) {
-  if (busy.value.includes(card.id)) return
-  const wanted = !card.subscribed
-  busy.value = [...busy.value, card.id]
-  mark(card.id, wanted)
-  const result = await $fetch<SubscriptionChange>('/bff/subscription', {
-    method: 'POST',
-    body: { blogId: card.id, subscribed: wanted },
-  }).catch((): SubscriptionChange => ({ status: 'error' }))
-  busy.value = busy.value.filter((id) => id !== card.id)
-  if (result.status === 'done') {
-    mark(card.id, result.state.subscribed)
-    return
-  }
-  mark(card.id, card.subscribed)
-  toast.show(
-    result.status === 'refused'
-      ? result.message
-      : result.status === 'unauthorized'
-        ? t('subscription.signedOut')
-        : t('subscription.failed'),
-    { tone: 'error' },
-  )
-}
-
-function toggle(card: SubscriptionCard) {
-  requireAccount(`subscribe-list:${card.id}`, () => void change(card))
-}
+const { busy, toggle } = useRowSubscriptions(mark)
 </script>
 
 <template>

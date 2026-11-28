@@ -181,6 +181,100 @@ public sealed class OpenSearchIndex : ISearchIndex, IDisposable
             index, Guid.Parse(h!["_id"]!.GetValue<string>()), h["_source"]!.AsObject()))];
     }
 
+    public async Task<IReadOnlyList<IndexedDocument>> FindAsync(
+        SearchIndexKind index, SearchQuery query, CancellationToken cancellationToken)
+    {
+        var request = FindRequest(index, query);
+        using var response = await _http.PostAsync(
+            new Uri($"{Alias(index)}/_search", UriKind.Relative), Json(request.ToJsonString()), cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<JsonObject>(cancellationToken);
+        return [.. result!["hits"]!["hits"]!.AsArray().Select(h => Deserialize(
+            index, Guid.Parse(h!["_id"]!.GetValue<string>()), h["_source"]!.AsObject()))];
+    }
+
+    /// <summary>
+    /// The body of the <c>_search</c> of <see cref="FindAsync"/> (E14-03, ADR-0124): every word in some form, in the
+    /// title alone for «только заголовки»; the period, the kind of blog and the black list as filters, which do not
+    /// change the relevance; by date, the newest first.
+    /// </summary>
+    public static JsonObject FindRequest(SearchIndexKind index, SearchQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var posts = index == SearchIndexKind.Posts;
+        string[] fields = posts && query.TitlesOnly ? ["title"] : Fields(index);
+        var filter = new JsonArray();
+        var mustNot = new JsonArray();
+        JsonNode Ids(IEnumerable<Guid> ids) => new JsonArray([.. ids.Select(id => (JsonNode)id.ToString("D"))]);
+        if (posts && query.PublishedSince is { } since)
+        {
+            filter.Add(new JsonObject
+            {
+                ["range"] = new JsonObject
+                {
+                    ["publishedAt"] = new JsonObject { ["gte"] = since.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                },
+            });
+        }
+
+        if (!posts && query.BlogKind is { } kind)
+        {
+            filter.Add(new JsonObject { ["term"] = new JsonObject { ["kind"] = kind } });
+        }
+
+        if (query.ExcludedAccounts is { Count: > 0 } excluded)
+        {
+            mustNot.Add(posts
+                ? new JsonObject { ["terms"] = new JsonObject { ["authorAccountId"] = Ids(excluded) } }
+                : new JsonObject
+                {
+                    // A topic is shown whoever owns it.
+                    ["bool"] = new JsonObject
+                    {
+                        ["filter"] = new JsonArray(
+                            new JsonObject { ["term"] = new JsonObject { ["kind"] = IndexedBlog.PersonalKind } },
+                            new JsonObject { ["terms"] = new JsonObject { ["ownerAccountId"] = Ids(excluded) } }),
+                    },
+                });
+        }
+
+        var request = new JsonObject
+        {
+            ["from"] = query.From,
+            ["size"] = query.Size,
+            ["query"] = new JsonObject
+            {
+                ["bool"] = new JsonObject
+                {
+                    ["must"] = new JsonObject
+                    {
+                        ["multi_match"] = new JsonObject
+                        {
+                            ["query"] = query.Text,
+                            ["fields"] = new JsonArray([.. fields.Select(f => (JsonNode)f)]),
+                            ["operator"] = "and",
+                        },
+                    },
+                    ["filter"] = filter,
+                    ["must_not"] = mustNot,
+                },
+            },
+        };
+        if (posts && query.Order == SearchOrder.Date)
+        {
+            request["sort"] = new JsonArray(
+                new JsonObject { ["publishedAt"] = new JsonObject { ["order"] = "desc" } },
+                new JsonObject { ["_score"] = new JsonObject { ["order"] = "desc" } });
+        }
+
+        return request;
+    }
+
     /// <summary>The document <paramref name="id"/> of <paramref name="index"/> from the JSON <see cref="Serialize"/> wrote.</summary>
     public static IndexedDocument Deserialize(SearchIndexKind index, Guid id, JsonObject source)
     {

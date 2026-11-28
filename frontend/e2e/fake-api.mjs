@@ -570,6 +570,106 @@ function searchSuggestions(response, url) {
   })
 }
 
+// The results page (E14-03, ADR-0124): GET /api/v1/search/blogs?q=&kind=&offset= and /search/posts?q=&titlesOnly=
+// &period=&order=&offset=. Blogs of `blogs` of the kind asked by name, nickname or description, 5 a page, with the
+// client's subscriptions marked; the posts below by title and excerpt (the title alone for titlesOnly), 10 a page, the
+// period counted back from now, by date the newest first. Twelve «Пазл» posts fill more than a page; the query
+// `сбой поиска` fails as an unavailable search engine would; a bad filter is the API's 400.
+const day = 24 * 60 * 60 * 1000
+const resultPosts = [
+  { ...searchPosts[0], ago: 2 * day },
+  {
+    id: '0195f3a0-0000-7000-8000-00000000a102',
+    blogId: '0195f3a0-0000-7000-8000-0000000000b2',
+    title: null,
+    excerpt: 'Дочитал книги из отпуска, теперь пишу о них.',
+    ago: 60 * 60 * 1000,
+  },
+  {
+    id: '0195f3a0-0000-7000-8000-00000000a103',
+    blogId: '0195f3a0-0000-7000-8000-0000000000b4',
+    title: 'Старые книги на чердаке',
+    excerpt: 'Нашёл сундук с изданиями прошлого века.',
+    ago: 400 * day,
+  },
+  ...Array.from({ length: 12 }, (_, n) => ({
+    id: `0195f3a0-0000-7000-8000-00000000a2${String(n).padStart(2, '0')}`,
+    blogId: '0195f3a0-0000-7000-8000-0000000000b2',
+    title: `Пазл номер ${n + 1}`,
+    excerpt: 'Собираю по вечерам.',
+    ago: (n + 1) * day,
+  })),
+]
+
+function searchQueryOf(url) {
+  return (url.searchParams.get('q') ?? '').trim().split(/\s+/u).filter(Boolean).join(' ')
+}
+
+function searchProblem(response, field) {
+  return send(response, 400, { status: 400, code: 'validation_failed', errors: { [field]: ['invalid'] } })
+}
+
+function searchMatcher(query) {
+  const words = query.toLowerCase().split(' ')
+  return (...texts) => words.every((w) => texts.some((text) => text?.toLowerCase().includes(w)))
+}
+
+function searchResultBlogs(request, response, url) {
+  const query = searchQueryOf(url)
+  const kind = url.searchParams.get('kind')
+  const offset = Number(url.searchParams.get('offset') ?? 0)
+  if (query === '' || query.length > 100) return searchProblem(response, 'q')
+  if (kind !== 'personal' && kind !== 'topic') return searchProblem(response, 'kind')
+  if (query === 'сбой поиска') return send(response, 503, { status: 503, code: 'search_unavailable' })
+  const reader = subject(request)
+  const matches = searchMatcher(query)
+  const found = blogs.filter((b) => b.type === kind && matches(b.name, b.nickname, b.description))
+  return send(response, 200, {
+    items: found.slice(offset, offset + 5).map((b) => ({
+      id: b.id,
+      type: b.type,
+      name: b.name,
+      nickname: b.nickname,
+      avatarSources: [],
+      subscribed: subscriptionFields(b, request).subscribed,
+      own: b.type === 'personal' && Boolean(reader) && b.owner === reader,
+    })),
+    hasMore: found.length > offset + 5,
+  })
+}
+
+function searchResultPosts(response, url) {
+  const query = searchQueryOf(url)
+  const period = url.searchParams.get('period') ?? 'all'
+  const order = url.searchParams.get('order') ?? 'relevance'
+  const titlesOnly = url.searchParams.get('titlesOnly') === 'true'
+  const offset = Number(url.searchParams.get('offset') ?? 0)
+  const periods = { all: Infinity, day: day, week: 7 * day, month: 31 * day, year: 365 * day }
+  if (query === '' || query.length > 100) return searchProblem(response, 'q')
+  if (!(period in periods)) return searchProblem(response, 'period')
+  if (order !== 'relevance' && order !== 'date') return searchProblem(response, 'order')
+  if (query === 'сбой поиска') return send(response, 503, { status: 503, code: 'search_unavailable' })
+  const matches = searchMatcher(query)
+  const found = resultPosts
+    .filter((p) => (titlesOnly ? matches(p.title) : matches(p.title, p.excerpt)))
+    .filter((p) => p.ago <= periods[period])
+  if (order === 'date') found.sort((a, b) => a.ago - b.ago)
+  const now = Date.now()
+  return send(response, 200, {
+    items: found.slice(offset, offset + 10).map(({ ago, ...post }) => {
+      const blog = blogs.find((b) => b.id === post.blogId)
+      return {
+        ...post,
+        publishedAt: new Date(now - ago).toISOString(),
+        blog: blog
+          ? { id: blog.id, kind: blog.type, name: blog.name, nickname: blog.nickname, avatarSources: [] }
+          : null,
+      }
+    }),
+    hasMore: found.length > offset + 10,
+  })
+}
+
 function accountSessionsRoute(request, response, url) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const client = clientOf(request)
@@ -2514,6 +2614,10 @@ createServer(async (request, response) => {
     return hiddenRoute(request, response, url)
   if (url.pathname === '/api/v1/search/suggestions' && request.method === 'GET')
     return searchSuggestions(response, url)
+  if (url.pathname === '/api/v1/search/blogs' && request.method === 'GET')
+    return searchResultBlogs(request, response, url)
+  if (url.pathname === '/api/v1/search/posts' && request.method === 'GET')
+    return searchResultPosts(response, url)
   if (
     (url.pathname === '/api/v1/notifications/me' && request.method === 'GET') ||
     (url.pathname === '/api/v1/notifications/me/unread' && request.method === 'GET') ||

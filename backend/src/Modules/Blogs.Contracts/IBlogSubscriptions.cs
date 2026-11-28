@@ -16,6 +16,13 @@ public interface IBlogSubscriptions
     Task<bool> IsSubscribedAsync(Guid accountId, Guid blogId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Which of <paramref name="blogIds"/> <paramref name="accountId"/> is subscribed to, read at once for a page of
+    /// rows with «Подписаться», such as the search results (E14-03).
+    /// </summary>
+    Task<IReadOnlySet<Guid>> SubscribedAmongAsync(
+        Guid accountId, IReadOnlyCollection<Guid> blogIds, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Who wants to know about a new post (E11-04, ADR-0118): the subscribers with notifications on of the blog or the
     /// topic <paramref name="blogId"/> the post is in and of the personal blog of its author
     /// <paramref name="authorAccountId"/>, each once, without the author. Empty when no one turned notifications on.

@@ -3,8 +3,8 @@
 // the feed over a darkened page; on a phone (below breakpoint.sm) it is a screen of its own with «Отмена». An empty
 // field shows the query history of this browser and account, «Очистить» empties it; typing asks for suggestions after
 // a pause (`suggestDelay`) and drops the answers of older queries. The field is a combobox: ↑ and ↓ pick a row, Enter
-// opens it, Esc closes the search. A query goes into the history when a row is opened or Enter is pressed on it; the
-// results page of Enter alone comes with E14-03.
+// opens it, Esc closes the search. A query goes into the history when a row is opened or Enter is pressed on it; Enter
+// with no row picked asks for the results page (`search`, E14-03, ADR-0124), which the layout opens.
 import { History, Search, X } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
@@ -34,7 +34,7 @@ import { t } from '../../i18n'
 const props = withDefaults(defineProps<{ api: SearchApi; historyKey?: string | null }>(), {
   historyKey: null,
 })
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; search: [query: string] }>()
 
 type Row =
   { kind: 'history'; query: string } | { kind: 'link'; path: string; group: 'blogs' | 'posts'; index: number }
@@ -157,7 +157,10 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     const row = rows.value[active.value]
     if (!row) {
-      if (query.value && !tooLong.value) remember()
+      if (query.value && !tooLong.value) {
+        remember()
+        emit('search', query.value)
+      }
     } else if (row.kind === 'history') {
       pickHistory(row.query)
     } else {

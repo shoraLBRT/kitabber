@@ -23,6 +23,22 @@ internal sealed class BlogSubscriptions(BlogsDbContext db) : IBlogSubscriptions
     public Task<bool> IsSubscribedAsync(Guid accountId, Guid blogId, CancellationToken cancellationToken) =>
         db.Subscriptions.AnyAsync(s => s.AccountId == accountId && s.SubsiteId == blogId, cancellationToken);
 
+    public async Task<IReadOnlySet<Guid>> SubscribedAmongAsync(
+        Guid accountId, IReadOnlyCollection<Guid> blogIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(blogIds);
+        if (blogIds.Count == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var ids = await db.Subscriptions.AsNoTracking()
+            .Where(s => s.AccountId == accountId && blogIds.Contains(s.SubsiteId))
+            .Select(s => s.SubsiteId)
+            .ToListAsync(cancellationToken);
+        return ids.ToHashSet();
+    }
+
     public async Task<IReadOnlyList<Guid>> NewPostRecipientsAsync(
         Guid blogId, Guid authorAccountId, CancellationToken cancellationToken)
     {

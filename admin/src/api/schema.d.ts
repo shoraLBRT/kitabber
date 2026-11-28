@@ -1534,6 +1534,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search/blogs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A page of the personal blogs or of the topics a query finds, with the reader's subscriptions */
+        get: operations["SearchBlogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A page of the posts a query finds: in the titles only, for a period, by relevance or date */
+        get: operations["SearchPosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1794,6 +1828,35 @@ export interface components {
             freshMinRating: null | number;
             homeFeed: string;
             autoplayVideo: boolean;
+        };
+        FoundBlogsPage: {
+            items: components["schemas"]["FoundBlogView"][];
+            hasMore: boolean;
+        };
+        FoundBlogView: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            name: null | string;
+            nickname: null | string;
+            avatarSources: components["schemas"]["ImageSource"][];
+            subscribed: boolean;
+            own: boolean;
+        };
+        FoundPostsPage: {
+            items: components["schemas"]["FoundPostView"][];
+            hasMore: boolean;
+        };
+        FoundPostView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            blogId: string;
+            title: null | string;
+            excerpt: string;
+            /** Format: date-time */
+            publishedAt: string;
+            blog: null | components["schemas"]["SuggestedBlogView"];
         };
         GeneralPreferencesInput: {
             theme: null | string;
@@ -6724,6 +6787,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchSuggestionsView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SearchBlogs: {
+        parameters: {
+            query?: {
+                q?: string;
+                kind?: string;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoundBlogsPage"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SearchPosts: {
+        parameters: {
+            query?: {
+                q?: string;
+                titlesOnly?: boolean;
+                period?: string;
+                order?: string;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoundPostsPage"];
                 };
             };
             /** @description Bad Request */

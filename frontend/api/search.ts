@@ -69,3 +69,117 @@ export function suggestedPostPath(post: Pick<SuggestedPost, 'id' | 'blogId'>): s
 export function suggestedBlogName(blog: Pick<SuggestedBlog, 'name' | 'nickname'>): string {
   return blog.name?.trim() || (blog.nickname ? `@${blog.nickname}` : '')
 }
+
+// The results page (E14-03, FR-SEARCH, ADR-0124): the blocks «Блоги», «Темы» and «Посты» of a query, each read page by
+// page by an offset through the site's own server (/bff/search-blogs, /bff/search-posts), which adds the reader's
+// token, so «Подписаться» is marked and the black list applies. The query and the filters of «Посты» stay in the
+// address, so a search can be shared and survives a reload.
+export type FoundBlog = components['schemas']['FoundBlogView']
+export type FoundPost = components['schemas']['FoundPostView']
+export type FoundBlogsPage = components['schemas']['FoundBlogsPage']
+export type FoundPostsPage = components['schemas']['FoundPostsPage']
+
+/** The blocks of blogs: personal blogs («Блоги») and topics («Темы»). */
+export type SearchBlogKind = 'personal' | 'topic'
+export type SearchPeriod = 'all' | 'day' | 'week' | 'month' | 'year'
+export type SearchOrder = 'relevance' | 'date'
+
+export const searchPeriods: readonly SearchPeriod[] = ['all', 'day', 'week', 'month', 'year']
+export const searchOrders: readonly SearchOrder[] = ['relevance', 'date']
+
+/** The filters of the block «Посты». */
+export interface SearchFilters {
+  titlesOnly: boolean
+  period: SearchPeriod
+  order: SearchOrder
+}
+
+export const defaultSearchFilters: SearchFilters = { titlesOnly: false, period: 'all', order: 'relevance' }
+
+/** Where the results of `query` are: in the section «Рейтинг», the query in the address. */
+export function searchResultsPath(query: string): string {
+  return `/rating?q=${encodeURIComponent(normalizeQuery(query))}`
+}
+
+/** The filters an address carries; an unknown value is the default. */
+export function filtersOf(query: Record<string, unknown>): SearchFilters {
+  const { period, order } = query
+  return {
+    titlesOnly: query.titles === '1',
+    period: searchPeriods.find((p) => p === period) ?? 'all',
+    order: searchOrders.find((o) => o === order) ?? 'relevance',
+  }
+}
+
+/** The address query of `q` and `filters`: a default filter is left out. */
+export function resultsQuery(q: string, filters: SearchFilters): Record<string, string> {
+  return {
+    q,
+    ...(filters.titlesOnly ? { titles: '1' } : {}),
+    ...(filters.period !== 'all' ? { period: filters.period } : {}),
+    ...(filters.order !== 'relevance' ? { order: filters.order } : {}),
+  }
+}
+
+/** Whether any filter differs from the default. */
+export function filtered(filters: SearchFilters): boolean {
+  return filters.titlesOnly || filters.period !== 'all' || filters.order !== 'relevance'
+}
+
+export type BlogsLookup = { status: 'found'; page: FoundBlogsPage } | { status: 'error' }
+export type PostsLookup = { status: 'found'; page: FoundPostsPage } | { status: 'error' }
+
+/** A page of a block of blogs; the site's server asks with the reader's token, or without one for a guest. */
+export async function loadFoundBlogs(
+  client: ApiClient,
+  q: string,
+  kind: SearchBlogKind,
+  offset: number,
+): Promise<BlogsLookup> {
+  const result = await outcome(() =>
+    client.GET('/api/v1/search/blogs', { params: { query: { q, kind, offset } } }),
+  )
+  return result.status === 200 && result.body
+    ? { status: 'found', page: result.body as FoundBlogsPage }
+    : { status: 'error' }
+}
+
+/** A page of the block «Посты» with its filters. */
+export async function loadFoundPosts(
+  client: ApiClient,
+  q: string,
+  filters: SearchFilters,
+  offset: number,
+): Promise<PostsLookup> {
+  const result = await outcome(() =>
+    client.GET('/api/v1/search/posts', { params: { query: { q, offset, ...filters } } }),
+  )
+  return result.status === 200 && result.body
+    ? { status: 'found', page: result.body as FoundPostsPage }
+    : { status: 'error' }
+}
+
+export interface SearchResultsApi {
+  blogs(q: string, kind: SearchBlogKind, offset: number): Promise<BlogsLookup>
+  posts(q: string, filters: SearchFilters, offset: number): Promise<PostsLookup>
+}
+
+/** The calls as the browser makes them: through the site's own server. */
+export function searchResultsApi(): SearchResultsApi {
+  return {
+    blogs: (q, kind, offset) =>
+      $fetch<BlogsLookup>('/bff/search-blogs', { query: { q, kind, offset } }).catch((): BlogsLookup => ({
+        status: 'error',
+      })),
+    posts: (q, filters, offset) =>
+      $fetch<PostsLookup>('/bff/search-posts', { query: { q, offset, ...filters } }).catch(
+        (): PostsLookup => ({ status: 'error' }),
+      ),
+  }
+}
+
+/** A page appended to the rows shown, without the rows already there. */
+export function appendFound<T extends { id: string }>(shown: readonly T[], page: readonly T[]): T[] {
+  const ids = new Set(shown.map((row) => row.id))
+  return [...shown, ...page.filter((row) => !ids.has(row.id))]
+}
