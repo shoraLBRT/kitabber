@@ -118,6 +118,23 @@ public sealed class NotificationRulesTests
         Assert.Empty(NotificationRules.ForRepost(reposted with { ReposterAccountId = _postAuthor }));
     }
 
+    // E11-04, ADR-0118: a new post notifies each subscriber who asked for it once, about the post; never its author.
+    [Fact]
+    public void ANewPostNotifiesTheSubscribersWithTheBellButNotItsAuthor()
+    {
+        var post = Guid.CreateVersion7(_at);
+        var blog = Guid.CreateVersion7(_at.AddDays(-5));
+        var published = new PostPublished(post, blog, _postAuthor, _at);
+
+        var drafts = NotificationRules.ForNewPost(published, [_actor, _mentioned, _actor, _postAuthor]);
+
+        Assert.Equal([_actor, _mentioned], drafts.Select(d => d.RecipientAccountId));
+        Assert.All(drafts, d => Assert.Equal(
+            (NotificationType.SubscriptionPost, _postAuthor, post, blog, _at, $"post:{post:N}"),
+            (d.Type, d.ActorAccountId, d.PostId, d.BlogId, d.OccurredAt, d.SourceKey)));
+        Assert.Empty(NotificationRules.ForNewPost(published, []));
+    }
+
     private static CommentPosted Comment(
         Guid? author = null,
         Guid? parentAuthor = null,

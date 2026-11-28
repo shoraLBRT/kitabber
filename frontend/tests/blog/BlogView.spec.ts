@@ -23,6 +23,7 @@ const anna: Profile = {
   subscribed: false,
   blocked: false,
   onboardingPending: false,
+  notifyNewPosts: false,
   cover: null,
 }
 
@@ -76,7 +77,9 @@ describe('BlogView', () => {
 
   it('shows the state the page holds over the profile’s, and the owner no button', async () => {
     const wrapper = mountView({ status: 'found', profile: anna, owner: false })
-    await wrapper.setProps({ subscription: { state: { subscriberCount: 1, subscribed: true }, busy: false } })
+    await wrapper.setProps({
+      subscription: { state: { subscriberCount: 1, subscribed: true, notifyNewPosts: false }, busy: false },
+    })
     expect(wrapper.get('[data-testid="subscriber-count"]').text()).toBe('1 подписчик')
     expect(wrapper.get('[data-testid="subscribe-button"]').text()).toBe('Вы подписаны')
     const own = mountView({ status: 'found', profile: anna, owner: true })

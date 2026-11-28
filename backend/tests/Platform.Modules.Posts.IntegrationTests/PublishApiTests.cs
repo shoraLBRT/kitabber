@@ -92,6 +92,45 @@ public sealed class PublishApiTests(PostsApi api) : IClassFixture<PostsApi>, IAs
         }
     }
 
+    // E11-04, ADR-0118: the first publishing announces PostPublished with the blog and the author, so the subscribers
+    // with the bell are notified; publishing again and editing announce nothing more.
+    [Fact]
+    public async Task OnlyTheFirstPublishingAnnouncesTheNewPost()
+    {
+        var events = new System.Collections.Concurrent.ConcurrentQueue<PostPublished>();
+        var endpoint = api.Services.GetRequiredService<IReceiveEndpointConnector>().ConnectReceiveEndpoint(
+            $"posts-tests-post-published-{Guid.NewGuid():N}",
+            (_, e) => e.Handler<PostPublished>(c =>
+            {
+                events.Enqueue(c.Message);
+                return Task.CompletedTask;
+            }));
+        await endpoint.Ready;
+        try
+        {
+            var id = await CreateAsync(Body(Paragraph("Новость")), title: "Новость");
+            (await SendAsync(HttpMethod.Post, $"/api/v1/posts/{id}/publish", null, _author)).Dispose();
+            (await SendAsync(HttpMethod.Post, $"/api/v1/posts/{id}/publish", null, _author)).Dispose();
+            (await SendAsync(HttpMethod.Put, $"/api/v1/posts/{id}", Input(Body(Paragraph("Правка")), "Новость"),
+                _author)).Dispose();
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!events.Any(e => e.PostId == id))
+            {
+                Assert.True(DateTime.UtcNow < deadline, "PostPublished was not published in 30s");
+                await Task.Delay(100, Ct);
+            }
+
+            await Task.Delay(500, Ct);
+            var published = Assert.Single(events, e => e.PostId == id);
+            Assert.Equal(_author, published.AuthorAccountId);
+            Assert.NotEqual(Guid.Empty, published.BlogId);
+        }
+        finally
+        {
+            await endpoint.StopAsync(CancellationToken.None);
+        }
+    }
+
     private static async Task WaitForAsync(IEnumerable<PostChanged> events, Guid id, int count)
     {
         var deadline = DateTime.UtcNow.AddSeconds(30);

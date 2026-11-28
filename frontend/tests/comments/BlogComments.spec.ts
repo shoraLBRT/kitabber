@@ -29,6 +29,7 @@ const anna: Profile = {
   accountId: annaAccount,
   blocked: false,
   onboardingPending: false,
+  notifyNewPosts: false,
 }
 
 function comment(extra: Partial<BlogComment> = {}): BlogComment {

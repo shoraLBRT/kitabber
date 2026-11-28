@@ -88,6 +88,8 @@ export function actionText(notification: Pick<Notification, 'type'>): string {
       return t('notifications.newSubscriber')
     case 'repost':
       return t('notifications.repost')
+    case 'subscription_post':
+      return t('notifications.subscriptionPost')
     default:
       return t('notifications.unknownType')
   }

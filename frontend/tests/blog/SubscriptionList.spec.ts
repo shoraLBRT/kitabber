@@ -100,7 +100,11 @@ describe('appendSubscriptionCards', () => {
 describe('BlogSubscription with a blog', () => {
   it('makes the numbers buttons that open the lists', () => {
     const w = mount(BlogSubscription, {
-      props: { state: { subscriberCount: 3, subscribed: false }, subscriptionCount: 2, blogId: anna.id },
+      props: {
+        state: { subscriberCount: 3, subscribed: false, notifyNewPosts: false },
+        subscriptionCount: 2,
+        blogId: anna.id,
+      },
       global: { stubs },
     })
     expect(w.get('[data-testid="subscriber-count"]').element.tagName).toBe('BUTTON')
@@ -108,7 +112,9 @@ describe('BlogSubscription with a blog', () => {
   })
 
   it('keeps plain numbers without a blog', () => {
-    const w = mount(BlogSubscription, { props: { state: { subscriberCount: 3, subscribed: false } } })
+    const w = mount(BlogSubscription, {
+      props: { state: { subscriberCount: 3, subscribed: false, notifyNewPosts: false } },
+    })
     expect(w.get('[data-testid="subscriber-count"]').element.tagName).toBe('SPAN')
   })
 })

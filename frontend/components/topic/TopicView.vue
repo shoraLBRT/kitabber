@@ -26,7 +26,7 @@ const props = defineProps<{
   tab?: TopicTab
 }>()
 
-defineEmits<{ retry: []; subscribe: [] }>()
+defineEmits<{ retry: []; subscribe: []; bell: [] }>()
 
 const tabs = computed(() =>
   props.base
@@ -97,6 +97,7 @@ const owner = computed(() => topic.value?.owner ?? null)
           :busy="props.subscription?.busy"
           :blog-id="topic.id"
           @toggle="$emit('subscribe')"
+          @bell="$emit('bell')"
         />
       </div>
     </header>

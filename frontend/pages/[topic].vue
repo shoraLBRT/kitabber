@@ -80,6 +80,7 @@ useHead(() => ({
     :tab="tab"
     @retry="refresh()"
     @subscribe="subscription.toggle()"
+    @bell="subscription.toggleBell()"
   >
     <template #default="{ profile }">
       <NuxtPage :topic-id="profile.id" />

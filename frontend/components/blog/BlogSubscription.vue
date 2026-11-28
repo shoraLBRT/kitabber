@@ -3,7 +3,9 @@
 // subscribers (and, for a personal blog, how many the owner follows) and the button «Подписаться» / «Вы подписаны».
 // The owner sees the numbers without the button. The page holds the state (composables/useSubscription.ts); this only
 // shows it and reports a press. On a phone the button takes the free width. With the blog's id the numbers open its lists
-// (E04-06, ADR-0099): «Подписчики» and, for a personal blog, «Подписки».
+// (E04-06, ADR-0099): «Подписчики» and, for a personal blog, «Подписки». A subscriber also has the bell next to the
+// button (E11-04, ADR-0118): pressed, it notifies about every new post of the blog or the topic.
+import { Bell, BellRing } from 'lucide-vue-next'
 import { computed, nextTick, ref } from 'vue'
 import UiButton from '../ui/UiButton.vue'
 import SubscriptionListDialog from './SubscriptionListDialog.vue'
@@ -35,7 +37,11 @@ async function openList(kind: SubscriptionListKind) {
   listOpen.value = true
 }
 
-defineEmits<{ toggle: [] }>()
+defineEmits<{ toggle: []; bell: [] }>()
+
+const bellLabel = computed(() =>
+  props.state.notifyNewPosts ? t('subscription.bellOn') : t('subscription.bellOff'),
+)
 
 const subscribers = computed(() =>
   t('subscription.subscribers', {
@@ -100,6 +106,21 @@ const subscriptions = computed(() =>
       >
         {{ state.subscribed ? t('subscription.subscribed') : t('subscription.subscribe') }}
       </UiButton>
+      <UiButton
+        v-if="state.subscribed"
+        variant="secondary"
+        size="sm"
+        class="subscription__bell"
+        :aria-pressed="state.notifyNewPosts ? 'true' : 'false'"
+        :aria-label="bellLabel"
+        :title="bellLabel"
+        :disabled="busy"
+        data-testid="subscription-bell"
+        @click="$emit('bell')"
+      >
+        <BellRing v-if="state.notifyNewPosts" class="subscription__bell-icon" aria-hidden="true" />
+        <Bell v-else class="subscription__bell-icon" aria-hidden="true" />
+      </UiButton>
     </div>
   </div>
 </template>
@@ -121,6 +142,12 @@ const subscriptions = computed(() =>
 
 .subscription__actions {
   display: flex;
+  gap: var(--space-2);
+}
+
+.subscription__bell-icon {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
 }
 
 .subscription__count {
@@ -142,7 +169,7 @@ const subscriptions = computed(() =>
     width: 100%;
   }
 
-  .subscription__actions > :deep(.ui-button) {
+  .subscription__actions > :deep(.ui-button:not(.subscription__bell)) {
     flex: 1;
   }
 }

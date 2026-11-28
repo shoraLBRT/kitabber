@@ -37,6 +37,7 @@ defineEmits<{
   saved: [profile: Profile]
   unauthorized: []
   subscribe: []
+  bell: []
   blocked: [blocked: boolean]
 }>()
 
@@ -135,6 +136,7 @@ const registered = computed(() => {
           :own="found.owner"
           :busy="props.subscription?.busy"
           @toggle="$emit('subscribe')"
+          @bell="$emit('bell')"
         />
         <BlogBlock
           v-if="blockable"

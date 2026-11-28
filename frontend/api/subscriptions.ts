@@ -39,16 +39,59 @@ export async function changeSubscription(
   }
 }
 
-/** The subscription of a profile as its header shows it. */
-export function subscriptionOf(profile: Pick<Profile, 'subscriberCount' | 'subscribed'>): SubscriptionView {
-  return { subscriberCount: profile.subscriberCount, subscribed: profile.subscribed }
+const bellRefusedMessages: Record<number, string> = {
+  404: t('subscription.notFound'),
+  409: t('subscription.bellNotSubscribed'),
 }
 
-/** The state shown at once, before the server answers: subscribed or not, the count moved by one. */
+/**
+ * Turns on (`on`) or off the notifications about new posts of the subscribed blog `blogId` (E11-04, ADR-0118):
+ * PUT and DELETE /api/v1/blogs/{id}/subscription/notifications, both idempotent; only a subscriber has the setting.
+ */
+export async function changeNewPostNotifications(
+  client: ApiClient,
+  blogId: string,
+  on: boolean,
+): Promise<SubscriptionChange> {
+  try {
+    const options = { params: { path: { id: blogId } } }
+    const { data, error, response } = on
+      ? await client.PUT('/api/v1/blogs/{id}/subscription/notifications', options)
+      : await client.DELETE('/api/v1/blogs/{id}/subscription/notifications', options)
+    if (data) return { status: 'done', state: data }
+    if (response.status === 401) return { status: 'unauthorized' }
+    const detail = (error as { detail?: string } | undefined)?.detail
+    const refused = bellRefusedMessages[response.status]
+    return refused ? { status: 'refused', message: detail ?? refused } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/** The subscription of a profile as its header shows it. */
+export function subscriptionOf(
+  profile: Pick<Profile, 'subscriberCount' | 'subscribed'> & { notifyNewPosts?: boolean },
+): SubscriptionView {
+  return {
+    subscriberCount: profile.subscriberCount,
+    subscribed: profile.subscribed,
+    notifyNewPosts: profile.notifyNewPosts ?? false,
+  }
+}
+
+/**
+ * The state shown at once, before the server answers: subscribed or not, the count moved by one. Unsubscribing drops
+ * the bell with the subscription (ADR-0118).
+ */
 export function toggledSubscription(state: SubscriptionView): SubscriptionView {
   return state.subscribed
-    ? { subscriberCount: Math.max(0, state.subscriberCount - 1), subscribed: false }
-    : { subscriberCount: state.subscriberCount + 1, subscribed: true }
+    ? { subscriberCount: Math.max(0, state.subscriberCount - 1), subscribed: false, notifyNewPosts: false }
+    : { subscriberCount: state.subscriberCount + 1, subscribed: true, notifyNewPosts: false }
+}
+
+/** The state shown at once after a press on the bell: the notifications about new posts the other way. */
+export function toggledBell(state: SubscriptionView): SubscriptionView {
+  return { ...state, notifyNewPosts: !state.notifyNewPosts }
 }
 
 /** The action a guest's press remembers for the sign-in window (ADR-0032). */
