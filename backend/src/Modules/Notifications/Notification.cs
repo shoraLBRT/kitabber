@@ -70,4 +70,12 @@ public sealed class Notification
 
     /// <summary>When the recipient read it (E12-02, E12-03); <c>null</c> while unread.</summary>
     public DateTimeOffset? ReadAt { get; init; }
+
+    /// <summary>
+    /// The row of the feed the notification is shown in (E12-03, ADR-0122): the same for the reactions to one post or
+    /// comment, the reposts of one post, the comments under one post and the new subscribers of one blog; the
+    /// notification's own id for the other types. The database computes it from the other columns
+    /// (<see cref="NotificationsDbContext.GroupKeySql"/>), so nothing writes it.
+    /// </summary>
+    public string GroupKey { get; private set; } = string.Empty;
 }

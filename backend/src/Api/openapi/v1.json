@@ -5520,7 +5520,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "The notifications of the signed-in account, newest first, page by page with a cursor",
+        "summary": "The notification rows of the signed-in account, newest first, page by page with a cursor",
         "operationId": "GetOwnNotifications",
         "parameters": [
           {
@@ -5578,7 +5578,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "The number of the unread notifications of the signed-in account",
+        "summary": "The number of the unread notification rows of the signed-in account",
         "operationId": "GetOwnUnreadNotifications",
         "responses": {
           "200": {
@@ -5609,7 +5609,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Marks the shown notifications of the signed-in account read and gives the unread number",
+        "summary": "Marks the shown notification rows of the signed-in account read and gives the unread number",
         "operationId": "MarkOwnNotificationsRead",
         "requestBody": {
           "content": {
@@ -5638,6 +5638,37 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/me/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Marks every notification of the signed-in account read and gives the unread number",
+        "operationId": "MarkAllOwnNotificationsRead",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadNotificationsView"
                 }
               }
             }
@@ -7169,6 +7200,15 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "group": {
+            "type": "string",
+            "default": ""
+          },
+          "actorCount": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1
           }
         }
       },

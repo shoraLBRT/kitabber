@@ -263,6 +263,14 @@ namespace Platform.Modules.Notifications.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(96)
+                        .HasColumnType("character varying(96)")
+                        .HasColumnName("group_key")
+                        .HasComputedColumnSql("CASE type WHEN 'Reaction' THEN 'reaction:' || coalesce(post_id::text, '') || ':' || coalesce(comment_id::text, '') WHEN 'Repost' THEN 'repost:' || coalesce(post_id::text, '') WHEN 'PostComment' THEN 'post_comment:' || coalesce(post_id::text, '') WHEN 'NewSubscriber' THEN 'new_subscriber:' || coalesce(blog_id::text, '') ELSE id::text END", true);
+
                     b.Property<Guid?>("PostId")
                         .HasColumnType("uuid")
                         .HasColumnName("post_id");
@@ -305,6 +313,9 @@ namespace Platform.Modules.Notifications.Migrations
                     b.HasIndex("RecipientAccountId", "CreatedAt", "Id")
                         .IsDescending(false, true, true)
                         .HasDatabaseName("ix_notifications_feed");
+
+                    b.HasIndex("RecipientAccountId", "GroupKey", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_group");
 
                     b.ToTable("notifications", "notifications");
                 });

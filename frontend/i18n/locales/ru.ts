@@ -665,6 +665,15 @@ export default {
     subscriptionPost: 'опубликовал новый пост',
     topicTransferOffer: 'предлагает вам тему',
     unknownType: 'что-то сделал',
+    others: 'и ещё {count}',
+    grouped: {
+      postComment: 'прокомментировали ваш пост',
+      reaction: 'оценили вашу публикацию',
+      newSubscriber: 'подписались на ваш блог',
+      repost: 'сделали репост вашего поста',
+    },
+    readAll: 'Прочитать все',
+    readAllFailed: 'Не удалось отметить уведомления прочитанными. Попробуйте ещё раз.',
   },
   search: {
     label: 'Поиск по блогам, темам и постам',
