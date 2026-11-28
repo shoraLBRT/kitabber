@@ -83,6 +83,26 @@ export async function loadBlogFeed(
 }
 
 /**
+ * One page of the feed of a hashtag (E11-08, FR-TOPIC, ADR-0120): GET /api/v1/feeds/tags/{tag}, the published posts
+ * with the tag newest first with the cursor of the fresh feed. The case of the tag does not matter; a tag no post has
+ * is an empty page, and a word that is not a tag is a failure.
+ */
+export async function loadTagFeed(
+  client: ApiClient,
+  tag: string,
+  cursor?: string | null,
+): Promise<FeedLookup> {
+  try {
+    const { data } = await client.GET('/api/v1/feeds/tags/{tag}', {
+      params: { path: { tag }, query: cursor ? { cursor } : {} },
+    })
+    return data ? { status: 'found', page: data } : { status: 'error' }
+  } catch {
+    return { status: 'error' }
+  }
+}
+
+/**
  * One page of «Моя лента» (E08-04, ADR-0089): GET /api/v1/feeds/my, the posts of the reader's subscriptions newest
  * first with the cursor of the fresh feed. It needs the person's access token, so only the site's server calls it
  * (server/routes/bff/my-feed.get.ts, ADR-0018).

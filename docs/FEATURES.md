@@ -509,6 +509,15 @@
   Тесты: `NewPostNotificationApiTests`, `NotificationGenerationTests`, `NotificationRulesTests`, `PublishApiTests`,
   `tests/blog/subscription-bell.spec.ts`, `e2e/subscription-bell.spec.ts`. Нет здесь: пакетной записи уведомлений для
   блогов с тысячами подписчиков (ADR-0118, последствия), каналов push и писем (E12-03).
+- Хэштеги (E11-08, #113, FR-TOPIC, [ADR-0120](adr/0120-hashtags.md)): столбец `posts.posts.tags text[]` с GIN-индексом
+  (миграция `AddPostTags`); `Hashtags` разбирает текст блоков (`PostText`), теги строчными, до 64 символов, не больше
+  20 на пост; `Post.Publish` и правка опубликованного поста их пересчитывают, у черновика тегов нет. `GET
+  /api/v1/feeds/tags/{tag}` (`TagFeedEndpoints`): посты с тегом, новые сверху, курсор свежей ленты, кэш `tag:<тег>`,
+  исключения читателя; не тег — 400, тег без постов — пустая страница. Клиент: `utils/hashtags.ts` (`linkHashtags` в
+  `utils/post-blocks.ts`, щелчок по тегу в `PostBlocks` — переход без перезагрузки), `pages/tags/[tag].vue` (другой
+  регистр — 301, не тег — 404), `components/hashtag/HashtagFeed.vue`, `loadTagFeed` в `api/feeds.ts`. Тесты:
+  `HashtagsTests`, `TagFeedApiTests`, `tests/hashtag/hashtags.spec.ts`, `e2e/hashtags.spec.ts`. Нет здесь: подсказка
+  тегов при вводе (E05-21, #137), перерасчёт тегов постов, опубликованных до миграции.
 - Скрытие темы и поста из лент (E11-07, #112, FR-TOPIC, FR-SUB, [ADR-0119](adr/0119-hide-from-feeds.md)): таблицы
   `preferences.hidden_posts` и `preferences.hidden_topics` (миграция `AddHiddenFromFeeds`), стираются по
   `account.deleted`. `GET /api/v1/preferences/me/hidden` (оба списка, последний первым, с названиями, `gone` у
