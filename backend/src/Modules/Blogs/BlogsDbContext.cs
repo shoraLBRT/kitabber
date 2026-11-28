@@ -79,7 +79,7 @@ public sealed class BlogsDbContext(DbContextOptions<BlogsDbContext> options)
         });
         modelBuilder.Entity<TopicModerator>(moderator =>
         {
-            // One appointment per topic and account; the second index serves «where is this account a moderator» (E15).
+            // One appointment per topic and account; the second index serves «where is this account a moderator» (E11-09).
             moderator.HasKey(m => new { m.SubsiteId, m.AccountId });
             moderator.HasIndex(m => m.AccountId);
             moderator.HasOne<Subsite>().WithMany().HasForeignKey(m => m.SubsiteId).OnDelete(DeleteBehavior.Cascade);

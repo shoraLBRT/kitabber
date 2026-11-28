@@ -3,7 +3,7 @@
 // rules and the moderators. The owner edits the cover (BlogCover.vue, passed in by the page), the description and the
 // rules, appoints moderators by the nickname of their blog and removes them, and offers the topic to another person or
 // cancels the offer. The person the topic is offered to accepts or declines here; the topic is theirs only then. What
-// moderators may do comes with the moderation (E15). Every change answers with the whole management, shown at once.
+// moderators may do comes with E11-09 (#174). Every change answers with the whole management, shown at once.
 import { computed, ref, watch } from 'vue'
 import BlogCover, { type CoverActions } from '../blog/BlogCover.vue'
 import UiButton from '../ui/UiButton.vue'

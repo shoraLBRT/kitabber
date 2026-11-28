@@ -62,7 +62,7 @@ public sealed record TopicMemberInput(string? Nickname);
 /// <summary>
 /// <c>/api/v1/topics/{id}/…</c> (E11-12, FR-TOPIC, ADR-0121): the management of a topic. Everyone reads its rules and
 /// moderators; the owner edits the description, the rules and the cover, appoints and removes moderators and offers the
-/// topic to another person, who accepts or declines the offer. What moderators may do comes with the moderation (E15).
+/// topic to another person, who accepts or declines the offer. What moderators may do comes with E11-09 (#174).
 /// </summary>
 public sealed class TopicManagementEndpoints : IApiEndpoints
 {

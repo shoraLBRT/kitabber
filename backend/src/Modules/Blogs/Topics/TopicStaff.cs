@@ -2,7 +2,7 @@ namespace Platform.Modules.Blogs.Topics;
 
 /// <summary>
 /// A moderator of a topic (E11-12, ADR-0121): an account its owner appointed. Only the role is kept here; what a
-/// moderator may do in the topic comes with the moderation (E15). The owner is never a moderator of the own topic.
+/// moderator may do in the topic comes with E11-09 (#174). The owner is never a moderator of the own topic.
 /// </summary>
 public sealed class TopicModerator
 {
