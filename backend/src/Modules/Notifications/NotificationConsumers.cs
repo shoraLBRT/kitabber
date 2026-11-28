@@ -53,6 +53,17 @@ public sealed class PostRepostedNotificationsConsumer(NotificationWriter writer)
 public sealed class PostRepostedNotificationsConsumerDefinition
     : ModuleConsumerDefinition<PostRepostedNotificationsConsumer, NotificationsDbContext>;
 
+/// <summary>An offer of a topic notifies the person it is offered to (E11-12, ADR-0121).</summary>
+public sealed class TopicTransferOfferedNotificationsConsumer(NotificationWriter writer) : IConsumer<TopicTransferOffered>
+{
+    public Task Consume(ConsumeContext<TopicTransferOffered> context) =>
+        writer.AddAsync(NotificationRules.ForTopicTransfer(context.Message), context.CancellationToken);
+}
+
+/// <summary>The inbox of the Notifications schema for <see cref="TopicTransferOfferedNotificationsConsumer"/> (ADR-0005).</summary>
+public sealed class TopicTransferOfferedNotificationsConsumerDefinition
+    : ModuleConsumerDefinition<TopicTransferOfferedNotificationsConsumer, NotificationsDbContext>;
+
 /// <summary>
 /// A new post notifies the subscribers of its blog or topic and of its author's personal blog who turned notifications on
 /// (E11-04, ADR-0118); the Blogs module names them over its own tables.

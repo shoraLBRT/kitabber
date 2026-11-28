@@ -90,16 +90,21 @@ export function actionText(notification: Pick<Notification, 'type'>): string {
       return t('notifications.repost')
     case 'subscription_post':
       return t('notifications.subscriptionPost')
+    case 'topic_transfer_offer':
+      return t('notifications.topicTransferOffer')
     default:
       return t('notifications.unknownType')
   }
 }
 
 /**
- * Where the row leads: the post (to the comment, when there is one) or, for a subscriber, their blog. The id alone finds
+ * Where the row leads: the post (to the comment, when there is one), the management page of a topic offered to the
+ * reader (E11-12), or, for a subscriber, their blog. The id alone finds
  * a post and the site leads on to its canonical address (ADR-0041), so the row needs no blog of the post.
  */
 export function notificationLink(notification: Notification): string | null {
+  if (notification.type === 'topic_transfer_offer' && notification.blogId)
+    return `/topics/${notification.blogId}/manage`
   if (notification.postId) {
     const path = `/u/-/${notification.postId}`
     return notification.commentId ? `${path}${commentHash(notification.commentId)}` : path

@@ -456,7 +456,7 @@
   «Загрузить обложку», «Изменить положение», «Заменить», «Удалить обложку»; в режиме правки ползунок, который
   двигают мышью и пальцем (pointer events, `touch-action: none`) и стрелками; расчёт — `utils/cover-position.ts`;
   картинка уходит через `/bff/media` только по «Сохранить», обложка — через `/bff/own-cover` (PUT и DELETE).
-  Нет здесь: уборки старых файлов обложек, горизонтального положения, смены обложки темы (E11-12, #114).
+  Нет здесь: уборки старых файлов обложек, горизонтального положения, смены обложки темы (сделана в E11-12, #114).
 - Смена никнейма (E04-05, #95, [ADR-0090](adr/0090-nickname-change-and-old-address.md), FR-PROFILE):
   `PUT /api/v1/profiles/me/nickname` (`NicknameInput`) проверяет форму, зарезервированные адреса и стоп-список тем
   (400 по полю `nickname`), 30 дней с последней смены (409 `blogs.nickname_change_too_soon`, `TimeProvider`) и
@@ -509,6 +509,21 @@
   Тесты: `NewPostNotificationApiTests`, `NotificationGenerationTests`, `NotificationRulesTests`, `PublishApiTests`,
   `tests/blog/subscription-bell.spec.ts`, `e2e/subscription-bell.spec.ts`. Нет здесь: пакетной записи уведомлений для
   блогов с тысячами подписчиков (ADR-0118, последствия), каналов push и писем (E12-03).
+- Управление темой (E11-12, #114, FR-TOPIC, [ADR-0121](adr/0121-topic-management.md)): столбец `blogs.subsites.rules`
+  (до 2000 графем), таблицы `blogs.topic_moderators` и `blogs.topic_transfer_offers` (миграция `AddTopicManagement`).
+  `TopicManagementEndpoints`: `GET /api/v1/topics/{id}/management` всем (правила, владелец, модераторы, роль читателя
+  `owner`/`moderator`/`none`, предложение — только владельцу и получателю); владельцу — `PUT …/settings` (описание и
+  правила), `PUT`/`DELETE …/cover`, `POST …/moderators {nickname}`, `DELETE …/moderators/{accountId}` (не владелец,
+  без повторов, до 20), `PUT …/transfer {nickname}`; `DELETE …/transfer` — отмена владельцем или отказ получателя;
+  `POST …/transfer/accept` — тема переходит получателю (лимит тем на аккаунт, он перестаёт быть модератором). Чужой —
+  403 `blogs.not_topic_owner`, не получатель — 403 `blogs.no_transfer_offer`. Событие `TopicTransferOffered`
+  (Blogs.Contracts) → уведомление `topic_transfer_offer` получателю; `NotificationView.blogId`. Клиент:
+  `pages/topics/[id]/manage.vue`, `components/topic/TopicManagement.vue` (обложка через `BlogCover`), `api/topic-management.ts`,
+  BFF `topic-management.get/post.ts`, `topic-cover.put/delete.ts`; ссылка «Правила и модераторы» на странице темы;
+  уведомление ведёт на страницу управления. Тесты: `TopicManagementRulesTests`, `TopicManagementApiTests`,
+  `NotificationRulesTests`, `NotificationGenerationTests`, `tests/topic/TopicManagement.spec.ts`,
+  `e2e/topic-management.spec.ts`. Нет здесь: прав модератора (E11-09, #174), правил на странице темы и в редакторе
+  (E11-10, #186), смены названия и адреса темы, срока у предложения.
 - Хэштеги (E11-08, #113, FR-TOPIC, [ADR-0120](adr/0120-hashtags.md)): столбец `posts.posts.tags text[]` с GIN-индексом
   (миграция `AddPostTags`); `Hashtags` разбирает текст блоков (`PostText`), теги строчными, до 64 символов, не больше
   20 на пост; `Post.Publish` и правка опубликованного поста их пересчитывают, у черновика тегов нет. `GET

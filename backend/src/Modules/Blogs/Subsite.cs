@@ -25,9 +25,16 @@ public sealed class Subsite
 
     /// <summary>
     /// The account whose personal blog this is, or the owner of a topic (E11-01, ADR-0082). Only a topic made before the
-    /// owners came may have none.
+    /// owners came may have none. A topic changes hands only when the person it is offered to accepts it (E11-12,
+    /// ADR-0121, <see cref="TransferTo"/>).
     /// </summary>
-    public Guid? OwnerAccountId { get; init; }
+    public Guid? OwnerAccountId { get; internal set; }
+
+    /// <summary>
+    /// The rules of a topic (E11-12, ADR-0121): plain text its owner writes, at most <see cref="SubsiteRules.RulesMaxLength"/>
+    /// characters; <c>null</c> when there are none. A personal blog has none.
+    /// </summary>
+    public string? Rules { get; private set; }
 
     public DateTimeOffset CreatedAt { get; init; }
 
@@ -122,6 +129,42 @@ public sealed class Subsite
         }
 
         Description = value;
+    }
+
+    /// <summary>Sets the rules of a topic (trimmed; empty clears them). Throws when they are too long or this is not a topic.</summary>
+    public void SetRules(string? rules)
+    {
+        if (Type != SubsiteType.Topic)
+        {
+            throw new InvalidOperationException("Only a topic has rules.");
+        }
+
+        var value = SubsiteRules.Clean(rules);
+        if (!SubsiteRules.IsValidRules(value))
+        {
+            throw new ArgumentException($"The rules are longer than {SubsiteRules.RulesMaxLength} characters.", nameof(rules));
+        }
+
+        Rules = value;
+    }
+
+    /// <summary>
+    /// Hands a topic to <paramref name="accountId"/> (E11-12, ADR-0121): called when the person the owner offered it to
+    /// accepts. A personal blog never changes its owner.
+    /// </summary>
+    public void TransferTo(Guid accountId)
+    {
+        if (Type != SubsiteType.Topic)
+        {
+            throw new InvalidOperationException("Only a topic changes its owner.");
+        }
+
+        if (accountId == Guid.Empty)
+        {
+            throw new ArgumentException("A topic needs its owner's account_id.", nameof(accountId));
+        }
+
+        OwnerAccountId = accountId;
     }
 
     /// <summary>
@@ -315,6 +358,11 @@ public static partial class SubsiteRules
         LengthOf(Clean(name)) is var length && length >= OnboardingNameMinLength && length <= NameMaxLength;
 
     public static bool IsValidDescription(string? description) => LengthOf(Clean(description)) <= DescriptionMaxLength;
+
+    /// <summary>The rules of a topic (E11-12, ADR-0121): at most 2000 characters, room for a short list of points.</summary>
+    public const int RulesMaxLength = 2000;
+
+    public static bool IsValidRules(string? rules) => LengthOf(Clean(rules)) <= RulesMaxLength;
 
     public static bool IsValidCoverPosition(int position) => position is >= 0 and <= CoverPositionMax;
 

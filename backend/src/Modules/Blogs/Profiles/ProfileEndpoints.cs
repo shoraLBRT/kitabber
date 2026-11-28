@@ -394,7 +394,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
         ImageProblemAsync(avatarId, accountId, "Аватар — это изображение.", media, ct);
 
     // Someone else's file is answered as a missing one, so the owner of a file is not given away (ADR-0034).
-    private static async Task<string?> ImageProblemAsync(
+    internal static async Task<string?> ImageProblemAsync(
         Guid mediaId, Guid accountId, string notImage, IMediaLibrary media, CancellationToken ct) =>
         await media.FindAsync(mediaId, ct) switch
         {

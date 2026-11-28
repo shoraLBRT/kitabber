@@ -27,6 +27,9 @@ public enum NotificationType
 
     /// <summary>A blog or a topic the recipient turned notifications on for got a new post (E11-04, ADR-0118).</summary>
     SubscriptionPost = 7,
+
+    /// <summary>The owner of a topic offered it to the recipient, who accepts or declines (E11-12, ADR-0121).</summary>
+    TopicTransferOffer = 8,
 }
 
 /// <summary>

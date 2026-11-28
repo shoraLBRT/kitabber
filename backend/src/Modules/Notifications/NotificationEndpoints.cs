@@ -23,7 +23,7 @@ public sealed record NotificationActorView(
 /// <summary>A notification in the feed of the signed-in account (E12-02, FR-NOTIFY, ADR-0093).</summary>
 /// <param name="Id">The notification's identifier; the client marks it read by it.</param>
 /// <param name="Type">
-/// <c>comment_reply</c>, <c>post_comment</c>, <c>reaction</c>, <c>mention</c>, <c>new_subscriber</c> or <c>repost</c>; the set grows
+/// <c>comment_reply</c>, <c>post_comment</c>, <c>reaction</c>, <c>mention</c>, <c>new_subscriber</c>, <c>repost</c>, <c>subscription_post</c> or <c>topic_transfer_offer</c>; the set grows
 /// with the events of the spec, so a client shows an unknown type as a plain row.
 /// </param>
 /// <param name="Actor">Who acted.</param>
@@ -32,6 +32,10 @@ public sealed record NotificationActorView(
 /// <param name="ReactionKind">The reaction (<c>like</c>); <c>null</c> for the other types.</param>
 /// <param name="CreatedAt">When the action happened.</param>
 /// <param name="Read">Whether the recipient has seen it.</param>
+/// <param name="BlogId">
+/// The blog or the topic the action is about: the subscribed blog, the blog of a new post, the topic offered to the
+/// recipient (E11-12); <c>null</c> for the other types.
+/// </param>
 public sealed record NotificationView(
     Guid Id,
     string Type,
@@ -40,7 +44,8 @@ public sealed record NotificationView(
     Guid? CommentId,
     string? ReactionKind,
     DateTimeOffset CreatedAt,
-    bool Read);
+    bool Read,
+    Guid? BlogId = null);
 
 /// <summary>The number of the signed-in account's unread notifications: the counter of the header.</summary>
 /// <param name="Unread">How many notifications are unread.</param>
@@ -97,6 +102,7 @@ public sealed class NotificationEndpoints : IApiEndpoints
         NotificationType.NewSubscriber => "new_subscriber",
         NotificationType.Repost => "repost",
         NotificationType.SubscriptionPost => "subscription_post",
+        NotificationType.TopicTransferOffer => "topic_transfer_offer",
         _ => type.ToString().ToLowerInvariant(),
     };
 
@@ -150,7 +156,8 @@ public sealed class NotificationEndpoints : IApiEndpoints
             n.CommentId,
             n.ReactionKind,
             n.CreatedAt,
-            n.ReadAt is not null)).ToList();
+            n.ReadAt is not null,
+            n.BlogId)).ToList();
         return TypedResults.Ok(new CursorPage<NotificationView>(views, result.NextCursor));
     }
 

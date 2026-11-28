@@ -1797,6 +1797,10 @@ function edited(blog, request) {
   const withOnboarding = own
     ? { ...shown, onboardingPending: onboarding.get(clientOf(request)) === 'pending' }
     : shown
+  // A topic shows what its owner changed on its management page (E11-12).
+  const topic = blog.type === 'topic' && topicStateOf(request, blog)
+  if (topic)
+    return { ...withOnboarding, description: topic.description, cover: topic.cover, owner: topic.owner }
   return edit && blog.owner === owner ? { ...withOnboarding, ...edit } : withOnboarding
 }
 
@@ -2081,6 +2085,164 @@ async function setCover(request, response) {
     : null
   edits.set(clientOf(request), { ...edits.get(clientOf(request)), cover })
   return send(response, 200, { ...edited(own, request), owner: undefined })
+}
+
+// The management of a topic (E11-12, ADR-0121): GET /api/v1/topics/{id}/management, PUT …/settings, PUT and DELETE
+// …/cover, POST …/moderators, DELETE …/moderators/{accountId}, PUT and DELETE …/transfer, POST …/transfer/accept.
+// Kept per client address and topic; a person is named by the nickname of a stored personal blog. «Книги» of Борис
+// starts offered to the fake provider's account, so a signed-in test accepts or declines it. The real rules are the
+// backend's (TopicManagementApiTests).
+const topicStates = new Map() // `${client} ${topicId}` -> { description, rules, cover, owner, moderators, transfer }
+
+function topicStateOf(request, topic) {
+  const key = `${clientOf(request)} ${topic.id}`
+  if (!topicStates.has(key))
+    topicStates.set(key, {
+      description: topic.description ?? null,
+      rules: null,
+      cover: null,
+      owner: topic.owner,
+      moderators: [],
+      transfer: topic.nickname === 'books' ? { to: owner, offeredAt: '2026-11-28T10:00:00Z' } : null,
+    })
+  return topicStates.get(key)
+}
+
+function topicMember(accountId) {
+  const blog = blogs.find((item) => item.type === 'personal' && item.owner === accountId)
+  return blog
+    ? { accountId, blogId: blog.id, name: blog.name, nickname: blog.nickname }
+    : { accountId, blogId: null, name: null, nickname: null }
+}
+
+function managementView(topic, state, reader) {
+  const role =
+    reader && reader === state.owner ? 'owner' : state.moderators.includes(reader) ? 'moderator' : 'none'
+  const toYou = Boolean(reader) && state.transfer?.to === reader
+  return {
+    id: topic.id,
+    name: topic.name,
+    nickname: topic.nickname,
+    description: state.description,
+    rules: state.rules,
+    role,
+    owner: state.owner ? topicMember(state.owner) : null,
+    moderators: state.moderators.map(topicMember),
+    transfer:
+      state.transfer && (role === 'owner' || toYou)
+        ? { to: topicMember(state.transfer.to), offeredAt: state.transfer.offeredAt }
+        : null,
+    transferToYou: toYou,
+  }
+}
+
+const invalid = (errors) => ({ status: 400, code: 'validation_failed', errors })
+
+function personByNickname(nickname) {
+  const value = String(nickname ?? '')
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase()
+  return blogs.find((blog) => blog.type === 'personal' && blog.nickname && blog.nickname === value)?.owner
+}
+
+async function manageTopic(request, response, topicId, path) {
+  const topic = [...blogs, ...createdTopics].find((blog) => blog.type === 'topic' && blog.id === topicId)
+  if (!topic) return send(response, 404, { status: 404, code: 'blogs.topic_not_found' })
+  const reader = subject(request)
+  const state = topicStateOf(request, topic)
+  const view = () => send(response, 200, managementView(topic, state, reader))
+  if (path === '/management' && request.method === 'GET') return view()
+  if (!reader) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const input = ['PUT', 'POST'].includes(request.method) ? JSON.parse((await readBody(request)) || '{}') : {}
+  const offered = state.transfer?.to === reader
+  if (path === '/transfer' && request.method === 'DELETE' && offered) {
+    state.transfer = null
+    return view()
+  }
+  if (path === '/transfer/accept' && request.method === 'POST') {
+    if (!offered)
+      return send(response, 403, {
+        status: 403,
+        code: 'blogs.no_transfer_offer',
+        detail: 'Эту тему вам не предлагали.',
+      })
+    state.owner = reader
+    state.transfer = null
+    state.moderators = state.moderators.filter((id) => id !== reader)
+    return view()
+  }
+  if (state.owner !== reader)
+    return send(response, 403, {
+      status: 403,
+      code: 'blogs.not_topic_owner',
+      detail: 'Управлять темой может только её владелец.',
+    })
+  if (path === '/settings' && request.method === 'PUT') {
+    const errors = {}
+    if (length(clean(input.description)) > 160) errors.description = ['Описание — не длиннее 160 символов.']
+    if (length(clean(input.rules)) > 2000) errors.rules = ['Правила — не длиннее 2000 символов.']
+    if (Object.keys(errors).length > 0) return send(response, 400, invalid(errors))
+    state.description = clean(input.description)
+    state.rules = clean(input.rules)
+    return view()
+  }
+  if (path === '/moderators' && request.method === 'POST') {
+    const person = personByNickname(input.nickname)
+    const problem = !person
+      ? 'Нет блога с таким никнеймом.'
+      : person === reader
+        ? 'Владелец темы не может быть её модератором.'
+        : state.moderators.includes(person)
+          ? 'Этот человек уже модератор темы.'
+          : null
+    if (problem) return send(response, 400, invalid({ nickname: [problem] }))
+    state.moderators.push(person)
+    return view()
+  }
+  const [, removed] = path.match(/^\/moderators\/([^/]+)$/) ?? []
+  if (removed && request.method === 'DELETE') {
+    state.moderators = state.moderators.filter((id) => id !== removed)
+    return view()
+  }
+  if (path === '/transfer' && request.method === 'PUT') {
+    const person = personByNickname(input.nickname)
+    const problem = !person
+      ? 'Нет блога с таким никнеймом.'
+      : person === reader
+        ? 'Тема уже ваша: выберите другого человека.'
+        : null
+    if (problem) return send(response, 400, invalid({ nickname: [problem] }))
+    if (state.transfer?.to !== person) state.transfer = { to: person, offeredAt: new Date().toISOString() }
+    return view()
+  }
+  if (path === '/transfer' && request.method === 'DELETE') {
+    state.transfer = null
+    return view()
+  }
+  if (path === '/cover' && ['PUT', 'DELETE'].includes(request.method)) {
+    if (request.method === 'PUT') {
+      if (!uploads.some((file) => file.id === input.mediaId))
+        return send(response, 400, invalid({ mediaId: ['Такого загруженного файла нет.'] }))
+      state.cover = {
+        id: input.mediaId,
+        position: input.position ?? 50,
+        sources: [400, 640, 800, 1280, 1920].map((width) => ({
+          url: `http://127.0.0.1:${port}/__images/${input.mediaId}-cover-${width}.webp`,
+          width,
+        })),
+        preview: { color: '#336699', image: `data:image/webp;base64,${pixel.toString('base64')}` },
+      }
+    } else state.cover = null
+    return send(response, 200, {
+      ...edited(topic, request),
+      registeredAt: null,
+      owner: null,
+      accountId: null,
+      blocked: false,
+    })
+  }
+  return send(response, 404, { status: 404, code: 'not_found' })
 }
 
 // The account's settings (E04-08, ADR-0070): GET /api/v1/preferences/me and PUT /api/v1/preferences/me/general.
@@ -2398,6 +2560,8 @@ createServer(async (request, response) => {
   if (url.pathname === '/api/v1/topics/catalog' && request.method === 'GET')
     return topicCatalog(request, response, url)
   if (url.pathname === '/api/v1/topics/menu' && request.method === 'GET') return topicMenu(request, response)
+  const [, managedTopic, managedPath] = url.pathname.match(/^\/api\/v1\/topics\/([0-9a-f-]{36})(\/.+)$/) ?? []
+  if (managedTopic) return manageTopic(request, response, managedTopic, managedPath)
   if (url.pathname === '/api/v1/feeds/fresh' && request.method === 'GET')
     return filteredFreshFeed(request, response, url)
   if (url.pathname === '/api/v1/feeds/my' && request.method === 'GET') return myFeed(request, response, url)

@@ -174,6 +174,19 @@ describe('notification helpers', () => {
     expect(notificationLink(third)).toBe(`/u/-/${third.postId}`)
   })
 
+  // E11-12, ADR-0121: an offer of a topic leads to the topic's management page, where it is accepted or declined.
+  it("leads an offer of a topic to the topic's management page", () => {
+    const offer = notification('n9', {
+      type: 'topic_transfer_offer',
+      postId: null,
+      commentId: null,
+      blogId: '0195f3a0-0000-7000-8000-0000000000b4',
+    })
+    expect(actionText(offer)).toBe('предлагает вам тему')
+    expect(notificationLink(offer)).toBe('/topics/0195f3a0-0000-7000-8000-0000000000b4/manage')
+    expect(notificationLink({ ...offer, blogId: null })).toBe('/u/boris')
+  })
+
   it('reads the unread number and writes the counter', () => {
     expect(unreadOf({ status: 200, body: { unread: 4 } })).toBe(4)
     expect(unreadOf({ status: 401 })).toBeNull()
