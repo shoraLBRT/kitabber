@@ -75,6 +75,7 @@ public static class BlogsModule
     {
         ArgumentNullException.ThrowIfNull(bus);
         bus.AddConsumer<AccountCreatedBlogsConsumer, AccountCreatedBlogsConsumerDefinition>();
+        bus.AddConsumer<AccountDeletedBlogsConsumer, AccountDeletedBlogsConsumerDefinition>();
         // Drains the queue of the former AccountActivated for one release (ADR-0087, item 9).
         bus.AddConsumer<AccountActivatedConsumer, AccountActivatedConsumerDefinition>();
         bus.AddEntityFrameworkOutbox<BlogsDbContext>(outbox =>
