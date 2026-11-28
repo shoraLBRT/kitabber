@@ -51,6 +51,12 @@ public sealed class Post
 
     public PostStatus Status { get; private set; }
 
+    /// <summary>
+    /// The hashtags of the published text, lower-case (E11-08, ADR-0120): taken when the post is published and again on
+    /// every edit of a published post; a draft has none, so the feed of a tag never shows it.
+    /// </summary>
+    public string[] Tags { get; private set; } = [];
+
     public PostOrigin Origin { get; init; } = PostOrigin.Native;
 
     /// <summary>The external channel of a carried-over post; <c>null</c> for a native one.</summary>
@@ -159,6 +165,10 @@ public sealed class Post
         Title = PostRules.CleanTitle(title);
         Body = EnsureBody(body);
         UpdatedAt = now;
+        if (Status == PostStatus.Published)
+        {
+            Tags = [.. Hashtags.OfBody(Body)];
+        }
     }
 
     /// <summary>
@@ -174,6 +184,7 @@ public sealed class Post
         }
 
         Status = PostStatus.Published;
+        Tags = [.. Hashtags.OfBody(Body)];
         PublishedAt = now;
         UpdatedAt = now;
     }

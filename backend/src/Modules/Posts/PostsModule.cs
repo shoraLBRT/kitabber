@@ -32,6 +32,7 @@ public static class PostsModule
         builder.Services.AddScoped<FeedPageCache>();
         builder.Services.AddApiEndpoints<FreshFeedEndpoints>();
         builder.Services.AddApiEndpoints<BlogFeedEndpoints>();
+        builder.Services.AddApiEndpoints<TagFeedEndpoints>();
         builder.Services.AddSingleton<ViewSaltCache>();
         builder.Services.AddScoped<IViewCounter, BufferedViewCounter>();
         builder.Services.AddSingleton<ViewFlusher>();
