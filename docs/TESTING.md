@@ -185,5 +185,6 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 ## Базовая линия
 
-Число тестов записано в [PROJECT_STATE.md](PROJECT_STATE.md) и не должно уменьшаться. Если оно уменьшилось,
+Итоговое число тестов записано в [PROJECT_STATE.md](PROJECT_STATE.md), раскладка по файлам — в
+[TEST_BASELINE.md](TEST_BASELINE.md); число не должно уменьшаться. Если оно уменьшилось,
 потому что проверяемая вещь удалена, это объясняется в PR.
