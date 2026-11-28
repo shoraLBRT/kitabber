@@ -42,6 +42,7 @@ const anna: Profile = {
   accountId: boris,
   blocked: false,
   onboardingPending: false,
+  notifyNewPosts: false,
 }
 
 let wrapper: VueWrapper | undefined

@@ -112,6 +112,28 @@ public static class NotificationRules
     }
 
     /// <summary>
+    /// The notifications of a new post (E11-04, ADR-0118): each subscriber who turned notifications on, about the post,
+    /// the author as the actor. The key is the post, so a repeated event notifies once; the author is never notified.
+    /// </summary>
+    public static IReadOnlyList<NotificationDraft> ForNewPost(PostPublished published, IEnumerable<Guid> subscribers)
+    {
+        ArgumentNullException.ThrowIfNull(published);
+        ArgumentNullException.ThrowIfNull(subscribers);
+        var key = $"post:{published.PostId:N}";
+        return
+        [
+            .. subscribers.Where(s => s != published.AuthorAccountId).Distinct().Select(s => new NotificationDraft(
+                s,
+                NotificationType.SubscriptionPost,
+                published.AuthorAccountId,
+                key,
+                published.OccurredAt,
+                PostId: published.PostId,
+                BlogId: published.BlogId)),
+        ];
+    }
+
+    /// <summary>
     /// The notification of a subscription: the owner of a personal blog learns about a new subscriber, once per
     /// subscriber. A subscription to a topic notifies no one (ADR-0092, a proposal).
     /// </summary>

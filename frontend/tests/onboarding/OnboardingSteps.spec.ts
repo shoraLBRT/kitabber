@@ -32,6 +32,7 @@ const newcomer: Profile = {
   blocked: false,
   cover: null,
   onboardingPending: true,
+  notifyNewPosts: false,
 }
 
 const topics: TopicCard[] = [

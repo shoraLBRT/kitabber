@@ -21,6 +21,7 @@ const books: Profile = {
   subscribed: false,
   blocked: false,
   onboardingPending: false,
+  notifyNewPosts: false,
   cover: null,
   owner: { id: '0195f3a0-0000-7000-8000-0000000000b2', name: 'Борис', nickname: 'boris' },
 }

@@ -1,11 +1,13 @@
 // The subscription of a blog or topic page (E11-03, FR-SUB, docs/ui/blog.md, ADR-0085): the numbers and the reader's
 // own mark arrive with the profile; a press changes the button and the count at once, the server's answer then
-// replaces them, and a failure puts the old ones back with a toast. A guest's press opens the sign-in window
+// replaces them, and a failure puts the old ones back with a toast. The bell (E11-04, ADR-0118) turns the notifications
+// about new posts on and off the same way, through /bff/subscription-notifications; only a subscriber has it. A guest's press opens the sign-in window
 // (ADR-0032); back on the page signed in, the subscription is made by itself.
 import { onMounted, ref, watch } from 'vue'
 import {
   subscribeAction,
   subscriptionOf,
+  toggledBell,
   toggledSubscription,
   type SubscriptionChange,
   type SubscriptionView,
@@ -27,19 +29,30 @@ async function send(blogId: string, subscribed: boolean): Promise<SubscriptionCh
   }
 }
 
+async function sendBell(blogId: string, on: boolean): Promise<SubscriptionChange> {
+  try {
+    return await $fetch<SubscriptionChange>('/bff/subscription-notifications', {
+      method: 'POST',
+      body: { blogId, on },
+    })
+  } catch {
+    return { status: 'error' }
+  }
+}
+
 /** The subscription of the shown blog `profile`; `null` while there is none (loading, a failure). */
 export function useSubscription(profile: () => Profile | null) {
   const account = useAccount()
   const requireAccount = useRequireAccount()
   const route = useRoute()
   const toast = useToast()
-  const state = ref<SubscriptionView>({ subscriberCount: 0, subscribed: false })
+  const state = ref<SubscriptionView>({ subscriberCount: 0, subscribed: false, notifyNewPosts: false })
   const busy = ref(false)
 
   watch(
     () => {
       const shown = profile()
-      return shown ? [shown.id, shown.subscriberCount, shown.subscribed] : null
+      return shown ? [shown.id, shown.subscriberCount, shown.subscribed, shown.notifyNewPosts] : null
     },
     () => {
       const shown = profile()
@@ -73,6 +86,30 @@ export function useSubscription(profile: () => Profile | null) {
     )
   }
 
+  /** A press on the bell: the notifications about new posts the other way, the old state back on a failure. */
+  async function toggleBell() {
+    const blogId = profile()?.id
+    const before = state.value
+    if (!blogId || busy.value || !before.subscribed) return
+    busy.value = true
+    state.value = toggledBell(before)
+    const result = await sendBell(blogId, !before.notifyNewPosts)
+    busy.value = false
+    if (result.status === 'done') {
+      state.value = result.state
+      return
+    }
+    state.value = before
+    toast.show(
+      result.status === 'refused'
+        ? result.message
+        : result.status === 'unauthorized'
+          ? t('subscription.signedOut')
+          : t('subscription.bellFailed'),
+      { tone: 'error' },
+    )
+  }
+
   /** A press on «Подписаться» or «Вы подписаны»: a guest gets the sign-in window instead. */
   function toggle() {
     const blogId = profile()?.id
@@ -96,5 +133,5 @@ export function useSubscription(profile: () => Profile | null) {
     )
   })
 
-  return { state, busy, toggle }
+  return { state, busy, toggle, toggleBell }
 }

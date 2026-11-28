@@ -20,6 +20,7 @@ const anna: Profile = {
   subscribed: false,
   blocked: false,
   onboardingPending: false,
+  notifyNewPosts: false,
   cover: null,
   nicknameChangeableFrom: null,
 }

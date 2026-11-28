@@ -54,6 +54,26 @@ public sealed class PostRepostedNotificationsConsumerDefinition
     : ModuleConsumerDefinition<PostRepostedNotificationsConsumer, NotificationsDbContext>;
 
 /// <summary>
+/// A new post notifies the subscribers of its blog or topic and of its author's personal blog who turned notifications on
+/// (E11-04, ADR-0118); the Blogs module names them over its own tables.
+/// </summary>
+public sealed class PostPublishedNotificationsConsumer(NotificationWriter writer, IBlogSubscriptions subscriptions)
+    : IConsumer<PostPublished>
+{
+    public async Task Consume(ConsumeContext<PostPublished> context)
+    {
+        var published = context.Message;
+        var subscribers = await subscriptions.NewPostRecipientsAsync(
+            published.BlogId, published.AuthorAccountId, context.CancellationToken);
+        await writer.AddAsync(NotificationRules.ForNewPost(published, subscribers), context.CancellationToken);
+    }
+}
+
+/// <summary>The inbox of the Notifications schema for <see cref="PostPublishedNotificationsConsumer"/> (ADR-0005).</summary>
+public sealed class PostPublishedNotificationsConsumerDefinition
+    : ModuleConsumerDefinition<PostPublishedNotificationsConsumer, NotificationsDbContext>;
+
+/// <summary>
 /// Erases the notifications of a deleted account (FR-ID-5, ADR-0087): those it received and those its actions caused.
 /// A repeat finds nothing and does nothing.
 /// </summary>

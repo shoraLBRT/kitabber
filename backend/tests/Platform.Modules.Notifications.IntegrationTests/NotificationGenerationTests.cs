@@ -73,6 +73,56 @@ public sealed class NotificationGenerationTests(PostgresFixture postgres) : IAsy
         _host.Dispose();
     }
 
+    // E11-04, ADR-0118: a new post notifies the subscribers of its topic and of its author's blog who turned the bell
+    // on, once each, even when the event comes again; not a subscriber without the bell, not someone who blocked the
+    // author.
+    [Fact]
+    public async Task ANewPostNotifiesTheSubscribersWithTheBell()
+    {
+        var author = NewAccount();
+        var inTopic = NewAccount();
+        var inBlog = NewAccount();
+        var silent = NewAccount();
+        var blocking = NewAccount();
+        var personal = Blogs.Subsite.CreatePersonal(author, _at);
+        var topic = Blogs.Subsite.CreateTopic("Наука", "bellnews", NewAccount(), _at);
+        await using (var scope = _host.Services.CreateAsyncScope())
+        {
+            var blogs = scope.ServiceProvider.GetRequiredService<Blogs.BlogsDbContext>();
+            blogs.Subsites.AddRange(personal, topic);
+            blogs.Subscriptions.AddRange(
+                Bell(inTopic, topic.Id, on: true),
+                Bell(inBlog, personal.Id, on: true),
+                Bell(blocking, topic.Id, on: true),
+                Bell(silent, topic.Id, on: false));
+            await blogs.SaveChangesAsync(Ct);
+        }
+
+        _suppression.Block(blocking, author);
+        var post = Guid.CreateVersion7(_at);
+        var published = new Posts.Contracts.PostPublished(post, topic.Id, author, _at);
+        await PublishAsync(published);
+        await PublishAsync(published);
+
+        foreach (var reader in new[] { inTopic, inBlog })
+        {
+            var notification = Assert.Single(await NotificationsOfAsync(reader));
+            Assert.Equal((NotificationType.SubscriptionPost, author, post, topic.Id),
+                (notification.Type, notification.ActorAccountId, notification.PostId, notification.BlogId));
+        }
+
+        Assert.Empty(await NotificationsOfAsync(silent));
+        Assert.Empty(await NotificationsOfAsync(blocking));
+        Assert.Empty(await NotificationsOfAsync(author));
+    }
+
+    private static Blogs.Subscriptions.Subscription Bell(Guid account, Guid blog, bool on)
+    {
+        var subscription = Blogs.Subscriptions.Subscription.Create(account, blog, _at);
+        subscription.SetNewPostNotifications(on);
+        return subscription;
+    }
+
     [Fact]
     public async Task ReplyReactionMentionAndSubscriptionNotify()
     {

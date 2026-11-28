@@ -24,6 +24,9 @@ public enum NotificationType
 
     /// <summary>Someone reposted the recipient's post into their blog (E10-08, ADR-0117).</summary>
     Repost = 6,
+
+    /// <summary>A blog or a topic the recipient turned notifications on for got a new post (E11-04, ADR-0118).</summary>
+    SubscriptionPost = 7,
 }
 
 /// <summary>
@@ -50,7 +53,7 @@ public sealed class Notification
     /// <summary>The comment the action is or is about; <c>null</c> when it is about a post or a blog.</summary>
     public Guid? CommentId { get; init; }
 
-    /// <summary>The blog subscribed to; <c>null</c> for the other types.</summary>
+    /// <summary>The blog subscribed to, or the blog of a new post in a subscription; <c>null</c> for the other types.</summary>
     public Guid? BlogId { get; init; }
 
     /// <summary>The reaction, as the client names it (<c>like</c>); <c>null</c> for the other types.</summary>

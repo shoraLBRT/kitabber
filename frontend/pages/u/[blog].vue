@@ -107,6 +107,7 @@ useHead(() => ({
     @saved="onSaved"
     @unauthorized="onUnauthorized"
     @subscribe="subscription.toggle()"
+    @bell="subscription.toggleBell()"
   >
     <template #default="{ profile }">
       <NuxtPage :owner="owner" :blog-id="profile.id" :blocked="profile.blocked" />

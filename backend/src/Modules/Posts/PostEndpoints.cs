@@ -277,8 +277,10 @@ public sealed class PostEndpoints : IApiEndpoints
         }
 
         post.Publish(time.GetUtcNow());
-        // The post and its event are one change (ADR-0094): search finds it from then on.
+        // The post and its events are one change (ADR-0094): search finds it from then on, and the subscribers who
+        // asked for it are notified (ADR-0118).
         await outbox.Publish(new PostChanged(post.Id, post.UpdatedAt), ct);
+        await outbox.Publish(new PostPublished(post.Id, post.BlogId, post.AuthorAccountId, post.PublishedAt!.Value), ct);
         await db.SaveChangesAsync(ct);
         await feed.InvalidateAsync(ct);
         return TypedResults.Ok(await ViewAsync(post, media, ct));

@@ -58,6 +58,10 @@ namespace Platform.Modules.Blogs.Profiles;
 /// The owner has not been through the onboarding yet (E03-10, ADR-0102), so the site offers it after sign-in; only the
 /// owner of a personal blog ever sees <c>true</c>.
 /// </param>
+/// <param name="NotifyNewPosts">
+/// The reader turned on the notifications about new posts of the blog (E11-04, ADR-0118); <c>false</c> for a guest and
+/// for a reader who is not subscribed.
+/// </param>
 public sealed record Profile(
     Guid Id,
     string Type,
@@ -76,7 +80,8 @@ public sealed record Profile(
     DateTimeOffset? NicknameChangeableFrom = null,
     Guid? AccountId = null,
     bool Blocked = false,
-    bool OnboardingPending = false);
+    bool OnboardingPending = false,
+    bool NotifyNewPosts = false);
 
 /// <summary>A new nickname of the own personal blog (E04-05, ADR-0090).</summary>
 /// <param name="Nickname">
@@ -468,6 +473,7 @@ public sealed class ProfileEndpoints : IApiEndpoints
             SubscriberCount = numbers.SubscriberCount,
             SubscriptionCount = numbers.SubscriptionCount,
             Subscribed = numbers.Subscribed,
+            NotifyNewPosts = numbers.NotifyNewPosts,
         };
     }
 

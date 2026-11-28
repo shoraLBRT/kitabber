@@ -68,13 +68,15 @@ describe('changeSubscription', () => {
 
 describe('the subscription state', () => {
   it('moves the count by one at once and never below zero', () => {
-    expect(toggledSubscription({ subscriberCount: 4, subscribed: false })).toEqual({
+    expect(toggledSubscription({ subscriberCount: 4, subscribed: false, notifyNewPosts: false })).toEqual({
       subscriberCount: 5,
       subscribed: true,
+      notifyNewPosts: false,
     })
-    expect(toggledSubscription({ subscriberCount: 0, subscribed: true })).toEqual({
+    expect(toggledSubscription({ subscriberCount: 0, subscribed: true, notifyNewPosts: true })).toEqual({
       subscriberCount: 0,
       subscribed: false,
+      notifyNewPosts: false,
     })
   })
 
@@ -82,6 +84,7 @@ describe('the subscription state', () => {
     expect(subscriptionOf({ subscriberCount: 2, subscribed: true })).toEqual({
       subscriberCount: 2,
       subscribed: true,
+      notifyNewPosts: false,
     })
     expect(subscribeAction(blogId)).toBe(`subscribe:${blogId}`)
   })
@@ -95,7 +98,10 @@ describe('the subscription state', () => {
 describe('BlogSubscription', () => {
   it('shows the subscribers and the owner’s subscriptions with «Подписаться», and reports a press', async () => {
     const wrapper = mount(BlogSubscription, {
-      props: { state: { subscriberCount: 1200, subscribed: false }, subscriptionCount: 34 },
+      props: {
+        state: { subscriberCount: 1200, subscribed: false, notifyNewPosts: false },
+        subscriptionCount: 34,
+      },
     })
     expect(wrapper.get('[data-testid="subscriber-count"]').text()).toMatch(/^1,2\s?тыс\. подписчиков$/)
     expect(wrapper.get('[data-testid="subscription-count"]').text()).toBe('34 подписки')
@@ -107,7 +113,9 @@ describe('BlogSubscription', () => {
   })
 
   it('shows «Вы подписаны» to a subscriber and a topic without the subscriptions count', () => {
-    const wrapper = mount(BlogSubscription, { props: { state: { subscriberCount: 1, subscribed: true } } })
+    const wrapper = mount(BlogSubscription, {
+      props: { state: { subscriberCount: 1, subscribed: true, notifyNewPosts: false } },
+    })
     expect(wrapper.get('[data-testid="subscriber-count"]').text()).toBe('1 подписчик')
     expect(wrapper.find('[data-testid="subscription-count"]').exists()).toBe(false)
     const button = wrapper.get('[data-testid="subscribe-button"]')
@@ -117,7 +125,11 @@ describe('BlogSubscription', () => {
 
   it('shows the owner the numbers without the button, and an empty blog zero subscribers', () => {
     const wrapper = mount(BlogSubscription, {
-      props: { state: { subscriberCount: 0, subscribed: false }, subscriptionCount: 0, own: true },
+      props: {
+        state: { subscriberCount: 0, subscribed: false, notifyNewPosts: false },
+        subscriptionCount: 0,
+        own: true,
+      },
     })
     expect(wrapper.get('[data-testid="subscriber-count"]').text()).toBe('0 подписчиков')
     expect(wrapper.get('[data-testid="subscription-count"]').text()).toBe('0 подписок')
@@ -126,7 +138,7 @@ describe('BlogSubscription', () => {
 
   it('keeps the button disabled while the change is not answered', () => {
     const wrapper = mount(BlogSubscription, {
-      props: { state: { subscriberCount: 1, subscribed: true }, busy: true },
+      props: { state: { subscriberCount: 1, subscribed: true, notifyNewPosts: false }, busy: true },
     })
     expect(wrapper.get('[data-testid="subscribe-button"]').attributes('disabled')).toBeDefined()
   })

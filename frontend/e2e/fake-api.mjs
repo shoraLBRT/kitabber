@@ -1803,6 +1803,15 @@ function subscribedBy(request) {
   return subscriptions.get(client) ?? new Set()
 }
 
+// The bells (E11-04, ADR-0118): the blogs a client turned the notifications about new posts on for.
+const bells = new Map()
+
+function bellsOf(request) {
+  const client = clientOf(request)
+  if (client && !bells.has(client)) bells.set(client, new Set())
+  return bells.get(client) ?? new Set()
+}
+
 function subscriptionFields(blog, request) {
   const reader = subject(request)
   const own = reader ? subscribedBy(request) : new Set()
@@ -1811,7 +1820,26 @@ function subscriptionFields(blog, request) {
     subscriberCount: (othersSubscribers[blog.nickname] ?? 0) + (subscribed ? 1 : 0),
     subscriptionCount: blog.type === 'personal' ? (reader && blog.owner === reader ? own.size : 0) : null,
     subscribed,
+    notifyNewPosts: subscribed && bellsOf(request).has(blog.id),
   }
+}
+
+function changeBell(request, response, blogId) {
+  const reader = subject(request)
+  if (!reader) return send(response, 401, { status: 401, code: 'unauthorized' })
+  const blog = blogs.find((item) => item.id === blogId)
+  if (!blog) return send(response, 404, { status: 404, code: 'blogs.blog_not_found' })
+  if (blog.nickname === 'bell-outage') return send(response, 500, { status: 500, code: 'internal' })
+  if (!subscribedBy(request).has(blog.id))
+    return send(response, 409, {
+      status: 409,
+      code: 'blogs.not_subscribed',
+      detail: 'Уведомления о постах включаются только у подписки.',
+    })
+  if (request.method === 'PUT') bellsOf(request).add(blog.id)
+  else bellsOf(request).delete(blog.id)
+  const { subscriberCount, subscribed, notifyNewPosts } = subscriptionFields(blog, request)
+  return send(response, 200, { subscriberCount, subscribed, notifyNewPosts })
 }
 
 function changeSubscription(request, response, blogId) {
@@ -1828,9 +1856,12 @@ function changeSubscription(request, response, blogId) {
     })
   const own = subscribedBy(request)
   if (request.method === 'PUT') own.add(blog.id)
-  else own.delete(blog.id)
-  const { subscriberCount, subscribed } = subscriptionFields(blog, request)
-  return send(response, 200, { subscriberCount, subscribed })
+  else {
+    own.delete(blog.id)
+    bellsOf(request).delete(blog.id)
+  }
+  const { subscriberCount, subscribed, notifyNewPosts } = subscriptionFields(blog, request)
+  return send(response, 200, { subscriberCount, subscribed, notifyNewPosts })
 }
 
 // The lists behind the numbers (E04-06, ADR-0099): GET /api/v1/blogs/{id}/subscribers and …/subscriptions, page by
@@ -2245,6 +2276,8 @@ createServer(async (request, response) => {
   const [, subscriptionBlog] = url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/subscription$/) ?? []
   if (subscriptionBlog && ['PUT', 'DELETE'].includes(request.method))
     return changeSubscription(request, response, subscriptionBlog)
+  const [, bellBlog] = url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/subscription\/notifications$/) ?? []
+  if (bellBlog && ['PUT', 'DELETE'].includes(request.method)) return changeBell(request, response, bellBlog)
   const [, listedBlog, listKind] =
     url.pathname.match(/^\/api\/v1\/blogs\/([^/]+)\/(subscribers|subscriptions)$/) ?? []
   if (listedBlog && request.method === 'GET')
