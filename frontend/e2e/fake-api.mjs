@@ -479,20 +479,57 @@ function notificationsOf(request) {
   return ownNotifications.get(client)
 }
 
+// As the API (E12-04, ADR-0123): marking rows read tells the address's open tabs `notifications.changed`; a mark
+// that changed nothing tells no one.
+function markNotificationsRead(address, list, which) {
+  const marked = list.filter((n) => !n.read && which(n))
+  for (const n of marked) n.read = true
+  if (marked.length > 0) tellNotificationsChanged(address)
+}
+
+function tellNotificationsChanged(address) {
+  const event = {
+    topic: 'account:0195f3a0-0000-7000-8000-000000000001',
+    type: 'notifications.changed',
+    data: null,
+  }
+  for (const connection of connections.values())
+    if (connection.open && connection.address === address)
+      enqueue(connection, { type: 1, target: 'Receive', arguments: [event] })
+}
+
+// Control for the tests: POST /__notification-arrival with the client address in `x-forwarded-for` puts a new unread
+// reply from Борис on top of that address's notifications and tells its tabs, as the workers host would.
+function notificationArrival(request) {
+  const list = notificationsOf(request)
+  list.unshift({
+    ...list[0],
+    id: randomUUID(),
+    type: 'comment_reply',
+    reactionKind: null,
+    createdAt: new Date().toISOString(),
+    read: false,
+    group: randomUUID(),
+    actorCount: 1,
+  })
+  tellNotificationsChanged(clientOf(request))
+  return { unread: list.filter((n) => !n.read).length }
+}
+
 async function notificationsRoute(request, response, url) {
   if (!subject(request)) return send(response, 401, { status: 401, code: 'unauthorized' })
   const list = notificationsOf(request)
   const unread = () => ({ unread: list.filter((n) => !n.read).length })
   if (url.pathname.endsWith('/unread')) return send(response, 200, unread())
   if (url.pathname.endsWith('/read-all')) {
-    for (const n of list) n.read = true
+    markNotificationsRead(clientOf(request), list, () => true)
     return send(response, 200, unread())
   }
   if (url.pathname.endsWith('/read')) {
     const { ids } = JSON.parse((await readBody(request)) || '{}')
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100)
       return send(response, 400, { status: 400, code: 'validation_failed', errors: { ids: ['invalid'] } })
-    for (const n of list) if (ids.includes(n.id)) n.read = true
+    markNotificationsRead(clientOf(request), list, (n) => ids.includes(n.id))
     return send(response, 200, unread())
   }
   const cursor = url.searchParams.get('cursor')
@@ -2413,6 +2450,8 @@ createServer(async (request, response) => {
     return send(response, 200, state(client))
   }
 
+  if (url.pathname === '/__notification-arrival' && request.method === 'POST')
+    return send(response, 201, notificationArrival(request))
   if (url.pathname === '/__comment-arrival' && request.method === 'POST')
     return send(response, 201, commentArrival(JSON.parse((await readBody(request)) || '{}')))
   if (url.pathname === '/__fresh-arrival' && request.method === 'POST')
@@ -2611,6 +2650,8 @@ createServer(async (request, response) => {
     const token = randomBytes(16).toString('base64url')
     connections.set(token, {
       client: request.headers['x-e2e-client'] ?? null,
+      // The client address, as the notifications are kept by it (E12-04): their change goes to this address's tabs.
+      address: clientOf(request),
       ticket,
       open: true,
       handshake: false,

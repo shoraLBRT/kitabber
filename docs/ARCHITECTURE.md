@@ -16,7 +16,7 @@ backend/                   решение .NET (Platform.slnx)
   src/Messaging/           Platform.Messaging — шина MassTransit на RabbitMQ, outbox и inbox модуля (ADR-0005)
   src/Caching/             Platform.Caching — кэш IDistributedCache и счётчики IRateCounter на Redis (ADR-0005)
   src/Mail/                Platform.Mail — шаблоны писем (Templates/<культура>/), очередь SendEmail, SMTP и фейк (ADR-0017)
-  src/Realtime/            Platform.Realtime — канал реального времени: хаб SignalR, темы, билеты хаба, Redis backplane (ADR-0019)
+  src/Realtime/            Platform.Realtime — канал реального времени: хаб SignalR, темы, билеты хаба, Redis backplane (ADR-0019); воркеры только отправляют через backplane (ADR-0123)
   src/Persistence/         Platform.Persistence — база модулей: ModuleDbContext, мигратор (ADR-0004)
   src/Observability/       Platform.Observability — OpenTelemetry: трассы, метрики, логи, выдача по OTLP (ADR-0015)
   src/Migrator/            Platform.Migrator — команда миграций: migrate, status, rollback <схема>

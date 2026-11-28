@@ -961,6 +961,15 @@
   во множественном числе), кнопка «Прочитать все» в `NotificationList` (`/bff/notifications/read-all`) — точки
   снимаются сразу, при сбое возвращаются с тостом; одна строка на группу при подгрузке. Не сделано: аватары
   нескольких людей в строке, «Отписаться от треда».
+- Уведомления в реальном времени (E12-04, #116, [ADR-0123](adr/0123-realtime-notifications.md), FR-NOTIFY): событие
+  `notifications.changed` без данных в теме `account:<id>`. Новые уведомления: потребитель, добавивший строки
+  (`NotificationWriter.AddAndAnnounceAsync`), публикует внутреннее `NotificationsArrived` через свой outbox, после
+  фиксации `NotificationsArrivedRealtimeConsumer` шлёт событие получателям; хост воркеров отправляет через Redis
+  backplane (`AddPlatformRealtimePublisher`, без хаба). `POST …/read` и `…/read-all` шлют то же событие, если что-то
+  отметили. Сайт: раскладка (`useNotificationChanges`) перечитывает счётчик по событию и после переподключения
+  (`RealtimeChannel.onReconnect`); рост объявляется живой областью «Новое уведомление. Непрочитанных: N». Фейковый
+  API шлёт событие вкладкам адреса и даёт `POST /__notification-arrival`. Не сделано: новые строки в уже открытом
+  списке появляются только при следующем открытии.
 - «Моя лента» (E08-04, #80, [ADR-0089](adr/0089-my-feed.md), FR-FEED): `GET /api/v1/feeds/my` только вошедшему —
   опубликованные посты блогов и тем из `IBlogSubscriptions` и все посты владельцев личных блогов подписки, по дате,
   курсор «Свежего». Исключения читателя — `Posts.Contracts.IFeedExclusionSource` (скрытые посты, блоги и темы,

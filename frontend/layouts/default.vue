@@ -9,6 +9,8 @@ import { searchApi } from '~/api/search'
 import ShellAside from '~/components/shell/ShellAside.vue'
 import PopularCommentList from '~/components/comments/PopularCommentList.vue'
 import { asideQuery } from '~/composables/useMediaQuery'
+import { useNotificationChanges } from '~/composables/useUnreadNotifications'
+import { t } from '~/i18n'
 
 const route = useRoute()
 const user = useShellUser()
@@ -21,7 +23,15 @@ const { topics } = useTopicMenu()
 
 // The unread counter of the bell and of the phone's «Уведомления» tab; the bell's panel lists the notifications and
 // marks the shown ones read (E12-02, ADR-0093).
-const { unread, set: setUnread } = useUnreadNotifications()
+const { unread, set: setUnread, refresh: refreshUnread } = useUnreadNotifications()
+// Live (E12-04, ADR-0123): a change of the notifications in the account's topic asks for the number again; a rise is
+// said politely to a screen reader (docs/ui/notifications.md), a fall (read in another tab) is not.
+const arrived = ref('')
+useNotificationChanges(async () => {
+  const before = unread.value
+  await refreshUnread()
+  arrived.value = unread.value > before ? t('notifications.arrived', { count: unread.value }) : ''
+})
 const counts = computed(() => ({ notifications: unread.value }))
 const notifications = notificationsApi()
 // The header's search (E14-02, ADR-0097): suggestions through /bff/search-suggestions, the history of this account.
@@ -49,6 +59,7 @@ function onAccount(id: string) {
     @write="sheetOpen = true"
   >
     <slot />
+    <span class="visually-hidden" aria-live="polite" data-testid="notifications-arrived">{{ arrived }}</span>
     <template #search="{ close }">
       <ShellSearch :api="search" :history-key="account.historyKey ?? null" @close="close()" />
     </template>
