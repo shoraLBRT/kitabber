@@ -1456,7 +1456,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The notifications of the signed-in account, newest first, page by page with a cursor */
+        /** The notification rows of the signed-in account, newest first, page by page with a cursor */
         get: operations["GetOwnNotifications"];
         put?: never;
         post?: never;
@@ -1473,7 +1473,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The number of the unread notifications of the signed-in account */
+        /** The number of the unread notification rows of the signed-in account */
         get: operations["GetOwnUnreadNotifications"];
         put?: never;
         post?: never;
@@ -1492,8 +1492,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Marks the shown notifications of the signed-in account read and gives the unread number */
+        /** Marks the shown notification rows of the signed-in account read and gives the unread number */
         post: operations["MarkOwnNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/me/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks every notification of the signed-in account read and gives the unread number */
+        post: operations["MarkAllOwnNotificationsRead"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1871,6 +1888,13 @@ export interface components {
             read: boolean;
             /** Format: uuid */
             blogId?: null | string;
+            /** @default  */
+            group: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            actorCount: number;
         };
         OnboardingInput: {
             name?: null | string;
@@ -6640,6 +6664,35 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MarkAllOwnNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadNotificationsView"];
                 };
             };
             /** @description Unauthorized */

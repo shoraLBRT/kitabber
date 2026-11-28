@@ -27,6 +27,7 @@ public sealed class NotificationApiTests(NotificationsApi api) : IClassFixture<N
     private const string _feed = "/api/v1/notifications/me";
     private const string _unread = "/api/v1/notifications/me/unread";
     private const string _read = "/api/v1/notifications/me/read";
+    private const string _readAll = "/api/v1/notifications/me/read-all";
     private readonly Guid _anna = Guid.CreateVersion7();
     private readonly Guid _boris = Guid.CreateVersion7();
     private readonly Guid _post = Guid.CreateVersion7();
@@ -93,6 +94,59 @@ public sealed class NotificationApiTests(NotificationsApi api) : IClassFixture<N
     }
 
     [Fact]
+    public async Task TenLikesOfOnePostAreOneRow()
+    {
+        var reply = await SaveAsync(_anna, 1);
+        var likes = await SaveLikesAsync(_anna, _post, 10, 2);
+        var other = await SaveLikesAsync(_anna, Guid.CreateVersion7(), 1, 20);
+        using var client = api.CreateClient();
+        Assert.Equal(3, await UnreadAsync(client, _anna));
+
+        var rows = await FeedAsync(client, "?limit=2");
+        Assert.Equal([other[0].Id, likes[^1].Id], rows.Items.Select(r => r.GetProperty("id").GetGuid()));
+        var group = rows.Items[1];
+        Assert.Equal("reaction", group.GetProperty("type").GetString());
+        Assert.Equal(10, group.GetProperty("actorCount").GetInt32());
+        Assert.Equal(likes[^1].ActorAccountId, group.GetProperty("actor").GetProperty("accountId").GetGuid());
+        Assert.Equal(1, rows.Items[0].GetProperty("actorCount").GetInt32());
+        var rest = await FeedAsync(client, $"?limit=2&cursor={Uri.EscapeDataString(rows.Cursor!)}");
+        Assert.Equal([reply[0].Id], rest.Items.Select(r => r.GetProperty("id").GetGuid()));
+        Assert.Null(rest.Cursor);
+
+        // Marking the row by its newest like marks all ten; a like that comes after makes the row unread again.
+        using var marked = await SendAsync(client, HttpMethod.Post, _read, _anna, new { ids = new[] { likes[^1].Id } });
+        Assert.Equal(2, (await marked.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("unread").GetInt32());
+        Assert.True((await FeedAsync(client, string.Empty)).Items[1].GetProperty("read").GetBoolean());
+        var late = await SaveLikesAsync(_anna, _post, 1, 30);
+        var after = await FeedAsync(client, string.Empty);
+        Assert.Equal(late[0].Id, after.Items[0].GetProperty("id").GetGuid());
+        Assert.False(after.Items[0].GetProperty("read").GetBoolean());
+        Assert.Equal(11, after.Items[0].GetProperty("actorCount").GetInt32());
+        Assert.Equal(3, after.Items.Count);
+        Assert.Equal(3, await UnreadAsync(client, _anna));
+    }
+
+    [Fact]
+    public async Task MarkingAllReadZeroesTheCounter()
+    {
+        await SaveAsync(_anna, 3);
+        await SaveLikesAsync(_anna, _post, 4, 10);
+        await SaveAsync(_boris, 1);
+        using var client = api.CreateClient();
+        Assert.Equal(4, await UnreadAsync(client, _anna));
+
+        using var all = await SendAsync(client, HttpMethod.Post, _readAll, _anna);
+        using var again = await SendAsync(client, HttpMethod.Post, _readAll, _anna);
+
+        Assert.Equal(HttpStatusCode.OK, all.StatusCode);
+        Assert.Equal(0, (await all.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("unread").GetInt32());
+        Assert.Equal(0, (await again.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("unread").GetInt32());
+        Assert.Equal(0, await UnreadAsync(client, _anna));
+        Assert.Equal(1, await UnreadAsync(client, _boris));
+        Assert.All((await FeedAsync(client, string.Empty)).Items, r => Assert.True(r.GetProperty("read").GetBoolean()));
+    }
+
+    [Fact]
     public async Task OneAccountsFeedIsNotAnothers()
     {
         await SaveAsync(_anna, 2);
@@ -139,10 +193,48 @@ public sealed class NotificationApiTests(NotificationsApi api) : IClassFixture<N
         using var feed = await SendAsync(client, HttpMethod.Get, _feed, null);
         using var unread = await SendAsync(client, HttpMethod.Get, _unread, null);
         using var read = await SendAsync(client, HttpMethod.Post, _read, null, new { ids = new[] { Guid.NewGuid() } });
+        using var readAll = await SendAsync(client, HttpMethod.Post, _readAll, null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, feed.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, unread.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, read.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, readAll.StatusCode);
+    }
+
+    // Likes of a post from as many people, a minute apart from `fromMinute` on, the oldest first.
+    private async Task<List<Notification>> SaveLikesAsync(Guid recipient, Guid post, int count, int fromMinute)
+    {
+        var start = api.Time.GetUtcNow();
+        List<Notification> saved =
+        [
+            .. Enumerable.Range(0, count).Select(i =>
+            {
+                var actor = Guid.CreateVersion7();
+                return new Notification
+                {
+                    Id = Guid.CreateVersion7(),
+                    RecipientAccountId = recipient,
+                    Type = NotificationType.Reaction,
+                    ActorAccountId = actor,
+                    PostId = post,
+                    ReactionKind = "like",
+                    SourceKey = $"reaction:post:{post:N}:{actor:N}",
+                    CreatedAt = start.AddMinutes(fromMinute + i),
+                };
+            }),
+        ];
+        await api.SaveAsync<NotificationsDbContext>([.. saved]);
+        return saved;
+    }
+
+    private async Task<(List<JsonElement> Items, string? Cursor)> FeedAsync(HttpClient client, string query)
+    {
+        using var response = await SendAsync(client, HttpMethod.Get, $"{_feed}{query}", _anna);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        var cursor = page.GetProperty("nextCursor");
+        return ([.. page.GetProperty("items").EnumerateArray()],
+            cursor.ValueKind == JsonValueKind.Null ? null : cursor.GetString());
     }
 
     // Notifications of a recipient from Boris, a minute apart, the oldest first.

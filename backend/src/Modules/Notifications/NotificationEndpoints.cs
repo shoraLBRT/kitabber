@@ -20,22 +20,28 @@ namespace Platform.Modules.Notifications;
 public sealed record NotificationActorView(
     Guid AccountId, Guid? BlogId, string? Name, string? Nickname, IReadOnlyList<ImageSource> AvatarSources);
 
-/// <summary>A notification in the feed of the signed-in account (E12-02, FR-NOTIFY, ADR-0093).</summary>
-/// <param name="Id">The notification's identifier; the client marks it read by it.</param>
+/// <summary>
+/// A row of the notification feed of the signed-in account (E12-02, E12-03, FR-NOTIFY, ADR-0093, ADR-0122): one
+/// notification, or a group of the same kind — the reactions to one post or comment, the reposts of one post, the
+/// comments under one post, the new subscribers of the blog — shown by its newest notification.
+/// </summary>
+/// <param name="Id">The newest notification of the row; the client marks the row read by it.</param>
 /// <param name="Type">
 /// <c>comment_reply</c>, <c>post_comment</c>, <c>reaction</c>, <c>mention</c>, <c>new_subscriber</c>, <c>repost</c>, <c>subscription_post</c> or <c>topic_transfer_offer</c>; the set grows
 /// with the events of the spec, so a client shows an unknown type as a plain row.
 /// </param>
-/// <param name="Actor">Who acted.</param>
+/// <param name="Actor">Who acted last.</param>
 /// <param name="PostId">The post the action is about or under; <c>null</c> for a subscription.</param>
 /// <param name="CommentId">The comment the action is or is about; <c>null</c> when it is about a post or a blog.</param>
 /// <param name="ReactionKind">The reaction (<c>like</c>); <c>null</c> for the other types.</param>
-/// <param name="CreatedAt">When the action happened.</param>
-/// <param name="Read">Whether the recipient has seen it.</param>
+/// <param name="CreatedAt">When the newest action of the row happened.</param>
+/// <param name="Read">Whether the recipient has seen every notification of the row.</param>
 /// <param name="BlogId">
 /// The blog or the topic the action is about: the subscribed blog, the blog of a new post, the topic offered to the
 /// recipient (E11-12); <c>null</c> for the other types.
 /// </param>
+/// <param name="Group">The row's key, the same while new notifications join it; the client keeps one row per key.</param>
+/// <param name="ActorCount">How many people the row stands for, 1 or more: «Имя и ещё 9» for 10.</param>
 public sealed record NotificationView(
     Guid Id,
     string Type,
@@ -45,24 +51,29 @@ public sealed record NotificationView(
     string? ReactionKind,
     DateTimeOffset CreatedAt,
     bool Read,
-    Guid? BlogId = null);
+    Guid? BlogId = null,
+    string Group = "",
+    int ActorCount = 1);
 
-/// <summary>The number of the signed-in account's unread notifications: the counter of the header.</summary>
-/// <param name="Unread">How many notifications are unread.</param>
+/// <summary>The number of the signed-in account's unread rows of the feed: the counter of the header.</summary>
+/// <param name="Unread">How many rows of the feed have an unread notification (a group counts once).</param>
 public sealed record UnreadNotificationsView(int Unread);
 
-/// <summary>The notifications the client has shown, to be marked read.</summary>
-/// <param name="Ids">The identifiers, 1 to <see cref="NotificationEndpoints.MaxMarked"/>; another's are ignored.</param>
+/// <summary>The rows the client has shown, to be marked read.</summary>
+/// <param name="Ids">
+/// The rows' newest notifications, 1 to <see cref="NotificationEndpoints.MaxMarked"/>; another's are ignored.
+/// </param>
 public sealed record MarkNotificationsReadRequest(IReadOnlyList<Guid>? Ids);
 
-/// <summary>Where a page of the notification feed ends: the newest first, then the larger id (ADR-0006).</summary>
-public sealed record NotificationCursor(DateTimeOffset CreatedAt, Guid Id);
+/// <summary>Where a page of the notification feed ends: the newest row first, then the larger key (ADR-0006).</summary>
+public sealed record NotificationCursor(DateTimeOffset CreatedAt, string Group);
 
 /// <summary>
-/// The read side of the notifications in the API host (E12-02, FR-NOTIFY, ADR-0093): the feed of the signed-in account,
-/// newest first, page by page with a cursor; the number of the unread ones for the header's counter; and marking the
-/// shown ones read, which answers with the new number. No one reads or marks another's notifications. The person who
-/// acted is read from Blogs (<see cref="IBlogDirectory"/>) for a whole page at once.
+/// The read side of the notifications in the API host (E12-02, E12-03, FR-NOTIFY, ADR-0093, ADR-0122): the feed of the
+/// signed-in account, one row per group of the same kind, the newest row first, page by page with a cursor; the
+/// number of the unread rows for the header's counter; marking the shown rows read, and marking all read, which
+/// answer with the new number. No one reads or marks another's notifications. The person who acted is read from
+/// Blogs (<see cref="IBlogDirectory"/>) for a whole page at once.
 /// </summary>
 public sealed class NotificationEndpoints : IApiEndpoints
 {
@@ -78,18 +89,23 @@ public sealed class NotificationEndpoints : IApiEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("GetOwnNotifications")
-            .WithSummary("The notifications of the signed-in account, newest first, page by page with a cursor");
+            .WithSummary("The notification rows of the signed-in account, newest first, page by page with a cursor");
         own.MapGet("/unread", GetUnreadAsync)
             .Produces<UnreadNotificationsView>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("GetOwnUnreadNotifications")
-            .WithSummary("The number of the unread notifications of the signed-in account");
+            .WithSummary("The number of the unread notification rows of the signed-in account");
         own.MapPost("/read", MarkReadAsync)
             .Produces<UnreadNotificationsView>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .WithName("MarkOwnNotificationsRead")
-            .WithSummary("Marks the shown notifications of the signed-in account read and gives the unread number");
+            .WithSummary("Marks the shown notification rows of the signed-in account read and gives the unread number");
+        own.MapPost("/read-all", MarkAllReadAsync)
+            .Produces<UnreadNotificationsView>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithName("MarkAllOwnNotificationsRead")
+            .WithSummary("Marks every notification of the signed-in account read and gives the unread number");
     }
 
     /// <summary>The name a type has in the API.</summary>
@@ -129,35 +145,58 @@ public sealed class NotificationEndpoints : IApiEndpoints
 
         var page = query.ToRequest<NotificationCursor>();
         http.Response.Headers.CacheControl = "private, no-store";
-        var rows = db.Notifications.AsNoTracking().Where(n => n.RecipientAccountId == recipient);
+        // One row per group (ADR-0122), placed by its newest notification: a new like lifts the row of its post up.
+        var groups = db.Notifications.AsNoTracking()
+            .Where(n => n.RecipientAccountId == recipient)
+            .GroupBy(n => n.GroupKey)
+            .Select(g => new
+            {
+                g.Key,
+                Latest = g.Max(n => n.CreatedAt),
+                Actors = g.Select(n => n.ActorAccountId).Distinct().Count(),
+                Unread = g.Count(n => n.ReadAt == null),
+            });
         if (page.After is { } after)
         {
-            rows = rows.Where(n => EF.Functions.LessThan(
-                ValueTuple.Create(n.CreatedAt, n.Id), ValueTuple.Create(after.CreatedAt, after.Id)));
+            groups = groups.Where(g => EF.Functions.LessThan(
+                ValueTuple.Create(g.Latest, g.Key), ValueTuple.Create(after.CreatedAt, after.Group)));
         }
 
-        var found = await rows
-            .OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id)
+        var found = await groups
+            .OrderByDescending(g => g.Latest).ThenByDescending(g => g.Key)
             .Take(page.FetchCount)
             .ToListAsync(ct);
-        var result = page.ToPage(found, n => new NotificationCursor(n.CreatedAt, n.Id));
-        var cards = await blogs.CardsAsync([], [.. result.Items.Select(n => n.ActorAccountId).Distinct()], ct);
+        var result = page.ToPage(found, g => new NotificationCursor(g.Latest, g.Key));
+        var keys = result.Items.Select(g => g.Key).ToList();
+        var newest = (await db.Notifications.AsNoTracking()
+                .Where(n => n.RecipientAccountId == recipient && keys.Contains(n.GroupKey))
+                .GroupBy(n => n.GroupKey)
+                .Select(g => g.OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id).First())
+                .ToListAsync(ct))
+            .ToDictionary(n => n.GroupKey, StringComparer.Ordinal);
+        var cards = await blogs.CardsAsync([], [.. newest.Values.Select(n => n.ActorAccountId).Distinct()], ct);
         var byOwner = cards
             .Where(c => c.Kind == BlogKind.Personal && c.OwnerAccountId is not null)
             .GroupBy(c => c.OwnerAccountId!.Value)
             .ToDictionary(g => g.Key, g => g.First());
-        var views = result.Items.Select(n => new NotificationView(
-            n.Id,
-            TypeName(n.Type),
-            byOwner.TryGetValue(n.ActorAccountId, out var card)
-                ? new NotificationActorView(n.ActorAccountId, card.Id, card.Name, card.Nickname, card.AvatarSources)
-                : new NotificationActorView(n.ActorAccountId, null, null, null, []),
-            n.PostId,
-            n.CommentId,
-            n.ReactionKind,
-            n.CreatedAt,
-            n.ReadAt is not null,
-            n.BlogId)).ToList();
+        var views = result.Items.Where(g => newest.ContainsKey(g.Key)).Select(g =>
+        {
+            var n = newest[g.Key];
+            return new NotificationView(
+                n.Id,
+                TypeName(n.Type),
+                byOwner.TryGetValue(n.ActorAccountId, out var card)
+                    ? new NotificationActorView(n.ActorAccountId, card.Id, card.Name, card.Nickname, card.AvatarSources)
+                    : new NotificationActorView(n.ActorAccountId, null, null, null, []),
+                n.PostId,
+                n.CommentId,
+                n.ReactionKind,
+                n.CreatedAt,
+                g.Unread == 0,
+                n.BlogId,
+                g.Key,
+                g.Actors);
+        }).ToList();
         return TypedResults.Ok(new CursorPage<NotificationView>(views, result.NextCursor));
     }
 
@@ -195,15 +234,38 @@ public sealed class NotificationEndpoints : IApiEndpoints
 
         var ids = request.Ids!.Distinct().ToList();
         var now = time.GetUtcNow();
-        // Only the recipient's own unread ones: another's id and a repeated mark change nothing.
+        // A named notification marks its row: every unread one of its group up to it, not one that came after the row
+        // was shown. Only the recipient's own: another's id and a repeated mark change nothing.
         await db.Notifications
-            .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null && ids.Contains(n.Id))
+            .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null
+                && db.Notifications.Any(s => s.RecipientAccountId == recipient && ids.Contains(s.Id)
+                    && s.GroupKey == n.GroupKey && s.CreatedAt >= n.CreatedAt))
             .ExecuteUpdateAsync(set => set.SetProperty(n => n.ReadAt, now), ct);
         return TypedResults.Ok(new UnreadNotificationsView(await UnreadAsync(db, recipient, ct)));
     }
 
+    private static async Task<IResult> MarkAllReadAsync(
+        ClaimsPrincipal user, NotificationsDbContext db, TimeProvider time, CancellationToken ct)
+    {
+        if (AccountOf(user) is not { } recipient)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var now = time.GetUtcNow();
+        await db.Notifications
+            .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(n => n.ReadAt, now), ct);
+        return TypedResults.Ok(new UnreadNotificationsView(await UnreadAsync(db, recipient, ct)));
+    }
+
+    // The unread rows, as the feed shows them: a group with several unread notifications counts once.
     private static Task<int> UnreadAsync(NotificationsDbContext db, Guid recipient, CancellationToken ct) =>
-        db.Notifications.CountAsync(n => n.RecipientAccountId == recipient && n.ReadAt == null, ct);
+        db.Notifications
+            .Where(n => n.RecipientAccountId == recipient && n.ReadAt == null)
+            .Select(n => n.GroupKey)
+            .Distinct()
+            .CountAsync(ct);
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
     private static Guid? AccountOf(ClaimsPrincipal user) =>
