@@ -3,8 +3,9 @@
 // description and its owner — and its tabs «Посты» and «Комментарии» (E09-15), each at its own address, so the tab
 // content is the slot. States: loading (a skeleton of the header), a failure with «Повторить», and the topic. A missing
 // topic is the page's 404 (error.vue). The subscriber count and «Подписаться» are BlogSubscription.vue (E11-03), its
-// state held by the page. «Скрыть из лент» is TopicHide.vue (E11-07), for a signed-in reader. Notifications, the tab «О теме», the rules and moderators come with their own E11 issues;
-// changing the cover of a topic comes with the topic's management (E11-12, #114), so the cover is only shown here.
+// state held by the page. «Скрыть из лент» is TopicHide.vue (E11-07), for a signed-in reader. The tab «О теме» comes with its own E11 issue.
+// «Правила и модераторы» leads to the topic's management page (E11-12, ADR-0121): its owner changes the cover, the
+// description and the rules there, so the cover is only shown here.
 import { computed } from 'vue'
 import BlogCover from '../blog/BlogCover.vue'
 import BlogSubscription from '../blog/BlogSubscription.vue'
@@ -14,6 +15,7 @@ import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
 import UiState from '../ui/UiState.vue'
 import { blogPath, blogTitle, type Profile } from '../../api/profiles'
+import { managementPath } from '../../api/topic-management'
 import { subscriptionOf, type SubscriptionView } from '../../api/subscriptions'
 import { t } from '../../i18n'
 
@@ -103,6 +105,9 @@ const owner = computed(() => topic.value?.owner ?? null)
           @toggle="$emit('subscribe')"
           @bell="$emit('bell')"
         />
+        <NuxtLink :to="managementPath(topic.id)" class="topic__manage" data-testid="topic-manage-link">{{
+          t('topic.about')
+        }}</NuxtLink>
         <TopicHide v-if="hidden" :key="topic.id" :blog-id="topic.id" :api="hidden" />
       </div>
     </header>
@@ -124,6 +129,11 @@ const owner = computed(() => topic.value?.owner ?? null)
 </template>
 
 <style scoped>
+.topic__manage {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
 .topic {
   display: flex;
   flex-direction: column;
