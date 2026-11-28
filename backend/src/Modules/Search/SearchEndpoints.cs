@@ -181,7 +181,7 @@ public sealed partial class SearchEndpoints : IApiEndpoints
     }
 
     // The account of a signed-in request: the sub claim of the access token (FR-ID-2).
-    private static Guid? AccountOf(ClaimsPrincipal user) =>
+    internal static Guid? AccountOf(ClaimsPrincipal user) =>
         user.Identity?.IsAuthenticated == true
         && Guid.TryParse((user.FindFirst("sub") ?? user.FindFirst(ClaimTypes.NameIdentifier))?.Value, out var id)
             ? id

@@ -1,5 +1,36 @@
 namespace Platform.Modules.Search;
 
+/// <summary>The order of a search's results (E14-03, ADR-0124).</summary>
+public enum SearchOrder
+{
+    /// <summary>The most relevant first.</summary>
+    Relevance,
+
+    /// <summary>The newest first, by <see cref="IndexedPost.PublishedAt"/>; for posts only.</summary>
+    Date,
+}
+
+/// <summary>A page of a search on the results page (E14-03, ADR-0124).</summary>
+/// <param name="Text">The query, normalized: every word of it must be in a document in some form.</param>
+/// <param name="From">How many results come before the page.</param>
+/// <param name="Size">How many results the page holds at most.</param>
+/// <param name="Order">The order of the results.</param>
+/// <param name="TitlesOnly">Posts: the query is matched against the title only.</param>
+/// <param name="PublishedSince">Posts: only those published at this moment or later.</param>
+/// <param name="BlogKind">Blogs: only <see cref="IndexedBlog.PersonalKind"/> or <see cref="IndexedBlog.TopicKind"/>.</param>
+/// <param name="ExcludedAccounts">
+/// The accounts the reader blocked (ADR-0091): their posts and their personal blogs are left out; topics never are.
+/// </param>
+public sealed record SearchQuery(
+    string Text,
+    int From,
+    int Size,
+    SearchOrder Order = SearchOrder.Relevance,
+    bool TitlesOnly = false,
+    DateTimeOffset? PublishedSince = null,
+    string? BlogKind = null,
+    IReadOnlyCollection<Guid>? ExcludedAccounts = null);
+
 /// <summary>
 /// The search engine behind the Search module (ADR-0094): OpenSearch (<see cref="OpenSearchIndex"/>) or the fake of the
 /// tests (<see cref="InMemorySearchIndex"/>), by <c>Search:Provider</c>. Each index is created on its first write.
@@ -32,4 +63,11 @@ public interface ISearchIndex
     /// </summary>
     Task<IReadOnlyList<IndexedDocument>> SuggestAsync(
         SearchIndexKind index, string query, int size, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A page of the documents of <paramref name="index"/> that have every word of <see cref="SearchQuery.Text"/> in
+    /// some form, filtered and ordered as <paramref name="query"/> says (E14-03, ADR-0124).
+    /// </summary>
+    Task<IReadOnlyList<IndexedDocument>> FindAsync(
+        SearchIndexKind index, SearchQuery query, CancellationToken cancellationToken);
 }

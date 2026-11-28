@@ -58,12 +58,40 @@ public sealed class InMemorySearchIndex : ISearchIndex
         return Task.FromResult(found);
     }
 
-    private IEnumerable<IndexedDocument> Matching(SearchIndexKind index, string query)
+    /// <summary>
+    /// The same words as <see cref="SearchAsync"/> with the filters of <paramref name="query"/>; by relevance means in
+    /// the order of the ids here, by date the newest first.
+    /// </summary>
+    public Task<IReadOnlyList<IndexedDocument>> FindAsync(
+        SearchIndexKind index, SearchQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var excluded = query.ExcludedAccounts ?? [];
+        var found = Matching(index, query.Text, d => query.TitlesOnly && d is IndexedPost post ? [post.Title] : d.SearchableText())
+            .Where(d => d switch
+            {
+                IndexedPost post => !excluded.Contains(post.AuthorAccountId)
+                    && (query.PublishedSince is not { } since || post.PublishedAt >= since),
+                IndexedBlog blog => (query.BlogKind is null || blog.Kind == query.BlogKind)
+                    && (blog.Kind == IndexedBlog.TopicKind || blog.OwnerAccountId is not { } owner
+                        || !excluded.Contains(owner)),
+                _ => true,
+            });
+        var ordered = query.Order == SearchOrder.Date
+            ? found.OrderByDescending(d => (d as IndexedPost)?.PublishedAt).ThenBy(d => d.Id)
+            : found.OrderBy(d => d.Id);
+        IReadOnlyList<IndexedDocument> page = [.. ordered.Skip(query.From).Take(query.Size)];
+        return Task.FromResult(page);
+    }
+
+    private IEnumerable<IndexedDocument> Matching(
+        SearchIndexKind index, string query, Func<IndexedDocument, IEnumerable<string?>>? fields = null)
     {
         var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        fields ??= d => d.SearchableText();
         return words.Length == 0
             ? []
-            : Of(index).Values.Where(d => words.All(w => d.SearchableText()
+            : Of(index).Values.Where(d => words.All(w => fields(d)
                 .Any(t => t?.Contains(w, StringComparison.OrdinalIgnoreCase) == true)));
     }
 

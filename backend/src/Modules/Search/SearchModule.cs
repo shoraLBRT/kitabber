@@ -81,6 +81,8 @@ public static class SearchModule
         AddSearchIndex(builder.Services, builder.Configuration);
         builder.Services.AddRateLimitPolicy(SearchEndpoints.SuggestionsPolicy, SuggestionsPolicy);
         builder.Services.AddApiEndpoints<SearchEndpoints>();
+        // The results page (E14-03, ADR-0124) counts into the same limit.
+        builder.Services.AddApiEndpoints<SearchResultEndpoints>();
         return builder;
     }
 

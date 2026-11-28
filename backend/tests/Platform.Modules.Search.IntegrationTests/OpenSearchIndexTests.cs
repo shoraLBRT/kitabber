@@ -32,6 +32,47 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
     }
 
     [Fact]
+    public async Task FindTakesTheFiltersOfTheResultsPage()
+    {
+        // E14-03, ADR-0124: the titles only, the period, the black list and the order by date, page by page.
+        using var index = NewIndex();
+        var blockedAuthor = Guid.NewGuid();
+        var old = Post("Коты зимой", "Текст", _at.AddDays(-30));
+        var fresh = Post("Зима", "Коты спят у батареи.", _at.AddHours(-2));
+        var blocked = new IndexedPost(Guid.NewGuid(), Guid.NewGuid(), blockedAuthor, "Кот Бориса", "Текст", _at.AddHours(-1));
+        var blockedBlog = new IndexedBlog(Guid.NewGuid(), IndexedBlog.PersonalKind, blockedAuthor, "Коты", null, null);
+        var topic = new IndexedBlog(Guid.NewGuid(), IndexedBlog.TopicKind, blockedAuthor, "Коты", null, null);
+        foreach (var document in new IndexedDocument[] { old, fresh, blocked, blockedBlog, topic })
+        {
+            await index.PutAsync(document, Ct);
+        }
+
+        await WaitForAsync(index, SearchIndexKind.Posts, "кот", [old.Id, fresh.Id, blocked.Id]);
+        await WaitForAsync(index, SearchIndexKind.Blogs, "кот", [blockedBlog.Id, topic.Id]);
+
+        async Task<IEnumerable<Guid>> FindAsync(SearchIndexKind kind, SearchQuery query) =>
+            (await index.FindAsync(kind, query, Ct)).Select(d => d.Id);
+
+        Assert.Equal([blocked.Id, fresh.Id, old.Id], await FindAsync(SearchIndexKind.Posts, new("кот", 0, 10, SearchOrder.Date)));
+        Assert.Equal([fresh.Id], await FindAsync(SearchIndexKind.Posts, new("кот", 1, 1, SearchOrder.Date)));
+        Assert.Equal(
+            new[] { old.Id, blocked.Id }.Order(),
+            (await FindAsync(SearchIndexKind.Posts, new("кот", 0, 10, TitlesOnly: true))).Order());
+        Assert.Equal(
+            new[] { fresh.Id, blocked.Id }.Order(),
+            (await FindAsync(SearchIndexKind.Posts, new("кот", 0, 10, PublishedSince: _at.AddDays(-7)))).Order());
+        Assert.Equal(
+            new[] { old.Id, fresh.Id }.Order(),
+            (await FindAsync(SearchIndexKind.Posts, new("кот", 0, 10, ExcludedAccounts: [blockedAuthor]))).Order());
+        Assert.Equal(
+            [topic.Id],
+            await FindAsync(SearchIndexKind.Blogs, new("кот", 0, 10, ExcludedAccounts: [blockedAuthor])));
+        Assert.Equal(
+            [blockedBlog.Id],
+            await FindAsync(SearchIndexKind.Blogs, new("кот", 0, 10, BlogKind: IndexedBlog.PersonalKind)));
+    }
+
+    [Fact]
     public async Task BlogsAndTopicsAreFoundByNameNicknameAndDescription()
     {
         using var index = NewIndex();
@@ -96,8 +137,8 @@ public sealed class OpenSearchIndexTests(OpenSearchFixture openSearch)
     private OpenSearchIndex NewIndex() =>
         new(new OpenSearchOptions(openSearch.Url, $"t{Guid.NewGuid():N}_"), TimeProvider.System);
 
-    private static IndexedPost Post(string title, string text) =>
-        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), title, text, _at);
+    private static IndexedPost Post(string title, string text, DateTimeOffset? at = null) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), title, text, at ?? _at);
 
     private static async IAsyncEnumerable<IndexedDocument> Async(IEnumerable<IndexedDocument> documents)
     {
