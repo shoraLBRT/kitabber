@@ -26,10 +26,14 @@ const props = withDefaults(
     moreFailed?: boolean
     /** The rows whose subscription is being changed: their buttons wait. */
     busy?: readonly string[]
+    /** The list's name for a screen reader instead of the kind's, as the blocks of the search results (E14-03) say. */
+    label?: string
   }>(),
-  { loadingMore: false, moreFailed: false, busy: () => [] },
+  { loadingMore: false, moreFailed: false, busy: () => [], label: undefined },
 )
 const emit = defineEmits<{ retry: []; more: []; toggle: [card: SubscriptionCard]; leave: [] }>()
+
+const listLabel = computed(() => props.label ?? t(`subscriptionList.${props.kind}`))
 
 const emptyText = computed(() =>
   props.kind === 'subscribers'
@@ -64,7 +68,7 @@ const emptyText = computed(() =>
     <UiState v-else-if="state.cards.length === 0">{{ emptyText }}</UiState>
 
     <template v-else>
-      <ul class="subscription-list__items" :aria-label="t(`subscriptionList.${kind}`)">
+      <ul class="subscription-list__items" :aria-label="listLabel">
         <li
           v-for="card in state.cards"
           :key="card.id"
