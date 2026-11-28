@@ -79,10 +79,17 @@ test.describe('уведомления в реальном времени', () =>
     await expect(badge(other)).toHaveText('3')
     await connected(request, client, 2)
 
-    // The list shown in the first tab marks its rows read; «Прочитать все» marks the rest.
-    await page.goto('/notifications')
-    await waitForHydration(page)
-    const list = page.getByTestId('notifications-page').getByTestId('notification-list')
+    // The list shown in the first tab marks its rows read; «Прочитать все» marks the rest. The list opens without a
+    // reload (the bell's panel, the phone's tab), so no connection is cut halfway.
+    let list: Locator
+    if (isTouch()) {
+      await press(page.getByTestId('tab-bar').locator('[data-nav="notifications"]'))
+      await page.waitForURL((url) => url.pathname === '/notifications')
+      list = page.getByTestId('notifications-page').getByTestId('notification-list')
+    } else {
+      await press(page.getByTestId('notifications-bell'))
+      list = page.getByTestId('notifications-panel').getByTestId('notification-list')
+    }
     await expect(list.getByTestId('notification')).toHaveCount(3)
     await expect(badge(other)).toHaveText('1')
     await press(list.getByTestId('notifications-read-all'))
