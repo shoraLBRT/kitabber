@@ -1257,6 +1257,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/preferences/me/hidden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The posts and topics the signed-in account hid from its feeds, the latest hidden first */
+        get: operations["GetOwnHiddenList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preferences/me/hidden/posts/{postId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Hides a published post from the feeds of the signed-in account */
+        put: operations["HidePost"];
+        post?: never;
+        /** Brings a hidden post back to the feeds of the signed-in account */
+        delete: operations["ShowHiddenPost"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preferences/me/hidden/topics/{blogId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the signed-in account hid a topic from its feeds */
+        get: operations["GetHiddenTopicState"];
+        /** Hides a topic from the feeds of the signed-in account */
+        put: operations["HideTopic"];
+        post?: never;
+        /** Brings a hidden topic back to the feeds of the signed-in account */
+        delete: operations["ShowHiddenTopic"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/me": {
         parameters: {
             query?: never;
@@ -1595,6 +1649,31 @@ export interface components {
         GuestAuthorView: {
             name: string;
             url: null | string;
+        };
+        HiddenListView: {
+            posts: components["schemas"]["HiddenPostView"][];
+            topics: components["schemas"]["HiddenTopicView"][];
+            /** Format: int32 */
+            max: number;
+        };
+        HiddenPostView: {
+            /** Format: uuid */
+            postId: string;
+            /** Format: date-time */
+            hiddenAt: string;
+            title: null | string;
+            gone: boolean;
+        };
+        HiddenTopicStateView: {
+            hidden: boolean;
+        };
+        HiddenTopicView: {
+            /** Format: uuid */
+            blogId: string;
+            /** Format: date-time */
+            hiddenAt: string;
+            name: null | string;
+            nickname: null | string;
         };
         HttpValidationProblemDetails: {
             type?: null | string;
@@ -5535,6 +5614,218 @@ export interface operations {
             header?: never;
             path: {
                 accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOwnHiddenList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HiddenListView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HidePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowHiddenPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetHiddenTopicState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blogId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HiddenTopicStateView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blogId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowHiddenTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blogId: string;
             };
             cookie?: never;
         };

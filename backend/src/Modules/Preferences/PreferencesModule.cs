@@ -8,6 +8,7 @@ using Platform.Modules.Notifications.Contracts;
 using Platform.Modules.Posts.Contracts;
 using Platform.Modules.Preferences.Blocks;
 using Platform.Modules.Preferences.Contracts;
+using Platform.Modules.Preferences.Hidden;
 using Platform.Persistence;
 
 namespace Platform.Modules.Preferences;
@@ -32,6 +33,9 @@ public static class PreferencesModule
         builder.Services.AddScoped<BlockList>();
         builder.Services.AddScoped<IBlockList>(sp => sp.GetRequiredService<BlockList>());
         builder.Services.AddScoped<IFeedExclusionSource>(sp => sp.GetRequiredService<BlockList>());
+        // The posts and topics a person hid from the feeds (E11-07, ADR-0119).
+        builder.Services.AddApiEndpoints<HiddenEndpoints>();
+        builder.Services.AddScoped<IFeedExclusionSource, HiddenFromFeeds>();
         return builder;
     }
 

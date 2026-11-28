@@ -301,6 +301,46 @@ namespace Platform.Modules.Preferences.Migrations
                     b.ToTable("blocked_accounts", "preferences");
                 });
 
+            modelBuilder.Entity("Platform.Modules.Preferences.Hidden.HiddenPost", b =>
+                {
+                    b.Property<Guid>("OwnerAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_account_id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<DateTimeOffset>("HiddenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hidden_at");
+
+                    b.HasKey("OwnerAccountId", "PostId")
+                        .HasName("pk_hidden_posts");
+
+                    b.ToTable("hidden_posts", "preferences");
+                });
+
+            modelBuilder.Entity("Platform.Modules.Preferences.Hidden.HiddenTopic", b =>
+                {
+                    b.Property<Guid>("OwnerAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_account_id");
+
+                    b.Property<Guid>("BlogId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("blog_id");
+
+                    b.Property<DateTimeOffset>("HiddenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hidden_at");
+
+                    b.HasKey("OwnerAccountId", "BlogId")
+                        .HasName("pk_hidden_topics");
+
+                    b.ToTable("hidden_topics", "preferences");
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
                     b.HasOne("MassTransit.EntityFrameworkCoreIntegration.OutboxState", null)

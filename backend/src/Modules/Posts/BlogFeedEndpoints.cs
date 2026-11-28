@@ -48,14 +48,20 @@ public sealed class BlogFeedEndpoints : IApiEndpoints
         CancellationToken ct)
     {
         var page = query.ToRequest<FreshFeedCursor>();
-        // The reader's exclusions after the shared cache (ADR-0091).
-        return await cache.GetOrReadAsync(
+        // The reader's exclusions after the shared cache (ADR-0091). A topic the reader hid stays readable on its own
+        // page (ADR-0119): only the other hidden blogs, the hidden posts and the blocked authors are left out there.
+        if (await cache.GetOrReadAsync(
                 FeedPageCache.BlogFeed(blogId),
                 page,
                 token => ReadAsync(blogId, page, db, media, blogs, comments, token),
-                ct) is { } result
-            ? TypedResults.Ok(ReaderExclusions.Apply(result, await ReaderExclusions.ForAsync(user, exclusionSources, ct)))
-            : (IResult)ApiProblems.NotFound(BlogNotFoundCode);
+                ct) is not { } result)
+        {
+            return ApiProblems.NotFound(BlogNotFoundCode);
+        }
+
+        var excluded = await ReaderExclusions.ForAsync(user, exclusionSources, ct);
+        return TypedResults.Ok(ReaderExclusions.Apply(
+            result, excluded with { Blogs = [.. excluded.Blogs.Where(b => b != blogId)] }));
     }
 
     // Null when the blog does not exist; such a read is not cached.

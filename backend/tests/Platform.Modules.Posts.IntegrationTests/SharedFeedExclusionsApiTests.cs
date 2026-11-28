@@ -67,6 +67,20 @@ public sealed class SharedFeedExclusionsApiTests(MyFeedApi api) : IClassFixture<
     }
 
     [Fact]
+    public async Task HiddenTopicLeavesTheFreshFeedButStaysOnItsOwnPageWithoutTheHiddenPosts()
+    {
+        var older = await SaveAsync(_author);
+        var hidden = await SaveAsync(_author);
+        api.Exclusions.Set(_reader, new FeedExclusions([hidden], [_topic.Id], []));
+
+        var (fresh, _) = await PageAsync("/api/v1/feeds/fresh", _reader);
+        var (topic, _) = await PageAsync($"/api/v1/feeds/blogs/{_topic.Id:D}", _reader);
+
+        Assert.Empty(fresh);
+        Assert.Equal([older], topic);
+    }
+
+    [Fact]
     public async Task ShorterPageKeepsTheCursorOfTheWholePage()
     {
         var oldest = await SaveAsync(_author);
