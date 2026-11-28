@@ -30,7 +30,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 `VERIFY_SKIP_DOCKER=1` они локально помечаются пропущенными (`Skipped` в отчёте), в CI падают.
 
 Исключение — смоук выкладки (`scripts/deploy-test.ps1 -Smoke`, E01-03): он собирает все образы и выкладывает,
-обновляет и откатывает стенд stage на Docker, это минуты, и в 20 минут `ci / verify` он не помещается. Поэтому в CI
+обновляет и откатывает стенд stage на Docker, это минуты, и в 30 минут `ci / verify` он не помещается. Поэтому в CI
 он идёт отдельным заданием `images / build` на каждом PR, а в `scripts/verify.ps1` шаг `deploy smoke` пропускается,
 пока не задано `VERIFY_IMAGES=1`. Что задание существует и запускает смоук, проверяют шаги `deploy config` и
 `verify self-test`. Подробности — [DEPLOY.md](DEPLOY.md#проверка).
