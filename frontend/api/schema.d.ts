@@ -561,6 +561,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/blogs/{id}/subscription/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Turns on the notifications about new posts of a subscribed blog or topic; idempotent */
+        put: operations["TurnOnNewPostNotifications"];
+        post?: never;
+        /** Turns off the notifications about new posts of a subscribed blog or topic; idempotent */
+        delete: operations["TurnOffNewPostNotifications"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/blogs/{id}/subscribers": {
         parameters: {
             query?: never;
@@ -1783,6 +1801,8 @@ export interface components {
             blocked: boolean;
             /** @default false */
             onboardingPending: boolean;
+            /** @default false */
+            notifyNewPosts: boolean;
         };
         ProfileCover: {
             /** Format: uuid */
@@ -1884,6 +1904,8 @@ export interface components {
             /** Format: int32 */
             subscriberCount: number;
             subscribed: boolean;
+            /** @default false */
+            notifyNewPosts: boolean;
         };
         SuggestedBlogView: {
             /** Format: uuid */
@@ -3377,6 +3399,104 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TurnOnNewPostNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TurnOffNewPostNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

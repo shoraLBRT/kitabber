@@ -12,6 +12,15 @@ public sealed class Subscription
 
     public DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>
+    /// The «колокольчик» (E11-04, ADR-0118): the subscriber is notified about every new post of the blog or the topic.
+    /// Off for a new subscription; unsubscribing removes it with the subscription.
+    /// </summary>
+    public bool NotifyNewPosts { get; private set; }
+
+    /// <summary>Turns the notifications about new posts on or off; setting the same state again changes nothing.</summary>
+    public void SetNewPostNotifications(bool on) => NotifyNewPosts = on;
+
     public static Subscription Create(Guid accountId, Guid subsiteId, DateTimeOffset now)
     {
         if (accountId == Guid.Empty || subsiteId == Guid.Empty)

@@ -22,13 +22,28 @@ internal sealed class BlogSubscriptions(BlogsDbContext db) : IBlogSubscriptions
 
     public Task<bool> IsSubscribedAsync(Guid accountId, Guid blogId, CancellationToken cancellationToken) =>
         db.Subscriptions.AnyAsync(s => s.AccountId == accountId && s.SubsiteId == blogId, cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> NewPostRecipientsAsync(
+        Guid blogId, Guid authorAccountId, CancellationToken cancellationToken)
+    {
+        // The blog of the post, and the author's personal blog: a personal blog's posts are its owner's posts (ADR-0089).
+        var blogs = db.Subsites
+            .Where(b => b.Id == blogId || (b.Type == SubsiteType.Personal && b.OwnerAccountId == authorAccountId))
+            .Select(b => b.Id);
+        return await db.Subscriptions.AsNoTracking()
+            .Where(s => s.NotifyNewPosts && blogs.Contains(s.SubsiteId) && s.AccountId != authorAccountId)
+            .Select(s => s.AccountId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 }
 
 /// <summary>The subscriber numbers of a blog as its profile shows them (ADR-0085).</summary>
 /// <param name="SubscriberCount">How many accounts follow the blog.</param>
 /// <param name="SubscriptionCount">How many blogs and topics the owner of a personal blog follows; <c>null</c> for a topic.</param>
 /// <param name="Subscribed">The reader follows the blog; <c>false</c> for a guest.</param>
-internal sealed record SubscriptionNumbers(int SubscriberCount, int? SubscriptionCount, bool Subscribed);
+/// <param name="NotifyNewPosts">The reader is notified about the blog's new posts (ADR-0118).</param>
+internal sealed record SubscriptionNumbers(int SubscriberCount, int? SubscriptionCount, bool Subscribed, bool NotifyNewPosts);
 
 /// <summary>Reads the numbers straight from the rows, so they are always exact (ADR-0085).</summary>
 internal static class SubscriptionCounts
@@ -39,8 +54,12 @@ internal static class SubscriptionCounts
         int? subscriptions = blog.Type != SubsiteType.Personal ? null
             : blog.OwnerAccountId is { } owner ? await db.Subscriptions.CountAsync(s => s.AccountId == owner, ct)
             : 0;
-        var subscribed = viewer is { } account
-            && await db.Subscriptions.AnyAsync(s => s.SubsiteId == blog.Id && s.AccountId == account, ct);
-        return new SubscriptionNumbers(subscribers, subscriptions, subscribed);
+        var own = viewer is { } account
+            ? await db.Subscriptions.AsNoTracking()
+                .Where(s => s.SubsiteId == blog.Id && s.AccountId == account)
+                .Select(s => new { s.NotifyNewPosts })
+                .SingleOrDefaultAsync(ct)
+            : null;
+        return new SubscriptionNumbers(subscribers, subscriptions, own is not null, own?.NotifyNewPosts ?? false);
     }
 }

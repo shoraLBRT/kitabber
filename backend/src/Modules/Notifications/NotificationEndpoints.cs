@@ -96,6 +96,7 @@ public sealed class NotificationEndpoints : IApiEndpoints
         NotificationType.Mention => "mention",
         NotificationType.NewSubscriber => "new_subscriber",
         NotificationType.Repost => "repost",
+        NotificationType.SubscriptionPost => "subscription_post",
         _ => type.ToString().ToLowerInvariant(),
     };
 
