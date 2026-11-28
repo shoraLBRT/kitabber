@@ -5,7 +5,10 @@
 // of the page before. The unread rows of every page shown are marked read at once, and the new number goes up with
 // `unread` for the counter; the dots stay on those rows until the list is opened again, so the person still sees what
 // is new. States: a skeleton of five rows, «Уведомлений пока нет», a failure with «Повторить». The calls come in as
-// `api` (api/notifications.ts), so the list is tested without a server. Grouping and «Прочитать все» are E12-03.
+// `api` (api/notifications.ts), so the list is tested without a server. Events of one kind about one thing come as one
+// row (E12-03, ADR-0122): «Борис и ещё 9 оценили вашу публикацию». «Прочитать все» marks every notification read, the
+// ones not shown too, takes the dots off at once and gives the counter 0; when it fails, a toast says so and the dots
+// come back.
 import { computed, onMounted, ref, resolveComponent } from 'vue'
 import UiAvatar from '../ui/UiAvatar.vue'
 import UiButton from '../ui/UiButton.vue'
@@ -16,11 +19,13 @@ import {
   actorName,
   appendNotifications,
   notificationLink,
+  othersText,
   unreadOf,
   type Notification,
   type NotificationPage,
   type NotificationsApi,
 } from '../../api/notifications'
+import { useToast } from '../../composables/useToast'
 import { locale, t } from '../../i18n'
 
 const props = withDefaults(defineProps<{ api: NotificationsApi; compact?: boolean }>(), { compact: false })
@@ -83,9 +88,29 @@ async function loadMore() {
   await markShown(page.items)
 }
 
+const toast = useToast()
+const markingAll = ref(false)
+
+async function markAllRead() {
+  if (markingAll.value) return
+  markingAll.value = true
+  const unreadIds = new Set(items.value.filter((n) => !n.read).map((n) => n.id))
+  items.value = items.value.map((n) => (n.read ? n : { ...n, read: true }))
+  const count = unreadOf(await props.api.markAllRead())
+  markingAll.value = false
+  if (count !== null) {
+    emit('unread', count)
+    return
+  }
+  items.value = items.value.map((n) => (unreadIds.has(n.id) ? { ...n, read: false } : n))
+  toast.show(t('notifications.readAllFailed'), { tone: 'error' })
+}
+
 onMounted(load)
 
 const hasMore = computed(() => cursor.value !== null)
+// Something may be unread: a dot on a row shown, or a page not read yet.
+const mayHaveUnread = computed(() => hasMore.value || items.value.some((n) => !n.read))
 const link = resolveComponent('NuxtLink')
 </script>
 
@@ -118,6 +143,17 @@ const link = resolveComponent('NuxtLink')
     </UiState>
 
     <template v-else>
+      <div v-if="mayHaveUnread" class="notifications__toolbar">
+        <UiButton
+          variant="ghost"
+          size="sm"
+          :loading="markingAll"
+          data-testid="notifications-read-all"
+          @click="markAllRead()"
+        >
+          {{ t('notifications.readAll') }}
+        </UiButton>
+      </div>
       <ul class="notifications__list">
         <li
           v-for="item in items"
@@ -137,6 +173,7 @@ const link = resolveComponent('NuxtLink')
             <span class="notifications__body">
               <span class="notifications__text">
                 <strong class="notifications__name">{{ actorName(item) }}</strong>
+                <template v-if="othersText(item)">{{ ' ' }}{{ othersText(item) }}</template>
                 {{ actionText(item) }}
                 <span v-if="!item.read" class="visually-hidden">{{ t('notifications.unreadMark') }}</span>
               </span>
@@ -175,6 +212,13 @@ const link = resolveComponent('NuxtLink')
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.notifications__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-5);
+  border-bottom: var(--size-border) solid var(--color-border);
 }
 
 .notifications__item {

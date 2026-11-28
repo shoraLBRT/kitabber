@@ -73,6 +73,39 @@ test.describe('уведомления', () => {
     await expect(page.getByTestId('notifications-badge')).toHaveCount(0)
   })
 
+  // E12-03 (#115, ADR-0122): ten likes of one post are one row, «Прочитать все» takes the counter to zero.
+  test('десять лайков одной строкой, «Прочитать все» обнуляет счётчик', async ({ page }) => {
+    await signIn(page)
+
+    const tab = page.getByTestId('tab-bar').locator('[data-nav="notifications"]')
+    const badge = isTouch() ? tab.getByTestId('tab-badge') : page.getByTestId('notifications-badge')
+    const list = page
+      .getByTestId(isTouch() ? 'notifications-page' : 'notifications-panel')
+      .getByTestId('notification-list')
+    if (isTouch()) {
+      await press(tab)
+      await page.waitForURL((url) => url.pathname === '/notifications')
+    } else {
+      await press(page.getByTestId('notifications-bell'))
+    }
+
+    const rows = list.getByTestId('notification')
+    await expect(rows).toHaveCount(3)
+    await expect(rows.nth(2)).toContainText('Борис и ещё 9 оценили вашу публикацию')
+    await expect(badge).toHaveText('1')
+    await expect(rows.first()).toHaveAttribute('data-read', 'false')
+
+    await press(list.getByTestId('notifications-read-all'))
+    await expect(badge).toHaveCount(0)
+    for (const row of await rows.all()) await expect(row).toHaveAttribute('data-read', 'true')
+    await expectNoHorizontalScroll(page)
+
+    // The page not shown yet is read too: after a reload the counter stays at zero.
+    await page.reload()
+    await waitForHydration(page)
+    await expect(badge).toHaveCount(0)
+  })
+
   test('пустая лента говорит, что уведомлений пока нет', async ({ page }) => {
     await page.route('**/bff/notifications', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[],"nextCursor":null}' }),

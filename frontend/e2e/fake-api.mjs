@@ -440,7 +440,8 @@ const reactionSet = [
   { code: 'sad', title: 'Грустно' },
 ]
 
-// The notifications (E12-02, ADR-0093): GET /api/v1/notifications/me?cursor=, GET …/unread and POST …/read. Kept per
+// The notifications (E12-02, E12-03, ADR-0093, ADR-0122): GET /api/v1/notifications/me?cursor=, GET …/unread,
+// POST …/read and POST …/read-all. Kept per
 // client address; the fake provider's account starts with five from Борис, the newest first, the second and the fifth
 // already read, three to a page.
 const notificationPageSize = 3
@@ -469,6 +470,9 @@ function notificationsOf(request) {
         reactionKind: type === 'reaction' ? 'like' : null,
         createdAt: new Date(Date.UTC(2026, 10, 26, 12 - i)).toISOString(),
         read: i === 1 || i === 4,
+        group: `0195f3a0-0000-7000-8000-00000000e00${i + 1}`,
+        // The likes of the post come as one row of ten people (E12-03, ADR-0122).
+        actorCount: type === 'reaction' ? 10 : 1,
       })),
     )
   }
@@ -480,6 +484,10 @@ async function notificationsRoute(request, response, url) {
   const list = notificationsOf(request)
   const unread = () => ({ unread: list.filter((n) => !n.read).length })
   if (url.pathname.endsWith('/unread')) return send(response, 200, unread())
+  if (url.pathname.endsWith('/read-all')) {
+    for (const n of list) n.read = true
+    return send(response, 200, unread())
+  }
   if (url.pathname.endsWith('/read')) {
     const { ids } = JSON.parse((await readBody(request)) || '{}')
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100)
@@ -2470,7 +2478,8 @@ createServer(async (request, response) => {
   if (
     (url.pathname === '/api/v1/notifications/me' && request.method === 'GET') ||
     (url.pathname === '/api/v1/notifications/me/unread' && request.method === 'GET') ||
-    (url.pathname === '/api/v1/notifications/me/read' && request.method === 'POST')
+    (url.pathname === '/api/v1/notifications/me/read' && request.method === 'POST') ||
+    (url.pathname === '/api/v1/notifications/me/read-all' && request.method === 'POST')
   )
     return notificationsRoute(request, response, url)
   if (url.pathname === '/api/v1/reactions/set' && request.method === 'GET')

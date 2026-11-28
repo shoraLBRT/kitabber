@@ -21,6 +21,8 @@ export interface NotificationsApi {
   load(cursor?: string | null): Promise<NotificationsOutcome>
   unread(): Promise<NotificationsOutcome>
   markRead(ids: readonly string[]): Promise<NotificationsOutcome>
+  /** «Прочитать все» (E12-03, ADR-0122): every notification of the person, shown or not. */
+  markAllRead(): Promise<NotificationsOutcome>
 }
 
 /** The API calls with the person's token: the site's server makes them (server/routes/bff). */
@@ -31,6 +33,7 @@ export function ownNotifications(client: ApiClient) {
     unread: () => outcome(() => client.GET('/api/v1/notifications/me/unread')),
     markRead: (ids: readonly string[]) =>
       outcome(() => client.POST('/api/v1/notifications/me/read', { body: { ids: [...ids] } })),
+    markAllRead: () => outcome(() => client.POST('/api/v1/notifications/me/read-all')),
   }
 }
 
@@ -53,6 +56,7 @@ export function notificationsApi(): NotificationsApi {
     load: (cursor) => bff('/bff/notifications', 'GET', { query: cursor ? { cursor } : {} }),
     unread: () => bff('/bff/notifications/unread', 'GET'),
     markRead: (ids) => bff('/bff/notifications/read', 'POST', { body: { ids: [...ids] } }),
+    markAllRead: () => bff('/bff/notifications/read-all', 'POST'),
   }
 }
 
@@ -73,8 +77,31 @@ export function actorName(notification: Pick<Notification, 'actor'>): string {
   return name ?? (nickname ? `@${nickname}` : t('notifications.someone'))
 }
 
-/** What happened, after the person's name: «ответил на ваш комментарий». An unknown type is a plain row. */
-export function actionText(notification: Pick<Notification, 'type'>): string {
+/** How many more people a grouped row stands for (E12-03): «и ещё 9» for ten; `null` for a row of one. */
+export function othersText(notification: Partial<Pick<Notification, 'actorCount'>>): string | null {
+  const others = (notification.actorCount ?? 1) - 1
+  return others > 0 ? t('notifications.others', { count: others }) : null
+}
+
+/**
+ * What happened, after the person's name: «ответил на ваш комментарий», and for a row of several people (E12-03)
+ * «оценили вашу публикацию». An unknown type is a plain row.
+ */
+export function actionText(
+  notification: Pick<Notification, 'type'> & Partial<Pick<Notification, 'actorCount'>>,
+): string {
+  if ((notification.actorCount ?? 1) > 1) {
+    switch (notification.type) {
+      case 'post_comment':
+        return t('notifications.grouped.postComment')
+      case 'reaction':
+        return t('notifications.grouped.reaction')
+      case 'new_subscriber':
+        return t('notifications.grouped.newSubscriber')
+      case 'repost':
+        return t('notifications.grouped.repost')
+    }
+  }
   switch (notification.type) {
     case 'comment_reply':
       return t('notifications.commentReply')
@@ -113,11 +140,15 @@ export function notificationLink(notification: Notification): string | null {
   return blogId || nickname ? blogPath({ id: blogId ?? '', nickname: nickname ?? null }) : null
 }
 
-/** The rows shown and those of the next page, one row per id. */
+/**
+ * The rows shown and those of the next page, one row per group (E12-03): a group a new notification lifted while the
+ * person read on is shown once, where it was first.
+ */
 export function appendNotifications(
   shown: readonly Notification[],
   next: readonly Notification[],
 ): Notification[] {
-  const seen = new Set(shown.map((n) => n.id))
-  return [...shown, ...next.filter((n) => !seen.has(n.id))]
+  const keyOf = (n: Notification) => n.group || n.id
+  const seen = new Set(shown.map(keyOf))
+  return [...shown, ...next.filter((n) => !seen.has(keyOf(n)))]
 }

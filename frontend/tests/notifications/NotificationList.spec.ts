@@ -1,19 +1,25 @@
 // E12-02 (#83, ADR-0093): the notification feed — loading, empty and failed states, the rows with the person who acted
-// and where they lead, the next page by the cursor, and marking the shown unread rows read.
+// and where they lead, the next page by the cursor, and marking the shown unread rows read. E12-03 (#115, ADR-0122):
+// a grouped row («Борис и ещё 9 оценили вашу публикацию»), one row per group across pages, and «Прочитать все».
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import NotificationList from '../../components/notifications/NotificationList.vue'
 import {
   actionText,
   actorName,
+  appendNotifications,
   badgeText,
   notificationLink,
+  othersText,
   unreadOf,
   type Notification,
   type NotificationsApi,
   type NotificationsOutcome,
 } from '../../api/notifications'
+import { useToast } from '../../composables/useToast'
 import { NuxtLink } from '../shell/fixtures'
+
+const toast = useToast()
 
 const boris = {
   accountId: '0195f3a0-0000-7000-8000-000000000002',
@@ -33,6 +39,8 @@ function notification(id: string, overrides: Partial<Notification> = {}): Notifi
     reactionKind: null,
     createdAt: '2026-11-26T10:00:00Z',
     read: false,
+    group: id,
+    actorCount: 1,
     ...overrides,
   }
 }
@@ -50,6 +58,7 @@ function fakeApi(overrides: Partial<NotificationsApi> = {}): NotificationsApi {
     ),
     unread: vi.fn(async () => ({ status: 200, body: { unread: 2 } })),
     markRead: vi.fn(async (ids: readonly string[]) => ({ status: 200, body: { unread: 2 - ids.length } })),
+    markAllRead: vi.fn(async () => ({ status: 200, body: { unread: 0 } })),
     ...overrides,
   }
 }
@@ -59,6 +68,7 @@ let wrapper: VueWrapper | undefined
 afterEach(() => {
   wrapper?.unmount()
   wrapper = undefined
+  toast.clear()
 })
 
 async function mounted(api: NotificationsApi, compact = false) {
@@ -118,6 +128,49 @@ describe('NotificationList', () => {
     expect(w.find('[data-testid="notifications-more"]').exists()).toBe(false)
   })
 
+  it('shows ten likes of one post as one row', async () => {
+    const likes = notification('n4', {
+      type: 'reaction',
+      commentId: null,
+      reactionKind: 'like',
+      actorCount: 10,
+    })
+    const load = vi.fn(async () => ({ status: 200, body: { items: [likes, first], nextCursor: null } }))
+    const w = await mounted(fakeApi({ load }))
+    expect(rows(w)).toHaveLength(2)
+    expect(rows(w)[0]!.text()).toContain('Борис и ещё 9 оценили вашу публикацию')
+    expect(rows(w)[1]!.text()).toContain('Борис ответил на ваш комментарий')
+  })
+
+  it('«Прочитать все» takes every dot off and gives the counter 0', async () => {
+    const api = fakeApi()
+    const w = await mounted(api)
+    expect(rows(w)[0]!.attributes('data-read')).toBe('false')
+    await w.get('[data-testid="notifications-read-all"]').trigger('click')
+    await flushPromises()
+    expect(api.markAllRead).toHaveBeenCalledTimes(1)
+    expect(rows(w).map((r) => r.attributes('data-read'))).toEqual(['true', 'true'])
+    expect(w.emitted('unread')?.at(-1)).toEqual([0])
+  })
+
+  it('brings the dots back with a toast when «Прочитать все» fails', async () => {
+    const api = fakeApi({ markAllRead: vi.fn(async () => ({ status: 502 })) })
+    const w = await mounted(api)
+    await w.get('[data-testid="notifications-read-all"]').trigger('click')
+    await flushPromises()
+    expect(rows(w).map((r) => r.attributes('data-read'))).toEqual(['false', 'true'])
+    expect(toast.toasts.at(-1)?.message).toBe(
+      'Не удалось отметить уведомления прочитанными. Попробуйте ещё раз.',
+    )
+    expect(w.emitted('unread')).toEqual([[1]])
+  })
+
+  it('offers no «Прочитать все» when every row is read and there is no next page', async () => {
+    const load = vi.fn(async () => ({ status: 200, body: { items: [second], nextCursor: null } }))
+    const w = await mounted(fakeApi({ load }))
+    expect(w.find('[data-testid="notifications-read-all"]').exists()).toBe(false)
+  })
+
   it('keeps the rows when the next page fails and offers «Повторить»', async () => {
     const load = vi.fn(async (cursor?: string | null) =>
       cursor ? { status: 502 } : { status: 200, body: { items: [first], nextCursor: 'c1' } },
@@ -166,6 +219,23 @@ describe('notification helpers', () => {
     expect(actionText({ type: 'post_comment' })).toBe('прокомментировал ваш пост')
     expect(actionText({ type: 'mention' })).toBe('упомянул вас в комментарии')
     expect(actionText({ type: 'achievement' })).toBe('что-то сделал')
+  })
+
+  it('tells a grouped row in the plural with the number of the others', () => {
+    expect(othersText({ actorCount: 1 })).toBeNull()
+    expect(othersText({})).toBeNull()
+    expect(othersText({ actorCount: 10 })).toBe('и ещё 9')
+    expect(actionText({ type: 'reaction', actorCount: 10 })).toBe('оценили вашу публикацию')
+    expect(actionText({ type: 'new_subscriber', actorCount: 2 })).toBe('подписались на ваш блог')
+    expect(actionText({ type: 'post_comment', actorCount: 3 })).toBe('прокомментировали ваш пост')
+    expect(actionText({ type: 'repost', actorCount: 4 })).toBe('сделали репост вашего поста')
+    expect(actionText({ type: 'mention', actorCount: 2 })).toBe('упомянул вас в комментарии')
+  })
+
+  it('keeps one row per group across pages', () => {
+    const lifted = notification('n7', { group: 'reaction:p1:', actorCount: 11 })
+    const shown = [notification('n6', { group: 'reaction:p1:', actorCount: 10 }), first]
+    expect(appendNotifications(shown, [lifted, third]).map((n) => n.id)).toEqual(['n6', 'n1', 'n3'])
   })
 
   it('leads a subscriber without a nickname to the blog by its id, and nowhere without a blog', () => {
